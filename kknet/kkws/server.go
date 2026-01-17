@@ -24,6 +24,8 @@ type Server struct {
 	httpServer *http.Server
 	pool       *ants.Pool
 	started    atomic.Bool
+	booted     chan struct{}
+	done       chan error
 
 	stats kknet.Stats
 }
@@ -99,30 +101,50 @@ func (s *Server) Start() error {
 		Handler: mux,
 	}
 
-	s.opts.Logger.Infof("kkws server listen on %s%s", s.addr, s.path)
+	s.booted = make(chan struct{})
+	s.done = make(chan error, 1)
+
 	if s.opts.TLSConfig != nil {
-		ln, err := net.Listen("tcp", s.addr)
-		if err != nil {
-			s.stats.AddError()
-			s.started.Store(false)
-			return err
-		}
-		tlsListener := tls.NewListener(ln, s.opts.TLSConfig)
-		err = s.httpServer.Serve(tlsListener)
-		if err != nil && err != http.ErrServerClosed {
-			s.stats.AddError()
-			s.started.Store(false)
-			return err
-		}
-		return nil
+		go func() {
+			ln, err := net.Listen("tcp", s.addr)
+			if err != nil {
+				s.stats.AddError()
+				s.started.Store(false)
+				s.done <- err
+				return
+			}
+			s.opts.Logger.Infof("kkws tls server listen on %s%s", s.addr, s.path)
+			close(s.booted)
+			tlsListener := tls.NewListener(ln, s.opts.TLSConfig)
+			err = s.httpServer.Serve(tlsListener)
+			if err != nil && err != http.ErrServerClosed {
+				s.stats.AddError()
+			}
+			s.done <- err
+		}()
+	} else {
+		go func() {
+			s.opts.Logger.Infof("kkws server listen on %s%s", s.addr, s.path)
+			close(s.booted)
+			err := s.httpServer.ListenAndServe()
+			if err != nil && err != http.ErrServerClosed {
+				s.stats.AddError()
+			}
+			s.done <- err
+		}()
 	}
-	err := s.httpServer.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		s.stats.AddError()
+
+	select {
+	case <-s.booted:
+		return nil
+	case err := <-s.done:
 		s.started.Store(false)
+		if s.pool != nil {
+			s.pool.Release()
+			s.pool = nil
+		}
 		return err
 	}
-	return nil
 }
 
 // Stop shuts down the server.
@@ -132,6 +154,9 @@ func (s *Server) Stop() error {
 	}
 	if s.httpServer != nil {
 		_ = s.httpServer.Shutdown(context.Background())
+	}
+	if s.done != nil {
+		_ = <-s.done
 	}
 	if s.pool != nil {
 		s.pool.Release()
