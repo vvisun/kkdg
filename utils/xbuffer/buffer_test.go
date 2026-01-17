@@ -1,4 +1,4 @@
-package buffer_test
+package xbuffer_test
 
 import (
 	"bytes"

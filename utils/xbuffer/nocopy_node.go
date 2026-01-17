@@ -1,4 +1,4 @@
-package buffer
+package xbuffer
 
 type NocopyNode struct {
 	prev  any

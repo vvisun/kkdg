@@ -1,4 +1,4 @@
-package buffer
+package xbuffer
 
 import (
 	"sync/atomic"
