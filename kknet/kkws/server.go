@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
-	"sync"
 	"sync/atomic"
 
 	"github.com/gorilla/websocket"
@@ -164,107 +163,4 @@ func (s *Server) dispatch(c kknet.Conn, data []byte) {
 		s.stats.AddError()
 		s.opts.Logger.Errorf("kkws submit task error: %v", err)
 	}
-}
-
-type wsConn struct {
-	id    int64
-	conn  *websocket.Conn
-	opts  kknet.Options
-	stats *kknet.Stats
-
-	writeMu   sync.Mutex
-	closeOnce sync.Once
-
-	ctxMu sync.RWMutex
-	ctx   context.Context
-}
-
-func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *wsConn {
-	return &wsConn{
-		id:    kknet.NextConnID(),
-		conn:  conn,
-		opts:  opts,
-		stats: stats,
-		ctx:   context.Background(),
-	}
-}
-
-func (c *wsConn) ID() int64 {
-	return c.id
-}
-
-func (c *wsConn) RemoteAddr() string {
-	if c.conn == nil || c.conn.UnderlyingConn() == nil {
-		return ""
-	}
-	return c.conn.UnderlyingConn().RemoteAddr().String()
-}
-
-func (c *wsConn) Send(data []byte) error {
-	if len(data) > c.opts.MaxMessageSize {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return kkerrors.ErrMaxMessageSize
-	}
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-
-	if err := c.conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
-	if c.stats != nil {
-		c.stats.AddSent(len(data))
-	}
-	return nil
-}
-
-func (c *wsConn) Close() error {
-	c.closeWithError(nil, nil)
-	return nil
-}
-
-func (c *wsConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
-
-func (c *wsConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
-}
-
-func (c *wsConn) readLoop(dispatch func(kknet.Conn, []byte)) error {
-	for {
-		_, data, err := c.conn.ReadMessage()
-		if err != nil {
-			return err
-		}
-		if c.stats != nil {
-			c.stats.AddRecv(len(data))
-		}
-		if dispatch != nil {
-			dispatch(c, data)
-		}
-	}
-}
-
-func (c *wsConn) closeWithError(handler kknet.Handler, err error) {
-	c.closeOnce.Do(func() {
-		if c.stats != nil {
-			c.stats.OnClose()
-			if err != nil {
-				c.stats.AddError()
-			}
-		}
-		_ = c.conn.Close()
-		if handler != nil {
-			handler.OnClose(c, err)
-		}
-	})
 }

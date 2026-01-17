@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
-	"io"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -34,15 +33,28 @@ type Server struct {
 	tlsConns    map[int64]*tlsConn
 	tlsMu       sync.Mutex
 	tlsWg       sync.WaitGroup
+
+	unpacker kknet.StreamUnpacker
 }
 
 // NewServer creates a new TCP server.
 func NewServer(addr string, handler kknet.Handler, opts ...kknet.Option) *Server {
+	cfg := kknet.ApplyOptions(opts...)
 	return &Server{
-		addr:    addr,
-		handler: handler,
-		opts:    kknet.ApplyOptions(opts...),
+		addr:     addr,
+		handler:  handler,
+		opts:     cfg,
+		unpacker: kknet.NewLengthFieldUnpacker(cfg.MaxMessageSize),
 	}
+}
+
+// SetUnpacker overrides the default length-field unpacker.
+// Call before Start.
+func (s *Server) SetUnpacker(u kknet.StreamUnpacker) {
+	if u == nil {
+		return
+	}
+	s.unpacker = u
 }
 
 // Start begins listening and accepting connections.
@@ -239,35 +251,18 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	}
 
 	for {
-		if c.InboundBuffered() < 4 {
-			return gnet.None
-		}
-		header, err := c.Peek(4)
-		if err != nil {
-			if errors.Is(err, io.ErrShortBuffer) {
-				return gnet.None
-			}
-			h.server.stats.AddError()
-			return gnet.Close
-		}
-		size := int(binary.BigEndian.Uint32(header))
-		if size < 0 || size > tc.opts.MaxMessageSize {
-			h.server.stats.AddError()
-			return gnet.Close
-		}
-		if c.InboundBuffered() < 4+size {
-			return gnet.None
-		}
-		_, _ = c.Discard(4)
-		body, err := c.Next(size)
+		data, ok, err := h.server.unpacker.Unpack(c)
 		if err != nil {
 			h.server.stats.AddError()
 			return gnet.Close
 		}
-		h.server.stats.AddRecv(len(body))
+		if !ok {
+			return gnet.None
+		}
+		h.server.stats.AddRecv(len(data))
 		if h.server.handler != nil {
-			payload := make([]byte, len(body))
-			copy(payload, body)
+			payload := make([]byte, len(data))
+			copy(payload, data)
 			h.dispatch(tc, payload)
 		}
 	}
