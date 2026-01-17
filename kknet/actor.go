@@ -52,8 +52,18 @@ func (h *ActorHandler) Stop(ctx context.Context) {
 	if h == nil || h.root == nil || h.pid == nil {
 		return
 	}
-	h.root.Stop(h.pid)
-	_ = ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	fut := h.root.StopFuture(h.pid)
+	done := make(chan error, 1)
+	go func() {
+		done <- fut.Wait()
+	}()
+	select {
+	case <-ctx.Done():
+	case <-done:
+	}
 }
 
 // OnConnect implements Handler.

@@ -5,7 +5,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/panjf2000/ants/v2"
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
@@ -18,12 +17,11 @@ type Server struct {
 	opts    kknet.Options
 
 	engine  gnet.Engine
-	pool    *ants.Pool
 	started atomic.Bool
 	booted  chan struct{}
 	done    chan error
 
-	conns   map[string]*udpConn
+	seen    map[string]struct{}
 	connsMu sync.Mutex
 }
 
@@ -33,7 +31,7 @@ func NewServer(addr string, handler kknet.Handler, opts ...kknet.Option) *Server
 		addr:    addr,
 		handler: handler,
 		opts:    kknet.ApplyOptions(opts...),
-		conns:   make(map[string]*udpConn),
+		seen:    make(map[string]struct{}),
 	}
 }
 
@@ -41,19 +39,6 @@ func NewServer(addr string, handler kknet.Handler, opts ...kknet.Option) *Server
 func (s *Server) Start() error {
 	if s.started.Swap(true) {
 		return nil
-	}
-
-	if s.opts.PoolSize > 0 {
-		poolOpts := make([]ants.Option, 0, 1)
-		if logger, ok := s.opts.Logger.(ants.Logger); ok {
-			poolOpts = append(poolOpts, ants.WithLogger(logger))
-		}
-		pool, err := ants.NewPool(s.opts.PoolSize, poolOpts...)
-		if err != nil {
-			s.started.Store(false)
-			return err
-		}
-		s.pool = pool
 	}
 
 	s.booted = make(chan struct{})
@@ -70,10 +55,6 @@ func (s *Server) Start() error {
 		return nil
 	case err := <-s.done:
 		s.started.Store(false)
-		if s.pool != nil {
-			s.pool.Release()
-			s.pool = nil
-		}
 		return err
 	}
 }
@@ -89,11 +70,7 @@ func (s *Server) Stop() error {
 	if s.done != nil {
 		_ = <-s.done
 	}
-	s.closeAll(kkerrors.ErrServerNotStarted)
-	if s.pool != nil {
-		s.pool.Release()
-		s.pool = nil
-	}
+	s.closeAll(kkerrors.ErrServerStopped)
 	return nil
 }
 
@@ -115,44 +92,46 @@ func (h *udpEventHandler) OnBoot(eng gnet.Engine) (action gnet.Action) {
 }
 
 func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
-	buf := make([]byte, h.server.opts.MaxMessageSize)
-	n, err := c.Read(buf)
+	size := c.InboundBuffered()
+	if size <= 0 {
+		return gnet.None
+	}
+	if size > h.server.opts.MaxMessageSize {
+		h.server.opts.Logger.Errorf("kkudp message too large: %d", size)
+		return gnet.None
+	}
+	data, err := c.Next(size)
 	if err != nil {
 		h.server.opts.Logger.Errorf("kkudp read error: %v", err)
-		return gnet.Close
+		return gnet.None
 	}
 
-	uc := h.server.getOrCreateConn(c)
-	if h.server.handler != nil && n > 0 {
-		payload := make([]byte, n)
-		copy(payload, buf[:n])
+	uc := h.server.newConn(c)
+	if h.server.handler != nil {
+		payload := make([]byte, len(data))
+		copy(payload, data)
 		h.dispatch(uc, payload)
 	}
+	uc.deactivate()
 	return gnet.None
 }
 
 func (h *udpEventHandler) dispatch(c *udpConn, data []byte) {
-	if h.server.pool == nil {
-		h.server.handler.OnMessage(c, data)
-		return
-	}
-	if err := h.server.pool.Submit(func() {
-		h.server.handler.OnMessage(c, data)
-	}); err != nil {
-		h.server.opts.Logger.Errorf("kkudp submit task error: %v", err)
-	}
+	// UDP connection is only valid during OnTraffic callback.
+	h.server.handler.OnMessage(c, data)
 }
 
-func (s *Server) getOrCreateConn(c gnet.Conn) *udpConn {
+func (s *Server) newConn(c gnet.Conn) *udpConn {
 	key := c.RemoteAddr().String()
 	s.connsMu.Lock()
-	defer s.connsMu.Unlock()
-	if conn, ok := s.conns[key]; ok {
-		return conn
+	_, exists := s.seen[key]
+	if !exists {
+		s.seen[key] = struct{}{}
 	}
+	s.connsMu.Unlock()
+
 	conn := newUDPConn(c, s.opts)
-	s.conns[key] = conn
-	if s.handler != nil {
+	if !exists && s.handler != nil {
 		s.handler.OnConnect(conn)
 	}
 	return conn
@@ -161,30 +140,43 @@ func (s *Server) getOrCreateConn(c gnet.Conn) *udpConn {
 func (s *Server) closeAll(err error) {
 	s.connsMu.Lock()
 	defer s.connsMu.Unlock()
-	for _, c := range s.conns {
-		if s.handler != nil {
-			s.handler.OnClose(c, err)
-		}
+	if s.handler == nil {
+		s.seen = make(map[string]struct{})
+		return
 	}
-	s.conns = make(map[string]*udpConn)
+	for addr := range s.seen {
+		conn := &udpConn{
+			id:         kknet.NextConnID(),
+			remoteAddr: addr,
+			opts:       s.opts,
+			ctx:        context.Background(),
+		}
+		s.handler.OnClose(conn, err)
+	}
+	s.seen = make(map[string]struct{})
 }
 
 type udpConn struct {
-	id   int64
-	conn gnet.Conn
-	opts kknet.Options
+	id         int64
+	conn       gnet.Conn
+	remoteAddr string
+	opts       kknet.Options
+	active     atomic.Bool
 
 	ctxMu sync.RWMutex
 	ctx   context.Context
 }
 
 func newUDPConn(c gnet.Conn, opts kknet.Options) *udpConn {
-	return &udpConn{
-		id:   kknet.NextConnID(),
-		conn: c,
-		opts: opts,
-		ctx:  context.Background(),
+	conn := &udpConn{
+		id:         kknet.NextConnID(),
+		conn:       c,
+		remoteAddr: c.RemoteAddr().String(),
+		opts:       opts,
+		ctx:        context.Background(),
 	}
+	conn.active.Store(true)
+	return conn
 }
 
 func (c *udpConn) ID() int64 {
@@ -192,18 +184,25 @@ func (c *udpConn) ID() int64 {
 }
 
 func (c *udpConn) RemoteAddr() string {
-	return c.conn.RemoteAddr().String()
+	return c.remoteAddr
 }
 
 func (c *udpConn) Send(data []byte) error {
+	if !c.active.Load() {
+		return kkerrors.ErrConnectionClosed
+	}
 	if len(data) > c.opts.MaxMessageSize {
 		return kkerrors.ErrMaxMessageSize
 	}
-	return c.conn.AsyncWrite(data, nil)
+	if c.conn == nil {
+		return kkerrors.ErrConnectionClosed
+	}
+	_, err := c.conn.Write(data)
+	return err
 }
 
 func (c *udpConn) Close() error {
-	return c.conn.Close()
+	return nil
 }
 
 func (c *udpConn) Context() context.Context {
@@ -216,4 +215,8 @@ func (c *udpConn) SetContext(ctx context.Context) {
 	c.ctxMu.Lock()
 	c.ctx = ctx
 	c.ctxMu.Unlock()
+}
+
+func (c *udpConn) deactivate() {
+	c.active.Store(false)
 }
