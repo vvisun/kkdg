@@ -8,6 +8,7 @@ func (nopLogger) Infof(string, ...any)  {}
 func (nopLogger) Warnf(string, ...any)  {}
 func (nopLogger) Errorf(string, ...any) {}
 func (nopLogger) Fatalf(string, ...any) {}
+func (nopLogger) Panicf(string, ...any) {}
 
 var nopLoggerInstance = nopLogger{}
 

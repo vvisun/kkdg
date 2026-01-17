@@ -29,6 +29,12 @@ func (printsLogger) Fatalf(format string, args ...any) {
 	fmt.Printf("-----------fatal]-----------\n")
 }
 
+func (printsLogger) Panicf(format string, args ...any) {
+	fmt.Printf("-----------[panic-----------\n")
+	fmt.Printf(format+"\n", args...)
+	fmt.Printf("-----------panic]-----------\n")
+}
+
 var printsLoggerInstance = printsLogger{}
 
 // Stdout returns a logger that prints to stdout (debug-only convenience).

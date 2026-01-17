@@ -10,6 +10,7 @@ const (
 	LOG_LEVEL_WARN  ELogLevel = 2 // 警告日志
 	LOG_LEVEL_ERROR ELogLevel = 3 // 错误日志
 	LOG_LEVEL_FATAL ELogLevel = 4 // 严重错误日志
+	LOG_LEVEL_PANIC ELogLevel = 5 // 恐慌日志
 )
 
 // ILogger is a minimal debug logger interface.
@@ -19,6 +20,7 @@ type ILogger interface {
 	Warnf(format string, args ...any)
 	Errorf(format string, args ...any)
 	Fatalf(format string, args ...any)
+	Panicf(format string, args ...any)
 }
 
 var (
@@ -72,4 +74,11 @@ func Fatalf(format string, args ...any) {
 		return
 	}
 	defaultLogger.Fatalf(format, args...)
+}
+
+func Panicf(format string, args ...any) {
+	if defLogLevel > LOG_LEVEL_PANIC {
+		return
+	}
+	defaultLogger.Panicf(format, args...)
 }

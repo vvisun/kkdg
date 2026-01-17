@@ -1,0 +1,209 @@
+package xvalidate
+
+import (
+	"fmt"
+	"reflect"
+	"regexp"
+	"strconv"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/vvisun/kkdg/utils/xreflect"
+)
+
+// IsTelephone 检测是否是电话号码
+func IsTelephone(telephone string) bool {
+	matched, err := regexp.MatchString(`^((\d{3,4})|\d{3,4}-)?\d{7,8}$`, telephone)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// IsMobile 检测是否是手机号（国内）
+func IsMobile(mobile string) bool {
+	matched, err := regexp.MatchString(`^13[\d]{9}$|^14[5,7]{1}\d{8}$|^15[^4]{1}\d{8}$|^16[\d]{9}$|^17[0,2,3,5,6,7,8]{1}\d{8}$|^18[\d]{9}$|^19[\d]{9}$`, mobile)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// IsIdCard 检测是否是身份证号（国内18位）
+// 感谢知乎网友提供：https://zhuanlan.zhihu.com/p/608188853
+func IsIdCard(idCard string) bool {
+	reg := regexp.MustCompile(`^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[1-2][0-9]|3[0-1])\d{3}([0-9Xx])$`)
+	if !reg.MatchString(idCard) {
+		return false
+	}
+
+	// 校验身份证号码校验码
+	factor := []int{7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2}
+	checkCodes := []string{"1", "0", "X", "9", "8", "7", "6", "5", "4", "3", "2"}
+
+	sum := 0
+	for i := 0; i < 17; i++ {
+		num, _ := strconv.Atoi(string(idCard[i]))
+		sum += num * factor[i]
+	}
+
+	mod := sum % 11
+	checkCode := checkCodes[mod]
+
+	if strings.ToUpper(string(idCard[17])) != checkCode {
+		return false
+	}
+
+	return true
+}
+
+// IsAccount 检测是否是账号
+func IsAccount(account string, min int, max int) bool {
+	matched, err := regexp.MatchString(fmt.Sprintf(`^[a-zA-Z]{1}[a-zA-Z0-9_\-\.]{%d,%d}$`, min-1, max-1), account)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// IsEmail 检测是否是邮箱
+func IsEmail(email string) bool {
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9_\-\.]+@[a-zA-Z0-9_\-]+(\.[a-zA-Z0-9_\-]+)+$`, email)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// IsUrl 检测是否是URL
+func IsUrl(url string) bool {
+	matched, err := regexp.MatchString(`(?i)(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]`, url)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// IsQQ 是否是QQ号
+func IsQQ(qq string) bool {
+	matched, err := regexp.MatchString(`^[1-9][0-9]{4,}$`, qq)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// IsDigit 检测是否是数值（正负整数、正负浮点数）
+func IsDigit(digit string) bool {
+	matched, err := regexp.MatchString(`^-?[1-9]\d*(.\d)*$`, digit)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// IsNumber 检测是否是数字
+func IsNumber(number string, langths ...int) bool {
+	var pattern string
+	switch len(langths) {
+	case 0:
+		pattern = `^\d+$`
+	case 1:
+		pattern = fmt.Sprintf(`^\d{%d}$`, langths[0])
+	default:
+		pattern = fmt.Sprintf(`^\d{%d,%d}$`, langths[0], langths[1])
+	}
+
+	matched, err := regexp.MatchString(pattern, number)
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+// In 检测是值是否在给定的集合中
+func In(v any, set any) bool {
+	kind, value := xreflect.Value(set)
+	if kind != reflect.Slice && kind != reflect.Array {
+		return false
+	}
+
+	if value.Len() == 0 {
+		return false
+	}
+
+	kk, vv := xreflect.Value(v)
+
+	if kk == reflect.Slice || kk == reflect.Array {
+		check := make(map[any]struct{}, value.Len())
+
+		for i := 0; i < value.Len(); i++ {
+			val := value.Index(i)
+
+			if !val.Comparable() {
+				continue
+			}
+
+			check[val.Interface()] = struct{}{}
+		}
+
+		for i := 0; i < vv.Len(); i++ {
+			val := vv.Index(i)
+
+			if !val.Comparable() {
+				continue
+			}
+
+			if _, ok := check[val.Interface()]; ok {
+				return true
+			}
+		}
+	} else {
+		if !vv.Comparable() {
+			return false
+		}
+
+		for i := 0; i < value.Len(); i++ {
+			val := value.Index(i)
+
+			if !val.Comparable() {
+				continue
+			}
+
+			if reflect.DeepEqual(vv.Interface(), val.Interface()) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// Between 检测字符串长度是否在设置的范围之间
+func Between(s string, min, max int) bool {
+	n := utf8.RuneCountInString(s)
+	return n >= min && n <= max
+}
+
+// Length 检测字符串长度是否等于固定长度
+func Length(s string, n int) bool {
+	return utf8.RuneCountInString(s) == n
+}
+
+// MinLength 检测字符串的最小长度
+func MinLength(s string, n int) bool {
+	return utf8.RuneCountInString(s) >= n
+}
+
+// MaxLength 检测字符串的最大长度
+func MaxLength(s string, n int) bool {
+	return utf8.RuneCountInString(s) <= n
+}
