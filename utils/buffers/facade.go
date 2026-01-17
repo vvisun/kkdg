@@ -1,5 +1,5 @@
 package buffers
 
-type IBuffer interface {
-	Len() int
-}
+import "github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+
+type IBuffer = *kkbuffer.ByteBuffer

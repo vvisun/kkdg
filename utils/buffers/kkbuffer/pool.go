@@ -7,23 +7,12 @@ import (
 	"sync/atomic"
 )
 
-const (
-	minBitSize = 6 // 2**6=64 is a CPU cache line size
-	steps      = 20
-
-	minSize = 1 << minBitSize
-	maxSize = 1 << (minBitSize + steps - 1)
-
-	calibrateCallsThreshold = 42000
-	maxPercentile           = 0.95
-)
-
-// Pool represents byte buffer pool.
+// bfPool represents byte buffer pool.
 //
 // Distinct pools may be used for distinct types of byte buffers.
 // Properly determined byte buffer types with their own pools may help reducing
 // memory waste.
-type Pool struct {
+type bfPool struct {
 	calls       [steps]uint64
 	calibrating uint64
 
@@ -33,24 +22,11 @@ type Pool struct {
 	pool sync.Pool
 }
 
-var defaultPool Pool
-
-func init() {
-	defaultPool.defaultSize = minSize
-}
-
-// Get returns an empty byte buffer from the pool.
-//
-// The buffer may be returned via Put to reduce allocations.
-// When the expected size is known, prefer GetWithCapacity to avoid
-// reallocations on first writes.
-func Get() *ByteBuffer { return defaultPool.Get() }
-
 // Get returns new byte buffer with zero length.
 //
 // Return it via Put to minimize GC overhead. For known expected size,
 // use GetWithCapacity to reduce reallocations.
-func (p *Pool) Get() *ByteBuffer {
+func (p *bfPool) Get() *ByteBuffer {
 	v := p.pool.Get()
 	if v != nil {
 		b := v.(*ByteBuffer)
@@ -67,16 +43,8 @@ func (p *Pool) Get() *ByteBuffer {
 }
 
 // GetWithCapacity returns a buffer with at least the specified capacity.
-//
-// Prefer this over Get when the expected size is known, to avoid
-// reallocations on the first Write/Set/SetString.
-func GetWithCapacity(capacity int) *ByteBuffer {
-	return defaultPool.GetWithCapacity(capacity)
-}
-
-// GetWithCapacity returns a buffer with at least the specified capacity.
 // Use when the expected size is known to reduce reallocations.
-func (p *Pool) GetWithCapacity(capacity int) *ByteBuffer {
+func (p *bfPool) GetWithCapacity(capacity int) *ByteBuffer {
 	v := p.pool.Get()
 	if v != nil {
 		b := v.(*ByteBuffer)
@@ -102,16 +70,10 @@ func (p *Pool) GetWithCapacity(capacity int) *ByteBuffer {
 	}
 }
 
-// Put returns byte buffer to the pool.
-//
-// ByteBuffer.B mustn't be touched after returning it to the pool.
-// Otherwise data races will occur.
-func Put(b *ByteBuffer) { defaultPool.Put(b) }
-
 // Put releases byte buffer obtained via Get to the pool.
 //
 // The buffer mustn't be accessed after returning to the pool.
-func (p *Pool) Put(b *ByteBuffer) {
+func (p *bfPool) Put(b *ByteBuffer) {
 	if !b.released.CompareAndSwap(false, true) {
 		return //防止重复释放
 	}
@@ -127,7 +89,7 @@ func (p *Pool) Put(b *ByteBuffer) {
 	p.pool.Put(b)
 }
 
-func (p *Pool) calibrate() {
+func (p *bfPool) calibrate() {
 	if !atomic.CompareAndSwapUint64(&p.calibrating, 0, 1) {
 		return
 	}
@@ -165,6 +127,8 @@ func (p *Pool) calibrate() {
 
 	atomic.StoreUint64(&p.calibrating, 0)
 }
+
+//--------------------------------------------------
 
 type callSize struct {
 	calls uint64

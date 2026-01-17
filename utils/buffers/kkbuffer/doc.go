@@ -14,3 +14,41 @@
 //   - Repeated Set/SetString: GetWithCapacity or Grow before Reset+Set keeps
 //     cap >= len(data), so Set uses copy instead of allocating.
 package kkbuffer
+
+const (
+	minBitSize = 6 // 2**6=64 is a CPU cache line size
+	steps      = 20
+
+	minSize = 1 << minBitSize
+	maxSize = 1 << (minBitSize + steps - 1)
+
+	calibrateCallsThreshold = 42000
+	maxPercentile           = 0.95
+)
+
+var defaultPool bfPool
+
+func init() {
+	defaultPool.defaultSize = minSize
+}
+
+// Get returns an empty byte buffer from the pool.
+//
+// The buffer may be returned via Put to reduce allocations.
+// When the expected size is known, prefer GetWithCapacity to avoid
+// reallocations on first writes.
+func Get() *ByteBuffer { return defaultPool.Get() }
+
+// GetWithCapacity returns a buffer with at least the specified capacity.
+//
+// Prefer this over Get when the expected size is known, to avoid
+// reallocations on the first Write/Set/SetString.
+func GetWithCapacity(capacity int) *ByteBuffer {
+	return defaultPool.GetWithCapacity(capacity)
+}
+
+// Put returns byte buffer to the pool.
+//
+// ByteBuffer.B mustn't be touched after returning it to the pool.
+// Otherwise data races will occur.
+func Put(b *ByteBuffer) { defaultPool.Put(b) }

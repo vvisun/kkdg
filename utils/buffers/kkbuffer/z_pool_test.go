@@ -7,7 +7,7 @@ import (
 )
 
 func TestPool_GetPut(t *testing.T) {
-	pool := &Pool{}
+	pool := &bfPool{}
 
 	buf := pool.Get()
 	if buf == nil {
@@ -53,7 +53,7 @@ func TestGetPut(t *testing.T) {
 }
 
 func TestPool_Concurrent(t *testing.T) {
-	pool := &Pool{}
+	pool := &bfPool{}
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
@@ -70,7 +70,7 @@ func TestPool_Concurrent(t *testing.T) {
 }
 
 func TestPool_LargeBuffer(t *testing.T) {
-	pool := &Pool{}
+	pool := &bfPool{}
 	atomic.StoreUint64(&pool.maxSize, 1024)
 
 	buf := pool.Get()
@@ -87,7 +87,7 @@ func TestPool_LargeBuffer(t *testing.T) {
 }
 
 func TestPool_GetWithCapacity(t *testing.T) {
-	pool := &Pool{}
+	pool := &bfPool{}
 
 	buf := pool.GetWithCapacity(100)
 	if buf == nil {
@@ -121,7 +121,7 @@ func TestGetWithCapacity(t *testing.T) {
 }
 
 func TestPool_ResetOnPut(t *testing.T) {
-	pool := &Pool{}
+	pool := &bfPool{}
 
 	buf := pool.Get()
 	buf.WriteString("data")
@@ -134,7 +134,7 @@ func TestPool_ResetOnPut(t *testing.T) {
 }
 
 func TestPool_EmptyGet(t *testing.T) {
-	pool := &Pool{}
+	pool := &bfPool{}
 
 	buf := pool.Get()
 	if buf == nil {
@@ -172,7 +172,7 @@ func TestIndex(t *testing.T) {
 }
 
 func TestPool_Calibrate(t *testing.T) {
-	pool := &Pool{}
+	pool := &bfPool{}
 
 	for i := 0; i < calibrateCallsThreshold+1; i++ {
 		buf := pool.Get()

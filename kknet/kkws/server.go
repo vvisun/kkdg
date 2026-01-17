@@ -12,6 +12,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Server represents a WebSocket server.
@@ -177,19 +178,19 @@ func (s *Server) Stats() kknet.StatsSnapshot {
 
 func (s *Server) dispatch(c kknet.Conn, data buffers.IBuffer) {
 	if s.handler == nil {
-		releaseBuffer(data)
+		kkbuffer.Put(data)
 		return
 	}
 	if s.pool == nil {
 		s.handler.OnMessage(c, data)
-		releaseBuffer(data)
+		kkbuffer.Put(data)
 		return
 	}
 	if err := s.pool.Submit(func() {
 		s.handler.OnMessage(c, data)
-		releaseBuffer(data)
+		kkbuffer.Put(data)
 	}); err != nil {
-		releaseBuffer(data)
+		kkbuffer.Put(data)
 		s.stats.AddError()
 		s.opts.Logger.Errorf("kkws submit task error: %v", err)
 	}

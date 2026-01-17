@@ -273,14 +273,14 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 func (h *tcpEventHandler) dispatch(c *tcpConn, data buffers.IBuffer) {
 	if h.server.pool == nil {
 		h.server.handler.OnMessage(c, data)
-		releaseBuffer(data)
+		kkbuffer.Put(data)
 		return
 	}
 	if err := h.server.pool.Submit(func() {
 		h.server.handler.OnMessage(c, data)
-		releaseBuffer(data)
+		kkbuffer.Put(data)
 	}); err != nil {
-		releaseBuffer(data)
+		kkbuffer.Put(data)
 		h.server.opts.Logger.Errorf("kktcp submit task error: %v", err)
 	}
 }
@@ -483,10 +483,4 @@ func (c *tlsConn) closeWithError(handler kknet.Handler, err error) {
 			handler.OnClose(c, err)
 		}
 	})
-}
-
-func releaseBuffer(data buffers.IBuffer) {
-	if b, ok := data.(*kkbuffer.ByteBuffer); ok {
-		kkbuffer.Put(b)
-	}
 }

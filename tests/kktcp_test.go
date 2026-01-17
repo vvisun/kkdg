@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 type testHandler struct {
@@ -36,10 +35,7 @@ func (h *testHandler) OnClose(c kknet.Conn, err error) {
 }
 
 func bufferBytes(data buffers.IBuffer) []byte {
-	if b, ok := data.(*kkbuffer.ByteBuffer); ok {
-		return append([]byte(nil), b.B...)
-	}
-	return nil
+	return append([]byte(nil), data.B...)
 }
 
 func freeTCPAddr(t testing.TB) string {

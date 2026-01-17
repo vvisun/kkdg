@@ -36,7 +36,7 @@ func TestKKTCPHighConcurrency(t *testing.T) {
 	}
 	defer func() { _ = server.Stop() }()
 
-	const numClients = 500
+	const numClients = 5000
 	const batchSize = 50
 	var wg sync.WaitGroup
 	var successCount int64

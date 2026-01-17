@@ -70,7 +70,7 @@ func (c *Client) Connect() error {
 			if c.handler != nil {
 				c.handler.OnMessage(conn, data)
 			}
-			releaseBuffer(data)
+			kkbuffer.Put(data)
 		})
 		wsConn.closeWithError(c.handler, err)
 		c.connected.Store(false)
@@ -229,10 +229,4 @@ func (c *wsConn) closeWithError(handler kknet.Handler, err error) {
 			handler.OnClose(c, err)
 		}
 	})
-}
-
-func releaseBuffer(data buffers.IBuffer) {
-	if b, ok := data.(*kkbuffer.ByteBuffer); ok {
-		kkbuffer.Put(b)
-	}
 }

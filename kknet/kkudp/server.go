@@ -131,7 +131,7 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 func (h *udpEventHandler) dispatch(c *udpConn, data buffers.IBuffer) {
 	// UDP connection is only valid during OnTraffic callback.
 	h.server.handler.OnMessage(c, data)
-	releaseBuffer(data)
+	kkbuffer.Put(data)
 }
 
 func (s *Server) newConn(c gnet.Conn) *udpConn {
@@ -253,10 +253,4 @@ func (c *udpConn) SetContext(ctx context.Context) {
 
 func (c *udpConn) deactivate() {
 	c.active.Store(false)
-}
-
-func releaseBuffer(data buffers.IBuffer) {
-	if b, ok := data.(*kkbuffer.ByteBuffer); ok {
-		kkbuffer.Put(b)
-	}
 }

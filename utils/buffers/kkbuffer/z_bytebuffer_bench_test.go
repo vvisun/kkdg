@@ -1,6 +1,7 @@
 package kkbuffer
 
 import (
+	"encoding/binary"
 	"strings"
 	"sync"
 	"testing"
@@ -16,7 +17,7 @@ func BenchmarkGetPut(b *testing.B) {
 }
 
 func BenchmarkPool_GetPut(b *testing.B) {
-	pool := &Pool{}
+	pool := &bfPool{}
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		buf := pool.Get()
@@ -173,4 +174,18 @@ func BenchmarkGetPut_Concurrent(b *testing.B) {
 		}()
 	}
 	wg.Wait()
+}
+
+func Benchmark_AA(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+	data := []byte("test data")
+	for i := 0; i < b.N; i++ {
+		bb := Get()
+		bb.B = bb.B[:0]
+		bb.B = append(bb.B, 0, 0, 0, 0)
+		binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))
+		bb.B = append(bb.B, data...)
+		Put(bb)
+	}
 }
