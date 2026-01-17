@@ -35,7 +35,7 @@ func Str(seed string, length int) (str string) {
 	r := []rune(seed)
 	n := len(r)
 	if n == 0 {
-		kklog.Warnf("invalid seed")
+		kklog.Errorf("invalid seed")
 		return
 	}
 
