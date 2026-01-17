@@ -1,4 +1,4 @@
-package kknet
+package xnet
 
 import (
 	"io"

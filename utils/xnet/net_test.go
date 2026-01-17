@@ -1,10 +1,10 @@
-package kknet_test
+package xnet_test
 
 import (
 	"fmt"
 	"testing"
 
-	net "github.com/vvisun/kkdg/utils/kknet"
+	net "github.com/vvisun/kkdg/utils/xnet"
 )
 
 func TestParseAddr(t *testing.T) {
