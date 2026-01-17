@@ -57,6 +57,36 @@ func (p *Pool) Get() *ByteBuffer {
 	}
 }
 
+// GetWithCapacity returns a buffer with at least the specified capacity.
+// This can help reduce memory reallocations when the expected size is known.
+func GetWithCapacity(capacity int) *ByteBuffer {
+	return defaultPool.GetWithCapacity(capacity)
+}
+
+// GetWithCapacity returns a buffer with at least the specified capacity.
+func (p *Pool) GetWithCapacity(capacity int) *ByteBuffer {
+	v := p.pool.Get()
+	if v != nil {
+		b := v.(*ByteBuffer)
+		b.released.Store(false)
+		if cap(b.B) < capacity {
+			// If pooled buffer is too small, create a new one with required capacity
+			b.B = make([]byte, 0, capacity)
+		} else {
+			b.B = b.B[:0]
+		}
+		return b
+	}
+	defaultSize := int(atomic.LoadUint64(&p.defaultSize))
+	initCap := capacity
+	if defaultSize > capacity {
+		initCap = defaultSize
+	}
+	return &ByteBuffer{
+		B: make([]byte, 0, initCap),
+	}
+}
+
 // Put returns byte buffer to the pool.
 //
 // ByteBuffer.B mustn't be touched after returning it to the pool.

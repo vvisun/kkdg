@@ -184,7 +184,12 @@ func (c *clientConn) readLoop(handler kknet.Handler) error {
 		}
 		if handler != nil && n > 0 {
 			payload := kkbuffer.Get()
-			payload.B = append(payload.B[:0], buf[:n]...)
+			if cap(payload.B) < n {
+				payload.B = make([]byte, n)
+			} else {
+				payload.B = payload.B[:n]
+			}
+			copy(payload.B, buf[:n])
 			handler.OnMessage(c, payload)
 			kkbuffer.Put(payload)
 		}

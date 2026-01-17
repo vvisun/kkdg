@@ -207,7 +207,7 @@ func (c *wsConn) readLoop(dispatch func(kknet.Conn, buffers.IBuffer)) error {
 			c.stats.AddRecv(len(data))
 		}
 		payload := kkbuffer.Get()
-		payload.B = append(payload.B[:0], data...)
+		payload.Set(data)
 		if dispatch != nil {
 			dispatch(c, payload)
 		} else {

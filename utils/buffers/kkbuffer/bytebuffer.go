@@ -96,13 +96,54 @@ func (b *ByteBuffer) WriteString(s string) (int, error) {
 }
 
 // Set sets ByteBuffer.B to p.
+// If the buffer has sufficient capacity, it uses copy for better performance.
 func (b *ByteBuffer) Set(p []byte) {
-	b.B = append(b.B[:0], p...)
+	if cap(b.B) >= len(p) {
+		b.B = b.B[:len(p)]
+		copy(b.B, p)
+	} else {
+		b.B = append(b.B[:0], p...)
+	}
 }
 
 // SetString sets ByteBuffer.B to s.
+// If the buffer has sufficient capacity, it uses copy for better performance.
 func (b *ByteBuffer) SetString(s string) {
-	b.B = append(b.B[:0], s...)
+	if cap(b.B) >= len(s) {
+		b.B = b.B[:len(s)]
+		copy(b.B, s)
+	} else {
+		b.B = append(b.B[:0], s...)
+	}
+}
+
+// SetWithCapacity sets ByteBuffer.B to p, ensuring capacity >= len(p).
+// This method always ensures sufficient capacity, potentially allocating new memory.
+func (b *ByteBuffer) SetWithCapacity(p []byte) {
+	if cap(b.B) < len(p) {
+		b.B = make([]byte, len(p))
+	} else {
+		b.B = b.B[:len(p)]
+	}
+	copy(b.B, p)
+}
+
+// Grow ensures the buffer has at least n bytes capacity.
+// If the current capacity is less than n, it grows the buffer.
+func (b *ByteBuffer) Grow(n int) {
+	if cap(b.B) < n {
+		newCap := n
+		if cap(b.B) > 0 {
+			// Double the capacity, but ensure it's at least n
+			newCap = cap(b.B) * 2
+			if newCap < n {
+				newCap = n
+			}
+		}
+		newBuf := make([]byte, len(b.B), newCap)
+		copy(newBuf, b.B)
+		b.B = newBuf
+	}
 }
 
 // String returns string representation of ByteBuffer.B.
