@@ -12,4 +12,6 @@ ants: 是一个高性能的goroutine池。
 地址: https://github.com/panjf2000/ants
 protoactor-go: 是一个基于Actor模型的并发编程框架。
 地址: https://github.com/asynkron/protoactor-go
+
+支持 TCP/WS 的 TLS/SSL（通过 Options.TLSConfig 配置）。
 */

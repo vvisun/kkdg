@@ -41,6 +41,7 @@ func (c *Client) Connect() error {
 	dialer := websocket.Dialer{
 		ReadBufferSize:  c.opts.ReadBufferSize,
 		WriteBufferSize: c.opts.WriteBufferSize,
+		TLSClientConfig: c.opts.TLSConfig,
 	}
 
 	conn, _, err := dialer.Dial(c.url, nil)

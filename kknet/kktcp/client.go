@@ -2,6 +2,7 @@ package kktcp
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"io"
 	"net"
@@ -40,7 +41,13 @@ func (c *Client) Connect() error {
 		return nil
 	}
 
-	conn, err := net.Dial("tcp", c.addr)
+	var conn net.Conn
+	var err error
+	if c.opts.TLSConfig != nil {
+		conn, err = tls.Dial("tcp", c.addr, c.opts.TLSConfig)
+	} else {
+		conn, err = net.Dial("tcp", c.addr)
+	}
 	if err != nil {
 		c.connected.Store(false)
 		return err
@@ -110,12 +117,12 @@ func (c *Client) Stats() kknet.StatsSnapshot {
 }
 
 type clientConn struct {
-	id   int64
-	conn net.Conn
-	opts kknet.Options
+	id    int64
+	conn  net.Conn
+	opts  kknet.Options
 	stats *kknet.Stats
 
-	writeMu  sync.Mutex
+	writeMu   sync.Mutex
 	closeOnce sync.Once
 
 	ctxMu sync.RWMutex

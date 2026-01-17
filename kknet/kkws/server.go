@@ -2,6 +2,8 @@ package kkws
 
 import (
 	"context"
+	"crypto/tls"
+	"net"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -101,6 +103,20 @@ func (s *Server) Start() error {
 	}
 
 	s.opts.Logger.Infof("kkws server listen on %s%s", s.addr, s.path)
+	if s.opts.TLSConfig != nil {
+		ln, err := net.Listen("tcp", s.addr)
+		if err != nil {
+			s.stats.AddError()
+			return err
+		}
+		tlsListener := tls.NewListener(ln, s.opts.TLSConfig)
+		err = s.httpServer.Serve(tlsListener)
+		if err != nil && err != http.ErrServerClosed {
+			s.stats.AddError()
+			return err
+		}
+		return nil
+	}
 	err := s.httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		s.stats.AddError()

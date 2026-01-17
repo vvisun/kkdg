@@ -2,6 +2,7 @@ package kknet
 
 import (
 	"context"
+	"crypto/tls"
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -26,11 +27,12 @@ type Handler interface {
 
 // Options are common network settings.
 type Options struct {
-	Logger         kklog.ILogger
-	MaxMessageSize int
-	PoolSize       int
-	ReadBufferSize int
+	Logger          kklog.ILogger
+	MaxMessageSize  int
+	PoolSize        int
+	ReadBufferSize  int
 	WriteBufferSize int
+	TLSConfig       *tls.Config
 }
 
 const (
@@ -49,6 +51,7 @@ func DefaultOptions() Options {
 		PoolSize:        0,
 		ReadBufferSize:  defaultBufferSize,
 		WriteBufferSize: defaultBufferSize,
+		TLSConfig:       nil,
 	}
 }
 
@@ -99,6 +102,13 @@ func WithBufferSizes(readSize, writeSize int) Option {
 		if writeSize > 0 {
 			o.WriteBufferSize = writeSize
 		}
+	}
+}
+
+// WithTLSConfig enables TLS for supported protocols.
+func WithTLSConfig(cfg *tls.Config) Option {
+	return func(o *Options) {
+		o.TLSConfig = cfg
 	}
 }
 
