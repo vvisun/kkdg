@@ -7,6 +7,7 @@ var (
 	ErrUnexpectedEOF     = errors.New("unexpected EOF")
 	ErrInvalidWhence     = errors.New("invalid whence")
 	ErrNegativePosition  = errors.New("negative position")
+	ErrNotByteSlice      = errors.New("v is not a []byte")
 )
 
 var (

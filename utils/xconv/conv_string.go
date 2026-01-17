@@ -7,7 +7,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/vvisun/kkdg/utils/kkencode/json"
+	"github.com/vvisun/kkdg/utils/kkcodec/json"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 

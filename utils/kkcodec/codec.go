@@ -1,4 +1,4 @@
-package kkencode
+package kkcodec
 
 type ICodec interface {
 	// Marshal 编码
