@@ -23,6 +23,14 @@ func TestPool_GetPut(t *testing.T) {
 
 	// Put it back
 	pool.Put(buf1)
+	if !buf1.released.Load() {
+		t.Fatal("Buffer was not released after Put")
+	}
+
+	pool.Put(buf1) //重复释放
+	if !buf1.released.Load() {
+		t.Fatal("Buffer was not released after Put")
+	}
 
 	// Get another buffer - should reuse the same one
 	buf2 := pool.Get()

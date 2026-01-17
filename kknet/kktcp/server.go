@@ -13,6 +13,8 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Server represents a TCP server with length-prefixed messages.
@@ -261,21 +263,24 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		}
 		h.server.stats.AddRecv(len(data))
 		if h.server.handler != nil {
-			payload := make([]byte, len(data))
-			copy(payload, data)
+			payload := kkbuffer.Get()
+			payload.B = append(payload.B[:0], data...)
 			h.dispatch(tc, payload)
 		}
 	}
 }
 
-func (h *tcpEventHandler) dispatch(c *tcpConn, data []byte) {
+func (h *tcpEventHandler) dispatch(c *tcpConn, data buffers.IBuffer) {
 	if h.server.pool == nil {
 		h.server.handler.OnMessage(c, data)
+		releaseBuffer(data)
 		return
 	}
 	if err := h.server.pool.Submit(func() {
 		h.server.handler.OnMessage(c, data)
+		releaseBuffer(data)
 	}); err != nil {
+		releaseBuffer(data)
 		h.server.opts.Logger.Errorf("kktcp submit task error: %v", err)
 	}
 }
@@ -385,14 +390,17 @@ func (c *tlsConn) Send(data []byte) error {
 		}
 		return kkerrors.ErrMaxMessageSize
 	}
-	buf := make([]byte, 4+len(data))
-	binary.BigEndian.PutUint32(buf[:4], uint32(len(data)))
-	copy(buf[4:], data)
+	bb := kkbuffer.Get()
+	bb.B = bb.B[:0]
+	bb.B = append(bb.B, 0, 0, 0, 0)
+	binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))
+	bb.B = append(bb.B, data...)
+	defer kkbuffer.Put(bb)
 
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
-	err := writeFull(c.conn, buf)
+	err := writeFull(c.conn, bb.B)
 	if err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -434,16 +442,23 @@ func (c *tlsConn) readLoop(handler kknet.Handler) error {
 			}
 			return kkerrors.ErrMaxMessageSize
 		}
-		buf := make([]byte, size)
-		if err := readFull(c.conn, buf); err != nil {
+		payload := kkbuffer.Get()
+		if cap(payload.B) < size {
+			payload.B = make([]byte, size)
+		} else {
+			payload.B = payload.B[:size]
+		}
+		if err := readFull(c.conn, payload.B); err != nil {
+			kkbuffer.Put(payload)
 			return err
 		}
 		if c.stats != nil {
-			c.stats.AddRecv(len(buf))
+			c.stats.AddRecv(len(payload.B))
 		}
 		if handler != nil {
-			handler.OnMessage(c, buf)
+			handler.OnMessage(c, payload)
 		}
+		kkbuffer.Put(payload)
 	}
 }
 
@@ -460,4 +475,10 @@ func (c *tlsConn) closeWithError(handler kknet.Handler, err error) {
 			handler.OnClose(c, err)
 		}
 	})
+}
+
+func releaseBuffer(data buffers.IBuffer) {
+	if b, ok := data.(*kkbuffer.ByteBuffer); ok {
+		kkbuffer.Put(b)
+	}
 }

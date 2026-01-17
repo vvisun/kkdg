@@ -8,6 +8,8 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Server represents a UDP server.
@@ -118,17 +120,18 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	uc := h.server.newConn(c)
 	h.server.stats.AddRecv(len(data))
 	if h.server.handler != nil {
-		payload := make([]byte, len(data))
-		copy(payload, data)
+		payload := kkbuffer.Get()
+		payload.B = append(payload.B[:0], data...)
 		h.dispatch(uc, payload)
 	}
 	uc.deactivate()
 	return gnet.None
 }
 
-func (h *udpEventHandler) dispatch(c *udpConn, data []byte) {
+func (h *udpEventHandler) dispatch(c *udpConn, data buffers.IBuffer) {
 	// UDP connection is only valid during OnTraffic callback.
 	h.server.handler.OnMessage(c, data)
+	releaseBuffer(data)
 }
 
 func (s *Server) newConn(c gnet.Conn) *udpConn {
@@ -250,4 +253,10 @@ func (c *udpConn) SetContext(ctx context.Context) {
 
 func (c *udpConn) deactivate() {
 	c.active.Store(false)
+}
+
+func releaseBuffer(data buffers.IBuffer) {
+	if b, ok := data.(*kkbuffer.ByteBuffer); ok {
+		kkbuffer.Put(b)
+	}
 }

@@ -8,6 +8,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Client represents a WebSocket client.
@@ -64,10 +66,11 @@ func (c *Client) Connect() error {
 	}
 
 	go func() {
-		err := wsConn.readLoop(func(conn kknet.Conn, data []byte) {
+		err := wsConn.readLoop(func(conn kknet.Conn, data buffers.IBuffer) {
 			if c.handler != nil {
 				c.handler.OnMessage(conn, data)
 			}
+			releaseBuffer(data)
 		})
 		wsConn.closeWithError(c.handler, err)
 		c.connected.Store(false)
@@ -194,7 +197,7 @@ func (c *wsConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *wsConn) readLoop(dispatch func(kknet.Conn, []byte)) error {
+func (c *wsConn) readLoop(dispatch func(kknet.Conn, buffers.IBuffer)) error {
 	for {
 		_, data, err := c.conn.ReadMessage()
 		if err != nil {
@@ -203,8 +206,12 @@ func (c *wsConn) readLoop(dispatch func(kknet.Conn, []byte)) error {
 		if c.stats != nil {
 			c.stats.AddRecv(len(data))
 		}
+		payload := kkbuffer.Get()
+		payload.B = append(payload.B[:0], data...)
 		if dispatch != nil {
-			dispatch(c, data)
+			dispatch(c, payload)
+		} else {
+			kkbuffer.Put(payload)
 		}
 	}
 }
@@ -222,4 +229,10 @@ func (c *wsConn) closeWithError(handler kknet.Handler, err error) {
 			handler.OnClose(c, err)
 		}
 	})
+}
+
+func releaseBuffer(data buffers.IBuffer) {
+	if b, ok := data.(*kkbuffer.ByteBuffer); ok {
+		kkbuffer.Put(b)
+	}
 }

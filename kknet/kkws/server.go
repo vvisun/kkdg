@@ -11,6 +11,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers"
 )
 
 // Server represents a WebSocket server.
@@ -67,10 +68,7 @@ func (s *Server) Start() error {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  s.opts.ReadBufferSize,
 		WriteBufferSize: s.opts.WriteBufferSize,
-		CheckOrigin: func(r *http.Request) bool {
-			_ = r
-			return true
-		},
+		CheckOrigin:     s.opts.OriginChecker,
 	}
 
 	mux := http.NewServeMux()
@@ -149,17 +147,21 @@ func (s *Server) Stats() kknet.StatsSnapshot {
 	return s.stats.Snapshot()
 }
 
-func (s *Server) dispatch(c kknet.Conn, data []byte) {
+func (s *Server) dispatch(c kknet.Conn, data buffers.IBuffer) {
 	if s.handler == nil {
+		releaseBuffer(data)
 		return
 	}
 	if s.pool == nil {
 		s.handler.OnMessage(c, data)
+		releaseBuffer(data)
 		return
 	}
 	if err := s.pool.Submit(func() {
 		s.handler.OnMessage(c, data)
+		releaseBuffer(data)
 	}); err != nil {
+		releaseBuffer(data)
 		s.stats.AddError()
 		s.opts.Logger.Errorf("kkws submit task error: %v", err)
 	}

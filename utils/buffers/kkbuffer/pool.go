@@ -48,7 +48,9 @@ func Get() *ByteBuffer { return defaultPool.Get() }
 func (p *Pool) Get() *ByteBuffer {
 	v := p.pool.Get()
 	if v != nil {
-		return v.(*ByteBuffer)
+		b := v.(*ByteBuffer)
+		b.released.Store(false)
+		return b
 	}
 	return &ByteBuffer{
 		B: make([]byte, 0, atomic.LoadUint64(&p.defaultSize)),
@@ -65,6 +67,10 @@ func Put(b *ByteBuffer) { defaultPool.Put(b) }
 //
 // The buffer mustn't be accessed after returning to the pool.
 func (p *Pool) Put(b *ByteBuffer) {
+	if !b.released.CompareAndSwap(false, true) {
+		return //防止重复释放
+	}
+
 	idx := index(len(b.B))
 
 	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {

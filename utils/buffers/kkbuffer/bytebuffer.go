@@ -1,6 +1,9 @@
 package kkbuffer
 
-import "io"
+import (
+	"io"
+	"sync/atomic"
+)
 
 // ByteBuffer provides byte buffer, which can be used for minimizing
 // memory allocations.
@@ -14,6 +17,8 @@ type ByteBuffer struct {
 	// B is a byte buffer to use in append-like workloads.
 	// See example code for details.
 	B []byte
+
+	released atomic.Bool //防止重复释放
 }
 
 // Len returns the size of the byte buffer.

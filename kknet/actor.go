@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // ActorEventType represents connection event type.
@@ -78,14 +80,18 @@ func (h *ActorHandler) OnConnect(c Conn) {
 }
 
 // OnMessage implements Handler.
-func (h *ActorHandler) OnMessage(c Conn, data []byte) {
+func (h *ActorHandler) OnMessage(c Conn, data buffers.IBuffer) {
 	if h == nil {
 		return
+	}
+	var payload []byte
+	if b, ok := data.(*kkbuffer.ByteBuffer); ok {
+		payload = append([]byte(nil), b.B...)
 	}
 	h.root.Send(h.pid, &ActorEvent{
 		Type: ActorEventMessage,
 		Conn: c,
-		Data: data,
+		Data: payload,
 	})
 }
 

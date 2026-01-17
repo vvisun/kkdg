@@ -11,6 +11,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Client represents a TCP client.
@@ -154,14 +155,17 @@ func (c *clientConn) Send(data []byte) error {
 		}
 		return kkerrors.ErrMaxMessageSize
 	}
-	buf := make([]byte, 4+len(data))
-	binary.BigEndian.PutUint32(buf[:4], uint32(len(data)))
-	copy(buf[4:], data)
+	bb := kkbuffer.Get()
+	bb.B = bb.B[:0]
+	bb.B = append(bb.B, 0, 0, 0, 0)
+	binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))
+	bb.B = append(bb.B, data...)
+	defer kkbuffer.Put(bb)
 
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
-	err := writeFull(c.conn, buf)
+	err := writeFull(c.conn, bb.B)
 	if err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -200,16 +204,23 @@ func (c *clientConn) readLoop(handler kknet.Handler) error {
 		if size < 0 || size > c.opts.MaxMessageSize {
 			return kkerrors.ErrMaxMessageSize
 		}
-		buf := make([]byte, size)
-		if err := readFull(c.conn, buf); err != nil {
+		payload := kkbuffer.Get()
+		if cap(payload.B) < size {
+			payload.B = make([]byte, size)
+		} else {
+			payload.B = payload.B[:size]
+		}
+		if err := readFull(c.conn, payload.B); err != nil {
+			kkbuffer.Put(payload)
 			return err
 		}
 		if c.stats != nil {
-			c.stats.AddRecv(len(buf))
+			c.stats.AddRecv(len(payload.B))
 		}
 		if handler != nil {
-			handler.OnMessage(c, buf)
+			handler.OnMessage(c, payload)
 		}
+		kkbuffer.Put(payload)
 	}
 }
 

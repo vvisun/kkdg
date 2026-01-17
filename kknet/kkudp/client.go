@@ -8,6 +8,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Client represents a UDP client.
@@ -182,9 +183,10 @@ func (c *clientConn) readLoop(handler kknet.Handler) error {
 			c.stats.AddRecv(n)
 		}
 		if handler != nil && n > 0 {
-			data := make([]byte, n)
-			copy(data, buf[:n])
-			handler.OnMessage(c, data)
+			payload := kkbuffer.Get()
+			payload.B = append(payload.B[:0], buf[:n]...)
+			handler.OnMessage(c, payload)
+			kkbuffer.Put(payload)
 		}
 	}
 }

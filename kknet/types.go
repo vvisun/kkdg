@@ -3,8 +3,10 @@ package kknet
 import (
 	"context"
 	"crypto/tls"
+	"net/http"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -21,9 +23,11 @@ type Conn interface {
 // Handler handles connection lifecycle and messages.
 type Handler interface {
 	OnConnect(c Conn)
-	OnMessage(c Conn, data []byte)
+	OnMessage(c Conn, data buffers.IBuffer)
 	OnClose(c Conn, err error)
 }
+
+type OriginCheckFunc func(r *http.Request) bool
 
 // Options are common network settings.
 type Options struct {
@@ -33,12 +37,17 @@ type Options struct {
 	ReadBufferSize  int
 	WriteBufferSize int
 	TLSConfig       *tls.Config
+	OriginChecker   OriginCheckFunc
 }
 
 const (
 	defaultMaxMessageSize = 4 * 1024 * 1024
 	defaultBufferSize     = 64 * 1024
 )
+
+func defaultOriginChecker(r *http.Request) bool {
+	return true
+}
 
 // Option applies changes to Options.
 type Option func(*Options)
@@ -52,6 +61,7 @@ func DefaultOptions() Options {
 		ReadBufferSize:  defaultBufferSize,
 		WriteBufferSize: defaultBufferSize,
 		TLSConfig:       nil,
+		OriginChecker:   defaultOriginChecker,
 	}
 }
 
@@ -101,6 +111,15 @@ func WithBufferSizes(readSize, writeSize int) Option {
 		}
 		if writeSize > 0 {
 			o.WriteBufferSize = writeSize
+		}
+	}
+}
+
+// WithOriginChecker sets origin checker.
+func WithOriginChecker(checker OriginCheckFunc) Option {
+	return func(o *Options) {
+		if checker != nil {
+			o.OriginChecker = checker
 		}
 	}
 }
