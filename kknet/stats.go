@@ -1,0 +1,76 @@
+package kknet
+
+import "sync/atomic"
+
+// StatsSnapshot is a point-in-time copy of statistics.
+type StatsSnapshot struct {
+	ActiveConns int64
+	TotalConns  int64
+	ClosedConns int64
+	RecvMsgs    int64
+	SentMsgs    int64
+	RecvBytes   int64
+	SentBytes   int64
+	Errors      int64
+}
+
+// Stats tracks connection and traffic counters.
+type Stats struct {
+	activeConns int64
+	totalConns  int64
+	closedConns int64
+	recvMsgs    int64
+	sentMsgs    int64
+	recvBytes   int64
+	sentBytes   int64
+	errors      int64
+}
+
+// OnConnect updates connection counters.
+func (s *Stats) OnConnect() {
+	atomic.AddInt64(&s.activeConns, 1)
+	atomic.AddInt64(&s.totalConns, 1)
+}
+
+// OnClose updates connection counters.
+func (s *Stats) OnClose() {
+	atomic.AddInt64(&s.activeConns, -1)
+	atomic.AddInt64(&s.closedConns, 1)
+}
+
+// AddRecv records one received message.
+func (s *Stats) AddRecv(n int) {
+	if n <= 0 {
+		return
+	}
+	atomic.AddInt64(&s.recvMsgs, 1)
+	atomic.AddInt64(&s.recvBytes, int64(n))
+}
+
+// AddSent records one sent message.
+func (s *Stats) AddSent(n int) {
+	if n <= 0 {
+		return
+	}
+	atomic.AddInt64(&s.sentMsgs, 1)
+	atomic.AddInt64(&s.sentBytes, int64(n))
+}
+
+// AddError records an error.
+func (s *Stats) AddError() {
+	atomic.AddInt64(&s.errors, 1)
+}
+
+// Snapshot returns a copy of current stats.
+func (s *Stats) Snapshot() StatsSnapshot {
+	return StatsSnapshot{
+		ActiveConns: atomic.LoadInt64(&s.activeConns),
+		TotalConns:  atomic.LoadInt64(&s.totalConns),
+		ClosedConns: atomic.LoadInt64(&s.closedConns),
+		RecvMsgs:    atomic.LoadInt64(&s.recvMsgs),
+		SentMsgs:    atomic.LoadInt64(&s.sentMsgs),
+		RecvBytes:   atomic.LoadInt64(&s.recvBytes),
+		SentBytes:   atomic.LoadInt64(&s.sentBytes),
+		Errors:      atomic.LoadInt64(&s.errors),
+	}
+}

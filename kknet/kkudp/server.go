@@ -23,6 +23,8 @@ type Server struct {
 
 	seen    map[string]struct{}
 	connsMu sync.Mutex
+
+	stats kknet.Stats
 }
 
 // NewServer creates a new UDP server.
@@ -79,6 +81,11 @@ func (s *Server) Addr() string {
 	return s.addr
 }
 
+// Stats returns a snapshot of server statistics.
+func (s *Server) Stats() kknet.StatsSnapshot {
+	return s.stats.Snapshot()
+}
+
 type udpEventHandler struct {
 	*gnet.BuiltinEventEngine
 	server *Server
@@ -97,16 +104,19 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		return gnet.None
 	}
 	if size > h.server.opts.MaxMessageSize {
+		h.server.stats.AddError()
 		h.server.opts.Logger.Errorf("kkudp message too large: %d", size)
 		return gnet.None
 	}
 	data, err := c.Next(size)
 	if err != nil {
+		h.server.stats.AddError()
 		h.server.opts.Logger.Errorf("kkudp read error: %v", err)
 		return gnet.None
 	}
 
 	uc := h.server.newConn(c)
+	h.server.stats.AddRecv(len(data))
 	if h.server.handler != nil {
 		payload := make([]byte, len(data))
 		copy(payload, data)
@@ -130,9 +140,12 @@ func (s *Server) newConn(c gnet.Conn) *udpConn {
 	}
 	s.connsMu.Unlock()
 
-	conn := newUDPConn(c, s.opts)
-	if !exists && s.handler != nil {
-		s.handler.OnConnect(conn)
+	conn := newUDPConn(c, s.opts, &s.stats)
+	if !exists {
+		s.stats.OnConnect()
+		if s.handler != nil {
+			s.handler.OnConnect(conn)
+		}
 	}
 	return conn
 }
@@ -145,6 +158,7 @@ func (s *Server) closeAll(err error) {
 		return
 	}
 	for addr := range s.seen {
+		s.stats.OnClose()
 		conn := &udpConn{
 			id:         kknet.NextConnID(),
 			remoteAddr: addr,
@@ -162,17 +176,19 @@ type udpConn struct {
 	remoteAddr string
 	opts       kknet.Options
 	active     atomic.Bool
+	stats      *kknet.Stats
 
 	ctxMu sync.RWMutex
 	ctx   context.Context
 }
 
-func newUDPConn(c gnet.Conn, opts kknet.Options) *udpConn {
+func newUDPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *udpConn {
 	conn := &udpConn{
 		id:         kknet.NextConnID(),
 		conn:       c,
 		remoteAddr: c.RemoteAddr().String(),
 		opts:       opts,
+		stats:      stats,
 		ctx:        context.Background(),
 	}
 	conn.active.Store(true)
@@ -192,13 +208,28 @@ func (c *udpConn) Send(data []byte) error {
 		return kkerrors.ErrConnectionClosed
 	}
 	if len(data) > c.opts.MaxMessageSize {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
 		return kkerrors.ErrMaxMessageSize
 	}
 	if c.conn == nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
 		return kkerrors.ErrConnectionClosed
 	}
 	_, err := c.conn.Write(data)
-	return err
+	if err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
+	}
+	if c.stats != nil {
+		c.stats.AddSent(len(data))
+	}
+	return nil
 }
 
 func (c *udpConn) Close() error {

@@ -25,6 +25,8 @@ type Server struct {
 	started atomic.Bool
 	booted  chan struct{}
 	done    chan error
+
+	stats kknet.Stats
 }
 
 // NewServer creates a new TCP server.
@@ -100,6 +102,11 @@ func (s *Server) Addr() string {
 	return s.addr
 }
 
+// Stats returns a snapshot of server statistics.
+func (s *Server) Stats() kknet.StatsSnapshot {
+	return s.stats.Snapshot()
+}
+
 type tcpEventHandler struct {
 	*gnet.BuiltinEventEngine
 	server *Server
@@ -117,7 +124,8 @@ func (h *tcpEventHandler) OnShutdown(eng gnet.Engine) {
 }
 
 func (h *tcpEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
-	tconn := newTCPConn(c, h.server.opts)
+	h.server.stats.OnConnect()
+	tconn := newTCPConn(c, h.server.opts, &h.server.stats)
 	c.SetContext(tconn)
 	if h.server.handler != nil {
 		h.server.handler.OnConnect(tconn)
@@ -126,6 +134,10 @@ func (h *tcpEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 }
 
 func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
+	h.server.stats.OnClose()
+	if err != nil {
+		h.server.stats.AddError()
+	}
 	if h.server.handler == nil {
 		return gnet.None
 	}
@@ -150,10 +162,12 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 			if errors.Is(err, io.ErrShortBuffer) {
 				return gnet.None
 			}
+			h.server.stats.AddError()
 			return gnet.Close
 		}
 		size := int(binary.BigEndian.Uint32(header))
 		if size < 0 || size > tc.opts.MaxMessageSize {
+			h.server.stats.AddError()
 			return gnet.Close
 		}
 		if c.InboundBuffered() < 4+size {
@@ -162,8 +176,10 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		_, _ = c.Discard(4)
 		body, err := c.Next(size)
 		if err != nil {
+			h.server.stats.AddError()
 			return gnet.Close
 		}
+		h.server.stats.AddRecv(len(body))
 		if h.server.handler != nil {
 			payload := make([]byte, len(body))
 			copy(payload, body)
@@ -185,20 +201,22 @@ func (h *tcpEventHandler) dispatch(c *tcpConn, data []byte) {
 }
 
 type tcpConn struct {
-	id   int64
-	conn gnet.Conn
-	opts kknet.Options
+	id    int64
+	conn  gnet.Conn
+	opts  kknet.Options
+	stats *kknet.Stats
 
 	ctxMu sync.RWMutex
 	ctx   context.Context
 }
 
-func newTCPConn(c gnet.Conn, opts kknet.Options) *tcpConn {
+func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
 	return &tcpConn{
-		id:   kknet.NextConnID(),
-		conn: c,
-		opts: opts,
-		ctx:  context.Background(),
+		id:    kknet.NextConnID(),
+		conn:  c,
+		opts:  opts,
+		stats: stats,
+		ctx:   context.Background(),
 	}
 }
 
@@ -212,12 +230,25 @@ func (c *tcpConn) RemoteAddr() string {
 
 func (c *tcpConn) Send(data []byte) error {
 	if len(data) > c.opts.MaxMessageSize {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
 		return kkerrors.ErrMaxMessageSize
 	}
 	buf := make([]byte, 4+len(data))
 	binary.BigEndian.PutUint32(buf[:4], uint32(len(data)))
 	copy(buf[4:], data)
-	return c.conn.AsyncWrite(buf, nil)
+	err := c.conn.AsyncWrite(buf, nil)
+	if err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
+	}
+	if c.stats != nil {
+		c.stats.AddSent(len(data))
+	}
+	return nil
 }
 
 func (c *tcpConn) Close() error {

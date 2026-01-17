@@ -19,6 +19,8 @@ type Client struct {
 	connMu    sync.Mutex
 	conn      *clientConn
 	connected atomic.Bool
+
+	stats kknet.Stats
 }
 
 // NewClient creates a new UDP client.
@@ -46,11 +48,12 @@ func (c *Client) Connect() error {
 		return err
 	}
 
-	cc := newClientConn(conn, c.opts)
+	cc := newClientConn(conn, c.opts, &c.stats)
 	c.connMu.Lock()
 	c.conn = cc
 	c.connMu.Unlock()
 
+	c.stats.OnConnect()
 	if c.handler != nil {
 		c.handler.OnConnect(cc)
 	}
@@ -94,10 +97,16 @@ func (c *Client) Conn() kknet.Conn {
 	return c.conn
 }
 
+// Stats returns a snapshot of client statistics.
+func (c *Client) Stats() kknet.StatsSnapshot {
+	return c.stats.Snapshot()
+}
+
 type clientConn struct {
 	id   int64
 	conn *net.UDPConn
 	opts kknet.Options
+	stats *kknet.Stats
 
 	writeMu  sync.Mutex
 	closeOnce sync.Once
@@ -106,12 +115,13 @@ type clientConn struct {
 	ctx   context.Context
 }
 
-func newClientConn(conn *net.UDPConn, opts kknet.Options) *clientConn {
+func newClientConn(conn *net.UDPConn, opts kknet.Options, stats *kknet.Stats) *clientConn {
 	return &clientConn{
-		id:   kknet.NextConnID(),
-		conn: conn,
-		opts: opts,
-		ctx:  context.Background(),
+		id:    kknet.NextConnID(),
+		conn:  conn,
+		opts:  opts,
+		stats: stats,
+		ctx:   context.Background(),
 	}
 }
 
@@ -125,12 +135,24 @@ func (c *clientConn) RemoteAddr() string {
 
 func (c *clientConn) Send(data []byte) error {
 	if len(data) > c.opts.MaxMessageSize {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
 		return kkerrors.ErrMaxMessageSize
 	}
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 	_, err := c.conn.Write(data)
-	return err
+	if err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
+	}
+	if c.stats != nil {
+		c.stats.AddSent(len(data))
+	}
+	return nil
 }
 
 func (c *clientConn) Close() error {
@@ -156,6 +178,9 @@ func (c *clientConn) readLoop(handler kknet.Handler) error {
 		if err != nil {
 			return err
 		}
+		if c.stats != nil {
+			c.stats.AddRecv(n)
+		}
 		if handler != nil && n > 0 {
 			data := make([]byte, n)
 			copy(data, buf[:n])
@@ -166,6 +191,12 @@ func (c *clientConn) readLoop(handler kknet.Handler) error {
 
 func (c *clientConn) closeWithError(handler kknet.Handler, err error) {
 	c.closeOnce.Do(func() {
+		if c.stats != nil {
+			c.stats.OnClose()
+			if err != nil {
+				c.stats.AddError()
+			}
+		}
 		_ = c.conn.Close()
 		if handler != nil {
 			handler.OnClose(c, err)
