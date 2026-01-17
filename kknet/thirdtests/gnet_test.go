@@ -46,9 +46,7 @@ func TestGnet(t *testing.T) {
 
 	go func() {
 		evtHandler := &testHandler{}
-		gnet.Run(evtHandler, "tcp://0.0.0.0:9701", gnet.WithOptions(gnet.Options{
-			ReusePort: true,
-		}))
+		gnet.Run(evtHandler, "tcp://0.0.0.0:9701", gnet.WithMulticore(true))
 		wg.Done()
 	}()
 
