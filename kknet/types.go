@@ -1,0 +1,110 @@
+package kknet
+
+import (
+	"context"
+	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/kklog"
+)
+
+// Conn represents a network connection.
+type Conn interface {
+	ID() int64
+	Send(data []byte) error
+	Close() error
+	RemoteAddr() string
+	Context() context.Context
+	SetContext(ctx context.Context)
+}
+
+// Handler handles connection lifecycle and messages.
+type Handler interface {
+	OnConnect(c Conn)
+	OnMessage(c Conn, data []byte)
+	OnClose(c Conn, err error)
+}
+
+// Options are common network settings.
+type Options struct {
+	Logger         kklog.ILogger
+	MaxMessageSize int
+	PoolSize       int
+	ReadBufferSize int
+	WriteBufferSize int
+}
+
+const (
+	defaultMaxMessageSize = 4 * 1024 * 1024
+	defaultBufferSize     = 64 * 1024
+)
+
+// Option applies changes to Options.
+type Option func(*Options)
+
+// DefaultOptions returns default settings.
+func DefaultOptions() Options {
+	return Options{
+		Logger:          kklog.Stdout(),
+		MaxMessageSize:  defaultMaxMessageSize,
+		PoolSize:        0,
+		ReadBufferSize:  defaultBufferSize,
+		WriteBufferSize: defaultBufferSize,
+	}
+}
+
+// ApplyOptions returns a configured Options.
+func ApplyOptions(opts ...Option) Options {
+	cfg := DefaultOptions()
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
+	return cfg
+}
+
+// WithLogger sets logger.
+func WithLogger(l kklog.ILogger) Option {
+	return func(o *Options) {
+		if l != nil {
+			o.Logger = l
+		}
+	}
+}
+
+// WithMaxMessageSize sets maximum allowed message size.
+func WithMaxMessageSize(size int) Option {
+	return func(o *Options) {
+		if size > 0 {
+			o.MaxMessageSize = size
+		}
+	}
+}
+
+// WithPoolSize enables ants pool with size.
+func WithPoolSize(size int) Option {
+	return func(o *Options) {
+		if size > 0 {
+			o.PoolSize = size
+		}
+	}
+}
+
+// WithBufferSizes sets read/write buffer sizes.
+func WithBufferSizes(readSize, writeSize int) Option {
+	return func(o *Options) {
+		if readSize > 0 {
+			o.ReadBufferSize = readSize
+		}
+		if writeSize > 0 {
+			o.WriteBufferSize = writeSize
+		}
+	}
+}
+
+var connIDCounter atomic.Int64
+
+// NextConnID returns a unique connection id.
+func NextConnID() int64 {
+	return connIDCounter.Add(1)
+}
