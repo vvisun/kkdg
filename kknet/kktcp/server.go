@@ -320,11 +320,19 @@ func (c *tcpConn) Send(data []byte) error {
 		}
 		return kkerrors.ErrMaxMessageSize
 	}
-	buf := make([]byte, 4+len(data))
-	binary.BigEndian.PutUint32(buf[:4], uint32(len(data)))
-	copy(buf[4:], data)
-	err := c.conn.AsyncWrite(buf, nil)
+
+	bb := kkbuffer.Get()
+	bb.B = bb.B[:0]
+	bb.B = append(bb.B, 0, 0, 0, 0)
+	binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))
+	bb.B = append(bb.B, data...)
+
+	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, _ error) error {
+		kkbuffer.Put(bb)
+		return nil
+	})
 	if err != nil {
+		kkbuffer.Put(bb)
 		if c.stats != nil {
 			c.stats.AddError()
 		}

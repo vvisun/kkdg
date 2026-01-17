@@ -104,12 +104,14 @@ func (s *Server) Start() error {
 		ln, err := net.Listen("tcp", s.addr)
 		if err != nil {
 			s.stats.AddError()
+			s.started.Store(false)
 			return err
 		}
 		tlsListener := tls.NewListener(ln, s.opts.TLSConfig)
 		err = s.httpServer.Serve(tlsListener)
 		if err != nil && err != http.ErrServerClosed {
 			s.stats.AddError()
+			s.started.Store(false)
 			return err
 		}
 		return nil
@@ -117,6 +119,7 @@ func (s *Server) Start() error {
 	err := s.httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		s.stats.AddError()
+		s.started.Store(false)
 		return err
 	}
 	return nil

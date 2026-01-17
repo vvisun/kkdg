@@ -8,6 +8,7 @@ import (
 
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/xos"
 )
 
 // Conn represents a network connection.
@@ -57,7 +58,7 @@ func DefaultOptions() Options {
 	return Options{
 		Logger:          kklog.Stdout(),
 		MaxMessageSize:  defaultMaxMessageSize,
-		PoolSize:        0,
+		PoolSize:        xos.NumCPU(),
 		ReadBufferSize:  defaultBufferSize,
 		WriteBufferSize: defaultBufferSize,
 		TLSConfig:       nil,

@@ -4,9 +4,19 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/vvisun/kkdg/utils/kkstat"
 )
+
+// num cpu
+func NumCPU() int {
+	n := runtime.NumCPU()
+	if n < 1 {
+		return 1
+	}
+	return n
+}
 
 // Stat 获取文件信息
 func Stat(filePath string) (kkstat.FileInfo, error) {
