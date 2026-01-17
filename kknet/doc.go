@@ -2,8 +2,7 @@ package kknet
 
 /*
 kknet是一个网络库，用于实现网络通信。
-
-gnet + ants + protoactor-go 实现一个高性能的网络库。网络层使用gnet，业务层使用protoactor-go。
+gnet + ants + protoactor-go
 
 gnet: 是一个高性能的网络库，支持TCP和UDP协议。
 地址: https://github.com/panjf2000/gnet

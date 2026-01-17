@@ -1,6 +1,7 @@
 package kknet
 
 import (
+	"encoding/binary"
 	"net"
 	"strconv"
 
@@ -138,4 +139,22 @@ func FulfillAddr(addr string) string {
 	}
 
 	return net.JoinHostPort(host, port)
+}
+
+// IP2Long IP地址转换为长整型
+func IP2Long(ip string) uint32 {
+	v := net.ParseIP(ip).To4()
+
+	if len(v) == 0 {
+		return 0
+	}
+
+	return binary.BigEndian.Uint32(v)
+}
+
+// Long2IP 长整型转换为字符串地址
+func Long2IP(v uint32) string {
+	ip := make(net.IP, 4)
+	binary.BigEndian.PutUint32(ip, v)
+	return ip.String()
 }
