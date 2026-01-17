@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/vvisun/kkdg/utils/encoding/json"
+	"github.com/vvisun/kkdg/utils/kkencode/json"
 	"github.com/vvisun/kkdg/utils/xconv"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
