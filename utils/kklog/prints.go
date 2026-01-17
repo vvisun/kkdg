@@ -1,0 +1,35 @@
+package kklog
+
+import "fmt"
+
+// printsLogger is a logger implementation that prints to stdout.
+type printsLogger struct{}
+
+func (printsLogger) Debugf(format string, args ...any) {
+	fmt.Printf(format+"\n", args...)
+}
+
+func (printsLogger) Infof(format string, args ...any) {
+	fmt.Printf(format+"\n", args...)
+}
+
+func (printsLogger) Warnf(format string, args ...any) {
+	fmt.Printf(format+"\n", args...)
+}
+
+func (printsLogger) Errorf(format string, args ...any) {
+	fmt.Printf("-----------[error-----------\n")
+	fmt.Printf(format+"\n", args...)
+	fmt.Printf("-----------error]-----------\n")
+}
+
+func (printsLogger) Fatalf(format string, args ...any) {
+	fmt.Printf("-----------[fatal-----------\n")
+	fmt.Printf(format+"\n", args...)
+	fmt.Printf("-----------fatal]-----------\n")
+}
+
+var printsLoggerInstance = printsLogger{}
+
+// Stdout returns a logger that prints to stdout (debug-only convenience).
+func Stdout() ILogger { return printsLoggerInstance }
