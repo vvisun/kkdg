@@ -35,3 +35,37 @@ func IsNil(val any) bool {
 		return false
 	}
 }
+
+// 获取结构体名字
+func GetStructName(ptr interface{}) string {
+	if ptr == nil {
+		return ""
+	}
+	if t := reflect.TypeOf(ptr); t.Kind() == reflect.Ptr {
+		return t.Elem().Name()
+	} else {
+		return t.Name()
+	}
+}
+
+// 判断是否是双指针
+func IsDoublePointer(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+	t := reflect.TypeOf(v)
+	k := t.Kind()
+	if k == reflect.Ptr {
+		t = t.Elem()
+		k = t.Kind()
+		if k == reflect.Ptr {
+			return true
+		}
+	}
+	return false
+}
+
+// 判断是否是指针
+func IsPointer(v interface{}) bool {
+	return reflect.ValueOf(v).Kind() == reflect.Ptr
+}
