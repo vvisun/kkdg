@@ -9,7 +9,7 @@ type Bytes struct {
 	buf      []byte
 	off      int
 	pool     *sync.Pool
-	released atomic.Bool
+	released atomic.Bool //防止重复释放
 }
 
 var _ Buffer = (*Bytes)(nil)
@@ -62,6 +62,10 @@ func (b *Bytes) Bytes() []byte {
 
 // Release 释放
 func (b *Bytes) Release() {
+	if !b.released.CompareAndSwap(false, true) {
+		return
+	}
+
 	b.off = 0
 
 	if b.pool != nil {
