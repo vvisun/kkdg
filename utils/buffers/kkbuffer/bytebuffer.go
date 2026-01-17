@@ -73,7 +73,10 @@ func (b *ByteBuffer) Bytes() []byte {
 	return b.B
 }
 
-// Write implements io.Writer - it appends p to ByteBuffer.B
+// Write implements io.Writer - it appends p to ByteBuffer.B.
+//
+// If the total size is known beforehand, call Grow(len(b.B)+len(p)) first
+// to avoid extra reallocations when appending multiple chunks.
 func (b *ByteBuffer) Write(p []byte) (int, error) {
 	b.B = append(b.B, p...)
 	return len(p), nil
@@ -82,21 +85,28 @@ func (b *ByteBuffer) Write(p []byte) (int, error) {
 // WriteByte appends the byte c to the buffer.
 //
 // The purpose of this function is bytes.Buffer compatibility.
-//
 // The function always returns nil.
+//
+// For writing many bytes in a loop, call Grow(b.Len()+n) first to avoid
+// repeated reallocations; then write n bytes.
 func (b *ByteBuffer) WriteByte(c byte) error {
 	b.B = append(b.B, c)
 	return nil
 }
 
 // WriteString appends s to ByteBuffer.B.
+//
+// If the total size is known beforehand, call Grow(len(b.B)+len(s)) first
+// to avoid extra reallocations when appending multiple strings.
 func (b *ByteBuffer) WriteString(s string) (int, error) {
 	b.B = append(b.B, s...)
 	return len(s), nil
 }
 
 // Set sets ByteBuffer.B to p.
-// If the buffer has sufficient capacity, it uses copy for better performance.
+//
+// If cap(b.B) >= len(p), it uses copy (no alloc). Use GetWithCapacity
+// or Grow before Reset+Set when repeatedly setting similar-sized data.
 func (b *ByteBuffer) Set(p []byte) {
 	if cap(b.B) >= len(p) {
 		b.B = b.B[:len(p)]
@@ -107,7 +117,9 @@ func (b *ByteBuffer) Set(p []byte) {
 }
 
 // SetString sets ByteBuffer.B to s.
-// If the buffer has sufficient capacity, it uses copy for better performance.
+//
+// If cap(b.B) >= len(s), it uses copy (no alloc). Use GetWithCapacity
+// or Grow before Reset+SetString when repeatedly setting similar-sized data.
 func (b *ByteBuffer) SetString(s string) {
 	if cap(b.B) >= len(s) {
 		b.B = b.B[:len(s)]
@@ -130,6 +142,10 @@ func (b *ByteBuffer) SetWithCapacity(p []byte) {
 
 // Grow ensures the buffer has at least n bytes capacity.
 // If the current capacity is less than n, it grows the buffer.
+//
+// Call Grow before a batch of Write/WriteByte/WriteString when the total
+// size is known (e.g. Grow(len(b.B)+total) before a loop) to reduce
+// reallocations.
 func (b *ByteBuffer) Grow(n int) {
 	if cap(b.B) < n {
 		newCap := n

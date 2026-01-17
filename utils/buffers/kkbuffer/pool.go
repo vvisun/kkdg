@@ -1,6 +1,7 @@
 package kkbuffer
 
 import (
+	"math/bits"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -34,17 +35,21 @@ type Pool struct {
 
 var defaultPool Pool
 
+func init() {
+	defaultPool.defaultSize = minSize
+}
+
 // Get returns an empty byte buffer from the pool.
 //
-// Got byte buffer may be returned to the pool via Put call.
-// This reduces the number of memory allocations required for byte buffer
-// management.
+// The buffer may be returned via Put to reduce allocations.
+// When the expected size is known, prefer GetWithCapacity to avoid
+// reallocations on first writes.
 func Get() *ByteBuffer { return defaultPool.Get() }
 
 // Get returns new byte buffer with zero length.
 //
-// The byte buffer may be returned to the pool via Put after the use
-// in order to minimize GC overhead.
+// Return it via Put to minimize GC overhead. For known expected size,
+// use GetWithCapacity to reduce reallocations.
 func (p *Pool) Get() *ByteBuffer {
 	v := p.pool.Get()
 	if v != nil {
@@ -52,18 +57,25 @@ func (p *Pool) Get() *ByteBuffer {
 		b.released.Store(false)
 		return b
 	}
+	size := atomic.LoadUint64(&p.defaultSize)
+	if size == 0 {
+		size = minSize
+	}
 	return &ByteBuffer{
-		B: make([]byte, 0, atomic.LoadUint64(&p.defaultSize)),
+		B: make([]byte, 0, int(size)),
 	}
 }
 
 // GetWithCapacity returns a buffer with at least the specified capacity.
-// This can help reduce memory reallocations when the expected size is known.
+//
+// Prefer this over Get when the expected size is known, to avoid
+// reallocations on the first Write/Set/SetString.
 func GetWithCapacity(capacity int) *ByteBuffer {
 	return defaultPool.GetWithCapacity(capacity)
 }
 
 // GetWithCapacity returns a buffer with at least the specified capacity.
+// Use when the expected size is known to reduce reallocations.
 func (p *Pool) GetWithCapacity(capacity int) *ByteBuffer {
 	v := p.pool.Get()
 	if v != nil {
@@ -78,6 +90,9 @@ func (p *Pool) GetWithCapacity(capacity int) *ByteBuffer {
 		return b
 	}
 	defaultSize := int(atomic.LoadUint64(&p.defaultSize))
+	if defaultSize == 0 {
+		defaultSize = minSize
+	}
 	initCap := capacity
 	if defaultSize > capacity {
 		initCap = defaultSize
@@ -100,18 +115,16 @@ func (p *Pool) Put(b *ByteBuffer) {
 	if !b.released.CompareAndSwap(false, true) {
 		return //防止重复释放
 	}
-
+	maxSize := int(atomic.LoadUint64(&p.maxSize))
+	if maxSize != 0 && cap(b.B) > maxSize {
+		return // 超大 buffer 丢弃，不参与校准统计
+	}
 	idx := index(len(b.B))
-
 	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
 		p.calibrate()
 	}
-
-	maxSize := int(atomic.LoadUint64(&p.maxSize))
-	if maxSize == 0 || cap(b.B) <= maxSize {
-		b.Reset()
-		p.pool.Put(b)
-	}
+	b.Reset()
+	p.pool.Put(b)
 }
 
 func (p *Pool) calibrate() {
@@ -173,15 +186,13 @@ func (ci callSizes) Swap(i, j int) {
 }
 
 func index(n int) int {
-	n--
-	n >>= minBitSize
-	idx := 0
-	for n > 0 {
-		n >>= 1
-		idx++
+	if n <= 0 {
+		return 0
 	}
+	k := (n - 1) >> minBitSize
+	idx := bits.Len(uint(k))
 	if idx >= steps {
-		idx = steps - 1
+		return steps - 1
 	}
 	return idx
 }
