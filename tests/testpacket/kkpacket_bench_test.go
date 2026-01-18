@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
@@ -29,7 +30,8 @@ func Benchmark_kkpacket_EncodeEx(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		kkpacket.EncodePacketEx(msg, kkpacket.HeadTypeMid, kkcodec.CodecTypeJson)
+		buf, _ := kkpacket.EncodePacketEx(msg, kkpacket.HeadTypeMid, kkcodec.CodecTypeJson)
+		kkbuffer.Put(buf)
 	}
 }
 
@@ -46,7 +48,7 @@ func Benchmark_kkpacket_Decode(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		kkpacket.DecodePacketEx[msgTest1](packet, kkpacket.HeadTypeMid, kkcodec.CodecTypeJson)
+		kkpacket.DecodePacket[msgTest1](packet, kkpacket.HeadTypeMid, kkcodec.CodecTypeJson)
 	}
 }
 
@@ -63,7 +65,7 @@ func Benchmark_kkpacket_EncodeDecode(b *testing.B) {
 		if err != nil {
 			b.Fatalf("encode packet: %v", err)
 		}
-		_, err = kkpacket.DecodePacketEx[msgTest1](packet, kkpacket.HeadTypeMid, kkcodec.CodecTypeJson)
+		_, err = kkpacket.DecodePacket[msgTest1](packet, kkpacket.HeadTypeMid, kkcodec.CodecTypeJson)
 		if err != nil {
 			b.Fatalf("decode packet: %v", err)
 		}

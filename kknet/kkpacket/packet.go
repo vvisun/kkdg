@@ -2,7 +2,6 @@ package kkpacket
 
 import (
 	"encoding/binary"
-	"reflect"
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -50,47 +49,7 @@ func ParseHeadMidSeq(data []byte) HeadMidSeq {
 	}
 }
 
-/*
-*
-*
-解码包
-
-	@param data []byte 包数据
-	@param headType int 头类型
-	@param codecType int 编码器类型
-	@return any 消息对象
-	@return error 错误
-*/
-func DecodePacket(data []byte, headType int, codecType int) (interface{}, error) {
-	headSize := GetHeadSize(headType)
-	if headSize < 0 || len(data) < headSize {
-		return nil, kkerrors.ErrInvalidPacket
-	}
-	codec := kkcodec.GetCodec(codecType)
-	if codec == nil {
-		return nil, kkerrors.ErrInvalidCodec
-	}
-
-	head := ParseHeadMid(data[:headSize])
-	if head.Mid == 0 {
-		return nil, kkerrors.ErrInvalidPacket
-	}
-
-	msgType := GetMsgType(head.Mid)
-	if msgType == nil {
-		return nil, kkerrors.ErrMsgIDNotRegistered
-	}
-
-	body := data[headSize:]
-	v := reflect.New(msgType.Elem()).Interface()
-	err := codec.Unmarshal(body, v)
-	if err != nil {
-		return nil, kkerrors.ErrDecodeFailed
-	}
-	return v, nil
-}
-
-func DecodePacketEx[T any](data []byte, headType int, codecType int) (*T, error) {
+func DecodePacket[T any](data []byte, headType int, codecType int) (*T, error) {
 	headSize := GetHeadSize(headType)
 	if headSize < 0 || len(data) < headSize {
 		return nil, kkerrors.ErrInvalidPacket
@@ -163,9 +122,8 @@ func EncodePacket[T any](v *T, headType int, codecType int) ([]byte, error) {
 }
 
 /*
-*
-*
-编码包
+编码包。
+注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
 	@param v *T 消息类型
 	@param headType int 头类型
@@ -206,6 +164,7 @@ func EncodePacketEx[T any](v *T, headType int, codecType int) (buffers.IBuffer, 
 		binary.BigEndian.PutUint32(buf.B[:4], msgID)
 		binary.BigEndian.PutUint32(buf.B[4:8], seq)
 	default:
+		kkbuffer.Put(buf)
 		return nil, kkerrors.ErrInvalidHeadType
 	}
 
