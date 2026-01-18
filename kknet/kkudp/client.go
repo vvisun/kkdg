@@ -56,7 +56,9 @@ func (c *Client) Connect() error {
 
 	c.stats.OnConnect()
 	if c.handler != nil {
-		c.handler.OnConnect(cc)
+		kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "udpclient OnConnect", func() {
+			c.handler.OnConnect(cc)
+		})
 	}
 
 	go func() {
@@ -190,7 +192,9 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 				payload.B = payload.B[:n]
 			}
 			copy(payload.B, buf[:n])
-			handler.OnMessage(c, payload)
+			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "udpclient OnMessage", func() {
+				handler.OnMessage(c, payload)
+			})
 			kkbuffer.Put(payload)
 		}
 	}
@@ -206,7 +210,9 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 		}
 		_ = c.conn.Close()
 		if handler != nil {
-			handler.OnClose(c, err)
+			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "udpclient OnClose", func() {
+				handler.OnClose(c, err)
+			})
 		}
 	})
 }
