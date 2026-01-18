@@ -3,11 +3,16 @@ package kkerrors
 import "errors"
 
 var (
+	// 未找到IP地址
 	ErrNotFoundIPAddress = errors.New("not found ip address")
-	ErrUnexpectedEOF     = errors.New("unexpected EOF")
-	ErrInvalidWhence     = errors.New("invalid whence")
-	ErrNegativePosition  = errors.New("negative position")
-	ErrNotByteSlice      = errors.New("v is not a []byte")
+	// 意外EOF
+	ErrUnexpectedEOF = errors.New("unexpected EOF")
+	// 无效的whence
+	ErrInvalidWhence = errors.New("invalid whence")
+	// 负位置
+	ErrNegativePosition = errors.New("negative position")
+	// v不是[]byte类型
+	ErrNotByteSlice = errors.New("v is not a []byte")
 )
 
 var (
@@ -28,20 +33,18 @@ var (
 )
 
 var (
-	// 无效包
-	ErrInvalidPacket = errors.New("invalid packet")
-	// 无效编解码器
+	// 无效的消息头类型
+	ErrInvalidMsgHeadType = errors.New("invalid message head type")
+	// 无效的编解码器
 	ErrInvalidCodec = errors.New("invalid codec")
 	// 解码失败
 	ErrDecodeFailed = errors.New("decode failed")
-	// 无效消息ID
+	// 编码失败
+	ErrEncodeFailed = errors.New("encode failed")
+	// 无效的消息ID
 	ErrInvalidMsgID = errors.New("invalid message id")
 	// 未注册该消息ID
 	ErrMsgIDNotRegistered = errors.New("message id not registered")
-	// 编码失败
-	ErrEncodeFailed = errors.New("encode failed")
 	// 未注册该消息类型
 	ErrMsgTypeNotRegistered = errors.New("message type not registered")
-	// 无效头类型
-	ErrInvalidHeadType = errors.New("invalid head type")
 )

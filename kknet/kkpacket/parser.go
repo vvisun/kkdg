@@ -28,24 +28,24 @@ func GetHeadSize(headType uint8) int {
 }
 
 type HeadMid struct {
-	Mid uint32
+	mid uint32
 }
 
 type HeadMidSeq struct {
-	Mid uint32
-	Seq uint32
+	mid uint32
+	seq uint32
 }
 
-func ParseHeadMid(data []byte) HeadMid {
+func ParseHeadMid(data []byte, endian binary.ByteOrder) HeadMid {
 	return HeadMid{
-		Mid: binary.BigEndian.Uint32(data[:4]),
+		mid: endian.Uint32(data[:4]),
 	}
 }
 
-func ParseHeadMidSeq(data []byte) HeadMidSeq {
+func ParseHeadMidSeq(data []byte, endian binary.ByteOrder) HeadMidSeq {
 	return HeadMidSeq{
-		Mid: binary.BigEndian.Uint32(data[:4]),
-		Seq: binary.BigEndian.Uint32(data[4:8]),
+		mid: endian.Uint32(data[:4]),
+		seq: endian.Uint32(data[4:8]),
 	}
 }
 
@@ -59,24 +59,40 @@ func ParseHeadMidSeq(data []byte) HeadMidSeq {
 	@return *T 消息类型
 	@return error 错误
 */
-func DecodePacket[T any](data []byte, headType uint8, codecType uint8) (*T, error) {
-	headSize := GetHeadSize(headType)
+func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
+	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 || len(data) < headSize {
-		return nil, kkerrors.ErrInvalidPacket
+		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
-	codec := kkcodec.GetCodec(codecType)
+	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
 	}
 
-	head := ParseHeadMid(data[:headSize])
-	if head.Mid == 0 {
-		return nil, kkerrors.ErrInvalidPacket
+	var endian binary.ByteOrder = binary.BigEndian
+	if pkType.isLittleEndian {
+		endian = binary.LittleEndian
 	}
-
-	msgType := GetMsgType(head.Mid)
-	if msgType == nil {
-		return nil, kkerrors.ErrMsgIDNotRegistered
+	switch pkType.headType {
+	case HeadTypeMid:
+		head := ParseHeadMid(data[:headSize], endian)
+		head.mid = endian.Uint32(data[:4])
+		if head.mid == 0 {
+			return nil, kkerrors.ErrInvalidMsgHeadType
+		}
+		if GetMsgType(head.mid) == nil {
+			return nil, kkerrors.ErrMsgIDNotRegistered
+		}
+	case HeadTypeMidSeq:
+		head := ParseHeadMidSeq(data[:headSize], endian)
+		head.mid = endian.Uint32(data[:4])
+		head.seq = endian.Uint32(data[4:8])
+		if head.mid == 0 {
+			return nil, kkerrors.ErrInvalidMsgHeadType
+		}
+		if GetMsgType(head.mid) == nil {
+			return nil, kkerrors.ErrMsgIDNotRegistered
+		}
 	}
 
 	body := data[headSize:]
@@ -97,8 +113,8 @@ func DecodePacket[T any](data []byte, headType uint8, codecType uint8) (*T, erro
 	@return []byte 包数据
 	@return error 错误
 */
-func EncodePacket[T any](v *T, headType uint8, codecType uint8) ([]byte, error) {
-	codec := kkcodec.GetCodec(codecType)
+func EncodePacket[T any](v *T, pkType *packer) ([]byte, error) {
+	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
 	}
@@ -107,19 +123,23 @@ func EncodePacket[T any](v *T, headType uint8, codecType uint8) ([]byte, error) 
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
 	seq := uint32(0)
-	headSize := GetHeadSize(headType)
+	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 {
-		return nil, kkerrors.ErrInvalidHeadType
+		return nil, kkerrors.ErrInvalidMsgHeadType
+	}
+	var endian binary.ByteOrder = binary.BigEndian
+	if pkType.isLittleEndian {
+		endian = binary.LittleEndian
 	}
 	head := make([]byte, headSize)
-	switch headType {
+	switch pkType.headType {
 	case HeadTypeMid:
-		binary.BigEndian.PutUint32(head[:4], msgID)
+		endian.PutUint32(head[:4], msgID)
 	case HeadTypeMidSeq:
-		binary.BigEndian.PutUint32(head[:4], msgID)
-		binary.BigEndian.PutUint32(head[4:8], seq)
+		endian.PutUint32(head[:4], msgID)
+		endian.PutUint32(head[4:8], seq)
 	default:
-		return nil, kkerrors.ErrInvalidHeadType
+		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
 	body, err := codec.Marshal(v)
@@ -139,8 +159,8 @@ func EncodePacket[T any](v *T, headType uint8, codecType uint8) ([]byte, error) 
 	@return []byte 包数据
 	@return error 错误
 */
-func EncodePacketEx[T any](v *T, headType uint8, codecType uint8) (buffers.IBuffer, error) {
-	codec := kkcodec.GetCodec(codecType)
+func EncodePacketEx[T any](v *T, pkType *packer) (buffers.IBuffer, error) {
+	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
 	}
@@ -149,9 +169,9 @@ func EncodePacketEx[T any](v *T, headType uint8, codecType uint8) (buffers.IBuff
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
 	seq := uint32(0)
-	headSize := GetHeadSize(headType)
+	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 {
-		return nil, kkerrors.ErrInvalidHeadType
+		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
 	body, err := codec.Marshal(v)
@@ -165,15 +185,19 @@ func EncodePacketEx[T any](v *T, headType uint8, codecType uint8) (buffers.IBuff
 	// Set the length to the total size we need
 	buf.B = buf.B[:headSize+bodyLen]
 
-	switch headType {
+	var endian binary.ByteOrder = binary.BigEndian
+	if pkType.isLittleEndian {
+		endian = binary.LittleEndian
+	}
+	switch pkType.headType {
 	case HeadTypeMid:
-		binary.BigEndian.PutUint32(buf.B[:4], msgID)
+		endian.PutUint32(buf.B[:4], msgID)
 	case HeadTypeMidSeq:
-		binary.BigEndian.PutUint32(buf.B[:4], msgID)
-		binary.BigEndian.PutUint32(buf.B[4:8], seq)
+		endian.PutUint32(buf.B[:4], msgID)
+		endian.PutUint32(buf.B[4:8], seq)
 	default:
 		kkbuffer.Put(buf)
-		return nil, kkerrors.ErrInvalidHeadType
+		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
 	if bodyLen > 0 {
