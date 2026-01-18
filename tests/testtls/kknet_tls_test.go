@@ -1,4 +1,4 @@
-package tests
+package testtls
 
 import (
 	"crypto/rand"

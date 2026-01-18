@@ -1,4 +1,4 @@
-package tests
+package testws
 
 import (
 	"testing"

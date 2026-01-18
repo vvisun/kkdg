@@ -1,4 +1,4 @@
-package tests
+package testtcp
 
 import (
 	"testing"
@@ -8,8 +8,8 @@ import (
 	"github.com/vvisun/kkdg/kknet/kktcp"
 )
 
-func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
-	addr := freeTCPAddr(b)
+func TestKKNetTCP(t *testing.T) {
+	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
 		onMessage: func(c kknet.IConn, data []byte) {
@@ -18,7 +18,7 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 	}
 	server := kktcp.NewServer(addr, serverHandler)
 	if err := server.Start(); err != nil {
-		b.Fatalf("server start: %v", err)
+		t.Fatalf("server start: %v", err)
 	}
 	defer func() { _ = server.Stop() }()
 
@@ -30,20 +30,21 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 	}
 	client := kktcp.NewClient(addr, clientHandler)
 	if err := client.Connect(); err != nil {
-		b.Fatalf("client connect: %v", err)
+		t.Fatalf("client connect: %v", err)
 	}
 	defer func() { _ = client.Close() }()
 
 	payload := []byte("ping")
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err := client.Send(payload); err != nil {
-			b.Fatalf("client send: %v", err)
+	if err := client.Send(payload); err != nil {
+		t.Fatalf("client send: %v", err)
+	}
+
+	select {
+	case got := <-msgCh:
+		if string(got) != string(payload) {
+			t.Fatalf("unexpected tcp reply: %s", got)
 		}
-		select {
-		case <-msgCh:
-		case <-time.After(2 * time.Second):
-			b.Fatal("tcp reply timeout")
-		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("tcp reply timeout")
 	}
 }

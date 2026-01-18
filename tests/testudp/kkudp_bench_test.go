@@ -1,4 +1,4 @@
-package tests
+package testudp
 
 import (
 	"testing"

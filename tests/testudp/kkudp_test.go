@@ -1,24 +1,12 @@
-package tests
+package testudp
 
 import (
-	"net"
 	"testing"
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkudp"
 )
-
-func freeUDPAddr(t testing.TB) string {
-	t.Helper()
-	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen udp: %v", err)
-	}
-	addr := pc.LocalAddr().String()
-	_ = pc.Close()
-	return addr
-}
 
 func TestKKNetUDP(t *testing.T) {
 	addr := freeUDPAddr(t)
