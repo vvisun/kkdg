@@ -1,32 +1,12 @@
 package kknet
 
 import (
-	"context"
 	"crypto/tls"
 	"net/http"
-	"sync/atomic"
 
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xos"
 )
-
-// Conn represents a network connection.
-type Conn interface {
-	ID() int64
-	Send(data []byte) error
-	Close() error
-	RemoteAddr() string
-	Context() context.Context
-	SetContext(ctx context.Context)
-}
-
-// Handler handles connection lifecycle and messages.
-type Handler interface {
-	OnConnect(c Conn)
-	OnMessage(c Conn, data buffers.IBuffer)
-	OnClose(c Conn, err error)
-}
 
 type OriginCheckFunc func(r *http.Request) bool
 
@@ -130,11 +110,4 @@ func WithTLSConfig(cfg *tls.Config) Option {
 	return func(o *Options) {
 		o.TLSConfig = cfg
 	}
-}
-
-var connIDCounter atomic.Int64
-
-// NextConnID returns a unique connection id.
-func NextConnID() int64 {
-	return connIDCounter.Add(1)
 }
