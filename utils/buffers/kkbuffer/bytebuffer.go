@@ -3,8 +3,6 @@ package kkbuffer
 import (
 	"io"
 	"sync/atomic"
-
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // ByteBuffer provides byte buffer, which can be used for minimizing
@@ -95,7 +93,6 @@ func (b *ByteBuffer) SetBytes(p []byte) {
 		b.B = b.B[:len(p)]
 		copy(b.B, p)
 	} else {
-		kklog.Warnf("ByteBuffer.SetBytes: cap(b.B) < len(p), cap: %d, len: %d", cap(b.B), len(p))
 		b.B = append(b.B[:0], p...)
 	}
 }
@@ -109,7 +106,6 @@ func (b *ByteBuffer) SetString(s string) {
 		b.B = b.B[:len(s)]
 		copy(b.B, s)
 	} else {
-		kklog.Warnf("ByteBuffer.SetString: cap(b.B) < len(s), cap: %d, len: %d", cap(b.B), len(s))
 		b.B = append(b.B[:0], s...)
 	}
 }

@@ -16,14 +16,14 @@
 package kkbuffer
 
 const (
-	minBitSize = 6 // 2**6=64 is a CPU cache line size
-	steps      = 20
+	minBitSize = 6  // 2**6=64 是CPU缓存行大小
+	steps      = 20 // 20个步长
 
-	minSize = 1 << minBitSize
-	maxSize = 1 << (minBitSize + steps - 1)
+	minSize = 1 << minBitSize               // 64
+	maxSize = 1 << (minBitSize + steps - 1) // 64 * 2^19 = 524288 = 512KB
 
-	calibrateCallsThreshold = 42000
-	maxPercentile           = 0.95
+	calibrateCallsThreshold = 42000 // 42000次调用后进行校准
+	maxPercentile           = 0.95  // 95% 分位数
 )
 
 var defaultPool bfPool
