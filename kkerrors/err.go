@@ -48,3 +48,14 @@ var (
 	// 未注册该消息类型
 	ErrMsgTypeNotRegistered = errors.New("message type not registered")
 )
+
+var (
+	// 组件未初始化
+	ErrComponentNotInitialized = errors.New("component is not initialized")
+	// 组件已初始化
+	ErrComponentInitialized = errors.New("component is already initialized")
+	// 组件未关闭
+	ErrComponentNotShutdown = errors.New("component is not shutdown")
+	// 组件已关闭
+	ErrComponentShutdown = errors.New("component is already shutdown")
+)
