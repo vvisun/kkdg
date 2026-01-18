@@ -36,6 +36,7 @@ type Server struct {
 	// Connection tracking for graceful shutdown
 	connsMu sync.RWMutex
 	conns   map[int64]*wsConn
+	connWg  sync.WaitGroup
 }
 
 // NewServer creates a new WebSocket server.
@@ -111,6 +112,7 @@ func (s *Server) Start() error {
 		s.connsMu.Lock()
 		s.conns[wsConn.id] = wsConn
 		s.connsMu.Unlock()
+		s.connWg.Add(1)
 
 		s.stats.OnConnect()
 		if s.handler != nil {
@@ -120,6 +122,7 @@ func (s *Server) Start() error {
 		}
 
 		go func() {
+			defer s.connWg.Done()
 			err := wsConn.readLoop(s.dispatch)
 			wsConn.closeWithError(s.handler, err)
 			// Remove from tracking
@@ -242,16 +245,8 @@ func (s *Server) closeAllConnections(ctx context.Context) {
 	// Wait for connections to close or timeout
 	done := make(chan struct{})
 	go func() {
-		for {
-			s.connsMu.RLock()
-			active := len(s.conns)
-			s.connsMu.RUnlock()
-			if active == 0 {
-				close(done)
-				return
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
+		s.connWg.Wait()
+		close(done)
 	}()
 
 	select {
