@@ -14,7 +14,7 @@ func TestKKUDPLargeMessage(t *testing.T) {
 	addr := freeUDPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -26,7 +26,7 @@ func TestKKUDPLargeMessage(t *testing.T) {
 
 	msgCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
 		},
 	}
@@ -67,7 +67,7 @@ func TestKKUDPEmptyMessage(t *testing.T) {
 	addr := freeUDPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -79,7 +79,7 @@ func TestKKUDPEmptyMessage(t *testing.T) {
 
 	msgCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
 		},
 	}
@@ -111,7 +111,7 @@ func TestKKUDPRapidMessages(t *testing.T) {
 	addr := freeUDPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -123,7 +123,7 @@ func TestKKUDPRapidMessages(t *testing.T) {
 
 	msgCh := make(chan []byte, 1000)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			select {
 			case msgCh <- data:
 			default:
@@ -170,7 +170,7 @@ func TestKKUDPMaxMessageSize(t *testing.T) {
 	addr := freeUDPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -206,7 +206,7 @@ func TestKKUDPConcurrentClients(t *testing.T) {
 	addr := freeUDPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -227,7 +227,7 @@ func TestKKUDPConcurrentClients(t *testing.T) {
 
 			msgCh := make(chan []byte, 1)
 			clientHandler := &testHandler{
-				onMessage: func(c kknet.Conn, data []byte) {
+				onMessage: func(c kknet.IConn, data []byte) {
 					select {
 					case msgCh <- data:
 					default:

@@ -20,7 +20,7 @@ func TestKKUDPHighThroughput(t *testing.T) {
 
 	var serverMessages int64
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			atomic.AddInt64(&serverMessages, 1)
 			_ = c.Send(data)
 		},
@@ -43,7 +43,7 @@ func TestKKUDPHighThroughput(t *testing.T) {
 
 			msgCh := make(chan []byte, messagesPerClient)
 			clientHandler := &testHandler{
-				onMessage: func(c kknet.Conn, data []byte) {
+				onMessage: func(c kknet.IConn, data []byte) {
 					select {
 					case msgCh <- data:
 						atomic.AddInt64(&clientMessages, 1)
@@ -94,7 +94,7 @@ func TestKKUDPLongRunning(t *testing.T) {
 
 	var messageCount int64
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			atomic.AddInt64(&messageCount, 1)
 			_ = c.Send(data)
 		},
@@ -126,7 +126,7 @@ func TestKKUDPLongRunning(t *testing.T) {
 				case <-ticker.C:
 					msgCh := make(chan []byte, 1)
 					clientHandler := &testHandler{
-						onMessage: func(c kknet.Conn, data []byte) {
+						onMessage: func(c kknet.IConn, data []byte) {
 							select {
 							case msgCh <- data:
 							default:

@@ -20,7 +20,7 @@ import (
 // Server represents a TCP server with length-prefixed messages.
 type Server struct {
 	addr    string
-	handler kknet.Handler
+	handler kknet.IHandler
 	opts    kknet.Options
 
 	engine  gnet.Engine
@@ -36,11 +36,12 @@ type Server struct {
 	tlsMu       sync.Mutex
 	tlsWg       sync.WaitGroup
 
-	unpacker kknet.StreamUnpacker
+	unpacker    kknet.StreamUnpacker
+	middlewares []kknet.Middleware
 }
 
 // NewServer creates a new TCP server.
-func NewServer(addr string, handler kknet.Handler, opts ...kknet.Option) *Server {
+func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
 	cfg := kknet.ApplyOptions(opts...)
 	return &Server{
 		addr:     addr,
@@ -59,11 +60,24 @@ func (s *Server) SetUnpacker(u kknet.StreamUnpacker) {
 	s.unpacker = u
 }
 
+// Use adds middleware to the server.
+// Middlewares are applied in the order they are added.
+// Call before Start.
+func (s *Server) Use(middlewares ...kknet.Middleware) {
+	if len(middlewares) == 0 {
+		return
+	}
+	s.middlewares = append(s.middlewares, middlewares...)
+}
+
 // Start begins listening and accepting connections.
 func (s *Server) Start() error {
 	if s.started.Swap(true) {
 		return nil
 	}
+
+	// Apply middlewares to handler
+	s.handler = kknet.ApplyMiddlewares(s.handler, s.middlewares...)
 
 	if s.opts.TLSConfig != nil {
 		return s.startTLS()
@@ -437,7 +451,7 @@ func (c *tlsConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *tlsConn) readLoop(handler kknet.Handler) error {
+func (c *tlsConn) readLoop(handler kknet.IHandler) error {
 	header := make([]byte, 4)
 	for {
 		if err := readFull(c.conn, header); err != nil {
@@ -470,7 +484,7 @@ func (c *tlsConn) readLoop(handler kknet.Handler) error {
 	}
 }
 
-func (c *tlsConn) closeWithError(handler kknet.Handler, err error) {
+func (c *tlsConn) closeWithError(handler kknet.IHandler, err error) {
 	c.closeOnce.Do(func() {
 		if c.stats != nil {
 			c.stats.OnClose()

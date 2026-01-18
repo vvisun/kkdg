@@ -7,8 +7,8 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers"
 )
 
-// Conn represents a network connection.
-type Conn interface {
+// IConn represents a network connection.
+type IConn interface {
 	ID() int64
 	Send(data []byte) error
 	Close() error
@@ -17,11 +17,11 @@ type Conn interface {
 	SetContext(ctx context.Context)
 }
 
-// Handler handles connection lifecycle and messages.
-type Handler interface {
-	OnConnect(c Conn)
-	OnMessage(c Conn, data buffers.IBuffer)
-	OnClose(c Conn, err error)
+// IHandler handles connection lifecycle and messages.
+type IHandler interface {
+	OnConnect(c IConn)
+	OnMessage(c IConn, data buffers.IBuffer)
+	OnClose(c IConn, err error)
 }
 
 var connIDCounter atomic.Int64

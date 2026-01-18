@@ -14,7 +14,7 @@ func TestKKWSLargeMessage(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -50,7 +50,7 @@ func TestKKWSLargeMessage(t *testing.T) {
 	}
 
 	replyCh := make(chan []byte, 1)
-	clientHandler.onMessage = func(c kknet.Conn, data []byte) {
+	clientHandler.onMessage = func(c kknet.IConn, data []byte) {
 		replyCh <- data
 	}
 
@@ -78,7 +78,7 @@ func TestKKWSEmptyMessage(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -108,7 +108,7 @@ func TestKKWSEmptyMessage(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	replyCh := make(chan []byte, 1)
-	clientHandler.onMessage = func(c kknet.Conn, data []byte) {
+	clientHandler.onMessage = func(c kknet.IConn, data []byte) {
 		replyCh <- data
 	}
 
@@ -132,7 +132,7 @@ func TestKKWSRapidMessages(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -162,7 +162,7 @@ func TestKKWSRapidMessages(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	msgCh := make(chan []byte, 1000)
-	clientHandler.onMessage = func(c kknet.Conn, data []byte) {
+	clientHandler.onMessage = func(c kknet.IConn, data []byte) {
 		select {
 		case msgCh <- data:
 		default:
@@ -205,7 +205,7 @@ func TestKKWSConnectionClose(t *testing.T) {
 
 	closeCh := make(chan error, 1)
 	serverHandler := &testHandler{
-		onClose: func(c kknet.Conn, err error) {
+		onClose: func(c kknet.IConn, err error) {
 			closeCh <- err
 		},
 	}
@@ -252,7 +252,7 @@ func TestKKWSMaxMessageSize(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -303,15 +303,15 @@ func TestKKWSConcurrentConnections(t *testing.T) {
 	connCount := 0
 
 	serverHandler := &testHandler{
-		onConnect: func(c kknet.Conn) {
+		onConnect: func(c kknet.IConn) {
 			mu.Lock()
 			connCount++
 			mu.Unlock()
 		},
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
-		onClose: func(c kknet.Conn, err error) {
+		onClose: func(c kknet.IConn, err error) {
 			mu.Lock()
 			connCount--
 			mu.Unlock()
@@ -337,7 +337,7 @@ func TestKKWSConcurrentConnections(t *testing.T) {
 
 			msgCh := make(chan []byte, 1)
 			clientHandler := &testHandler{
-				onMessage: func(c kknet.Conn, data []byte) {
+				onMessage: func(c kknet.IConn, data []byte) {
 					msgCh <- data
 				},
 			}

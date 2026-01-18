@@ -49,7 +49,7 @@ func TestKKNetIntegrationTCPActor(t *testing.T) {
 
 	replyCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			replyCh <- data
 		},
 	}

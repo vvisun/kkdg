@@ -72,7 +72,7 @@ func TestKKTcpTLS(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -84,7 +84,7 @@ func TestKKTcpTLS(t *testing.T) {
 
 	replyCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			replyCh <- data
 		},
 	}
@@ -114,7 +114,7 @@ func TestKKWSTLS(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -144,7 +144,7 @@ func TestKKWSTLS(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	replyCh := make(chan []byte, 1)
-	clientHandler.onMessage = func(c kknet.Conn, data []byte) {
+	clientHandler.onMessage = func(c kknet.IConn, data []byte) {
 		replyCh <- data
 	}
 

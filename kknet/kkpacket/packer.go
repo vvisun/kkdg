@@ -2,6 +2,7 @@ package kkpacket
 
 import (
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type packer struct {
@@ -57,11 +58,6 @@ func NewPacker(headType uint8, codecType uint8, isLittleEndian bool) *packer {
 	if packer, ok := packerCache[key]; ok {
 		return packer
 	}
-	p := &packer{
-		headType:       headType,
-		codecType:      codecType,
-		isLittleEndian: isLittleEndian,
-	}
-	packerCache[key] = p
-	return p
+	kklog.Panicf("packer not found: headType=%d, codecType=%d, isLittleEndian=%t", headType, codecType, isLittleEndian)
+	return nil
 }

@@ -14,7 +14,7 @@ func TestKKTCPLargeMessage(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -26,7 +26,7 @@ func TestKKTCPLargeMessage(t *testing.T) {
 
 	msgCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
 		},
 	}
@@ -66,7 +66,7 @@ func TestKKTCPEmptyMessage(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -78,7 +78,7 @@ func TestKKTCPEmptyMessage(t *testing.T) {
 
 	msgCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
 		},
 	}
@@ -111,15 +111,15 @@ func TestKKTCPConcurrentConnections(t *testing.T) {
 	connCount := 0
 
 	serverHandler := &testHandler{
-		onConnect: func(c kknet.Conn) {
+		onConnect: func(c kknet.IConn) {
 			mu.Lock()
 			connCount++
 			mu.Unlock()
 		},
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
-		onClose: func(c kknet.Conn, err error) {
+		onClose: func(c kknet.IConn, err error) {
 			mu.Lock()
 			connCount--
 			mu.Unlock()
@@ -142,7 +142,7 @@ func TestKKTCPConcurrentConnections(t *testing.T) {
 
 			msgCh := make(chan []byte, 1)
 			clientHandler := &testHandler{
-				onMessage: func(c kknet.Conn, data []byte) {
+				onMessage: func(c kknet.IConn, data []byte) {
 					msgCh <- data
 				},
 			}
@@ -197,7 +197,7 @@ func TestKKTCPRapidMessages(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -209,7 +209,7 @@ func TestKKTCPRapidMessages(t *testing.T) {
 
 	msgCh := make(chan []byte, 1000)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
 		},
 	}
@@ -256,7 +256,7 @@ func TestKKTCPConnectionClose(t *testing.T) {
 
 	closeCh := make(chan error, 1)
 	serverHandler := &testHandler{
-		onClose: func(c kknet.Conn, err error) {
+		onClose: func(c kknet.IConn, err error) {
 			closeCh <- err
 		},
 	}
@@ -291,7 +291,7 @@ func TestKKTCPMaxMessageSize(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}

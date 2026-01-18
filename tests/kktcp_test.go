@@ -11,24 +11,24 @@ import (
 )
 
 type testHandler struct {
-	onConnect func(kknet.Conn)
-	onMessage func(kknet.Conn, []byte)
-	onClose   func(kknet.Conn, error)
+	onConnect func(kknet.IConn)
+	onMessage func(kknet.IConn, []byte)
+	onClose   func(kknet.IConn, error)
 }
 
-func (h *testHandler) OnConnect(c kknet.Conn) {
+func (h *testHandler) OnConnect(c kknet.IConn) {
 	if h.onConnect != nil {
 		h.onConnect(c)
 	}
 }
 
-func (h *testHandler) OnMessage(c kknet.Conn, data buffers.IBuffer) {
+func (h *testHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	if h.onMessage != nil {
 		h.onMessage(c, bufferBytes(data))
 	}
 }
 
-func (h *testHandler) OnClose(c kknet.Conn, err error) {
+func (h *testHandler) OnClose(c kknet.IConn, err error) {
 	if h.onClose != nil {
 		h.onClose(c, err)
 	}
@@ -53,7 +53,7 @@ func TestKKNetTCP(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -65,7 +65,7 @@ func TestKKNetTCP(t *testing.T) {
 
 	msgCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
 		},
 	}

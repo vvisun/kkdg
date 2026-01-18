@@ -19,20 +19,21 @@ import (
 type Server struct {
 	addr    string
 	path    string
-	handler kknet.Handler
+	handler kknet.IHandler
 	opts    kknet.Options
 
-	httpServer *http.Server
-	pool       *ants.Pool
-	started    atomic.Bool
-	booted     chan struct{}
-	done       chan error
+	httpServer  *http.Server
+	pool        *ants.Pool
+	started     atomic.Bool
+	booted      chan struct{}
+	done        chan error
+	middlewares []kknet.Middleware
 
 	stats kknet.Stats
 }
 
 // NewServer creates a new WebSocket server.
-func NewServer(addr string, handler kknet.Handler, opts ...kknet.Option) *Server {
+func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
 	return &Server{
 		addr:    addr,
 		path:    "/ws",
@@ -49,11 +50,24 @@ func (s *Server) SetPath(path string) {
 	s.path = path
 }
 
+// Use adds middleware to the server.
+// Middlewares are applied in the order they are added.
+// Call before Start.
+func (s *Server) Use(middlewares ...kknet.Middleware) {
+	if len(middlewares) == 0 {
+		return
+	}
+	s.middlewares = append(s.middlewares, middlewares...)
+}
+
 // Start begins listening for websocket connections.
 func (s *Server) Start() error {
 	if s.started.Swap(true) {
 		return nil
 	}
+
+	// Apply middlewares to handler
+	s.handler = kknet.ApplyMiddlewares(s.handler, s.middlewares...)
 
 	if s.opts.PoolSize > 0 {
 		poolOpts := make([]ants.Option, 0, 1)
@@ -176,7 +190,7 @@ func (s *Server) Stats() kknet.StatsSnapshot {
 	return s.stats.Snapshot()
 }
 
-func (s *Server) dispatch(c kknet.Conn, data buffers.IBuffer) {
+func (s *Server) dispatch(c kknet.IConn, data buffers.IBuffer) {
 	if s.handler == nil {
 		kkbuffer.Put(data)
 		return

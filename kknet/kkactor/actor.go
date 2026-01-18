@@ -20,7 +20,7 @@ const (
 // ActorEvent is delivered to protoactor actors.
 type ActorEvent struct {
 	Type ActorEventType
-	Conn kknet.Conn
+	Conn kknet.IConn
 	Data []byte
 	Err  error
 }
@@ -69,7 +69,7 @@ func (h *ActorHandler) Stop(ctx context.Context) {
 }
 
 // OnConnect implements Handler.
-func (h *ActorHandler) OnConnect(c kknet.Conn) {
+func (h *ActorHandler) OnConnect(c kknet.IConn) {
 	if h == nil {
 		return
 	}
@@ -80,7 +80,7 @@ func (h *ActorHandler) OnConnect(c kknet.Conn) {
 }
 
 // OnMessage implements Handler.
-func (h *ActorHandler) OnMessage(c kknet.Conn, data buffers.IBuffer) {
+func (h *ActorHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	if h == nil {
 		return
 	}
@@ -93,7 +93,7 @@ func (h *ActorHandler) OnMessage(c kknet.Conn, data buffers.IBuffer) {
 }
 
 // OnClose implements Handler.
-func (h *ActorHandler) OnClose(c kknet.Conn, err error) {
+func (h *ActorHandler) OnClose(c kknet.IConn, err error) {
 	if h == nil {
 		return
 	}

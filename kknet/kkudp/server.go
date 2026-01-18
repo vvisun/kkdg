@@ -15,7 +15,7 @@ import (
 // Server represents a UDP server.
 type Server struct {
 	addr    string
-	handler kknet.Handler
+	handler kknet.IHandler
 	opts    kknet.Options
 
 	engine  gnet.Engine
@@ -23,14 +23,15 @@ type Server struct {
 	booted  chan struct{}
 	done    chan error
 
-	seen    map[string]struct{}
-	connsMu sync.Mutex
+	seen        map[string]struct{}
+	connsMu     sync.Mutex
+	middlewares []kknet.Middleware
 
 	stats kknet.Stats
 }
 
 // NewServer creates a new UDP server.
-func NewServer(addr string, handler kknet.Handler, opts ...kknet.Option) *Server {
+func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
 	return &Server{
 		addr:    addr,
 		handler: handler,
@@ -44,6 +45,9 @@ func (s *Server) Start() error {
 	if s.started.Swap(true) {
 		return nil
 	}
+
+	// Apply middlewares to handler
+	s.handler = kknet.ApplyMiddlewares(s.handler, s.middlewares...)
 
 	s.booted = make(chan struct{})
 	s.done = make(chan error, 1)
@@ -86,6 +90,16 @@ func (s *Server) Addr() string {
 // Stats returns a snapshot of server statistics.
 func (s *Server) Stats() kknet.StatsSnapshot {
 	return s.stats.Snapshot()
+}
+
+// Use adds middleware to the server.
+// Middlewares are applied in the order they are added.
+// Call before Start.
+func (s *Server) Use(middlewares ...kknet.Middleware) {
+	if len(middlewares) == 0 {
+		return
+	}
+	s.middlewares = append(s.middlewares, middlewares...)
 }
 
 type udpEventHandler struct {

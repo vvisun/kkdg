@@ -14,7 +14,7 @@ import (
 // Client represents a UDP client.
 type Client struct {
 	addr    string
-	handler kknet.Handler
+	handler kknet.IHandler
 	opts    kknet.Options
 
 	connMu    sync.Mutex
@@ -25,7 +25,7 @@ type Client struct {
 }
 
 // NewClient creates a new UDP client.
-func NewClient(addr string, handler kknet.Handler, opts ...kknet.Option) *Client {
+func NewClient(addr string, handler kknet.IHandler, opts ...kknet.Option) *Client {
 	return &Client{
 		addr:    addr,
 		handler: handler,
@@ -92,7 +92,7 @@ func (c *Client) Close() error {
 }
 
 // Conn returns the underlying connection.
-func (c *Client) Conn() kknet.Conn {
+func (c *Client) Conn() kknet.IConn {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	return c.conn
@@ -104,12 +104,12 @@ func (c *Client) Stats() kknet.StatsSnapshot {
 }
 
 type clientConn struct {
-	id   int64
-	conn *net.UDPConn
-	opts kknet.Options
+	id    int64
+	conn  *net.UDPConn
+	opts  kknet.Options
 	stats *kknet.Stats
 
-	writeMu  sync.Mutex
+	writeMu   sync.Mutex
 	closeOnce sync.Once
 
 	ctxMu sync.RWMutex
@@ -172,7 +172,7 @@ func (c *clientConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *clientConn) readLoop(handler kknet.Handler) error {
+func (c *clientConn) readLoop(handler kknet.IHandler) error {
 	buf := make([]byte, c.opts.MaxMessageSize)
 	for {
 		n, err := c.conn.Read(buf)
@@ -196,7 +196,7 @@ func (c *clientConn) readLoop(handler kknet.Handler) error {
 	}
 }
 
-func (c *clientConn) closeWithError(handler kknet.Handler, err error) {
+func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 	c.closeOnce.Do(func() {
 		if c.stats != nil {
 			c.stats.OnClose()

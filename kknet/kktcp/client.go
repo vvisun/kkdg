@@ -17,7 +17,7 @@ import (
 // Client represents a TCP client.
 type Client struct {
 	addr    string
-	handler kknet.Handler
+	handler kknet.IHandler
 	opts    kknet.Options
 
 	connMu    sync.Mutex
@@ -28,7 +28,7 @@ type Client struct {
 }
 
 // NewClient creates a new TCP client.
-func NewClient(addr string, handler kknet.Handler, opts ...kknet.Option) *Client {
+func NewClient(addr string, handler kknet.IHandler, opts ...kknet.Option) *Client {
 	return &Client{
 		addr:    addr,
 		handler: handler,
@@ -106,7 +106,7 @@ func (c *Client) Close() error {
 }
 
 // Conn returns the underlying connection.
-func (c *Client) Conn() kknet.Conn {
+func (c *Client) Conn() kknet.IConn {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	return c.conn
@@ -194,7 +194,7 @@ func (c *clientConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *clientConn) readLoop(handler kknet.Handler) error {
+func (c *clientConn) readLoop(handler kknet.IHandler) error {
 	header := make([]byte, 4)
 	for {
 		if err := readFull(c.conn, header); err != nil {
@@ -224,7 +224,7 @@ func (c *clientConn) readLoop(handler kknet.Handler) error {
 	}
 }
 
-func (c *clientConn) closeWithError(handler kknet.Handler, err error) {
+func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 	c.closeOnce.Do(func() {
 		if c.stats != nil {
 			c.stats.OnClose()

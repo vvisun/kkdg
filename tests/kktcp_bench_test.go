@@ -12,7 +12,7 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 	addr := freeTCPAddr(b)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -24,7 +24,7 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 
 	msgCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
 		},
 	}

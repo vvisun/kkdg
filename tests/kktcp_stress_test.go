@@ -20,13 +20,13 @@ func TestKKTCPHighConcurrency(t *testing.T) {
 
 	var activeConns int64
 	serverHandler := &testHandler{
-		onConnect: func(c kknet.Conn) {
+		onConnect: func(c kknet.IConn) {
 			atomic.AddInt64(&activeConns, 1)
 		},
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
-		onClose: func(c kknet.Conn, err error) {
+		onClose: func(c kknet.IConn, err error) {
 			atomic.AddInt64(&activeConns, -1)
 		},
 	}
@@ -52,7 +52,7 @@ func TestKKTCPHighConcurrency(t *testing.T) {
 
 				msgCh := make(chan []byte, 1)
 				clientHandler := &testHandler{
-					onMessage: func(c kknet.Conn, data []byte) {
+					onMessage: func(c kknet.IConn, data []byte) {
 						select {
 						case msgCh <- data:
 						default:
@@ -130,7 +130,7 @@ func TestKKTCPLongRunning(t *testing.T) {
 
 	var messageCount int64
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			atomic.AddInt64(&messageCount, 1)
 			_ = c.Send(data)
 		},
@@ -162,7 +162,7 @@ func TestKKTCPLongRunning(t *testing.T) {
 				case <-ticker.C:
 					msgCh := make(chan []byte, 1)
 					clientHandler := &testHandler{
-						onMessage: func(c kknet.Conn, data []byte) {
+						onMessage: func(c kknet.IConn, data []byte) {
 							select {
 							case msgCh <- data:
 							default:
@@ -218,7 +218,7 @@ func TestKKTCPHighThroughput(t *testing.T) {
 
 	var serverMessages int64
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			atomic.AddInt64(&serverMessages, 1)
 			_ = c.Send(data)
 		},
@@ -241,7 +241,7 @@ func TestKKTCPHighThroughput(t *testing.T) {
 
 			msgCh := make(chan []byte, messagesPerClient)
 			clientHandler := &testHandler{
-				onMessage: func(c kknet.Conn, data []byte) {
+				onMessage: func(c kknet.IConn, data []byte) {
 					select {
 					case msgCh <- data:
 						atomic.AddInt64(&clientMessages, 1)
@@ -300,7 +300,7 @@ func TestKKTCPMemoryLeak(t *testing.T) {
 	addr := freeTCPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -322,7 +322,7 @@ func TestKKTCPMemoryLeak(t *testing.T) {
 
 				msgCh := make(chan []byte, 1)
 				clientHandler := &testHandler{
-					onMessage: func(c kknet.Conn, data []byte) {
+					onMessage: func(c kknet.IConn, data []byte) {
 						select {
 						case msgCh <- data:
 						default:

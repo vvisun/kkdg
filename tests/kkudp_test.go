@@ -24,7 +24,7 @@ func TestKKNetUDP(t *testing.T) {
 	addr := freeUDPAddr(t)
 
 	serverHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			_ = c.Send(data)
 		},
 	}
@@ -36,7 +36,7 @@ func TestKKNetUDP(t *testing.T) {
 
 	msgCh := make(chan []byte, 1)
 	clientHandler := &testHandler{
-		onMessage: func(c kknet.Conn, data []byte) {
+		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
 		},
 	}

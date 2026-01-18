@@ -15,7 +15,7 @@ import (
 // Client represents a WebSocket client.
 type Client struct {
 	url     string
-	handler kknet.Handler
+	handler kknet.IHandler
 	opts    kknet.Options
 
 	connMu    sync.Mutex
@@ -26,7 +26,7 @@ type Client struct {
 }
 
 // NewClient creates a new WebSocket client.
-func NewClient(url string, handler kknet.Handler, opts ...kknet.Option) *Client {
+func NewClient(url string, handler kknet.IHandler, opts ...kknet.Option) *Client {
 	return &Client{
 		url:     url,
 		handler: handler,
@@ -66,7 +66,7 @@ func (c *Client) Connect() error {
 	}
 
 	go func() {
-		err := wsConn.readLoop(func(conn kknet.Conn, data buffers.IBuffer) {
+		err := wsConn.readLoop(func(conn kknet.IConn, data buffers.IBuffer) {
 			if c.handler != nil {
 				c.handler.OnMessage(conn, data)
 			}
@@ -104,7 +104,7 @@ func (c *Client) Close() error {
 }
 
 // Conn returns the underlying connection.
-func (c *Client) Conn() kknet.Conn {
+func (c *Client) Conn() kknet.IConn {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	return c.conn
@@ -197,7 +197,7 @@ func (c *wsConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *wsConn) readLoop(dispatch func(kknet.Conn, buffers.IBuffer)) error {
+func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 	for {
 		_, data, err := c.conn.ReadMessage()
 		if err != nil {
@@ -216,7 +216,7 @@ func (c *wsConn) readLoop(dispatch func(kknet.Conn, buffers.IBuffer)) error {
 	}
 }
 
-func (c *wsConn) closeWithError(handler kknet.Handler, err error) {
+func (c *wsConn) closeWithError(handler kknet.IHandler, err error) {
 	c.closeOnce.Do(func() {
 		if c.stats != nil {
 			c.stats.OnClose()
