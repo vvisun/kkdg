@@ -158,7 +158,7 @@ func (c *clientConn) Send(data []byte) error {
 	bb := kkbuffer.Get()
 	bb.B = bb.B[:0]
 	bb.B = append(bb.B, 0, 0, 0, 0)
-	binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))
+	kknet.GetByteOrder().PutUint32(bb.B[:4], uint32(len(data)))
 	bb.B = append(bb.B, data...)
 	defer kkbuffer.Put(bb)
 

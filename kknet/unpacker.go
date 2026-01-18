@@ -1,18 +1,11 @@
 package kknet
 
 import (
-	"encoding/binary"
 	"errors"
 	"io"
 
 	"github.com/vvisun/kkdg/kkerrors"
 )
-
-var defaultEndian = binary.BigEndian // 默认大端序(网络字节序)
-
-func GetDefaultEndian() binary.ByteOrder {
-	return defaultEndian
-}
 
 // StreamReader provides buffered stream access for unpacking.
 type StreamReader interface {
@@ -49,7 +42,7 @@ func (u *LengthFieldUnpacker) Unpack(r StreamReader) ([]byte, bool, error) {
 		}
 		return nil, false, err
 	}
-	size := int(defaultEndian.Uint32(header))
+	size := int(GetByteOrder().Uint32(header))
 	if size < 0 || size > u.MaxSize {
 		return nil, false, kkerrors.ErrMaxMessageSize
 	}

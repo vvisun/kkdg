@@ -3,8 +3,8 @@ package testpacket
 import (
 	"testing"
 
+	"github.com/vvisun/kkdg/examples/tests/pbmsg"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/tests/pbmsg"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
@@ -46,7 +46,7 @@ func TestKK_packet_ProtoBuf(t *testing.T) {
 		UserId: 1,
 		Nick:   "test",
 	}
-	packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeProtoBuf, false))
+	packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeProtoBuf))
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
@@ -59,19 +59,19 @@ func TestKK_packet_Encode(t *testing.T) {
 		ID:   1,
 		Data: "hello",
 	}
-	packet, err := kkpacket.EncodePacket(msg1, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+	packet, err := kkpacket.EncodePacket(msg1, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
 	t.Logf("packet: %v", packet)
 
-	packet2, err := kkpacket.EncodePacketEx(msg1, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+	packet2, err := kkpacket.EncodePacketEx(msg1, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
 	t.Logf("packet2: %v", packet2)
 
-	msg2, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+	msg2, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestKK_packet_EncodeDecode_InvalidPacket(t *testing.T) {
 		ID:   1,
 		Data: "hello",
 	}
-	packet, err := kkpacket.EncodePacket(msg1, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+	packet, err := kkpacket.EncodePacket(msg1, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
@@ -102,11 +102,11 @@ func TestKK_packet_Decode(t *testing.T) {
 		ID:   1,
 		Data: "hello",
 	}
-	packet, err := kkpacket.EncodePacket(msg1, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+	packet, err := kkpacket.EncodePacket(msg1, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
-	msg2, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+	msg2, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestKK_packet_Decode(t *testing.T) {
 func TestKK_packet_Decode_InvalidPacket(t *testing.T) {
 	initTestEnv(t)
 	packet := []byte("invalid packet")
-	_, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+	_, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err == nil {
 		t.Fatalf("decode invalid packet should failed")
 	}

@@ -6,9 +6,8 @@ import (
 )
 
 type packer struct {
-	headType       uint8
-	codecType      uint8
-	isLittleEndian bool
+	headType  uint8
+	codecType uint8
 }
 
 type packerKey int
@@ -21,43 +20,31 @@ func init() {
 	//预热packer缓存，消除mutex争抢
 	for i := HeadTypeMid; i <= HeadTypeMidSeq; i++ {
 		for j := kkcodec.CodecTypeJson; j <= kkcodec.CodecTypeToml; j++ {
-			initPacker(i, j, false)
-			initPacker(i, j, true)
+			initPacker(i, j)
 		}
 	}
 }
 
-func initPacker(headType uint8, codecType uint8, isLittleEndian bool) {
-	littleEndian := uint8(0)
-	if isLittleEndian {
-		littleEndian = uint8(1)
-	}
-	// key layout: [headType:8 bits][codecType:8 bits][littleEndian:1 bit]
+func initPacker(headType uint8, codecType uint8) {
+	// key layout: [headType:8 bits][codecType:8 bits]
 	// headType: bits 16-23 (8 bits, 0-255)
 	// codecType: bits 8-15 (8 bits, 0-255)
-	// littleEndian: bit 0 (1 bit, 0-1)
-	key := packerKey(headType)<<16 | packerKey(codecType)<<8 | packerKey(littleEndian)
+	key := packerKey(headType)<<16 | packerKey(codecType)<<8
 	p := &packer{
-		headType:       headType,
-		codecType:      codecType,
-		isLittleEndian: isLittleEndian,
+		headType:  headType,
+		codecType: codecType,
 	}
 	packerCache[key] = p
 }
 
-func NewPacker(headType uint8, codecType uint8, isLittleEndian bool) *packer {
-	littleEndian := uint8(0)
-	if isLittleEndian {
-		littleEndian = uint8(1)
-	}
-	// key layout: [headType:8 bits][codecType:8 bits][littleEndian:1 bit]
+func NewPacker(headType uint8, codecType uint8) *packer {
+	// key layout: [headType:8 bits][codecType:8 bits]
 	// headType: bits 16-23 (8 bits, 0-255)
 	// codecType: bits 8-15 (8 bits, 0-255)
-	// littleEndian: bit 0 (1 bit, 0-1)
-	key := packerKey(headType)<<16 | packerKey(codecType)<<8 | packerKey(littleEndian)
+	key := packerKey(headType)<<16 | packerKey(codecType)<<8
 	if packer, ok := packerCache[key]; ok {
 		return packer
 	}
-	kklog.Panicf("packer not found: headType=%d, codecType=%d, isLittleEndian=%t", headType, codecType, isLittleEndian)
+	kklog.Panicf("packer not found: headType=%d, codecType=%d", headType, codecType)
 	return nil
 }

@@ -18,7 +18,7 @@ func Benchmark_kkpacket_Encode(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+		kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	}
 }
 
@@ -31,7 +31,7 @@ func Benchmark_kkpacket_EncodeEx(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf, _ := kkpacket.EncodePacketEx(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+		buf, _ := kkpacket.EncodePacketEx(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 		kkbuffer.Put(buf)
 	}
 }
@@ -42,14 +42,14 @@ func Benchmark_kkpacket_Decode(b *testing.B) {
 		ID:   1,
 		Data: "hello",
 	}
-	packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+	packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		b.Fatalf("encode packet: %v", err)
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+		kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 		kkpool.GetFactory[msgTest1]().Put(msg)
 	}
 }
@@ -63,11 +63,11 @@ func Benchmark_kkpacket_EncodeDecode(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		packet, err := kkpacket.EncodePacketEx(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+		packet, err := kkpacket.EncodePacketEx(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 		if err != nil {
 			b.Fatalf("encode packet: %v", err)
 		}
-		_, err = kkpacket.DecodePacket[msgTest1](packet.B, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+		_, err = kkpacket.DecodePacket[msgTest1](packet.B, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 		if err != nil {
 			b.Fatalf("decode packet: %v", err)
 		}

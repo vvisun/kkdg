@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
@@ -71,10 +72,7 @@ func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
 		return nil, kkerrors.ErrInvalidCodec
 	}
 
-	var endian binary.ByteOrder = binary.BigEndian
-	if pkType.isLittleEndian {
-		endian = binary.LittleEndian
-	}
+	endian := kknet.GetByteOrder()
 	switch pkType.headType {
 	case HeadTypeMid:
 		head := ParseHeadMid(data[:headSize], endian)
@@ -130,10 +128,7 @@ func EncodePacket[T any](v *T, pkType *packer) ([]byte, error) {
 	if headSize < 0 {
 		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
-	var endian binary.ByteOrder = binary.BigEndian
-	if pkType.isLittleEndian {
-		endian = binary.LittleEndian
-	}
+	endian := kknet.GetByteOrder()
 	head := make([]byte, headSize)
 	switch pkType.headType {
 	case HeadTypeMid:
@@ -188,10 +183,7 @@ func EncodePacketEx[T any](v *T, pkType *packer) (buffers.IBuffer, error) {
 	// Set the length to the total size we need
 	buf.B = buf.B[:headSize+bodyLen]
 
-	var endian binary.ByteOrder = binary.BigEndian
-	if pkType.isLittleEndian {
-		endian = binary.LittleEndian
-	}
+	endian := kknet.GetByteOrder()
 	switch pkType.headType {
 	case HeadTypeMid:
 		endian.PutUint32(buf.B[:4], msgID)

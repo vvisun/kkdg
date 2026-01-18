@@ -3,7 +3,6 @@ package kktcp
 import (
 	"context"
 	"crypto/tls"
-	"encoding/binary"
 	"errors"
 	"net"
 	"sync"
@@ -384,7 +383,7 @@ func (c *tcpConn) Send(data []byte) error {
 	bb := kkbuffer.Get()
 	bb.B = bb.B[:0]
 	bb.B = append(bb.B, 0, 0, 0, 0)
-	binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))
+	kknet.GetByteOrder().PutUint32(bb.B[:4], uint32(len(data)))
 	bb.B = append(bb.B, data...)
 
 	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, _ error) error {
@@ -461,7 +460,7 @@ func (c *tlsConn) Send(data []byte) error {
 	bb := kkbuffer.Get()
 	bb.B = bb.B[:0]
 	bb.B = append(bb.B, 0, 0, 0, 0)
-	binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))
+	kknet.GetByteOrder().PutUint32(bb.B[:4], uint32(len(data)))
 	bb.B = append(bb.B, data...)
 	defer kkbuffer.Put(bb)
 
@@ -503,7 +502,7 @@ func (c *tlsConn) readLoop(handler kknet.IHandler, logger kklog.ILogger) error {
 		if err := readFull(c.conn, header); err != nil {
 			return err
 		}
-		size := int(binary.BigEndian.Uint32(header))
+		size := int(kknet.GetByteOrder().Uint32(header))
 		if size < 0 || size > c.opts.MaxMessageSize {
 			if c.stats != nil {
 				c.stats.AddError()
