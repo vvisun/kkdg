@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -53,6 +54,20 @@ func (c *Client) Connect() error {
 		return err
 	}
 	conn.SetReadLimit(int64(c.opts.MaxMessageSize))
+	
+	// Set read/write timeouts if configured
+	if c.opts.ReadTimeout > 0 {
+		if err := conn.SetReadDeadline(time.Now().Add(c.opts.ReadTimeout)); err != nil {
+			c.stats.AddError()
+			c.opts.Logger.Warnf("kkws client set read deadline error: %v", err)
+		}
+	}
+	if c.opts.WriteTimeout > 0 {
+		if err := conn.SetWriteDeadline(time.Now().Add(c.opts.WriteTimeout)); err != nil {
+			c.stats.AddError()
+			c.opts.Logger.Warnf("kkws client set write deadline error: %v", err)
+		}
+	}
 
 	wsConn := newWSConn(conn, c.opts, &c.stats)
 
@@ -172,6 +187,16 @@ func (c *wsConn) Send(data []byte) error {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
+	// Update write deadline if timeout is configured
+	if c.opts.WriteTimeout > 0 {
+		if err := c.conn.SetWriteDeadline(time.Now().Add(c.opts.WriteTimeout)); err != nil {
+			if c.stats != nil {
+				c.stats.AddError()
+			}
+			return err
+		}
+	}
+
 	if err := c.conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -203,6 +228,13 @@ func (c *wsConn) SetContext(ctx context.Context) {
 
 func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 	for {
+		// Update read deadline if timeout is configured
+		if c.opts.ReadTimeout > 0 {
+			if err := c.conn.SetReadDeadline(time.Now().Add(c.opts.ReadTimeout)); err != nil {
+				return err
+			}
+		}
+		
 		_, data, err := c.conn.ReadMessage()
 		if err != nil {
 			return err
