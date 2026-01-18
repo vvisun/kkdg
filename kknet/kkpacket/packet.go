@@ -12,11 +12,11 @@ import (
 // message = head + body
 
 const (
-	HeadTypeMid    = 0
-	HeadTypeMidSeq = 1
+	HeadTypeMid uint8 = iota
+	HeadTypeMidSeq
 )
 
-func GetHeadSize(headType int) int {
+func GetHeadSize(headType uint8) int {
 	switch headType {
 	case HeadTypeMid:
 		return 4
@@ -49,7 +49,17 @@ func ParseHeadMidSeq(data []byte) HeadMidSeq {
 	}
 }
 
-func DecodePacket[T any](data []byte, headType int, codecType int) (*T, error) {
+/*
+*
+解码包
+
+	@param data []byte 包数据
+	@param headType uint8 头类型
+	@param codecType uint8 编解码器类型
+	@return *T 消息类型
+	@return error 错误
+*/
+func DecodePacket[T any](data []byte, headType uint8, codecType uint8) (*T, error) {
 	headSize := GetHeadSize(headType)
 	if headSize < 0 || len(data) < headSize {
 		return nil, kkerrors.ErrInvalidPacket
@@ -79,8 +89,6 @@ func DecodePacket[T any](data []byte, headType int, codecType int) (*T, error) {
 }
 
 /*
-*
-*
 编码包
 
 	@param v *T 消息类型
@@ -89,7 +97,7 @@ func DecodePacket[T any](data []byte, headType int, codecType int) (*T, error) {
 	@return []byte 包数据
 	@return error 错误
 */
-func EncodePacket[T any](v *T, headType int, codecType int) ([]byte, error) {
+func EncodePacket[T any](v *T, headType uint8, codecType uint8) ([]byte, error) {
 	codec := kkcodec.GetCodec(codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
@@ -126,12 +134,12 @@ func EncodePacket[T any](v *T, headType int, codecType int) ([]byte, error) {
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
 	@param v *T 消息类型
-	@param headType int 头类型
-	@param codecType int 编解码器类型
+	@param headType uint8 头类型
+	@param codecType uint8 编解码器类型
 	@return []byte 包数据
 	@return error 错误
 */
-func EncodePacketEx[T any](v *T, headType int, codecType int) (buffers.IBuffer, error) {
+func EncodePacketEx[T any](v *T, headType uint8, codecType uint8) (buffers.IBuffer, error) {
 	codec := kkcodec.GetCodec(codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec

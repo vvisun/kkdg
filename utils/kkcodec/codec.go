@@ -17,15 +17,15 @@ type ICodec interface {
 }
 
 const (
-	CodecTypeJson     = 0
-	CodecTypeProtoBuf = 1
-	CodecTypeMsgpack  = 2
-	CodecTypeYaml     = 3
-	CodecTypeXml      = 4
-	CodecTypeToml     = 5
+	CodecTypeJson uint8 = iota
+	CodecTypeProtoBuf
+	CodecTypeMsgpack
+	CodecTypeYaml
+	CodecTypeXml
+	CodecTypeToml
 )
 
-func GetCodec(codecType int) ICodec {
+func GetCodec(codecType uint8) ICodec {
 	switch codecType {
 	case CodecTypeJson:
 		return json.DefaultCodec
