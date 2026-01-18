@@ -57,8 +57,8 @@ func (rp *RefPool[T]) Get() T {
 
 // Put 归还对象
 func (rp *RefPool[T]) Put(obj T) {
-	if atomic.LoadInt64(&rp.size) >= 1024 {
-		kklog.Debugf("rp.size is too large, size: %d, just drop it", atomic.LoadInt64(&rp.size))
+	if atomic.LoadInt64(&rp.size) > 10000 {
+		// kklog.Debugf("rp.size is too large, size: %d, just drop it", atomic.LoadInt64(&rp.size))
 		return
 	}
 

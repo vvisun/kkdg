@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kkpool"
 )
 
 func Benchmark_kkpacket_Encode(b *testing.B) {
@@ -49,6 +50,7 @@ func Benchmark_kkpacket_Decode(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson, false))
+		kkpool.GetFactory[msgTest1]().Put(msg)
 	}
 }
 
@@ -70,5 +72,6 @@ func Benchmark_kkpacket_EncodeDecode(b *testing.B) {
 			b.Fatalf("decode packet: %v", err)
 		}
 		kkbuffer.Put(packet)
+		kkpool.GetFactory[msgTest1]().Put(msg)
 	}
 }

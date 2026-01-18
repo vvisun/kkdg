@@ -7,6 +7,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kkpool"
 )
 
 // message = head + body
@@ -51,12 +52,13 @@ func ParseHeadMidSeq(data []byte, endian binary.ByteOrder) HeadMidSeq {
 
 /*
 *
-解码包
+解码包。
+注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
 
 	@param data []byte 包数据
 	@param headType uint8 头类型
 	@param codecType uint8 编解码器类型
-	@return *T 消息类型
+	@return *T 消息对象
 	@return error 错误
 */
 func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
@@ -96,12 +98,13 @@ func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
 	}
 
 	body := data[headSize:]
-	var v T
+	v := kkpool.GetFactory[T]().Get().(*T)
 	err := codec.Unmarshal(body, &v)
 	if err != nil {
+		kkpool.GetFactory[T]().Put(v)
 		return nil, kkerrors.ErrDecodeFailed
 	}
-	return &v, nil
+	return v, nil
 }
 
 /*

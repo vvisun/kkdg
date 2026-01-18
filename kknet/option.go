@@ -22,8 +22,9 @@ type Options struct {
 }
 
 const (
-	defaultMaxMessageSize = 4 * 1024 * 1024
-	defaultBufferSize     = 64 * 1024
+	defaultMaxMessageSize = 8 * 1024        //默认MaxMessageSize为8KB
+	defaultBufferSize     = 64 * 1024       //默认缓冲区大小为64KB
+	message_size_limit    = 1 * 1024 * 1024 //最大的MaxMessageSize不能超过该值: 1MB
 )
 
 func defaultOriginChecker(r *http.Request) bool {
@@ -69,6 +70,10 @@ func WithLogger(l kklog.ILogger) Option {
 // WithMaxMessageSize sets maximum allowed message size.
 func WithMaxMessageSize(size int) Option {
 	return func(o *Options) {
+		if size > message_size_limit {
+			size = message_size_limit
+			kklog.Errorf("MaxMessageSize is too large, set to %d", message_size_limit)
+		}
 		if size > 0 {
 			o.MaxMessageSize = size
 		}
