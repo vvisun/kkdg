@@ -16,7 +16,13 @@ type IComponentContainer interface {
 	GetChildrens() []IComponentContainer
 }
 
-type ComponentState int
+type IComponent interface {
+	GetID() string
+	IComponentLifecycle
+	IComponentContainer
+}
+
+type ComponentState = int64
 
 const (
 	ComponentStateNone           ComponentState = iota //组件未初始化
@@ -26,12 +32,14 @@ const (
 	ComponentStateShutdown                             //组件已关闭
 )
 
-type IComponent interface {
-	IComponentLifecycle
-	IComponentContainer
-}
-
 type Component struct {
+	id string
 	Lifecycle
 	Container
+}
+
+var _ IComponent = (*Component)(nil)
+
+func (slf *Component) GetID() string {
+	return slf.id
 }
