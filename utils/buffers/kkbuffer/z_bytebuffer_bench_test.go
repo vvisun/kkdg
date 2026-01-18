@@ -11,7 +11,7 @@ func BenchmarkGetPut(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		buf := Get()
-		buf.WriteString("test")
+		buf.SetString("test")
 		Put(buf)
 	}
 }
@@ -21,19 +21,8 @@ func BenchmarkPool_GetPut(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		buf := pool.Get()
-		buf.WriteString("test")
+		buf.SetString("test")
 		pool.Put(buf)
-	}
-}
-
-func BenchmarkByteBuffer_Write(b *testing.B) {
-	buf := Get()
-	defer Put(buf)
-	data := []byte("test data")
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		buf.Write(data)
 	}
 }
 
@@ -44,7 +33,7 @@ func BenchmarkByteBuffer_WriteString(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf.WriteString(data)
+		buf.SetString(data)
 	}
 }
 
@@ -61,7 +50,7 @@ func BenchmarkSet(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf.Set(data)
+		buf.SetBytes(data)
 	}
 }
 
@@ -96,43 +85,6 @@ func BenchmarkSetString(b *testing.B) {
 	}
 }
 
-func BenchmarkSetWithCapacity(b *testing.B) {
-	buf := Get()
-	defer Put(buf)
-	data := make([]byte, 512)
-	for i := range data {
-		data[i] = byte(i % 256)
-	}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		buf.SetWithCapacity(data)
-	}
-}
-
-func BenchmarkGrow(b *testing.B) {
-	buf := Get()
-	defer Put(buf)
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		buf.Reset()
-		buf.Grow(1024)
-		buf.Write(make([]byte, 1024))
-	}
-}
-
-func BenchmarkGetWithCapacity(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		buf := GetWithCapacity(1024)
-		buf.Write(make([]byte, 512))
-		Put(buf)
-	}
-}
-
 func BenchmarkGetPut_WithSet(b *testing.B) {
 	data := make([]byte, 256)
 	for i := range data {
@@ -143,7 +95,7 @@ func BenchmarkGetPut_WithSet(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		buf := Get()
-		buf.Set(data)
+		buf.SetBytes(data)
 		Put(buf)
 	}
 }
@@ -169,7 +121,7 @@ func BenchmarkGetPut_Concurrent(b *testing.B) {
 		go func() {
 			defer wg.Done()
 			buf := Get()
-			buf.WriteString("test")
+			buf.SetString("test")
 			Put(buf)
 		}()
 	}

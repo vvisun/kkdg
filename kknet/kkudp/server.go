@@ -135,7 +135,7 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	h.server.stats.AddRecv(len(data))
 	if h.server.handler != nil {
 		payload := kkbuffer.Get()
-		payload.Set(data)
+		payload.SetBytes(data)
 		h.dispatch(uc, payload)
 	}
 	uc.deactivate()

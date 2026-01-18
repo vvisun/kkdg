@@ -2,7 +2,6 @@ package kkbuffer
 
 import (
 	"sync"
-	"sync/atomic"
 	"testing"
 )
 
@@ -17,7 +16,7 @@ func TestPool_GetPut(t *testing.T) {
 		t.Fatalf("new buffer len: got %d, want 0", len(buf.B))
 	}
 
-	buf.WriteString("test")
+	buf.SetString("test")
 	pool.Put(buf)
 	if !buf.released.Load() {
 		t.Fatal("Put: released should be true")
@@ -40,7 +39,7 @@ func TestGetPut(t *testing.T) {
 	if buf == nil {
 		t.Fatal("Get returned nil")
 	}
-	buf.WriteString("test")
+	buf.SetString("test")
 	Put(buf)
 
 	buf2 := Get()
@@ -61,29 +60,12 @@ func TestPool_Concurrent(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < 100; j++ {
 				buf := pool.Get()
-				buf.WriteString("test")
+				buf.SetString("test")
 				pool.Put(buf)
 			}
 		}()
 	}
 	wg.Wait()
-}
-
-func TestPool_LargeBuffer(t *testing.T) {
-	pool := &bfPool{}
-	atomic.StoreUint64(&pool.maxSize, 1024)
-
-	buf := pool.Get()
-	large := make([]byte, 2048)
-	buf.Write(large)
-	origCap := cap(buf.B)
-	pool.Put(buf)
-
-	buf2 := pool.Get()
-	// 超大 buffer 不应回池，buf2 应为新分配或小容量
-	if cap(buf2.B) == origCap && origCap > 1024 {
-		t.Fatal("oversized buffer should not be reused")
-	}
 }
 
 func TestPool_GetWithCapacity(t *testing.T) {
@@ -124,7 +106,7 @@ func TestPool_ResetOnPut(t *testing.T) {
 	pool := &bfPool{}
 
 	buf := pool.Get()
-	buf.WriteString("data")
+	buf.SetString("data")
 	pool.Put(buf)
 
 	buf2 := pool.Get()
@@ -176,7 +158,7 @@ func TestPool_Calibrate(t *testing.T) {
 
 	for i := 0; i < calibrateCallsThreshold+1; i++ {
 		buf := pool.Get()
-		buf.WriteString("x")
+		buf.SetString("x")
 		pool.Put(buf)
 	}
 

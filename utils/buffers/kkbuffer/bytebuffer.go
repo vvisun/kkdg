@@ -3,6 +3,8 @@ package kkbuffer
 import (
 	"io"
 	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // ByteBuffer provides byte buffer, which can be used for minimizing
@@ -13,12 +15,11 @@ import (
 //
 // Use Get for obtaining an empty byte buffer.
 type ByteBuffer struct {
-
+	//防止重复释放
+	released atomic.Bool
 	// B is a byte buffer to use in append-like workloads.
 	// See example code for details.
 	B []byte
-
-	released atomic.Bool //防止重复释放
 }
 
 // Len returns the size of the byte buffer.
@@ -73,15 +74,6 @@ func (b *ByteBuffer) Bytes() []byte {
 	return b.B
 }
 
-// Write implements io.Writer - it appends p to ByteBuffer.B.
-//
-// If the total size is known beforehand, call Grow(len(b.B)+len(p)) first
-// to avoid extra reallocations when appending multiple chunks.
-func (b *ByteBuffer) Write(p []byte) (int, error) {
-	b.B = append(b.B, p...)
-	return len(p), nil
-}
-
 // WriteByte appends the byte c to the buffer.
 //
 // The purpose of this function is bytes.Buffer compatibility.
@@ -94,24 +86,16 @@ func (b *ByteBuffer) WriteByte(c byte) error {
 	return nil
 }
 
-// WriteString appends s to ByteBuffer.B.
-//
-// If the total size is known beforehand, call Grow(len(b.B)+len(s)) first
-// to avoid extra reallocations when appending multiple strings.
-func (b *ByteBuffer) WriteString(s string) (int, error) {
-	b.B = append(b.B, s...)
-	return len(s), nil
-}
-
-// Set sets ByteBuffer.B to p.
+// SetBytes sets ByteBuffer.B to p.
 //
 // If cap(b.B) >= len(p), it uses copy (no alloc). Use GetWithCapacity
-// or Grow before Reset+Set when repeatedly setting similar-sized data.
-func (b *ByteBuffer) Set(p []byte) {
+// or Grow before Reset+SetBytes when repeatedly setting similar-sized data.
+func (b *ByteBuffer) SetBytes(p []byte) {
 	if cap(b.B) >= len(p) {
 		b.B = b.B[:len(p)]
 		copy(b.B, p)
 	} else {
+		kklog.Warnf("ByteBuffer.SetBytes: cap(b.B) < len(p), cap: %d, len: %d", cap(b.B), len(p))
 		b.B = append(b.B[:0], p...)
 	}
 }
@@ -125,27 +109,16 @@ func (b *ByteBuffer) SetString(s string) {
 		b.B = b.B[:len(s)]
 		copy(b.B, s)
 	} else {
+		kklog.Warnf("ByteBuffer.SetString: cap(b.B) < len(s), cap: %d, len: %d", cap(b.B), len(s))
 		b.B = append(b.B[:0], s...)
 	}
-}
-
-// SetWithCapacity sets ByteBuffer.B to p, ensuring capacity >= len(p).
-// This method always ensures sufficient capacity, potentially allocating new memory.
-func (b *ByteBuffer) SetWithCapacity(p []byte) {
-	if cap(b.B) < len(p) {
-		b.B = make([]byte, len(p))
-	} else {
-		b.B = b.B[:len(p)]
-	}
-	copy(b.B, p)
 }
 
 // Grow ensures the buffer has at least n bytes capacity.
 // If the current capacity is less than n, it grows the buffer.
 //
 // Call Grow before a batch of Write/WriteByte/WriteString when the total
-// size is known (e.g. Grow(len(b.B)+total) before a loop) to reduce
-// reallocations.
+// size is known (e.g. Grow(len(b.B)+total) before a loop) to reduce reallocations.
 func (b *ByteBuffer) Grow(n int) {
 	if cap(b.B) < n {
 		newCap := n

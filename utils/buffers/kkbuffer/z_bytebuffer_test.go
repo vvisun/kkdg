@@ -14,30 +14,13 @@ func TestByteBuffer_Len(t *testing.T) {
 	if buf.Len() != 0 {
 		t.Fatalf("new buffer Len: got %d, want 0", buf.Len())
 	}
-	buf.WriteString("hello")
+	buf.SetString("hello")
 	if buf.Len() != 5 {
 		t.Fatalf("after WriteString: got %d, want 5", buf.Len())
 	}
 	buf.Reset()
 	if buf.Len() != 0 {
 		t.Fatalf("after Reset: got %d, want 0", buf.Len())
-	}
-}
-
-func TestByteBuffer_Write(t *testing.T) {
-	buf := Get()
-	defer Put(buf)
-
-	data := []byte("test")
-	n, err := buf.Write(data)
-	if err != nil {
-		t.Fatalf("Write: %v", err)
-	}
-	if n != len(data) {
-		t.Fatalf("Write n: got %d, want %d", n, len(data))
-	}
-	if !bytes.Equal(buf.B, data) {
-		t.Fatalf("Write content: got %q, want %q", buf.B, data)
 	}
 }
 
@@ -57,15 +40,9 @@ func TestByteBuffer_WriteString(t *testing.T) {
 	defer Put(buf)
 
 	s := "hello"
-	n, err := buf.WriteString(s)
-	if err != nil {
-		t.Fatalf("WriteString: %v", err)
-	}
-	if n != len(s) {
-		t.Fatalf("WriteString n: got %d, want %d", n, len(s))
-	}
+	buf.SetString(s)
 	if buf.String() != s {
-		t.Fatalf("WriteString: got %q, want %q", buf.String(), s)
+		t.Fatalf("SetString: got %q, want %q", buf.String(), s)
 	}
 }
 
@@ -74,11 +51,11 @@ func TestByteBuffer_Set(t *testing.T) {
 	defer Put(buf)
 
 	// 先写入一些数据以获得容量
-	buf.WriteString(strings.Repeat("x", 100))
+	buf.SetString(strings.Repeat("x", 100))
 	buf.Reset()
 
 	data := []byte("hello")
-	buf.Set(data)
+	buf.SetBytes(data)
 	if !bytes.Equal(buf.B, data) {
 		t.Fatalf("Set: got %q, want %q", buf.B, data)
 	}
@@ -91,7 +68,7 @@ func TestByteBuffer_Set(t *testing.T) {
 	for i := range large {
 		large[i] = byte(i % 256)
 	}
-	buf.Set(large)
+	buf.SetBytes(large)
 	if len(buf.B) != len(large) {
 		t.Fatalf("Set large len: got %d, want %d", len(buf.B), len(large))
 	}
@@ -104,34 +81,13 @@ func TestByteBuffer_SetString(t *testing.T) {
 	buf := Get()
 	defer Put(buf)
 
-	buf.WriteString("xxxxx")
+	buf.SetString("xxxxx")
 	buf.Reset()
 
 	s := "world"
 	buf.SetString(s)
 	if buf.String() != s {
 		t.Fatalf("SetString: got %q, want %q", buf.String(), s)
-	}
-}
-
-func TestByteBuffer_SetWithCapacity(t *testing.T) {
-	buf := Get()
-	defer Put(buf)
-
-	data := make([]byte, 500)
-	for i := range data {
-		data[i] = byte(i % 256)
-	}
-	buf.SetWithCapacity(data)
-
-	if len(buf.B) != len(data) {
-		t.Fatalf("SetWithCapacity len: got %d, want %d", len(buf.B), len(data))
-	}
-	if cap(buf.B) < len(data) {
-		t.Fatalf("SetWithCapacity cap: got %d, want >= %d", cap(buf.B), len(data))
-	}
-	if !bytes.Equal(buf.B, data) {
-		t.Fatal("SetWithCapacity: content mismatch")
 	}
 }
 
@@ -149,7 +105,7 @@ func TestByteBuffer_Grow(t *testing.T) {
 	}
 
 	// 有数据时增长
-	buf.WriteString("abc")
+	buf.SetString("abc")
 	oldLen := len(buf.B)
 	buf.Grow(2000)
 	if cap(buf.B) < 2000 {
@@ -174,7 +130,7 @@ func TestByteBuffer_Reset(t *testing.T) {
 	buf := Get()
 	defer Put(buf)
 
-	buf.WriteString("test")
+	buf.SetString("test")
 	buf.Reset()
 	if len(buf.B) != 0 {
 		t.Fatalf("Reset: len got %d, want 0", len(buf.B))
@@ -204,7 +160,7 @@ func TestByteBuffer_ReadFrom(t *testing.T) {
 func TestByteBuffer_WriteTo(t *testing.T) {
 	buf := Get()
 	defer Put(buf)
-	buf.WriteString("foo")
+	buf.SetString("foo")
 
 	var w bytes.Buffer
 	n, err := buf.WriteTo(&w)
@@ -222,7 +178,7 @@ func TestByteBuffer_WriteTo(t *testing.T) {
 func TestByteBuffer_Bytes(t *testing.T) {
 	buf := Get()
 	defer Put(buf)
-	buf.WriteString("xyz")
+	buf.SetString("xyz")
 
 	b := buf.Bytes()
 	if !bytes.Equal(b, []byte("xyz")) {
@@ -238,7 +194,7 @@ func TestByteBuffer_Bytes(t *testing.T) {
 func TestByteBuffer_String(t *testing.T) {
 	buf := Get()
 	defer Put(buf)
-	buf.WriteString("test")
+	buf.SetString("test")
 
 	if buf.String() != "test" {
 		t.Fatalf("String: got %q, want test", buf.String())
