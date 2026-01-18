@@ -8,6 +8,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/panjf2000/ants/v2"
 	"github.com/panjf2000/gnet/v2"
@@ -123,15 +124,36 @@ func (s *Server) Stop() error {
 	if !s.started.Swap(false) {
 		return kkerrors.ErrServerNotStarted
 	}
-	if s.opts.TLSConfig != nil {
-		return s.stopTLS()
+
+	// Use timeout context for shutdown
+	timeout := s.opts.ShutdownTimeout
+	if timeout <= 0 {
+		timeout = 30 * time.Second
 	}
-	if err := s.engine.Stop(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if s.opts.TLSConfig != nil {
+		return s.stopTLSWithTimeout(ctx)
+	}
+
+	// Stop the gnet engine with timeout
+	if err := s.engine.Stop(ctx); err != nil {
+		if ctx.Err() != nil {
+			s.opts.Logger.Warnf("kktcp server shutdown timeout after %v", timeout)
+		}
 		return err
 	}
+
+	// Wait for done channel or timeout
 	if s.done != nil {
-		_ = <-s.done
+		select {
+		case <-s.done:
+		case <-ctx.Done():
+			s.opts.Logger.Warnf("kktcp server shutdown timeout after %v", timeout)
+		}
 	}
+
 	if s.pool != nil {
 		s.pool.Release()
 		s.pool = nil
@@ -164,13 +186,26 @@ func (s *Server) startTLS() error {
 	return nil
 }
 
-func (s *Server) stopTLS() error {
+func (s *Server) stopTLSWithTimeout(ctx context.Context) error {
 	if s.tlsListener != nil {
 		_ = s.tlsListener.Close()
 	}
 	s.closeAllTLS()
-	s.tlsWg.Wait()
-	return nil
+
+	// Wait for all TLS connections to close with timeout
+	done := make(chan struct{})
+	go func() {
+		s.tlsWg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		s.opts.Logger.Warnf("kktcp tls server: some connections did not close within timeout")
+		return ctx.Err()
+	}
 }
 
 func (s *Server) acceptTLS() {

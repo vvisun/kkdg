@@ -3,6 +3,7 @@ package kknet
 import (
 	"crypto/tls"
 	"net/http"
+	"time"
 
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xos"
@@ -19,12 +20,14 @@ type Options struct {
 	WriteBufferSize int
 	TLSConfig       *tls.Config
 	OriginChecker   OriginCheckFunc
+	ShutdownTimeout time.Duration
 }
 
 const (
 	defaultMaxMessageSize = 8 * 1024        //默认MaxMessageSize为8KB
 	defaultBufferSize     = 64 * 1024       //默认缓冲区大小为64KB
 	message_size_limit    = 1 * 1024 * 1024 //最大的MaxMessageSize不能超过该值: 1MB
+	defaultShutdownTimeout = 30 * time.Second //默认关闭超时时间为30秒
 )
 
 func defaultOriginChecker(r *http.Request) bool {
@@ -44,6 +47,7 @@ func DefaultOptions() Options {
 		WriteBufferSize: defaultBufferSize,
 		TLSConfig:       nil,
 		OriginChecker:   defaultOriginChecker,
+		ShutdownTimeout: defaultShutdownTimeout,
 	}
 }
 
@@ -114,5 +118,14 @@ func WithOriginChecker(checker OriginCheckFunc) Option {
 func WithTLSConfig(cfg *tls.Config) Option {
 	return func(o *Options) {
 		o.TLSConfig = cfg
+	}
+}
+
+// WithShutdownTimeout sets the timeout for graceful shutdown.
+func WithShutdownTimeout(timeout time.Duration) Option {
+	return func(o *Options) {
+		if timeout > 0 {
+			o.ShutdownTimeout = timeout
+		}
 	}
 }
