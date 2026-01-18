@@ -114,7 +114,9 @@ func (s *Server) Start() error {
 
 		s.stats.OnConnect()
 		if s.handler != nil {
-			s.handler.OnConnect(wsConn)
+			kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kkws OnConnect", func() {
+				s.handler.OnConnect(wsConn)
+			})
 		}
 
 		go func() {
@@ -275,13 +277,17 @@ func (s *Server) dispatch(c kknet.IConn, data buffers.IBuffer) {
 		return
 	}
 	if s.pool == nil {
-		s.handler.OnMessage(c, data)
-		kkbuffer.Put(data)
+		defer kkbuffer.Put(data)
+		kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kkws OnMessage", func() {
+			s.handler.OnMessage(c, data)
+		})
 		return
 	}
 	if err := s.pool.Submit(func() {
-		s.handler.OnMessage(c, data)
-		kkbuffer.Put(data)
+		defer kkbuffer.Put(data)
+		kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kkws OnMessage", func() {
+			s.handler.OnMessage(c, data)
+		})
 	}); err != nil {
 		kkbuffer.Put(data)
 		s.stats.AddError()

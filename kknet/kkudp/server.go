@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -23,11 +24,14 @@ type Server struct {
 	booted  chan struct{}
 	done    chan error
 
-	seen        map[string]struct{}
+	conns       map[string]*udpConn
 	connsMu     sync.Mutex
 	middlewares []kknet.Middleware
 
 	stats kknet.Stats
+
+	cleanupStop chan struct{}
+	cleanupDone chan struct{}
 }
 
 // NewServer creates a new UDP server.
@@ -36,7 +40,7 @@ func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Serve
 		addr:    addr,
 		handler: handler,
 		opts:    kknet.ApplyOptions(opts...),
-		seen:    make(map[string]struct{}),
+		conns:   make(map[string]*udpConn),
 	}
 }
 
@@ -60,6 +64,7 @@ func (s *Server) Start() error {
 
 	select {
 	case <-s.booted:
+		s.startCleanup()
 		return nil
 	case err := <-s.done:
 		s.started.Store(false)
@@ -78,6 +83,7 @@ func (s *Server) Stop() error {
 	if s.done != nil {
 		_ = <-s.done
 	}
+	s.stopCleanup()
 	s.closeAll(kkerrors.ErrServerStopped)
 	return nil
 }
@@ -144,24 +150,30 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 
 func (h *udpEventHandler) dispatch(c *udpConn, data buffers.IBuffer) {
 	// UDP connection is only valid during OnTraffic callback.
-	h.server.handler.OnMessage(c, data)
-	kkbuffer.Put(data)
+	defer kkbuffer.Put(data)
+	kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kkudp OnMessage", func() {
+		h.server.handler.OnMessage(c, data)
+	})
 }
 
 func (s *Server) newConn(c gnet.Conn) *udpConn {
 	key := c.RemoteAddr().String()
+	now := time.Now()
 	s.connsMu.Lock()
-	_, exists := s.seen[key]
+	conn, exists := s.conns[key]
 	if !exists {
-		s.seen[key] = struct{}{}
+		conn = newUDPConn(c, s.opts, &s.stats, now)
+		s.conns[key] = conn
 	}
+	conn.activate(c, now)
 	s.connsMu.Unlock()
 
-	conn := newUDPConn(c, s.opts, &s.stats)
 	if !exists {
 		s.stats.OnConnect()
 		if s.handler != nil {
-			s.handler.OnConnect(conn)
+			kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kkudp OnConnect", func() {
+				s.handler.OnConnect(conn)
+			})
 		}
 	}
 	return conn
@@ -169,22 +181,15 @@ func (s *Server) newConn(c gnet.Conn) *udpConn {
 
 func (s *Server) closeAll(err error) {
 	s.connsMu.Lock()
-	defer s.connsMu.Unlock()
-	if s.handler == nil {
-		s.seen = make(map[string]struct{})
-		return
+	conns := make([]*udpConn, 0, len(s.conns))
+	for _, conn := range s.conns {
+		conns = append(conns, conn)
 	}
-	for addr := range s.seen {
-		s.stats.OnClose()
-		conn := &udpConn{
-			id:         kknet.NextConnID(),
-			remoteAddr: addr,
-			opts:       s.opts,
-			ctx:        context.Background(),
-		}
-		s.handler.OnClose(conn, err)
+	s.conns = make(map[string]*udpConn)
+	s.connsMu.Unlock()
+	for _, conn := range conns {
+		s.closeConn(conn, err)
 	}
-	s.seen = make(map[string]struct{})
 }
 
 type udpConn struct {
@@ -194,12 +199,13 @@ type udpConn struct {
 	opts       kknet.Options
 	active     atomic.Bool
 	stats      *kknet.Stats
+	lastSeen   atomic.Int64
 
 	ctxMu sync.RWMutex
 	ctx   context.Context
 }
 
-func newUDPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *udpConn {
+func newUDPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats, now time.Time) *udpConn {
 	conn := &udpConn{
 		id:         kknet.NextConnID(),
 		conn:       c,
@@ -209,6 +215,7 @@ func newUDPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *udpConn {
 		ctx:        context.Background(),
 	}
 	conn.active.Store(true)
+	conn.lastSeen.Store(now.UnixNano())
 	return conn
 }
 
@@ -267,4 +274,88 @@ func (c *udpConn) SetContext(ctx context.Context) {
 
 func (c *udpConn) deactivate() {
 	c.active.Store(false)
+}
+
+func (c *udpConn) activate(conn gnet.Conn, now time.Time) {
+	c.conn = conn
+	c.remoteAddr = conn.RemoteAddr().String()
+	c.active.Store(true)
+	c.lastSeen.Store(now.UnixNano())
+}
+
+func (c *udpConn) isIdle(now time.Time, timeout time.Duration) bool {
+	if c.active.Load() {
+		return false
+	}
+	last := c.lastSeen.Load()
+	if last == 0 {
+		return false
+	}
+	return now.Sub(time.Unix(0, last)) >= timeout
+}
+
+func (s *Server) closeConn(conn *udpConn, err error) {
+	s.stats.OnClose()
+	if s.handler == nil {
+		return
+	}
+	kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kkudp OnClose", func() {
+		s.handler.OnClose(conn, err)
+	})
+}
+
+func (s *Server) startCleanup() {
+	if s.opts.UDPConnIdleTimeout <= 0 || s.opts.UDPCleanupInterval <= 0 {
+		return
+	}
+	if s.cleanupStop != nil {
+		return
+	}
+	s.cleanupStop = make(chan struct{})
+	s.cleanupDone = make(chan struct{})
+	go s.cleanupLoop()
+}
+
+func (s *Server) stopCleanup() {
+	if s.cleanupStop == nil {
+		return
+	}
+	close(s.cleanupStop)
+	<-s.cleanupDone
+	s.cleanupStop = nil
+	s.cleanupDone = nil
+}
+
+func (s *Server) cleanupLoop() {
+	defer close(s.cleanupDone)
+	ticker := time.NewTicker(s.opts.UDPCleanupInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			s.pruneIdle()
+		case <-s.cleanupStop:
+			return
+		}
+	}
+}
+
+func (s *Server) pruneIdle() {
+	timeout := s.opts.UDPConnIdleTimeout
+	if timeout <= 0 {
+		return
+	}
+	now := time.Now()
+	var idle []*udpConn
+	s.connsMu.Lock()
+	for key, conn := range s.conns {
+		if conn.isIdle(now, timeout) {
+			delete(s.conns, key)
+			idle = append(idle, conn)
+		}
+	}
+	s.connsMu.Unlock()
+	for _, conn := range idle {
+		s.closeConn(conn, kkerrors.ErrConnectionClosed)
+	}
 }

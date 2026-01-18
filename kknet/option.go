@@ -21,6 +21,8 @@ type Options struct {
 	TLSConfig       *tls.Config
 	OriginChecker   OriginCheckFunc
 	ShutdownTimeout time.Duration
+	UDPConnIdleTimeout time.Duration
+	UDPCleanupInterval time.Duration
 }
 
 const (
@@ -28,6 +30,8 @@ const (
 	defaultBufferSize      = 64 * 1024        //默认缓冲区大小为64KB
 	message_size_limit     = 1 * 1024 * 1024  //最大的MaxMessageSize不能超过该值: 1MB
 	defaultShutdownTimeout = 30 * time.Second //默认关闭超时时间为30秒
+	defaultUDPConnIdleTimeout = 5 * time.Minute
+	defaultUDPCleanupInterval = 1 * time.Minute
 )
 
 func defaultOriginChecker(r *http.Request) bool {
@@ -48,6 +52,8 @@ func DefaultOptions() Options {
 		TLSConfig:       nil,
 		OriginChecker:   defaultOriginChecker,
 		ShutdownTimeout: defaultShutdownTimeout,
+		UDPConnIdleTimeout: defaultUDPConnIdleTimeout,
+		UDPCleanupInterval: defaultUDPCleanupInterval,
 	}
 }
 
@@ -127,5 +133,21 @@ func WithShutdownTimeout(timeout time.Duration) Option {
 		if timeout > 0 {
 			o.ShutdownTimeout = timeout
 		}
+	}
+}
+
+// WithUDPConnIdleTimeout sets UDP connection idle timeout.
+// Set to 0 to disable idle cleanup.
+func WithUDPConnIdleTimeout(timeout time.Duration) Option {
+	return func(o *Options) {
+		o.UDPConnIdleTimeout = timeout
+	}
+}
+
+// WithUDPCleanupInterval sets UDP cleanup interval.
+// Set to 0 to disable idle cleanup.
+func WithUDPCleanupInterval(interval time.Duration) Option {
+	return func(o *Options) {
+		o.UDPCleanupInterval = interval
 	}
 }

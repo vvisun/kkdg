@@ -62,13 +62,17 @@ func (c *Client) Connect() error {
 
 	c.stats.OnConnect()
 	if c.handler != nil {
-		c.handler.OnConnect(wsConn)
+		kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "kkws OnConnect", func() {
+			c.handler.OnConnect(wsConn)
+		})
 	}
 
 	go func() {
 		err := wsConn.readLoop(func(conn kknet.IConn, data buffers.IBuffer) {
 			if c.handler != nil {
-				c.handler.OnMessage(conn, data)
+				kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "kkws OnMessage", func() {
+					c.handler.OnMessage(conn, data)
+				})
 			}
 			kkbuffer.Put(data)
 		})
@@ -226,7 +230,9 @@ func (c *wsConn) closeWithError(handler kknet.IHandler, err error) {
 		}
 		_ = c.conn.Close()
 		if handler != nil {
-			handler.OnClose(c, err)
+			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "kkws OnClose", func() {
+				handler.OnClose(c, err)
+			})
 		}
 	})
 }

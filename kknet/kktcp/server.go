@@ -16,6 +16,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // Server represents a TCP server with length-prefixed messages.
@@ -232,13 +233,15 @@ func (s *Server) handleTLSConn(conn net.Conn) {
 
 	s.stats.OnConnect()
 	if s.handler != nil {
-		s.handler.OnConnect(tc)
+		kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kktcp OnConnect", func() {
+			s.handler.OnConnect(tc)
+		})
 	}
 
 	s.tlsWg.Add(1)
 	go func() {
 		defer s.tlsWg.Done()
-		err := tc.readLoop(s.handler)
+		err := tc.readLoop(s.handler, s.opts.Logger)
 		tc.closeWithError(s.handler, err)
 		s.tlsMu.Lock()
 		delete(s.tlsConns, tc.id)
@@ -276,7 +279,9 @@ func (h *tcpEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	tconn := newTCPConn(c, h.server.opts, &h.server.stats)
 	c.SetContext(tconn)
 	if h.server.handler != nil {
-		h.server.handler.OnConnect(tconn)
+		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnConnect", func() {
+			h.server.handler.OnConnect(tconn)
+		})
 	}
 	return nil, gnet.None
 }
@@ -290,7 +295,9 @@ func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 		return gnet.None
 	}
 	if tc, ok := c.Context().(*tcpConn); ok {
-		h.server.handler.OnClose(tc, err)
+		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnClose", func() {
+			h.server.handler.OnClose(tc, err)
+		})
 	}
 	return gnet.None
 }
@@ -321,13 +328,17 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 
 func (h *tcpEventHandler) dispatch(c *tcpConn, data buffers.IBuffer) {
 	if h.server.pool == nil {
-		h.server.handler.OnMessage(c, data)
-		kkbuffer.Put(data)
+		defer kkbuffer.Put(data)
+		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnMessage", func() {
+			h.server.handler.OnMessage(c, data)
+		})
 		return
 	}
 	if err := h.server.pool.Submit(func() {
-		h.server.handler.OnMessage(c, data)
-		kkbuffer.Put(data)
+		defer kkbuffer.Put(data)
+		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnMessage", func() {
+			h.server.handler.OnMessage(c, data)
+		})
 	}); err != nil {
 		kkbuffer.Put(data)
 		h.server.opts.Logger.Errorf("kktcp submit task error: %v", err)
@@ -486,7 +497,7 @@ func (c *tlsConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *tlsConn) readLoop(handler kknet.IHandler) error {
+func (c *tlsConn) readLoop(handler kknet.IHandler, logger kklog.ILogger) error {
 	header := make([]byte, 4)
 	for {
 		if err := readFull(c.conn, header); err != nil {
@@ -513,7 +524,11 @@ func (c *tlsConn) readLoop(handler kknet.IHandler) error {
 			c.stats.AddRecv(len(payload.B))
 		}
 		if handler != nil {
-			handler.OnMessage(c, payload)
+			kknet.SafeHandlerCall(logger, c.stats, "kktcp OnMessage", func() {
+				handler.OnMessage(c, payload)
+			})
+			kkbuffer.Put(payload)
+			continue
 		}
 		kkbuffer.Put(payload)
 	}
@@ -529,7 +544,9 @@ func (c *tlsConn) closeWithError(handler kknet.IHandler, err error) {
 		}
 		_ = c.conn.Close()
 		if handler != nil {
-			handler.OnClose(c, err)
+			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "kktcp OnClose", func() {
+				handler.OnClose(c, err)
+			})
 		}
 	})
 }
