@@ -4,12 +4,22 @@ import (
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/tests/pbmsg"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 type msgTest1 struct {
-	ID   int
-	Data string
+	ID      int
+	Data    string
+	Name    string
+	Age     int
+	Email   string
+	Phone   string
+	Address string
+	City    string
+	State   string
+	Zip     string
+	Country string
 }
 
 type msgTest2 struct {
@@ -27,6 +37,20 @@ type msgTest2 struct {
 func initTestEnv(_ *testing.T) {
 	kkpacket.RegisterMsg(1, &msgTest1{}, "test1")
 	kkpacket.RegisterMsg(2, &msgTest2{}, "test2")
+	kkpacket.RegisterMsg(3, &pbmsg.UserInfo{}, "test3")
+}
+
+func TestKK_packet_ProtoBuf(t *testing.T) {
+	initTestEnv(t)
+	msg := &pbmsg.UserInfo{
+		UserId: 1,
+		Nick:   "test",
+	}
+	packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeProtoBuf, false))
+	if err != nil {
+		t.Fatalf("encode packet: %v", err)
+	}
+	t.Logf("packet: %v", packet)
 }
 
 func TestKK_packet_Encode(t *testing.T) {

@@ -1,0 +1,151 @@
+syntax = "proto3";
+package pbmsg;
+option go_package = ".;pbmsg";
+
+
+
+// 用户信息
+message UserInfo {
+    int64 UserId = 1;   //用户ID
+    string Nick = 2;    //昵称
+    string HeadUrl = 3; //头像
+    int32 Sex = 4;      //性别
+    int32 Grade = 5;    //等级
+    int64 Exp = 6;      //经验
+    int64 Power = 7;    //战斗力
+    int32 Vip = 8;      //VIP等级
+    int64 Gold = 9;         //金币
+    int64 Diamond = 10;     //钻石
+    int64 Coin = 11;        //铜币
+	int64 RoomCard = 12; 	//体力
+	int32 AvatarId = 13;	//时装
+	int32 HeadFrame = 14;	//头像框
+}
+
+//玩家信息
+message SimpleUserInfo {
+    int64 UserId = 1;   //用户ID
+    string Nick = 2;    //昵称
+    string HeadUrl = 3; //头像
+    int32 Sex = 4;      //性别
+    int32 Grade = 5;    //等级
+    int64 Exp = 6;      //经验
+    int64 Power = 7;    //战斗力
+    int32 Vip = 8;      //VIP等级
+	int32 HeadFrame = 9;	//头像框
+}
+
+//时间信息
+message TimeInfo {
+	int64 Timestamp = 1;
+	int64 TotalMS = 2;
+	int64 RemainMS = 3;
+}
+
+//属性信息
+message PropInfo {
+	int64 PropId = 1; 		//属性配置ID
+	int64 PropValue = 2;	//属性值
+	int32 IsPercent = 3;	//是否百分比 1是 0否
+}
+
+// 模块信息
+message ModInfo {
+	int32 ModId = 1;	//模块ID
+	int32 State = 2;	//0:未开启  1:已开启  2:已领取
+}
+
+//物品信息
+message ItemInfo {
+	int64 Id = 1;      
+	int64 Uid = 2;       //所属玩家
+	int32 ItemType = 3;  //物品类型
+	int64 Count = 4;     //数量
+}
+
+//装备信息
+message EquipInfo {
+	int64 Id = 1;
+	int32 CfgId = 2;
+	int32 Grade = 3;
+	int64 CardId = 4;
+	repeated PropInfo PropList = 5;
+}
+
+//卡信息
+message CardInfo {
+	int64 Id = 1;
+	int64 Uid = 2;
+	int32 CardId = 3;
+	int32 TbType = 4;
+	int32 Star = 5;
+	int32 Quality = 6;
+	int32 Level = 7;
+	int32 Grade = 8;
+	int32 Lineup = 9;
+	int32 Npos = 10;
+	repeated PropInfo PropList = 11;
+}
+
+//养成位信息
+message CultivateInfo {
+	int64 Id = 1;
+	int64 Uid = 2;		//所属Uid
+	int32 TbType = 3;	//阵类型，和Card表的TbType对应起来
+	int32 Npos = 4;		//阵位
+	int32 Star = 5;		//星级
+	int32 Quality = 6;	//品级
+	int32 Level = 7;	//阶级
+	int32 Grade = 8;	//等级
+	int64 HeroId = 9;	//上阵Card的Id, 为0时表示该阵位空闲
+	repeated PropInfo PropList = 10;	//属性
+}
+
+// 任务定义（每日任务 成就任务 活动任务）
+message TaskItem {
+	int64 Id = 1; //任务ID
+	int32 State = 2; //任务状态
+	int64 Progress = 3; //当前进度（次数、时间）
+	int32 TaskKind = 4; //任务分类
+	int32 TaskType = 5; //配置: 任务类型
+	int64 TotalProgress = 6; //配置: 要求总进度（次数、时间）
+	int64 StartTime = 7; //配置: 任务的发起时间
+	int64 EndTime = 8; //配置: 任务的截止时间
+	string TaskName = 9; //配置: 任务名
+	string StartCond = 10; //配置: 开启条件
+	repeated ItemInfo Rewards = 11; //配置: 成功奖励
+}
+
+//---------------------------------------------
+
+//失败反馈
+message ErrorResp {
+	int32 ErrorCode = 1; //错误码
+	string ErrorStr = 2; //错误提示
+}
+
+// 物品推送
+message ItemInfoPush {
+	ItemInfo Data = 1;
+}
+
+// 每日零点推送
+message DailyZeroPush {
+	int64 Timestamp = 1;
+}
+
+// 模块列表
+message ModListReq {
+}
+message ModListResp {
+	repeated ModInfo ModList = 1;
+}
+
+// 模块开放奖励
+message MokOpenRewardReq {
+	int32 ModId = 1;
+}
+message MokOpenRewardResp {
+	int32 ModId = 1;
+	repeated ItemInfo Rewards = 2;
+}

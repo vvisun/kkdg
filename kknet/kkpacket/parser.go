@@ -99,7 +99,7 @@ func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
 
 	body := data[headSize:]
 	v := kkpool.GetFactory[T]().Get().(*T)
-	err := codec.Unmarshal(body, &v)
+	err := codec.Unmarshal(body, v)
 	if err != nil {
 		kkpool.GetFactory[T]().Put(v)
 		return nil, kkerrors.ErrDecodeFailed
