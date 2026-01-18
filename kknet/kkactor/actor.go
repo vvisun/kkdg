@@ -1,9 +1,10 @@
-package kknet
+package kkactor
 
 import (
 	"context"
 
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers"
 )
 
@@ -19,7 +20,7 @@ const (
 // ActorEvent is delivered to protoactor actors.
 type ActorEvent struct {
 	Type ActorEventType
-	Conn Conn
+	Conn kknet.Conn
 	Data []byte
 	Err  error
 }
@@ -68,7 +69,7 @@ func (h *ActorHandler) Stop(ctx context.Context) {
 }
 
 // OnConnect implements Handler.
-func (h *ActorHandler) OnConnect(c Conn) {
+func (h *ActorHandler) OnConnect(c kknet.Conn) {
 	if h == nil {
 		return
 	}
@@ -79,7 +80,7 @@ func (h *ActorHandler) OnConnect(c Conn) {
 }
 
 // OnMessage implements Handler.
-func (h *ActorHandler) OnMessage(c Conn, data buffers.IBuffer) {
+func (h *ActorHandler) OnMessage(c kknet.Conn, data buffers.IBuffer) {
 	if h == nil {
 		return
 	}
@@ -92,7 +93,7 @@ func (h *ActorHandler) OnMessage(c Conn, data buffers.IBuffer) {
 }
 
 // OnClose implements Handler.
-func (h *ActorHandler) OnClose(c Conn, err error) {
+func (h *ActorHandler) OnClose(c kknet.Conn, err error) {
 	if h == nil {
 		return
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkactor"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 )
 
@@ -18,14 +19,14 @@ func TestKKNetIntegrationTCPActor(t *testing.T) {
 
 	props := actor.PropsFromFunc(func(ctx actor.Context) {
 		switch msg := ctx.Message().(type) {
-		case *kknet.ActorEvent:
+		case *kkactor.ActorEvent:
 			switch msg.Type {
-			case kknet.ActorEventConnect:
+			case kkactor.ActorEventConnect:
 				select {
 				case connected <- struct{}{}:
 				default:
 				}
-			case kknet.ActorEventMessage:
+			case kkactor.ActorEventMessage:
 				if msg.Conn != nil {
 					_ = msg.Conn.Send(msg.Data)
 				}
@@ -37,7 +38,7 @@ func TestKKNetIntegrationTCPActor(t *testing.T) {
 		}
 	})
 
-	actorHandler := kknet.NewActorHandler(props)
+	actorHandler := kkactor.NewActorHandler(props)
 	defer actorHandler.Stop(context.Background())
 
 	server := kktcp.NewServer(addr, actorHandler, kknet.WithPoolSize(4))
