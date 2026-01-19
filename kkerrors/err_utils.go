@@ -14,4 +14,8 @@ var (
 	ErrNegativePosition = errors.New("negative position")
 	// v不是[]byte类型
 	ErrNotByteSlice = errors.New("v is not a []byte")
+	// 函数为nil
+	ErrFuncIsNil = errors.New("func is nil")
+	// 函数类型错误
+	ErrFuncTypeError = errors.New("func type error")
 )
