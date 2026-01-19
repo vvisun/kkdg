@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -222,8 +223,8 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 		_ = responseSub.Unsubscribe()
 	}()
 
-	// 发布请求
-	requestSubject := c.getRequestSubject()
+	// 发布请求到目标节点的请求主题
+	requestSubject := c.getRequestSubjectForNode(nodeID)
 	if err := c.conn.Publish(requestSubject, data); err != nil {
 		return nil, -1
 	}
@@ -316,9 +317,14 @@ func (c *NatsCluster) getPublishTypeSubject(nodeType string) string {
 	return "kkcluster.publish.type." + nodeType
 }
 
-// getRequestSubject 获取请求主题
+// getRequestSubject 获取自己的请求主题
 func (c *NatsCluster) getRequestSubject() string {
 	return "kkcluster.request." + c.nodeID
+}
+
+// getRequestSubjectForNode 获取指定节点的请求主题
+func (c *NatsCluster) getRequestSubjectForNode(nodeID string) string {
+	return "kkcluster.request." + nodeID
 }
 
 // getResponseSubject 获取响应主题
@@ -354,10 +360,7 @@ func (c *NatsCluster) SetPublishHandler(handler func(nodeID string, packet *Clus
 
 // generateRequestID 生成请求ID
 func (c *NatsCluster) generateRequestID() string {
-	c.requestMu.Lock()
-	c.requestSeq++
-	seq := c.requestSeq
-	c.requestMu.Unlock()
+	seq := atomic.AddUint64(&c.requestSeq, 1)
 	return c.nodeID + "." + strconv.FormatUint(seq, 10)
 }
 
