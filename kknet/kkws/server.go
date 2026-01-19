@@ -24,12 +24,11 @@ type Server struct {
 	handler kknet.IHandler
 	opts    kknet.Options
 
-	httpServer  *http.Server
-	pool        *ants.Pool
-	started     atomic.Bool
-	booted      chan struct{}
-	done        chan error
-	middlewares []kknet.Middleware
+	httpServer *http.Server
+	pool       *ants.Pool
+	started    atomic.Bool
+	booted     chan struct{}
+	done       chan error
 
 	stats kknet.Stats
 
@@ -58,16 +57,6 @@ func (s *Server) SetPath(path string) {
 	s.path = path
 }
 
-// Use adds middleware to the server.
-// Middlewares are applied in the order they are added.
-// Call before Start.
-func (s *Server) Use(middlewares ...kknet.Middleware) {
-	if len(middlewares) == 0 {
-		return
-	}
-	s.middlewares = append(s.middlewares, middlewares...)
-}
-
 // Start begins listening for websocket connections.
 func (s *Server) Start() error {
 	if s.started.Swap(true) {
@@ -75,7 +64,7 @@ func (s *Server) Start() error {
 	}
 
 	// Apply middlewares to handler
-	s.handler = kknet.ApplyMiddlewares(s.handler, s.middlewares...)
+	s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
 
 	if s.opts.PoolSize > 0 {
 		poolOpts := make([]ants.Option, 0, 1)

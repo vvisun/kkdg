@@ -32,16 +32,13 @@ func RunMain() {
 	handler := &EchoHandler{}
 	server := kktcp.NewServer(":8080", handler,
 		kknet.WithLogger(kklog.Stdout()),
+		kknet.WithMiddleware(LoggingMiddleware),
+		kknet.WithMiddleware(RateLimitMiddleware(10)),
+		kknet.WithMiddleware(AuthMiddleware(map[string]bool{
+			"token123": true,
+			"token456": true,
+		})),
 	)
-
-	// Add middlewares in order
-	// They will be applied in reverse order (last added is outermost)
-	server.Use(LoggingMiddleware)
-	server.Use(RateLimitMiddleware(10)) // Max 10 messages per second
-	server.Use(AuthMiddleware(map[string]bool{
-		"token123": true,
-		"token456": true,
-	}))
 
 	// Start the server
 	if err := server.Start(); err != nil {

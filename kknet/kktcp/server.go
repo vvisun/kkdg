@@ -37,8 +37,7 @@ type Server struct {
 	tlsMu       sync.Mutex
 	tlsWg       sync.WaitGroup
 
-	unpacker    kknet.StreamUnpacker
-	middlewares []kknet.Middleware
+	unpacker kknet.StreamUnpacker
 }
 
 // NewServer creates a new TCP server.
@@ -61,16 +60,6 @@ func (s *Server) SetUnpacker(u kknet.StreamUnpacker) {
 	s.unpacker = u
 }
 
-// Use adds middleware to the server.
-// Middlewares are applied in the order they are added.
-// Call before Start.
-func (s *Server) Use(middlewares ...kknet.Middleware) {
-	if len(middlewares) == 0 {
-		return
-	}
-	s.middlewares = append(s.middlewares, middlewares...)
-}
-
 // Start begins listening and accepting connections.
 func (s *Server) Start() error {
 	if s.started.Swap(true) {
@@ -78,7 +67,7 @@ func (s *Server) Start() error {
 	}
 
 	// Apply middlewares to handler
-	s.handler = kknet.ApplyMiddlewares(s.handler, s.middlewares...)
+	s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
 
 	if s.opts.TLSConfig != nil {
 		return s.startTLS()

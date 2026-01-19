@@ -133,9 +133,10 @@ func TestServerMiddleware(t *testing.T) {
 		counter: &callCounter,
 	}
 
-	server := kktcp.NewServer(":0", baseHandler)
-	server.Use(middleware1)
-	server.Use(middleware2)
+	server := kktcp.NewServer(":0", baseHandler,
+		kknet.WithMiddleware(middleware1),
+		kknet.WithMiddleware(middleware2),
+	)
 
 	// Start server to trigger middleware application
 	if err := server.Start(); err != nil {

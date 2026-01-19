@@ -25,6 +25,7 @@ type Options struct {
 	UDPCleanupInterval time.Duration   // UDP清理间隔时间（为0时，不启用清理）
 	ReadTimeout        time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
 	WriteTimeout       time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
+	Middlewares        []Middleware    // 中间件列表
 }
 
 const (
@@ -175,5 +176,19 @@ func WithWriteTimeout(timeout time.Duration) Option {
 		if timeout >= 0 {
 			o.WriteTimeout = timeout
 		}
+	}
+}
+
+// WithMiddlewares sets middlewares.
+func WithMiddleware(mw Middleware) Option {
+	if mw == nil {
+		kklog.Errorf("Middleware is nil")
+		return func(o *Options) {}
+	}
+	return func(o *Options) {
+		if o.Middlewares == nil {
+			o.Middlewares = make([]Middleware, 0)
+		}
+		o.Middlewares = append(o.Middlewares, mw)
 	}
 }

@@ -10,12 +10,12 @@ import (
 
 // IConn represents a network connection.
 type IConn interface {
-	ID() int64
-	Send(data []byte) error
-	Close() error
-	RemoteAddr() string
-	Context() context.Context
-	SetContext(ctx context.Context)
+	ID() int64                      //unique connection id
+	Send(data []byte) error         //send data
+	Close() error                   //close connection
+	RemoteAddr() string             //remote address
+	Context() context.Context       //get context
+	SetContext(ctx context.Context) //set context
 }
 
 // IHandler handles connection lifecycle and messages.
