@@ -36,6 +36,9 @@ type NatsCluster struct {
 	// 订阅管理（用于重连时重新订阅）
 	subMu sync.Mutex
 
+	// 统计信息
+	stats ClusterStats
+
 	stopCh chan struct{}
 }
 
@@ -71,9 +74,11 @@ func (c *NatsCluster) connectAndSubscribe() error {
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {
 		kklog.Infof("NatsCluster reconnected to %s", nc.ConnectedUrl())
+		c.stats.AddReconnect()
 		// 重连后重新订阅
 		if err := c.resubscribe(); err != nil {
 			kklog.Errorf("NatsCluster resubscribe failed: %v", err)
+			c.stats.AddError()
 		}
 	}
 
@@ -160,12 +165,20 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *ClusterPacket) error 
 	// 序列化消息
 	data, err := json.Marshal(packet)
 	if err != nil {
+		c.stats.AddError()
 		return err
 	}
 
 	// 发布到目标节点的主题
 	subject := c.getPublishSubject(nodeID)
-	return c.conn.Publish(subject, data)
+	if err := c.conn.Publish(subject, data); err != nil {
+		c.stats.AddError()
+		return err
+	}
+
+	// 记录统计
+	c.stats.AddPublishSent(len(data))
+	return nil
 }
 
 // PublishRemoteType 根据节点类型发布消息
@@ -207,7 +220,11 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) 
 		subject := c.getPublishSubject(member.GetNodeID())
 		if err := c.conn.Publish(subject, data); err != nil {
 			kklog.Warnf("NatsCluster publish to %s failed: %v", member.GetNodeID(), err)
+			c.stats.AddError()
 			// 继续发送给其他节点，不因为一个节点失败而停止
+		} else {
+			// 记录统计（每个节点都记录）
+			c.stats.AddPublishSent(len(data))
 		}
 	}
 
@@ -263,6 +280,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	// 序列化请求
 	data, err := json.Marshal(reqMsg)
 	if err != nil {
+		c.stats.AddError()
 		return nil, ClusterErrorCodeMarshalFailed
 	}
 
@@ -290,14 +308,21 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	// 发布请求到目标节点的请求主题
 	requestSubject := c.getRequestSubjectForNode(nodeID)
 	if err := c.conn.Publish(requestSubject, data); err != nil {
+		c.stats.AddError()
 		return nil, ClusterErrorCodePublishFailed
 	}
+
+	// 记录发送请求统计
+	c.stats.AddRequestSent(len(data))
 
 	// 等待响应
 	select {
 	case resp := <-responseCh:
+		// 记录接收响应统计
+		c.stats.AddResponseReceived(len(resp.Data))
 		return resp.Data, ClusterErrorCode(resp.Code)
 	case <-time.After(reqTimeout):
+		c.stats.AddError()
 		return nil, ClusterErrorCodeTimeout
 	}
 }
@@ -324,9 +349,13 @@ func (c *NatsCluster) Stop() {
 
 // handleRequest 处理请求
 func (c *NatsCluster) handleRequest(msg *nats.Msg) {
+	// 记录接收请求统计
+	c.stats.AddRequestReceived(len(msg.Data))
+
 	var req ClusterRequest
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
 		kklog.Warnf("NatsCluster unmarshal request failed: %v", err)
+		c.stats.AddError()
 		return
 	}
 
@@ -358,11 +387,16 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 	data, err := json.Marshal(response)
 	if err != nil {
 		kklog.Warnf("NatsCluster marshal response failed: %v", err)
+		c.stats.AddError()
 		return
 	}
 
 	if err := c.conn.Publish(responseSubject, data); err != nil {
 		kklog.Warnf("NatsCluster publish response failed: %v", err)
+		c.stats.AddError()
+	} else {
+		// 记录发送响应统计
+		c.stats.AddResponseSent(len(data))
 	}
 }
 
@@ -398,9 +432,13 @@ func (c *NatsCluster) getResponseSubject(requestID string) string {
 
 // handlePublish 处理发布消息
 func (c *NatsCluster) handlePublish(msg *nats.Msg) {
+	// 记录接收发布消息统计
+	c.stats.AddPublishReceived(len(msg.Data))
+
 	var packet ClusterPacket
 	if err := json.Unmarshal(msg.Data, &packet); err != nil {
 		kklog.Warnf("NatsCluster unmarshal publish packet failed: %v", err)
+		c.stats.AddError()
 		return
 	}
 
@@ -420,6 +458,12 @@ func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 // SetPublishHandler 设置发布消息处理器
 func (c *NatsCluster) SetPublishHandler(handler func(nodeID string, packet *ClusterPacket)) {
 	c.publishHandler = handler
+}
+
+// Stats 获取统计信息快照
+func (c *NatsCluster) Stats() ClusterStatsSnapshot {
+	isConnected := c.conn != nil && c.conn.IsConnected()
+	return c.stats.Snapshot(isConnected)
 }
 
 // generateRequestID 生成请求ID

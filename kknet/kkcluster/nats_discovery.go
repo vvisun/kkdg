@@ -34,6 +34,9 @@ type NatsDiscovery struct {
 	// 启动标志（确保goroutine只启动一次）
 	startedOnce sync.Once
 
+	// 统计信息
+	stats DiscoveryStats
+
 	stopCh chan struct{}
 	doneCh chan struct{}
 }
@@ -144,6 +147,7 @@ func (d *NatsDiscovery) AddMember(member IMember) {
 	d.membersMu.Unlock()
 
 	if !existed {
+		d.stats.AddMember()
 		d.notifyAddListeners(member)
 	}
 }
@@ -159,6 +163,7 @@ func (d *NatsDiscovery) RemoveMember(nodeID string) {
 	d.membersMu.Unlock()
 
 	if existed {
+		d.stats.RemoveMember()
 		d.notifyRemoveListeners(member)
 	}
 }
@@ -223,13 +228,16 @@ func (d *NatsDiscovery) connectAndSubscribe() error {
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {
 		kklog.Infof("NatsDiscovery reconnected to %s", nc.ConnectedUrl())
+		d.stats.AddReconnect()
 		// 重连后重新订阅
 		if err := d.resubscribe(); err != nil {
 			kklog.Errorf("NatsDiscovery resubscribe failed: %v", err)
+			d.stats.AddError()
 		}
 		// 重连后立即发布自己的信息
 		if err := d.publishSelf(); err != nil {
 			kklog.Warnf("NatsDiscovery publish self after reconnect failed: %v", err)
+			d.stats.AddError()
 		}
 	}
 
@@ -326,9 +334,13 @@ func (d *NatsDiscovery) getDiscoverySubject() string {
 
 // handleDiscoveryMessage 处理服务发现消息
 func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
+	// 记录心跳接收统计
+	d.stats.AddHeartbeatReceived()
+
 	var memberInfo MemberInfo
 	if err := json.Unmarshal(msg.Data, &memberInfo); err != nil {
 		kklog.Warnf("NatsDiscovery unmarshal member info failed: %v", err)
+		d.stats.AddError()
 		return
 	}
 
@@ -367,10 +379,18 @@ func (d *NatsDiscovery) publishSelf() error {
 
 	data, err := json.Marshal(memberInfo)
 	if err != nil {
+		d.stats.AddError()
 		return err
 	}
 
-	return d.conn.Publish(d.getDiscoverySubject(), data)
+	if err := d.conn.Publish(d.getDiscoverySubject(), data); err != nil {
+		d.stats.AddError()
+		return err
+	}
+
+	// 记录心跳发送统计
+	d.stats.AddHeartbeatSent()
+	return nil
 }
 
 // heartbeatLoop 心跳循环
@@ -403,12 +423,14 @@ func (d *NatsDiscovery) requestAllMembers() {
 	data, err := json.Marshal(reqMsg)
 	if err != nil {
 		kklog.Warnf("NatsDiscovery marshal request failed: %v", err)
+		d.stats.AddError()
 		return
 	}
 
 	subject := d.getDiscoveryRequestSubject()
 	if err := d.conn.Publish(subject, data); err != nil {
 		kklog.Warnf("NatsDiscovery publish request failed: %v", err)
+		d.stats.AddError()
 	}
 }
 
@@ -417,6 +439,7 @@ func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 	var req DiscoveryRequest
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
 		kklog.Warnf("NatsDiscovery unmarshal request failed: %v", err)
+		d.stats.AddError()
 		return
 	}
 
@@ -428,7 +451,18 @@ func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 	// 响应自己的信息
 	if err := d.publishSelf(); err != nil {
 		kklog.Warnf("NatsDiscovery respond to request failed: %v", err)
+		// publishSelf内部已经记录了错误统计
 	}
+}
+
+// Stats 获取统计信息快照
+func (d *NatsDiscovery) Stats() DiscoveryStatsSnapshot {
+	d.membersMu.RLock()
+	memberCount := len(d.members)
+	d.membersMu.RUnlock()
+
+	isConnected := d.conn != nil && d.conn.IsConnected()
+	return d.stats.Snapshot(memberCount, isConnected)
 }
 
 // checkMemberTimeout 检查成员超时

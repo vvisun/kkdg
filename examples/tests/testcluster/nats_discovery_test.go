@@ -1,4 +1,4 @@
-package kkcluster
+package testcluster
 
 import (
 	"testing"
