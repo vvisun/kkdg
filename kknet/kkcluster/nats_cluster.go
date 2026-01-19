@@ -15,6 +15,7 @@ import (
 // NatsCluster 基于NATS的集群实现
 type NatsCluster struct {
 	nodeID      string
+	nodeType    string // 节点类型（用于订阅类型主题）
 	discovery   IDiscovery
 	natsAddress string
 	conn        *nats.Conn
@@ -27,6 +28,9 @@ type NatsCluster struct {
 
 	// 发布消息订阅
 	publishSub *nats.Subscription
+
+	// 类型发布消息订阅（使用队列组）
+	typePublishSub *nats.Subscription
 
 	// 发布消息处理器
 	publishHandler func(nodeID string, packet *ClusterPacket)
@@ -50,8 +54,16 @@ func NewNatsCluster(nodeID string, discovery IDiscovery, natsAddress string, opt
 	if natsAddress == "" {
 		natsAddress = defaultNatsAddress
 	}
+
+	// 尝试从 discovery 获取节点类型（如果是 NatsDiscovery）
+	var nodeType string
+	if nd, ok := discovery.(*NatsDiscovery); ok {
+		nodeType = nd.nodeType
+	}
+
 	return &NatsCluster{
 		nodeID:      nodeID,
+		nodeType:    nodeType,
 		discovery:   discovery,
 		natsAddress: natsAddress,
 		requestMap:  make(map[string]chan *ClusterResponse),
@@ -127,6 +139,10 @@ func (c *NatsCluster) resubscribe() error {
 		_ = c.publishSub.Unsubscribe()
 		c.publishSub = nil
 	}
+	if c.typePublishSub != nil {
+		_ = c.typePublishSub.Unsubscribe()
+		c.typePublishSub = nil
+	}
 
 	// 订阅请求主题（用于接收其他节点的请求）
 	requestSubject := c.getRequestSubject()
@@ -144,6 +160,21 @@ func (c *NatsCluster) resubscribe() error {
 		return err
 	}
 	c.publishSub = publishSub
+
+	// 订阅类型发布消息主题（用于接收同类型节点的消息）
+	// 如果节点类型已设置，则订阅类型主题
+	if c.nodeType != "" {
+		typeSubject := c.getPublishTypeSubject(c.nodeType)
+		// 使用普通订阅（Subscribe），这样所有同类型节点都能收到消息
+		// 如果需要负载均衡（消息只被一个节点接收），应使用 QueueSubscribe
+		typePublishSub, err := c.conn.Subscribe(typeSubject, c.handleTypePublish)
+		if err != nil {
+			sub.Unsubscribe()
+			publishSub.Unsubscribe()
+			return err
+		}
+		c.typePublishSub = typePublishSub
+	}
 
 	return nil
 }
@@ -184,12 +215,15 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *ClusterPacket) error 
 }
 
 // PublishRemoteType 根据节点类型发布消息
+// 优化：只需发布一次到类型主题，所有订阅了该类型主题的节点都会收到消息
+// 注意：节点在 Init() 时会订阅自己类型的主题，使用普通 Subscribe（不是 QueueSubscribe）
+// 如果需要负载均衡（消息只被一个节点接收），应使用 QueueSubscribe
 func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) error {
 	if packet == nil {
 		return kkerrors.ErrInvalidPacket
 	}
 
-	// 获取该类型的所有节点
+	// 检查该类型是否有节点（可选，用于提前验证）
 	members := c.discovery.ListByType(nodeType)
 	if len(members) == 0 {
 		return kkerrors.ErrNoMemberOfType
@@ -199,37 +233,23 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) 
 	packet.SourcePath = c.nodeID
 	packet.TargetPath = nodeType
 
-	// 序列化消息
+	// 序列化消息（只序列化一次）
 	data, err := json.Marshal(packet)
 	if err != nil {
+		c.stats.AddError()
 		return err
 	}
 
-	// PublishRemoteType 原本发布到类型主题 kkcluster.publish.type.{nodeType}，但节点在 Init() 时只
-	// 订阅了自己的节点ID主题 kkcluster.publish.{nodeID}，因此收不到类型主题的消息。
-	// 因此，这里改为向每个同类型节点单独发送消息。
-	// // 发布到该类型的所有节点
-	// subject := c.getPublishTypeSubject(nodeType)
-	// return c.conn.Publish(subject, data)
-
-	// 向每个同类型节点单独发送消息
-	for _, member := range members {
-		// 跳过自己
-		if member.GetNodeID() == c.nodeID {
-			continue
-		}
-
-		subject := c.getPublishSubject(member.GetNodeID())
-		if err := c.conn.Publish(subject, data); err != nil {
-			kklog.Errorf("NatsCluster publish to %s failed: %v", member.GetNodeID(), err)
-			c.stats.AddError()
-			// 继续发送给其他节点，不因为一个节点失败而停止
-		} else {
-			// 记录统计（每个节点都记录）
-			c.stats.AddPublishSent(len(data))
-		}
+	// 优化：使用队列组，只需发布一次到类型主题
+	// NATS 会自动将消息分发给订阅了该主题的队列组中的一个节点
+	subject := c.getPublishTypeSubject(nodeType)
+	if err := c.conn.Publish(subject, data); err != nil {
+		c.stats.AddError()
+		return err
 	}
 
+	// 记录统计
+	c.stats.AddPublishSent(len(data))
 	return nil
 }
 
@@ -344,6 +364,9 @@ func (c *NatsCluster) Stop() {
 	if c.publishSub != nil {
 		_ = c.publishSub.Unsubscribe()
 	}
+	if c.typePublishSub != nil {
+		_ = c.typePublishSub.Unsubscribe()
+	}
 	if c.conn != nil {
 		c.conn.Close()
 	}
@@ -434,7 +457,7 @@ func (c *NatsCluster) getResponseSubject(requestID string) string {
 	return "kkcluster.response." + requestID
 }
 
-// handlePublish 处理发布消息
+// handlePublish 处理发布消息（来自节点ID主题）
 func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 	// 记录接收发布消息统计
 	c.stats.AddPublishReceived(len(msg.Data))
@@ -453,6 +476,32 @@ func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 				if r := recover(); r != nil {
 					c.stats.AddError()
 					kklog.Errorf("NatsCluster publish handler panic: %v", r)
+				}
+			}()
+			c.publishHandler(packet.SourcePath, &packet)
+		}()
+	}
+}
+
+// handleTypePublish 处理类型发布消息（来自类型主题，使用队列组）
+func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
+	// 记录接收发布消息统计
+	c.stats.AddPublishReceived(len(msg.Data))
+
+	var packet ClusterPacket
+	if err := json.Unmarshal(msg.Data, &packet); err != nil {
+		kklog.Errorf("NatsCluster unmarshal type publish packet failed: %v", err)
+		c.stats.AddError()
+		return
+	}
+
+	// 调用用户注册的处理器
+	if c.publishHandler != nil {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					c.stats.AddError()
+					kklog.Errorf("NatsCluster type publish handler panic: %v", r)
 				}
 			}()
 			c.publishHandler(packet.SourcePath, &packet)
