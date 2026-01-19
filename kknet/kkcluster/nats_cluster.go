@@ -155,15 +155,15 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) 
 }
 
 // RequestRemote 请求消息（带响应）
-func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, int32) {
+func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, ClusterErrorCode) {
 	if packet == nil {
-		return nil, -1
+		return nil, ClusterErrorCodeInvalidRequest
 	}
 
 	// 检查目标节点是否存在
 	_, found := c.discovery.GetMember(nodeID)
 	if !found {
-		return nil, -1
+		return nil, ClusterErrorCodeMemberNotFound
 	}
 
 	// 设置超时
@@ -177,6 +177,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 
 	// 创建响应通道
 	responseCh := make(chan *ClusterResponse, 1)
+	var closeOnce sync.Once
 	c.requestMu.Lock()
 	c.requestMap[requestID] = responseCh
 	c.requestMu.Unlock()
@@ -185,8 +186,11 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	defer func() {
 		c.requestMu.Lock()
 		delete(c.requestMap, requestID)
-		close(responseCh)
 		c.requestMu.Unlock()
+		// 使用 sync.Once 确保 channel 只关闭一次，避免重复关闭导致 panic
+		closeOnce.Do(func() {
+			close(responseCh)
+		})
 	}()
 
 	// 创建请求消息
@@ -199,7 +203,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	// 序列化请求
 	data, err := json.Marshal(reqMsg)
 	if err != nil {
-		return nil, -1
+		return nil, ClusterErrorCodeMarshalFailed
 	}
 
 	// 订阅响应主题
@@ -217,7 +221,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 		}
 	})
 	if err != nil {
-		return nil, -1
+		return nil, ClusterErrorCodeSubscribeFailed
 	}
 	defer func() {
 		_ = responseSub.Unsubscribe()
@@ -226,15 +230,15 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	// 发布请求到目标节点的请求主题
 	requestSubject := c.getRequestSubjectForNode(nodeID)
 	if err := c.conn.Publish(requestSubject, data); err != nil {
-		return nil, -1
+		return nil, ClusterErrorCodePublishFailed
 	}
 
 	// 等待响应
 	select {
 	case resp := <-responseCh:
-		return resp.Data, resp.Code
+		return resp.Data, ClusterErrorCode(resp.Code)
 	case <-time.After(reqTimeout):
-		return nil, -1
+		return nil, ClusterErrorCodeTimeout
 	}
 }
 
@@ -362,18 +366,4 @@ func (c *NatsCluster) SetPublishHandler(handler func(nodeID string, packet *Clus
 func (c *NatsCluster) generateRequestID() string {
 	seq := atomic.AddUint64(&c.requestSeq, 1)
 	return c.nodeID + "." + strconv.FormatUint(seq, 10)
-}
-
-// ClusterRequest 集群请求消息
-type ClusterRequest struct {
-	RequestID    string         `json:"requestID"`
-	SourceNodeID string         `json:"sourceNodeID"`
-	Packet       *ClusterPacket `json:"packet"`
-}
-
-// ClusterResponse 集群响应消息
-type ClusterResponse struct {
-	RequestID string `json:"requestID"`
-	Code      int32  `json:"code"`
-	Data      []byte `json:"data"`
 }

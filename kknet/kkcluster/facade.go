@@ -30,34 +30,18 @@ type (
 	MemberListener func(member IMember)
 )
 
-type (
-	// ICluster 集群接口
-	ICluster interface {
-		Init()                                                                                        // 初始化
-		PublishRemote(nodeID string, packet *ClusterPacket) error                                     // 发布消息
-		PublishRemoteType(nodeType string, packet *ClusterPacket) error                               // 根据节点类型发布消息
-		RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, int32) // 请求消息
-		Stop()                                                                                        // 停止
-	}
-)
-
-// ClusterPacket 集群消息包
-type ClusterPacket struct {
-	BuildTime  int64    `json:"buildTime,omitempty"`
-	SourcePath string   `json:"sourcePath,omitempty"`
-	TargetPath string   `json:"targetPath,omitempty"`
-	FuncName   string   `json:"funcName,omitempty"`
-	ArgBytes   []byte   `json:"argBytes,omitempty"`
-	Session    *Session `json:"session,omitempty"`
-}
-
-// Session 会话
-type Session struct {
-	Sid       string            `json:"sid,omitempty"`       // 会话唯一id
-	Uid       int64             `json:"uid,omitempty"`       // 用户id
-	AgentPath string            `json:"agentPath,omitempty"` // 前端actor agent路径
-	Ip        string            `json:"ip,omitempty"`        // ip地址
-	Data      map[string]string `json:"data,omitempty"`      // 扩展数据
+// ICluster 集群接口
+type ICluster interface {
+	// 初始化
+	Init()
+	// 发布消息
+	PublishRemote(nodeID string, packet *ClusterPacket) error
+	// 根据节点类型发布消息
+	PublishRemoteType(nodeType string, packet *ClusterPacket) error
+	// 请求消息
+	RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, ClusterErrorCode)
+	// 停止
+	Stop()
 }
 
 var (
