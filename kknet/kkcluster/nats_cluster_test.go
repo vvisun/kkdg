@@ -1,0 +1,341 @@
+package kkcluster
+
+import (
+	"testing"
+	"time"
+)
+
+// TestNatsCluster_New 测试创建NatsCluster
+func TestNatsCluster_New(t *testing.T) {
+	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
+	cluster := NewNatsCluster("node1", discovery, "")
+	
+	if cluster == nil {
+		t.Fatal("NewNatsCluster returned nil")
+	}
+}
+
+// TestNatsCluster_Init 测试初始化
+func TestNatsCluster_Init(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Fatalf("Failed to start NATS server: %v", err)
+	}
+	
+	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	cluster := NewNatsCluster("node1", discovery, natsURL)
+	
+	if err := cluster.Init(); err != nil {
+		t.Fatalf("Init() failed: %v", err)
+	}
+	
+	// 等待连接建立
+	time.Sleep(100 * time.Millisecond)
+	
+	cluster.Stop()
+}
+
+// TestNatsCluster_PublishRemote 测试发布消息到指定节点
+func TestNatsCluster_PublishRemote(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Fatalf("Failed to start NATS server: %v", err)
+	}
+	
+	// 创建两个节点
+	discovery1 := NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery2 := NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
+	
+	if err := discovery1.Start(); err != nil {
+		t.Fatalf("discovery1.Start() failed: %v", err)
+	}
+	defer discovery1.Stop()
+	
+	if err := discovery2.Start(); err != nil {
+		t.Fatalf("discovery2.Start() failed: %v", err)
+	}
+	defer discovery2.Stop()
+	
+	// 等待发现
+	if !waitForMembers(discovery1, 1, 3*time.Second) {
+		t.Fatal("discovery1 did not discover node2")
+	}
+	
+	cluster1 := NewNatsCluster("node1", discovery1, natsURL)
+	cluster2 := NewNatsCluster("node2", discovery2, natsURL)
+	
+	if err := cluster1.Init(); err != nil {
+		t.Fatalf("cluster1.Init() failed: %v", err)
+	}
+	defer cluster1.Stop()
+	
+	if err := cluster2.Init(); err != nil {
+		t.Fatalf("cluster2.Init() failed: %v", err)
+	}
+	defer cluster2.Stop()
+	
+	// 等待连接建立
+	time.Sleep(200 * time.Millisecond)
+	
+	// 设置接收处理器
+	received := make(chan *ClusterPacket, 1)
+	cluster2.SetPublishHandler(func(nodeID string, packet *ClusterPacket) {
+		received <- packet
+	})
+	
+	// 发布消息
+	packet := &ClusterPacket{
+		FuncName: "test",
+		ArgBytes: []byte("hello"),
+	}
+	
+	if err := cluster1.PublishRemote("node2", packet); err != nil {
+		t.Fatalf("PublishRemote() failed: %v", err)
+	}
+	
+	// 等待接收
+	select {
+	case p := <-received:
+		if p.FuncName != "test" {
+			t.Errorf("Received packet FuncName = %s, want test", p.FuncName)
+		}
+		if string(p.ArgBytes) != "hello" {
+			t.Errorf("Received packet ArgBytes = %s, want hello", string(p.ArgBytes))
+		}
+		if p.SourcePath != "node1" {
+			t.Errorf("Received packet SourcePath = %s, want node1", p.SourcePath)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Did not receive published message")
+	}
+}
+
+// TestNatsCluster_PublishRemoteType 测试按类型发布消息
+func TestNatsCluster_PublishRemoteType(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Fatalf("Failed to start NATS server: %v", err)
+	}
+	
+	// 创建三个节点，两个同类型
+	discovery1 := NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery2 := NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
+	discovery3 := NewNatsDiscovery("test3", "node3", "type2", "127.0.0.1:8082", natsURL, nil)
+	
+	if err := discovery1.Start(); err != nil {
+		t.Fatalf("discovery1.Start() failed: %v", err)
+	}
+	defer discovery1.Stop()
+	
+	if err := discovery2.Start(); err != nil {
+		t.Fatalf("discovery2.Start() failed: %v", err)
+	}
+	defer discovery2.Stop()
+	
+	if err := discovery3.Start(); err != nil {
+		t.Fatalf("discovery3.Start() failed: %v", err)
+	}
+	defer discovery3.Stop()
+	
+	// 等待发现
+	if !waitForMembers(discovery1, 2, 3*time.Second) {
+		t.Fatal("discovery1 did not discover other nodes")
+	}
+	
+	cluster1 := NewNatsCluster("node1", discovery1, natsURL)
+	cluster2 := NewNatsCluster("node2", discovery2, natsURL)
+	cluster3 := NewNatsCluster("node3", discovery3, natsURL)
+	
+	if err := cluster1.Init(); err != nil {
+		t.Fatalf("cluster1.Init() failed: %v", err)
+	}
+	defer cluster1.Stop()
+	
+	if err := cluster2.Init(); err != nil {
+		t.Fatalf("cluster2.Init() failed: %v", err)
+	}
+	defer cluster2.Stop()
+	
+	if err := cluster3.Init(); err != nil {
+		t.Fatalf("cluster3.Init() failed: %v", err)
+	}
+	defer cluster3.Stop()
+	
+	// 等待连接建立
+	time.Sleep(200 * time.Millisecond)
+	
+	// 设置接收处理器
+	received2 := make(chan *ClusterPacket, 1)
+	received3 := make(chan *ClusterPacket, 1)
+	
+	cluster2.SetPublishHandler(func(nodeID string, packet *ClusterPacket) {
+		received2 <- packet
+	})
+	
+	cluster3.SetPublishHandler(func(nodeID string, packet *ClusterPacket) {
+		received3 <- packet
+	})
+	
+	// 发布消息到type1类型
+	packet := &ClusterPacket{
+		FuncName: "test",
+		ArgBytes: []byte("hello"),
+	}
+	
+	if err := cluster1.PublishRemoteType("type1", packet); err != nil {
+		t.Fatalf("PublishRemoteType() failed: %v", err)
+	}
+	
+	// node2应该收到，node3不应该收到
+	select {
+	case p := <-received2:
+		if p.FuncName != "test" {
+			t.Errorf("node2 received packet FuncName = %s, want test", p.FuncName)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("node2 did not receive published message")
+	}
+	
+	// node3不应该收到
+	select {
+	case <-received3:
+		t.Error("node3 should not receive message for type1")
+	case <-time.After(500 * time.Millisecond):
+		// 这是期望的行为
+	}
+}
+
+// TestNatsCluster_RequestRemote 测试请求-响应
+func TestNatsCluster_RequestRemote(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Fatalf("Failed to start NATS server: %v", err)
+	}
+	
+	// 创建两个节点
+	discovery1 := NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery2 := NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
+	
+	if err := discovery1.Start(); err != nil {
+		t.Fatalf("discovery1.Start() failed: %v", err)
+	}
+	defer discovery1.Stop()
+	
+	if err := discovery2.Start(); err != nil {
+		t.Fatalf("discovery2.Start() failed: %v", err)
+	}
+	defer discovery2.Stop()
+	
+	// 等待发现
+	if !waitForMembers(discovery1, 1, 3*time.Second) {
+		t.Fatal("discovery1 did not discover node2")
+	}
+	
+	cluster1 := NewNatsCluster("node1", discovery1, natsURL)
+	cluster2 := NewNatsCluster("node2", discovery2, natsURL)
+	
+	if err := cluster1.Init(); err != nil {
+		t.Fatalf("cluster1.Init() failed: %v", err)
+	}
+	defer cluster1.Stop()
+	
+	if err := cluster2.Init(); err != nil {
+		t.Fatalf("cluster2.Init() failed: %v", err)
+	}
+	defer cluster2.Stop()
+	
+	// 等待连接建立
+	time.Sleep(200 * time.Millisecond)
+	
+	// 注意：RequestRemote需要设置请求处理器，但目前实现中handleRequest返回空响应
+	// 这里主要测试请求不会panic
+	packet := &ClusterPacket{
+		FuncName: "test",
+		ArgBytes: []byte("request"),
+	}
+	
+	data, code := cluster1.RequestRemote("node2", packet, 2*time.Second)
+	// 由于当前实现返回空响应，code应该是0，data应该是nil
+	if code != 0 {
+		t.Errorf("RequestRemote() code = %d, want 0", code)
+	}
+	_ = data // 当前实现返回nil
+}
+
+// TestNatsCluster_PublishRemote_NotFound 测试发布到不存在的节点
+func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Fatalf("Failed to start NATS server: %v", err)
+	}
+	
+	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	cluster := NewNatsCluster("node1", discovery, natsURL)
+	
+	if err := cluster.Init(); err != nil {
+		t.Fatalf("Init() failed: %v", err)
+	}
+	defer cluster.Stop()
+	
+	packet := &ClusterPacket{
+		FuncName: "test",
+		ArgBytes: []byte("hello"),
+	}
+	
+	err = cluster.PublishRemote("nonexistent", packet)
+	if err == nil {
+		t.Error("PublishRemote() should return error for nonexistent node")
+	}
+	if err != ErrMemberNotFound {
+		t.Errorf("PublishRemote() error = %v, want ErrMemberNotFound", err)
+	}
+}
+
+// TestNatsCluster_PublishRemoteType_NoMember 测试发布到没有成员的类型
+func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Fatalf("Failed to start NATS server: %v", err)
+	}
+	
+	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	cluster := NewNatsCluster("node1", discovery, natsURL)
+	
+	if err := cluster.Init(); err != nil {
+		t.Fatalf("Init() failed: %v", err)
+	}
+	defer cluster.Stop()
+	
+	packet := &ClusterPacket{
+		FuncName: "test",
+		ArgBytes: []byte("hello"),
+	}
+	
+	err = cluster.PublishRemoteType("nonexistent", packet)
+	if err == nil {
+		t.Error("PublishRemoteType() should return error for nonexistent type")
+	}
+	if err != ErrNoMemberOfType {
+		t.Errorf("PublishRemoteType() error = %v, want ErrNoMemberOfType", err)
+	}
+}
+
+// TestNatsCluster_Stop 测试停止
+func TestNatsCluster_Stop(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Fatalf("Failed to start NATS server: %v", err)
+	}
+	
+	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	cluster := NewNatsCluster("node1", discovery, natsURL)
+	
+	if err := cluster.Init(); err != nil {
+		t.Fatalf("Init() failed: %v", err)
+	}
+	
+	cluster.Stop()
+	
+	// 再次停止应该不会panic
+	cluster.Stop()
+}
