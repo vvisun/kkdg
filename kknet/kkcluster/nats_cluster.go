@@ -24,8 +24,13 @@ type NatsCluster struct {
 	requestSeq uint64
 
 	// 发布消息订阅
-	publishSub     *nats.Subscription
+	publishSub *nats.Subscription
+
+	// 发布消息处理器
 	publishHandler func(nodeID string, packet *ClusterPacket)
+
+	// 请求处理器
+	requestHandler func(req *ClusterRequest) (*ClusterResponse, error)
 
 	stopCh chan struct{}
 }
@@ -124,9 +129,28 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) 
 		return err
 	}
 
-	// 发布到该类型的所有节点
-	subject := c.getPublishTypeSubject(nodeType)
-	return c.conn.Publish(subject, data)
+	// PublishRemoteType 原本发布到类型主题 kkcluster.publish.type.{nodeType}，但节点在 Init() 时只
+	// 订阅了自己的节点ID主题 kkcluster.publish.{nodeID}，因此收不到类型主题的消息。
+	// 因此，这里改为向每个同类型节点单独发送消息。
+	// // 发布到该类型的所有节点
+	// subject := c.getPublishTypeSubject(nodeType)
+	// return c.conn.Publish(subject, data)
+
+	// 向每个同类型节点单独发送消息
+	for _, member := range members {
+		// 跳过自己
+		if member.GetNodeID() == c.nodeID {
+			continue
+		}
+
+		subject := c.getPublishSubject(member.GetNodeID())
+		if err := c.conn.Publish(subject, data); err != nil {
+			kklog.Warnf("NatsCluster publish to %s failed: %v", member.GetNodeID(), err)
+			// 继续发送给其他节点，不因为一个节点失败而停止
+		}
+	}
+
+	return nil
 }
 
 // RequestRemote 请求消息（带响应）
@@ -241,12 +265,27 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 		return
 	}
 
-	// 这里应该调用用户注册的处理器来处理请求
-	// 目前先返回空响应，实际使用时需要注册处理器
 	response := &ClusterResponse{
 		RequestID: req.RequestID,
 		Code:      0,
 		Data:      nil,
+	}
+	// 调用用户注册的处理器来处理请求
+	if c.requestHandler != nil {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					kklog.Errorf("NatsCluster request handler panic: %v", r)
+				}
+			}()
+			resp, err := c.requestHandler(&req)
+			if err != nil || resp == nil {
+				kklog.Warnf("NatsCluster request handler failed: %v", err)
+				return
+			}
+			response.Code = resp.Code
+			response.Data = resp.Data
+		}()
 	}
 
 	// 发送响应
@@ -260,6 +299,11 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 	if err := c.conn.Publish(responseSubject, data); err != nil {
 		kklog.Warnf("NatsCluster publish response failed: %v", err)
 	}
+}
+
+// SetRequestHandler 设置请求处理器
+func (c *NatsCluster) SetRequestHandler(handler func(req *ClusterRequest) (*ClusterResponse, error)) {
+	c.requestHandler = handler
 }
 
 // getPublishSubject 获取发布主题

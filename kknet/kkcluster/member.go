@@ -8,6 +8,8 @@ type Member struct {
 	settings map[string]string
 }
 
+var _ IMember = (*Member)(nil)
+
 // NewMember 创建新的成员
 func NewMember(nodeID, nodeType, address string, settings map[string]string) *Member {
 	if settings == nil {

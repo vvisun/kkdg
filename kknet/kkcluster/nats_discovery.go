@@ -32,6 +32,8 @@ type NatsDiscovery struct {
 	doneCh chan struct{}
 }
 
+var _ IDiscovery = (*NatsDiscovery)(nil)
+
 // NewNatsDiscovery 创建新的NATS服务发现
 func NewNatsDiscovery(name, nodeID, nodeType, address, natsAddress string, settings map[string]string) *NatsDiscovery {
 	if natsAddress == "" {
