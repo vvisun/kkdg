@@ -44,10 +44,6 @@ type ICluster interface {
 	Stop()
 }
 
-var (
-	defaultNatsAddress = "nats://127.0.0.1:4222"
-)
-
 // NewNatsDiscoveryWithDefaults 使用默认配置创建NATS服务发现
 func NewNatsDiscoveryWithDefaults(name, nodeID, nodeType, address string) *NatsDiscovery {
 	return NewNatsDiscovery(name, nodeID, nodeType, address, defaultNatsAddress, nil)

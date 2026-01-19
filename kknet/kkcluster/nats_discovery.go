@@ -28,6 +28,12 @@ type NatsDiscovery struct {
 	removeListeners []MemberListener
 	listenersMu     sync.RWMutex
 
+	// 订阅管理（用于重连时重新订阅）
+	subMu sync.Mutex
+
+	// 启动标志（确保goroutine只启动一次）
+	startedOnce sync.Once
+
 	stopCh chan struct{}
 	doneCh chan struct{}
 }
@@ -201,45 +207,114 @@ func (d *NatsDiscovery) Stop() {
 
 // Start 启动服务发现（需要在外部调用）
 func (d *NatsDiscovery) Start() error {
+	return d.connectAndSubscribe()
+}
+
+// connectAndSubscribe 连接NATS并订阅主题
+func (d *NatsDiscovery) connectAndSubscribe() error {
+	// 配置NATS连接选项，启用自动重连
+	opts := nats.GetDefaultOptions()
+	opts.Url = d.natsAddress
+	opts.AllowReconnect = true
+	opts.MaxReconnect = -1 // 无限重连
+	opts.ReconnectWait = 2 * time.Second
+	opts.Timeout = 5 * time.Second
+
+	// 设置重连处理器
+	opts.ReconnectedCB = func(nc *nats.Conn) {
+		kklog.Infof("NatsDiscovery reconnected to %s", nc.ConnectedUrl())
+		// 重连后重新订阅
+		if err := d.resubscribe(); err != nil {
+			kklog.Errorf("NatsDiscovery resubscribe failed: %v", err)
+		}
+		// 重连后立即发布自己的信息
+		if err := d.publishSelf(); err != nil {
+			kklog.Warnf("NatsDiscovery publish self after reconnect failed: %v", err)
+		}
+	}
+
+	// 设置断开连接处理器
+	opts.DisconnectedErrCB = func(nc *nats.Conn, err error) {
+		if err != nil {
+			kklog.Warnf("NatsDiscovery disconnected: %v", err)
+		} else {
+			kklog.Warnf("NatsDiscovery disconnected")
+		}
+	}
+
+	// 设置关闭处理器
+	opts.ClosedCB = func(nc *nats.Conn) {
+		kklog.Infof("NatsDiscovery connection closed")
+	}
+
 	// 连接到NATS
-	conn, err := nats.Connect(d.natsAddress)
+	conn, err := opts.Connect()
 	if err != nil {
 		return err
 	}
 	d.conn = conn
 
-	// 订阅服务发现主题
-	subject := d.getDiscoverySubject()
-	sub, err := conn.Subscribe(subject, d.handleDiscoveryMessage)
-	if err != nil {
+	// 订阅主题
+	if err := d.resubscribe(); err != nil {
 		conn.Close()
 		return err
 	}
-	d.sub = sub
-
-	// 订阅服务发现请求主题（用于响应其他节点的请求）
-	requestSubject := d.getDiscoveryRequestSubject()
-	requestSub, err := conn.Subscribe(requestSubject, d.handleDiscoveryRequest)
-	if err != nil {
-		sub.Unsubscribe()
-		conn.Close()
-		return err
-	}
-	d.requestSub = requestSub
 
 	// 发布自己的信息
 	if err := d.publishSelf(); err != nil {
 		kklog.Warnf("NatsDiscovery publish self failed: %v", err)
 	}
 
-	// 启动心跳
-	go d.heartbeatLoop()
+	// 启动心跳循环（只启动一次）
+	d.startedOnce.Do(func() {
+		// 启动心跳
+		go d.heartbeatLoop()
 
-	// 启动请求所有成员
-	go d.requestAllMembers()
+		// 启动请求所有成员
+		go d.requestAllMembers()
 
-	// 启动成员超时检查
-	go d.checkMemberTimeout()
+		// 启动成员超时检查
+		go d.checkMemberTimeout()
+	})
+
+	return nil
+}
+
+// resubscribe 重新订阅所有主题
+func (d *NatsDiscovery) resubscribe() error {
+	d.subMu.Lock()
+	defer d.subMu.Unlock()
+
+	if d.conn == nil || !d.conn.IsConnected() {
+		return nil
+	}
+
+	// 取消旧的订阅
+	if d.sub != nil {
+		_ = d.sub.Unsubscribe()
+		d.sub = nil
+	}
+	if d.requestSub != nil {
+		_ = d.requestSub.Unsubscribe()
+		d.requestSub = nil
+	}
+
+	// 订阅服务发现主题
+	subject := d.getDiscoverySubject()
+	sub, err := d.conn.Subscribe(subject, d.handleDiscoveryMessage)
+	if err != nil {
+		return err
+	}
+	d.sub = sub
+
+	// 订阅服务发现请求主题（用于响应其他节点的请求）
+	requestSubject := d.getDiscoveryRequestSubject()
+	requestSub, err := d.conn.Subscribe(requestSubject, d.handleDiscoveryRequest)
+	if err != nil {
+		sub.Unsubscribe()
+		return err
+	}
+	d.requestSub = requestSub
 
 	return nil
 }

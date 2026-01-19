@@ -33,6 +33,9 @@ type NatsCluster struct {
 	// 请求处理器
 	requestHandler func(req *ClusterRequest) (*ClusterResponse, error)
 
+	// 订阅管理（用于重连时重新订阅）
+	subMu sync.Mutex
+
 	stopCh chan struct{}
 }
 
@@ -52,28 +55,85 @@ func NewNatsCluster(nodeID string, discovery IDiscovery, natsAddress string) *Na
 
 // Init 初始化集群
 func (c *NatsCluster) Init() error {
+	return c.connectAndSubscribe()
+}
+
+// connectAndSubscribe 连接NATS并订阅主题
+func (c *NatsCluster) connectAndSubscribe() error {
+	// 配置NATS连接选项，启用自动重连
+	opts := nats.GetDefaultOptions()
+	opts.Url = c.natsAddress
+	opts.AllowReconnect = true
+	opts.MaxReconnect = -1 // 无限重连
+	opts.ReconnectWait = 2 * time.Second
+	opts.Timeout = 5 * time.Second
+
+	// 设置重连处理器
+	opts.ReconnectedCB = func(nc *nats.Conn) {
+		kklog.Infof("NatsCluster reconnected to %s", nc.ConnectedUrl())
+		// 重连后重新订阅
+		if err := c.resubscribe(); err != nil {
+			kklog.Errorf("NatsCluster resubscribe failed: %v", err)
+		}
+	}
+
+	// 设置断开连接处理器
+	opts.DisconnectedErrCB = func(nc *nats.Conn, err error) {
+		if err != nil {
+			kklog.Warnf("NatsCluster disconnected: %v", err)
+		} else {
+			kklog.Warnf("NatsCluster disconnected")
+		}
+	}
+
+	// 设置关闭处理器
+	opts.ClosedCB = func(nc *nats.Conn) {
+		kklog.Infof("NatsCluster connection closed")
+	}
+
 	// 连接到NATS
-	conn, err := nats.Connect(c.natsAddress)
+	conn, err := opts.Connect()
 	if err != nil {
 		return err
 	}
 	c.conn = conn
 
+	// 订阅主题
+	return c.resubscribe()
+}
+
+// resubscribe 重新订阅所有主题
+func (c *NatsCluster) resubscribe() error {
+	c.subMu.Lock()
+	defer c.subMu.Unlock()
+
+	if c.conn == nil || !c.conn.IsConnected() {
+		return nil
+	}
+
+	// 取消旧的订阅
+	if c.requestSub != nil {
+		_ = c.requestSub.Unsubscribe()
+		c.requestSub = nil
+	}
+	if c.publishSub != nil {
+		_ = c.publishSub.Unsubscribe()
+		c.publishSub = nil
+	}
+
 	// 订阅请求主题（用于接收其他节点的请求）
 	requestSubject := c.getRequestSubject()
-	sub, err := conn.Subscribe(requestSubject, c.handleRequest)
+	sub, err := c.conn.Subscribe(requestSubject, c.handleRequest)
 	if err != nil {
-		conn.Close()
 		return err
 	}
 	c.requestSub = sub
 
 	// 订阅发布消息主题（用于接收其他节点发送的消息）
 	publishSubject := c.getPublishSubject(c.nodeID)
-	publishSub, err := conn.Subscribe(publishSubject, c.handlePublish)
+	publishSub, err := c.conn.Subscribe(publishSubject, c.handlePublish)
 	if err != nil {
 		sub.Unsubscribe()
-		conn.Close()
 		return err
 	}
 	c.publishSub = publishSub
