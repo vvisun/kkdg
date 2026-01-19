@@ -1,7 +1,9 @@
 package xreflect
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 )
 
 // Value 获取值的反射类型和值
@@ -68,4 +70,25 @@ func IsDoublePointer(v interface{}) bool {
 // 判断是否是指针
 func IsPointer(v interface{}) bool {
 	return reflect.ValueOf(v).Kind() == reflect.Ptr
+}
+
+// TypeName 获取类型名称
+func TypeName(T reflect.Type) string {
+	pkgPath := ""
+	typeName := ""
+	isPtr := false
+	if T.Kind() == reflect.Ptr {
+		isPtr = true
+		pkgPath = fmt.Sprintf("%s", T.Elem().PkgPath())
+		typeName = fmt.Sprintf("%s", T.Elem().Name())
+	} else {
+		pkgPath = fmt.Sprintf("%s", T.PkgPath())
+		typeName = fmt.Sprintf("%s", T.Name())
+	}
+	pkgPath = strings.TrimPrefix(pkgPath, "vendor/")
+	rtn := fmt.Sprintf("%s.%s", pkgPath, typeName)
+	if isPtr {
+		rtn = "*" + rtn
+	}
+	return rtn
 }

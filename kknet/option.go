@@ -15,7 +15,7 @@ type OriginCheckFunc func(r *http.Request) bool
 type Options struct {
 	Logger             kklog.ILogger   // 日志记录器
 	MaxMessageSize     int             // 最大消息大小
-	PoolSize           int             // ants池大小（注意：为0时，不使用ants池）
+	PoolSize           int             // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
 	ReadBufferSize     int             // 读缓冲区大小
 	WriteBufferSize    int             // 写缓冲区大小
 	TLSConfig          *tls.Config     // TLS配置

@@ -3,7 +3,6 @@ package kktcp
 import (
 	"context"
 	"crypto/tls"
-	"encoding/binary"
 	"io"
 	"net"
 	"sync"
@@ -202,7 +201,7 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 		if err := readFull(c.conn, header); err != nil {
 			return err
 		}
-		size := int(binary.BigEndian.Uint32(header))
+		size := int(kknet.GetByteOrder().Uint32(header))
 		if size < 0 || size > c.opts.MaxMessageSize {
 			return kkerrors.ErrMaxMessageSize
 		}
