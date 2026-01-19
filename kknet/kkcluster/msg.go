@@ -3,12 +3,12 @@ package kkcluster
 type (
 	// ClusterPacket 集群消息包
 	ClusterPacket struct {
-		BuildTime  int64    `json:"buildTime,omitempty"`
-		SourcePath string   `json:"sourcePath,omitempty"`
-		TargetPath string   `json:"targetPath,omitempty"`
-		FuncName   string   `json:"funcName,omitempty"`
-		ArgBytes   []byte   `json:"argBytes,omitempty"`
-		Session    *Session `json:"session,omitempty"`
+		BuildTime  int64    `json:"buildTime,omitempty"`  // 构建时间（毫秒）
+		SourcePath string   `json:"sourcePath,omitempty"` // 源节点路径
+		TargetPath string   `json:"targetPath,omitempty"` // 目标节点路径
+		FuncName   string   `json:"funcName,omitempty"`   // 函数名
+		ArgBytes   []byte   `json:"argBytes,omitempty"`   // 参数
+		Session    *Session `json:"session,omitempty"`    // 会话
 	}
 	// Session 会话
 	Session struct {
@@ -23,15 +23,15 @@ type (
 type (
 	// ClusterRequest 集群请求消息
 	ClusterRequest struct {
-		RequestID    string         `json:"requestID"`
-		SourceNodeID string         `json:"sourceNodeID"`
-		Packet       *ClusterPacket `json:"packet"`
+		RequestID    string         `json:"requestID"`    // 请求id（自动生成）
+		SourceNodeID string         `json:"sourceNodeID"` // 源节点id
+		Packet       *ClusterPacket `json:"packet"`       // 消息包
 	}
 
 	// ClusterResponse 集群响应消息
 	ClusterResponse struct {
-		RequestID string `json:"requestID"`
-		Code      int32  `json:"code"`
-		Data      []byte `json:"data"`
+		RequestID string `json:"requestID"` // 请求id（与请求消息的requestID相同）
+		Code      int32  `json:"code"`      // 错误码（ClusterErrorCode），0表示成功，其他表示失败
+		Data      []byte `json:"data"`      // 返回数据
 	}
 )

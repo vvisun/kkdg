@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -40,10 +41,12 @@ type NatsCluster struct {
 	stats ClusterStats
 
 	stopCh chan struct{}
+
+	options []nats.Option
 }
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, discovery IDiscovery, natsAddress string) *NatsCluster {
+func NewNatsCluster(nodeID string, discovery IDiscovery, natsAddress string, options ...nats.Option) *NatsCluster {
 	if natsAddress == "" {
 		natsAddress = defaultNatsAddress
 	}
@@ -53,6 +56,7 @@ func NewNatsCluster(nodeID string, discovery IDiscovery, natsAddress string) *Na
 		natsAddress: natsAddress,
 		requestMap:  make(map[string]chan *ClusterResponse),
 		stopCh:      make(chan struct{}),
+		options:     options,
 	}
 }
 
@@ -65,11 +69,9 @@ func (c *NatsCluster) Init() error {
 func (c *NatsCluster) connectAndSubscribe() error {
 	// 配置NATS连接选项，启用自动重连
 	opts := nats.GetDefaultOptions()
-	opts.Url = c.natsAddress
-	opts.AllowReconnect = true
-	opts.MaxReconnect = -1 // 无限重连
-	opts.ReconnectWait = 2 * time.Second
-	opts.Timeout = 5 * time.Second
+	for _, option := range c.options {
+		option(&opts)
+	}
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {
@@ -149,13 +151,13 @@ func (c *NatsCluster) resubscribe() error {
 // PublishRemote 发布消息到指定节点
 func (c *NatsCluster) PublishRemote(nodeID string, packet *ClusterPacket) error {
 	if packet == nil {
-		return ErrInvalidPacket
+		return kkerrors.ErrInvalidPacket
 	}
 
 	// 检查目标节点是否存在
 	_, found := c.discovery.GetMember(nodeID)
 	if !found {
-		return ErrMemberNotFound
+		return kkerrors.ErrMemberNotFound
 	}
 
 	// 设置源节点ID
@@ -184,13 +186,13 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *ClusterPacket) error 
 // PublishRemoteType 根据节点类型发布消息
 func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) error {
 	if packet == nil {
-		return ErrInvalidPacket
+		return kkerrors.ErrInvalidPacket
 	}
 
 	// 获取该类型的所有节点
 	members := c.discovery.ListByType(nodeType)
 	if len(members) == 0 {
-		return ErrNoMemberOfType
+		return kkerrors.ErrNoMemberOfType
 	}
 
 	// 设置源节点ID
@@ -219,7 +221,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) 
 
 		subject := c.getPublishSubject(member.GetNodeID())
 		if err := c.conn.Publish(subject, data); err != nil {
-			kklog.Warnf("NatsCluster publish to %s failed: %v", member.GetNodeID(), err)
+			kklog.Errorf("NatsCluster publish to %s failed: %v", member.GetNodeID(), err)
 			c.stats.AddError()
 			// 继续发送给其他节点，不因为一个节点失败而停止
 		} else {
@@ -289,7 +291,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	responseSub, err := c.conn.Subscribe(responseSubject, func(msg *nats.Msg) {
 		var resp ClusterResponse
 		if err := json.Unmarshal(msg.Data, &resp); err != nil {
-			kklog.Warnf("NatsCluster unmarshal response failed: %v", err)
+			kklog.Errorf("NatsCluster unmarshal response failed: %v", err)
 			return
 		}
 
@@ -354,7 +356,7 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 
 	var req ClusterRequest
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
-		kklog.Warnf("NatsCluster unmarshal request failed: %v", err)
+		kklog.Errorf("NatsCluster unmarshal request failed: %v", err)
 		c.stats.AddError()
 		return
 	}
@@ -369,12 +371,14 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					c.stats.AddError()
 					kklog.Errorf("NatsCluster request handler panic: %v", r)
 				}
 			}()
 			resp, err := c.requestHandler(&req)
 			if err != nil || resp == nil {
-				kklog.Warnf("NatsCluster request handler failed: %v", err)
+				kklog.Errorf("NatsCluster request handler failed: %v", err)
+				c.stats.AddError()
 				return
 			}
 			response.Code = resp.Code
@@ -386,13 +390,13 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 	responseSubject := c.getResponseSubject(req.RequestID)
 	data, err := json.Marshal(response)
 	if err != nil {
-		kklog.Warnf("NatsCluster marshal response failed: %v", err)
+		kklog.Errorf("NatsCluster marshal response failed: %v", err)
 		c.stats.AddError()
 		return
 	}
 
 	if err := c.conn.Publish(responseSubject, data); err != nil {
-		kklog.Warnf("NatsCluster publish response failed: %v", err)
+		kklog.Errorf("NatsCluster publish response failed: %v", err)
 		c.stats.AddError()
 	} else {
 		// 记录发送响应统计
@@ -437,7 +441,7 @@ func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 
 	var packet ClusterPacket
 	if err := json.Unmarshal(msg.Data, &packet); err != nil {
-		kklog.Warnf("NatsCluster unmarshal publish packet failed: %v", err)
+		kklog.Errorf("NatsCluster unmarshal publish packet failed: %v", err)
 		c.stats.AddError()
 		return
 	}
@@ -447,6 +451,7 @@ func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					c.stats.AddError()
 					kklog.Errorf("NatsCluster publish handler panic: %v", r)
 				}
 			}()

@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/xrand"
 )
 
 // NatsDiscovery 基于NATS的服务发现实现
@@ -39,12 +41,14 @@ type NatsDiscovery struct {
 
 	stopCh chan struct{}
 	doneCh chan struct{}
+
+	options []nats.Option
 }
 
 var _ IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
-func NewNatsDiscovery(name, nodeID, nodeType, address, natsAddress string, settings map[string]string) *NatsDiscovery {
+func NewNatsDiscovery(name, nodeID, nodeType, address, natsAddress string, settings map[string]string, options ...nats.Option) *NatsDiscovery {
 	if natsAddress == "" {
 		natsAddress = defaultNatsAddress
 	}
@@ -62,6 +66,7 @@ func NewNatsDiscovery(name, nodeID, nodeType, address, natsAddress string, setti
 		memberTimes: make(map[string]time.Time),
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
+		options:     options,
 	}
 }
 
@@ -109,8 +114,8 @@ func (d *NatsDiscovery) Random(nodeType string) (IMember, bool) {
 	if len(list) == 0 {
 		return nil, false
 	}
-	// 简单的随机选择（可以使用更复杂的随机算法）
-	return list[0], true
+	idx := xrand.Int(0, len(list)-1)
+	return list[idx], true
 }
 
 // GetType 根据节点id获取类型
@@ -120,7 +125,7 @@ func (d *NatsDiscovery) GetType(nodeID string) (string, error) {
 
 	member, found := d.members[nodeID]
 	if !found {
-		return "", ErrMemberNotFound
+		return "", kkerrors.ErrMemberNotFound
 	}
 	return member.GetNodeType(), nil
 }
@@ -219,11 +224,9 @@ func (d *NatsDiscovery) Start() error {
 func (d *NatsDiscovery) connectAndSubscribe() error {
 	// 配置NATS连接选项，启用自动重连
 	opts := nats.GetDefaultOptions()
-	opts.Url = d.natsAddress
-	opts.AllowReconnect = true
-	opts.MaxReconnect = -1 // 无限重连
-	opts.ReconnectWait = 2 * time.Second
-	opts.Timeout = 5 * time.Second
+	for _, option := range d.options {
+		option(&opts)
+	}
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {
@@ -339,7 +342,7 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 
 	var memberInfo MemberInfo
 	if err := json.Unmarshal(msg.Data, &memberInfo); err != nil {
-		kklog.Warnf("NatsDiscovery unmarshal member info failed: %v", err)
+		kklog.Errorf("NatsDiscovery unmarshal member info failed: %v", err)
 		d.stats.AddError()
 		return
 	}
@@ -404,7 +407,8 @@ func (d *NatsDiscovery) heartbeatLoop() {
 			return
 		case <-ticker.C:
 			if err := d.publishSelf(); err != nil {
-				kklog.Warnf("NatsDiscovery heartbeat failed: %v", err)
+				d.stats.AddError()
+				kklog.Errorf("NatsDiscovery heartbeat failed: %v", err)
 			}
 		}
 	}
@@ -422,14 +426,14 @@ func (d *NatsDiscovery) requestAllMembers() {
 
 	data, err := json.Marshal(reqMsg)
 	if err != nil {
-		kklog.Warnf("NatsDiscovery marshal request failed: %v", err)
+		kklog.Errorf("NatsDiscovery marshal request failed: %v", err)
 		d.stats.AddError()
 		return
 	}
 
 	subject := d.getDiscoveryRequestSubject()
 	if err := d.conn.Publish(subject, data); err != nil {
-		kklog.Warnf("NatsDiscovery publish request failed: %v", err)
+		kklog.Errorf("NatsDiscovery publish request failed: %v", err)
 		d.stats.AddError()
 	}
 }
@@ -438,7 +442,7 @@ func (d *NatsDiscovery) requestAllMembers() {
 func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 	var req DiscoveryRequest
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
-		kklog.Warnf("NatsDiscovery unmarshal request failed: %v", err)
+		kklog.Errorf("NatsDiscovery unmarshal request failed: %v", err)
 		d.stats.AddError()
 		return
 	}
@@ -450,7 +454,7 @@ func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 
 	// 响应自己的信息
 	if err := d.publishSelf(); err != nil {
-		kklog.Warnf("NatsDiscovery respond to request failed: %v", err)
+		kklog.Errorf("NatsDiscovery respond to request failed: %v", err)
 		// publishSelf内部已经记录了错误统计
 	}
 }
@@ -512,6 +516,7 @@ func (d *NatsDiscovery) notifyAddListeners(member IMember) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					d.stats.AddError()
 					kklog.Errorf("NatsDiscovery add listener panic: %v", r)
 				}
 			}()
@@ -531,6 +536,7 @@ func (d *NatsDiscovery) notifyRemoveListeners(member IMember) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					d.stats.AddError()
 					kklog.Errorf("NatsDiscovery remove listener panic: %v", r)
 				}
 			}()

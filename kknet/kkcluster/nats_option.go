@@ -1,6 +1,8 @@
 package kkcluster
 
 import (
+	"time"
+
 	"github.com/nats-io/nats.go"
 )
 
@@ -15,7 +17,13 @@ func SetNatsAddress(address string) {
 }
 
 func DefaultNatsOptions() nats.Options {
-	return nats.Options{}
+	return nats.Options{
+		Url:            defaultNatsAddress,
+		AllowReconnect: true,
+		MaxReconnect:   -1,
+		ReconnectWait:  2 * time.Second,
+		Timeout:        5 * time.Second,
+	}
 }
 
 func ApplyNatsOptions(options ...NatsOption) nats.Options {

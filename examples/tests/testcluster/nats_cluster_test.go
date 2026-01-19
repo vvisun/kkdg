@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkcluster"
 )
 
@@ -288,7 +289,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 	if err == nil {
 		t.Error("PublishRemote() should return error for nonexistent node")
 	}
-	if err != kkcluster.ErrMemberNotFound {
+	if err != kkerrors.ErrMemberNotFound {
 		t.Errorf("PublishRemote() error = %v, want ErrMemberNotFound", err)
 	}
 }
@@ -317,7 +318,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 	if err == nil {
 		t.Error("PublishRemoteType() should return error for nonexistent type")
 	}
-	if err != kkcluster.ErrNoMemberOfType {
+	if err != kkerrors.ErrNoMemberOfType {
 		t.Errorf("PublishRemoteType() error = %v, want ErrNoMemberOfType", err)
 	}
 }
