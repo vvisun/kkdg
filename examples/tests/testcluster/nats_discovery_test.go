@@ -3,11 +3,13 @@ package kkcluster
 import (
 	"testing"
 	"time"
+
+	"github.com/vvisun/kkdg/kknet/kkcluster"
 )
 
 // TestNatsDiscovery_New 测试创建NatsDiscovery
 func TestNatsDiscovery_New(t *testing.T) {
-	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
+	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
 
 	if discovery == nil {
 		t.Fatal("NewNatsDiscovery returned nil")
@@ -30,7 +32,7 @@ func TestNatsDiscovery_StartStop(t *testing.T) {
 		t.Fatalf("Failed to start NATS server: %v", err)
 	}
 
-	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
 
 	if err := discovery.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
@@ -54,8 +56,8 @@ func TestNatsDiscovery_Discovery(t *testing.T) {
 	}
 
 	// 创建两个节点
-	discovery1 := NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	discovery2 := NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
+	discovery1 := kkcluster.NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery2 := kkcluster.NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
 
 	// 启动两个节点
 	if err := discovery1.Start(); err != nil {
@@ -99,12 +101,12 @@ func TestNatsDiscovery_ListByType(t *testing.T) {
 		t.Fatalf("Failed to start NATS server: %v", err)
 	}
 
-	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
 
 	// 手动添加成员
-	member1 := NewMember("node2", "type1", "127.0.0.1:8081", nil)
-	member2 := NewMember("node3", "type2", "127.0.0.1:8082", nil)
-	member3 := NewMember("node4", "type1", "127.0.0.1:8083", nil)
+	member1 := kkcluster.NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member2 := kkcluster.NewMember("node3", "type2", "127.0.0.1:8082", nil)
+	member3 := kkcluster.NewMember("node4", "type1", "127.0.0.1:8083", nil)
 
 	discovery.AddMember(member1)
 	discovery.AddMember(member2)
@@ -133,7 +135,7 @@ func TestNatsDiscovery_ListByType(t *testing.T) {
 
 // TestNatsDiscovery_Random 测试随机获取成员
 func TestNatsDiscovery_Random(t *testing.T) {
-	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
+	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
 
 	// 空列表
 	member, found := discovery.Random("type1")
@@ -145,7 +147,7 @@ func TestNatsDiscovery_Random(t *testing.T) {
 	}
 
 	// 添加成员
-	member1 := NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member1 := kkcluster.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.AddMember(member1)
 
 	member, found = discovery.Random("type1")
@@ -162,9 +164,9 @@ func TestNatsDiscovery_Random(t *testing.T) {
 
 // TestNatsDiscovery_GetType 测试获取节点类型
 func TestNatsDiscovery_GetType(t *testing.T) {
-	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
+	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
 
-	member := NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member := kkcluster.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.AddMember(member)
 
 	nodeType, err := discovery.GetType("node2")
@@ -184,9 +186,9 @@ func TestNatsDiscovery_GetType(t *testing.T) {
 
 // TestNatsDiscovery_AddRemoveMember 测试添加和移除成员
 func TestNatsDiscovery_AddRemoveMember(t *testing.T) {
-	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
+	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
 
-	member := NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member := kkcluster.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.AddMember(member)
 
 	if len(discovery.Map()) != 1 {
@@ -202,26 +204,26 @@ func TestNatsDiscovery_AddRemoveMember(t *testing.T) {
 
 // TestNatsDiscovery_Listeners 测试监听器
 func TestNatsDiscovery_Listeners(t *testing.T) {
-	discovery := NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
+	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
 
 	addCalled := false
 	removeCalled := false
 
-	discovery.OnAddMember(func(member IMember) {
+	discovery.OnAddMember(func(member kkcluster.IMember) {
 		addCalled = true
 		if member.GetNodeID() != "node2" {
 			t.Errorf("OnAddMember received node ID = %s, want node2", member.GetNodeID())
 		}
 	})
 
-	discovery.OnRemoveMember(func(member IMember) {
+	discovery.OnRemoveMember(func(member kkcluster.IMember) {
 		removeCalled = true
 		if member.GetNodeID() != "node2" {
 			t.Errorf("OnRemoveMember received node ID = %s, want node2", member.GetNodeID())
 		}
 	})
 
-	member := NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member := kkcluster.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.AddMember(member)
 
 	if !addCalled {
@@ -244,8 +246,8 @@ func TestNatsDiscovery_MemberTimeout(t *testing.T) {
 		t.Fatalf("Failed to start NATS server: %v", err)
 	}
 
-	discovery1 := NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	discovery2 := NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
+	discovery1 := kkcluster.NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery2 := kkcluster.NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
