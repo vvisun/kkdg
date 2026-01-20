@@ -62,8 +62,8 @@ func NewNatsDiscovery(name, nodeID, nodeType, address, natsAddress string, setti
 		address:     address,
 		settings:    settings,
 		natsAddress: natsAddress,
-		members:     make(map[string]IMember),
-		memberTimes: make(map[string]time.Time),
+		members:     make(map[string]IMember),   // key: nodeID, value: member
+		memberTimes: make(map[string]time.Time), // key: nodeID, value: last update time
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
 		options:     options,

@@ -7,17 +7,17 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
-// StreamReader provides buffered stream access for unpacking.
-type StreamReader interface {
+// IStreamReader provides buffered stream access for unpacking.
+type IStreamReader interface {
 	InboundBuffered() int
 	Peek(n int) ([]byte, error)
 	Discard(n int) (discarded int, err error)
 	Next(n int) (buf []byte, err error)
 }
 
-// StreamUnpacker extracts messages from a stream.
-type StreamUnpacker interface {
-	Unpack(r StreamReader) (data []byte, ok bool, err error)
+// IStreamUnpacker extracts messages from a stream.
+type IStreamUnpacker interface {
+	Unpack(r IStreamReader) (data []byte, ok bool, err error)
 }
 
 // LengthFieldUnpacker parses 4-byte length-prefixed frames.
@@ -31,7 +31,7 @@ func NewLengthFieldUnpacker(maxSize int) *LengthFieldUnpacker {
 }
 
 // Unpack implements StreamUnpacker.
-func (u *LengthFieldUnpacker) Unpack(r StreamReader) ([]byte, bool, error) {
+func (u *LengthFieldUnpacker) Unpack(r IStreamReader) ([]byte, bool, error) {
 	if r.InboundBuffered() < 4 {
 		return nil, false, nil
 	}

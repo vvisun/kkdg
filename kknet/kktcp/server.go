@@ -37,7 +37,7 @@ type Server struct {
 	tlsMu       sync.Mutex
 	tlsWg       sync.WaitGroup
 
-	unpacker kknet.StreamUnpacker
+	unpacker kknet.IStreamUnpacker
 }
 
 // NewServer creates a new TCP server.
@@ -53,7 +53,7 @@ func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Serve
 
 // SetUnpacker overrides the default length-field unpacker.
 // Call before Start.
-func (s *Server) SetUnpacker(u kknet.StreamUnpacker) {
+func (s *Server) SetUnpacker(u kknet.IStreamUnpacker) {
 	if u == nil {
 		return
 	}
