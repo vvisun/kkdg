@@ -270,6 +270,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	if len(timeout) > 0 && timeout[0] > 0 {
 		reqTimeout = timeout[0]
 	}
+	packet.Timeout = int64(reqTimeout.Milliseconds())
 
 	// 生成请求ID
 	requestID := c.generateRequestID()

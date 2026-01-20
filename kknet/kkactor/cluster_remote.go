@@ -53,8 +53,10 @@ func (rs *ClusterRemoteSystem) Start(local *ActorSystem) error {
 	rs.started = true
 	rs.mu.Unlock()
 
-	// 注册消息处理器，接收来自远程节点的 actor 消息
+	// 注册消息处理器，接收来自远程节点的 actor 消息（PublishRemote -> actor.message）
 	rs.cluster.SetPublishHandler(rs.handleRemoteMessage)
+	// 注册请求处理器，处理远程的 actor.ask 请求（RequestRemote）
+	rs.cluster.SetRequestHandler(rs.handleClusterRequest)
 
 	kklog.Infof("ClusterRemoteSystem started for node %s", rs.nodeID)
 	return nil
@@ -74,8 +76,9 @@ func (rs *ClusterRemoteSystem) Stop() {
 	rs.started = false
 	rs.mu.Unlock()
 
-	// 清除消息处理器
+	// 清除消息/请求处理器
 	rs.cluster.SetPublishHandler(nil)
+	rs.cluster.SetRequestHandler(nil)
 
 	kklog.Infof("ClusterRemoteSystem stopped for node %s", rs.nodeID)
 }
@@ -213,14 +216,14 @@ func (rs *ClusterRemoteSystem) Ask(remotePID RemotePID, message interface{}, tim
 	return replyMsg, true
 }
 
-// handleRemoteMessage 处理来自远程节点的消息
+// handleRemoteMessage 处理来自远程节点的发布消息（单向 actor.message）
 func (rs *ClusterRemoteSystem) handleRemoteMessage(sourceNodeID string, packet *kkcluster.ClusterPacket) {
 	if rs == nil || packet == nil {
 		return
 	}
 
-	// 只处理 actor 消息
-	if packet.FuncName != "actor.message" && packet.FuncName != "actor.ask" {
+	// 只处理单向 actor 消息
+	if packet.FuncName != "actor.message" {
 		return
 	}
 
@@ -245,6 +248,111 @@ func (rs *ClusterRemoteSystem) handleRemoteMessage(sourceNodeID string, packet *
 		// 将 Data 作为消息体（[]byte）投递到对应本地 actor
 		local.sendByID(actorMsg.ActorID, actorMsg.Data, nil)
 	}
+}
+
+// handleClusterRequest 处理来自远程节点的请求消息（用于实现 actor 的 Ask 语义）
+func (rs *ClusterRemoteSystem) handleClusterRequest(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {
+	// 基本校验
+	if rs == nil || req == nil || req.Packet == nil {
+		return &kkcluster.ClusterResponse{
+			RequestID: "",
+			Code:      int32(kkcluster.ClusterErrorCodeInvalidRequest),
+			Data:      nil,
+		}, nil
+	}
+
+	// 只处理 actor.ask 请求
+	if req.Packet.FuncName != "actor.ask" {
+		// 非本模块处理的请求，返回错误码，避免静默吞掉请求
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeInvalidRequest),
+			Data:      nil,
+		}, nil
+	}
+
+	// 解析远程 actor 消息载体
+	var actorMsg remoteEnvelope
+	if err := json.Unmarshal(req.Packet.ArgBytes, &actorMsg); err != nil {
+		kklog.Errorf("ClusterRemoteSystem handleClusterRequest: unmarshal actor message failed: %v", err)
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeInvalidData),
+			Data:      nil,
+		}, nil
+	}
+	if actorMsg.ActorID == "" {
+		kklog.Warnf("ClusterRemoteSystem handleClusterRequest: empty actorID from %s", req.SourceNodeID)
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeInvalidRequest),
+			Data:      nil,
+		}, nil
+	}
+
+	// 获取本地 ActorSystem
+	rs.mu.RLock()
+	local := rs.local
+	rs.mu.RUnlock()
+	if local == nil {
+		kklog.Warnf("ClusterRemoteSystem handleClusterRequest: no local actor system for request %s", req.RequestID)
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeFail),
+			Data:      nil,
+		}, nil
+	}
+
+	// 构造本地目标 actor 的 PID（本地 actor，nodeID 为空）
+	targetPID := &PID{
+		id:     actorMsg.ActorID,
+		nodeID: "",
+		system: local,
+	}
+
+	// 使用本地 Ask 语义向目标 actor 发送请求，并等待其通过 ctx.Send(ctx.Sender(), resp) 回复
+	root := &RootContext{system: local}
+	// 使用一个保守的超时时间（可根据需要调整或从请求中携带）
+	timeout := 5 * time.Second
+	if req.Packet.Timeout > 0 {
+		timeout = time.Duration(req.Packet.Timeout) * time.Millisecond
+	}
+	resp, ok := root.Ask(targetPID, actorMsg.Data, timeout)
+	if !ok {
+		kklog.Errorf("ClusterRemoteSystem handleClusterRequest: actor %s no response for request %s", actorMsg.ActorID, req.RequestID)
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeTimeout),
+			Data:      nil,
+		}, nil
+	}
+
+	// 期望 actor 返回的是 []byte（业务可自行约定）
+	var respBytes []byte
+	switch v := resp.(type) {
+	case []byte:
+		respBytes = v
+	case string:
+		respBytes = []byte(v)
+	default:
+		// 其他类型统一走 JSON 序列化
+		b, err := json.Marshal(v)
+		if err != nil {
+			kklog.Errorf("ClusterRemoteSystem handleClusterRequest: marshal actor response failed: %v", err)
+			return &kkcluster.ClusterResponse{
+				RequestID: req.RequestID,
+				Code:      int32(kkcluster.ClusterErrorCodeMarshalFailed),
+				Data:      nil,
+			}, nil
+		}
+		respBytes = b
+	}
+
+	return &kkcluster.ClusterResponse{
+		RequestID: req.RequestID,
+		Code:      int32(kkcluster.ClusterErrorCodeSuccess),
+		Data:      respBytes,
+	}, nil
 }
 
 // isStarted 检查系统是否已启动

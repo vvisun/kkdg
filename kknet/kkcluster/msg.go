@@ -23,6 +23,7 @@ type (
 		TargetPath string   `json:"targetPath,omitempty"` // 目标节点路径
 		FuncName   string   `json:"funcName,omitempty"`   // 函数名
 		ArgBytes   []byte   `json:"argBytes,omitempty"`   // 参数
+		Timeout    int64    `json:"timeout,omitempty"`    // FuncName请求超时时间(毫秒)
 		Session    *Session `json:"session,omitempty"`    // 会话
 	}
 	// Session 会话
