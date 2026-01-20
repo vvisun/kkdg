@@ -128,7 +128,15 @@ func (sys *ActorSystem) sendRemote(pid *PID, message interface{}, sender *PID) {
 		ActorID: pid.id,
 	}
 
-	// 序列化消息
+	// 如果消息已经是 []byte，直接使用 TellBytes，避免 JSON 序列化
+	if msgData, ok := message.([]byte); ok {
+		if err := remote.TellBytes(remotePID, msgData); err != nil {
+			kklog.Errorf("ActorSystem sendRemote failed: %v", err)
+		}
+		return
+	}
+
+	// 其他类型序列化为 JSON
 	msgData, err := json.Marshal(message)
 	if err != nil {
 		kklog.Errorf("ActorSystem sendRemote marshal failed: %v", err)

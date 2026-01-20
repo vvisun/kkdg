@@ -11,6 +11,14 @@ type RootContext struct {
 	system *ActorSystem
 }
 
+// NewRootContext 创建一个新的 RootContext。
+func NewRootContext(sys *ActorSystem) *RootContext {
+	if sys == nil {
+		return &RootContext{}
+	}
+	return &RootContext{system: sys}
+}
+
 // Send sends a message to an actor.
 func (rc *RootContext) Send(pid *PID, message interface{}) {
 	if rc == nil || rc.system == nil {

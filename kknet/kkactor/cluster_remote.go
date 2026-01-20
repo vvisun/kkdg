@@ -87,13 +87,18 @@ func (rs *ClusterRemoteSystem) Stop() {
 
 // Tell 向远程节点的 actor 发送消息（fire-and-forget）
 // remotePID: 远程 actor 的 PID（Addr 是节点ID，ActorID 是 actor ID）
-// message: 要发送的消息（会被序列化为 JSON）
+// message: 要发送的消息（如果是 []byte，直接传递；其他类型会被序列化为 JSON）
 func (rs *ClusterRemoteSystem) Tell(remotePID RemotePID, message interface{}) error {
 	if rs == nil || !rs.isStarted() {
 		return nil
 	}
 
-	// 序列化消息
+	// 如果消息已经是 []byte，直接使用 TellBytes，避免 JSON 序列化
+	if data, ok := message.([]byte); ok {
+		return rs.TellBytes(remotePID, data)
+	}
+
+	// 其他类型序列化为 JSON
 	msgData, err := json.Marshal(message)
 	if err != nil {
 		kklog.Errorf("ClusterRemoteSystem marshal message failed: %v", err)
@@ -168,11 +173,18 @@ func (rs *ClusterRemoteSystem) Ask(remotePID RemotePID, message interface{}, tim
 		return nil, false
 	}
 
-	// 序列化消息
-	msgData, err := json.Marshal(message)
-	if err != nil {
-		kklog.Errorf("ClusterRemoteSystem marshal message failed: %v", err)
-		return nil, false
+	// 如果消息已经是 []byte，直接使用，避免 JSON 序列化
+	var msgData []byte
+	if data, ok := message.([]byte); ok {
+		msgData = data
+	} else {
+		// 其他类型序列化为 JSON
+		var err error
+		msgData, err = json.Marshal(message)
+		if err != nil {
+			kklog.Errorf("ClusterRemoteSystem marshal message failed: %v", err)
+			return nil, false
+		}
 	}
 
 	// 创建 actor 消息包
@@ -202,20 +214,13 @@ func (rs *ClusterRemoteSystem) Ask(remotePID RemotePID, message interface{}, tim
 		reqTimeout = timeout[0]
 	}
 
-	// 通过 kkcluster 发送请求并等待响应
+	// 通过 kkcluster 发送请求并等待响应（返回的是对端响应的 Data 字节）
 	responseData, errCode := rs.cluster.RequestRemote(remotePID.Addr, packet, reqTimeout)
 	if errCode != kkcluster.ClusterErrorCodeSuccess {
 		return nil, false
 	}
-
-	// 反序列化响应
-	var replyMsg interface{}
-	if err := json.Unmarshal(responseData, &replyMsg); err != nil {
-		kklog.Errorf("ClusterRemoteSystem unmarshal reply failed: %v", err)
-		return nil, false
-	}
-
-	return replyMsg, true
+	// 直接返回字节数据，交由上层根据协议自行解码
+	return responseData, true
 }
 
 // SetRequestHandler 设置用户自定义的集群请求处理器。

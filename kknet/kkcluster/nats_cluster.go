@@ -49,6 +49,8 @@ type NatsCluster struct {
 	options []nats.Option
 }
 
+var _ ICluster = (*NatsCluster)(nil)
+
 // NewNatsCluster 创建新的NATS集群
 func NewNatsCluster(nodeID string, discovery IDiscovery, natsAddress string, options ...nats.Option) *NatsCluster {
 	if natsAddress == "" {

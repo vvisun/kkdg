@@ -41,7 +41,7 @@ type (
 // ICluster 集群接口
 type ICluster interface {
 	// 初始化
-	Init()
+	Init() error
 	// 发布消息
 	PublishRemote(nodeID string, packet *ClusterPacket) error
 	// 根据节点类型发布消息
