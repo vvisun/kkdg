@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/kknet"
 )
 
 // IStreamReader provides buffered stream access for unpacking.
@@ -44,7 +43,7 @@ func (u *LengthFieldUnpacker) Unpack(r IStreamReader) ([]byte, bool, error) {
 		}
 		return nil, false, err
 	}
-	size := int(kknet.GetByteOrder().Uint32(header))
+	size := int(GetByteOrder().Uint32(header))
 	if size < 0 || size > u.maxSize {
 		return nil, false, kkerrors.ErrMaxMessageSize
 	}

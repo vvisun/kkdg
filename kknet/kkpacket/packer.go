@@ -1,6 +1,8 @@
 package kkpacket
 
 import (
+	"encoding/binary"
+
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -47,4 +49,14 @@ func NewPacker(headType uint8, codecType uint8) *packer {
 	}
 	kklog.Panicf("packer not found: headType=%d, codecType=%d", headType, codecType)
 	return nil
+}
+
+var gByteOrder binary.ByteOrder = binary.BigEndian
+
+func SetByteOrder(order binary.ByteOrder) {
+	gByteOrder = order
+}
+
+func GetByteOrder() binary.ByteOrder {
+	return gByteOrder
 }

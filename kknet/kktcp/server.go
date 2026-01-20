@@ -37,28 +37,16 @@ type Server struct {
 	tlsConns    map[int64]*tlsConn
 	tlsMu       sync.Mutex
 	tlsWg       sync.WaitGroup
-
-	unpacker kkpacket.IStreamUnpacker
 }
 
 // NewServer creates a new TCP server.
 func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
 	cfg := kknet.ApplyOptions(opts...)
 	return &Server{
-		addr:     addr,
-		handler:  handler,
-		opts:     cfg,
-		unpacker: kkpacket.NewLengthFieldUnpacker(cfg.MaxMessageSize, nil),
+		addr:    addr,
+		handler: handler,
+		opts:    cfg,
 	}
-}
-
-// SetUnpacker overrides the default length-field unpacker.
-// Call before Start.
-func (s *Server) SetUnpacker(u kkpacket.IStreamUnpacker) {
-	if u == nil {
-		return
-	}
-	s.unpacker = u
 }
 
 // Start begins listening and accepting connections.
@@ -298,7 +286,7 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	}
 
 	for {
-		data, ok, err := h.server.unpacker.Unpack(c)
+		data, ok, err := h.server.opts.Unpacker.Unpack(c)
 		if err != nil {
 			h.server.stats.AddError()
 			return gnet.Close
@@ -370,11 +358,14 @@ func (c *tcpConn) Send(data []byte) error {
 		return kkerrors.ErrMaxMessageSize
 	}
 
-	bb := kkbuffer.Get()
-	bb.B = bb.B[:0]
-	bb.B = append(bb.B, 0, 0, 0, 0)
-	kknet.GetByteOrder().PutUint32(bb.B[:4], uint32(len(data)))
-	bb.B = append(bb.B, data...)
+	bb, err1 := c.opts.Packer.Pack(data)
+	if err1 != nil {
+		kkbuffer.Put(bb)
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err1
+	}
 
 	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, _ error) error {
 		kkbuffer.Put(bb)
@@ -447,11 +438,16 @@ func (c *tlsConn) Send(data []byte) error {
 		}
 		return kkerrors.ErrMaxMessageSize
 	}
-	bb := kkbuffer.Get()
-	bb.B = bb.B[:0]
-	bb.B = append(bb.B, 0, 0, 0, 0)
-	kknet.GetByteOrder().PutUint32(bb.B[:4], uint32(len(data)))
-	bb.B = append(bb.B, data...)
+
+	bb, err1 := c.opts.Packer.Pack(data)
+	if err1 != nil {
+		kkbuffer.Put(bb)
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err1
+	}
+
 	defer kkbuffer.Put(bb)
 
 	c.writeMu.Lock()
@@ -492,19 +488,15 @@ func (c *tlsConn) readLoop(handler kknet.IHandler, logger kklog.ILogger) error {
 		if err := readFull(c.conn, header); err != nil {
 			return err
 		}
-		size := int(kknet.GetByteOrder().Uint32(header))
+		size := int(kkpacket.GetByteOrder().Uint32(header))
 		if size < 0 || size > c.opts.MaxMessageSize {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
 			return kkerrors.ErrMaxMessageSize
 		}
-		payload := kkbuffer.Get()
-		if cap(payload.B) < size {
-			payload.B = make([]byte, size)
-		} else {
-			payload.B = payload.B[:size]
-		}
+		payload := kkbuffer.GetWithCapacity(size)
+		payload.B = payload.B[:size]
 		if err := readFull(c.conn, payload.B); err != nil {
 			kkbuffer.Put(payload)
 			return err

@@ -74,6 +74,9 @@ func (p *bfPool) GetWithCapacity(capacity int) *ByteBuffer {
 //
 // The buffer mustn't be accessed after returning to the pool.
 func (p *bfPool) Put(b *ByteBuffer) {
+	if b == nil {
+		return
+	}
 	if !b.released.CompareAndSwap(false, true) {
 		return //防止重复释放
 	}

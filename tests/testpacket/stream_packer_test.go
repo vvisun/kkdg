@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
@@ -40,7 +39,7 @@ func TestLengthFieldPacker_Pack_EmptyData(t *testing.T) {
 	}
 
 	// Length prefix should be 0
-	length := kknet.GetByteOrder().Uint32(buf.B[:4])
+	length := kkpacket.GetByteOrder().Uint32(buf.B[:4])
 	if length != 0 {
 		t.Errorf("Expected length prefix 0, got %d", length)
 	}
@@ -64,7 +63,7 @@ func TestLengthFieldPacker_Pack_NormalData(t *testing.T) {
 	}
 
 	// Verify length prefix
-	length := kknet.GetByteOrder().Uint32(buf.B[:4])
+	length := kkpacket.GetByteOrder().Uint32(buf.B[:4])
 	if length != uint32(len(data)) {
 		t.Errorf("Expected length prefix %d, got %d", len(data), length)
 	}
@@ -93,7 +92,7 @@ func TestLengthFieldPacker_Pack_MaxSizeBoundary(t *testing.T) {
 		t.Fatal("Pack returned nil buffer")
 	}
 
-	length := kknet.GetByteOrder().Uint32(buf.B[:4])
+	length := kkpacket.GetByteOrder().Uint32(buf.B[:4])
 	if length != uint32(maxSize) {
 		t.Errorf("Expected length prefix %d, got %d", maxSize, length)
 	}
@@ -138,7 +137,7 @@ func TestLengthFieldPacker_Pack_LargeData(t *testing.T) {
 		t.Fatal("Pack returned nil buffer")
 	}
 
-	length := kknet.GetByteOrder().Uint32(buf.B[:4])
+	length := kkpacket.GetByteOrder().Uint32(buf.B[:4])
 	if length != uint32(len(data)) {
 		t.Errorf("Expected length prefix %d, got %d", len(data), length)
 	}
@@ -157,11 +156,11 @@ func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
 	data := []byte("test")
 
 	// Save original byte order
-	originalOrder := kknet.GetByteOrder()
-	defer kknet.SetByteOrder(originalOrder)
+	originalOrder := kkpacket.GetByteOrder()
+	defer kkpacket.SetByteOrder(originalOrder)
 
 	// Test with BigEndian (default)
-	kknet.SetByteOrder(binary.BigEndian)
+	kkpacket.SetByteOrder(binary.BigEndian)
 	buf, err := packer.Pack(data)
 	if err != nil {
 		t.Fatalf("Pack returned error: %v", err)
@@ -173,7 +172,7 @@ func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
 	}
 
 	// Test with LittleEndian
-	kknet.SetByteOrder(binary.LittleEndian)
+	kkpacket.SetByteOrder(binary.LittleEndian)
 	buf2, err := packer.Pack(data)
 	if err != nil {
 		t.Fatalf("Pack returned error: %v", err)
@@ -224,7 +223,7 @@ func TestLengthFieldPacker_Pack_MultiplePacks(t *testing.T) {
 				t.Errorf("Expected buffer length %d, got %d", expectedLen, len(buf.B))
 			}
 
-			length := kknet.GetByteOrder().Uint32(buf.B[:4])
+			length := kkpacket.GetByteOrder().Uint32(buf.B[:4])
 			if length != uint32(len(tc.data)) {
 				t.Errorf("Expected length prefix %d, got %d", len(tc.data), length)
 			}

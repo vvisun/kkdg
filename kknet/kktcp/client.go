@@ -10,6 +10,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -156,11 +157,16 @@ func (c *clientConn) Send(data []byte) error {
 		}
 		return kkerrors.ErrMaxMessageSize
 	}
-	bb := kkbuffer.Get()
-	bb.B = bb.B[:0]
-	bb.B = append(bb.B, 0, 0, 0, 0)
-	kknet.GetByteOrder().PutUint32(bb.B[:4], uint32(len(data)))
-	bb.B = append(bb.B, data...)
+
+	bb, err1 := c.opts.Packer.Pack(data)
+	if err1 != nil {
+		kkbuffer.Put(bb)
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err1
+	}
+
 	defer kkbuffer.Put(bb)
 
 	c.writeMu.Lock()
@@ -201,16 +207,12 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 		if err := readFull(c.conn, header); err != nil {
 			return err
 		}
-		size := int(kknet.GetByteOrder().Uint32(header))
+		size := int(kkpacket.GetByteOrder().Uint32(header))
 		if size < 0 || size > c.opts.MaxMessageSize {
 			return kkerrors.ErrMaxMessageSize
 		}
-		payload := kkbuffer.Get()
-		if cap(payload.B) < size {
-			payload.B = make([]byte, size)
-		} else {
-			payload.B = payload.B[:size]
-		}
+		payload := kkbuffer.GetWithCapacity(size)
+		payload.B = payload.B[:size]
 		if err := readFull(c.conn, payload.B); err != nil {
 			kkbuffer.Put(payload)
 			return err

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xos"
 )
@@ -13,19 +14,21 @@ type OriginCheckFunc func(r *http.Request) bool
 
 // Options are common network settings.
 type Options struct {
-	Logger             kklog.ILogger   // 日志记录器
-	MaxMessageSize     int             // 最大消息大小
-	PoolSize           int             // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
-	ReadBufferSize     int             // 读缓冲区大小
-	WriteBufferSize    int             // 写缓冲区大小
-	TLSConfig          *tls.Config     // TLS配置
-	OriginChecker      OriginCheckFunc // websocket原始检查器
-	ShutdownTimeout    time.Duration   // 服务关闭超时时间
-	UDPConnIdleTimeout time.Duration   // UDP连接空闲超时时间（为0时，不启用空闲清理）
-	UDPCleanupInterval time.Duration   // UDP清理间隔时间（为0时，不启用清理）
-	ReadTimeout        time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
-	WriteTimeout       time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
-	Middlewares        []Middleware    // 中间件列表
+	Logger             kklog.ILogger            // 日志记录器
+	MaxMessageSize     int                      // 最大消息大小
+	PoolSize           int                      // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
+	ReadBufferSize     int                      // 读缓冲区大小
+	WriteBufferSize    int                      // 写缓冲区大小
+	TLSConfig          *tls.Config              // TLS配置
+	OriginChecker      OriginCheckFunc          // websocket原始检查器
+	ShutdownTimeout    time.Duration            // 服务关闭超时时间
+	UDPConnIdleTimeout time.Duration            // UDP连接空闲超时时间（为0时，不启用空闲清理）
+	UDPCleanupInterval time.Duration            // UDP清理间隔时间（为0时，不启用清理）
+	ReadTimeout        time.Duration            // WebSocket读超时时间（为0时，不启用读超时）
+	WriteTimeout       time.Duration            // WebSocket写超时时间（为0时，不启用写超时）
+	Middlewares        []Middleware             // 中间件列表
+	Packer             kkpacket.IStreamPacker   // 包打包器, used for tcp
+	Unpacker           kkpacket.IStreamUnpacker // 包解包器, used for tcp
 }
 
 const (
@@ -61,6 +64,8 @@ func DefaultOptions() Options {
 		UDPCleanupInterval: defaultUDPCleanupInterval,
 		ReadTimeout:        defaultReadTimeout,
 		WriteTimeout:       defaultWriteTimeout,
+		Packer:             kkpacket.NewLengthFieldPacker(defaultMaxMessageSize, nil),
+		Unpacker:           kkpacket.NewLengthFieldUnpacker(defaultMaxMessageSize, nil),
 	}
 }
 
@@ -93,6 +98,24 @@ func WithMaxMessageSize(size int) Option {
 		}
 		if size > 0 {
 			o.MaxMessageSize = size
+		}
+	}
+}
+
+// WithPacker sets packer.
+func WithPacker(packer kkpacket.IStreamPacker) Option {
+	return func(o *Options) {
+		if packer != nil {
+			o.Packer = packer
+		}
+	}
+}
+
+// WithUnpacker sets unpacker.
+func WithUnpacker(unpacker kkpacket.IStreamUnpacker) Option {
+	return func(o *Options) {
+		if unpacker != nil {
+			o.Unpacker = unpacker
 		}
 	}
 }

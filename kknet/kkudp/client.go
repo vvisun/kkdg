@@ -185,12 +185,8 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 			c.stats.AddRecv(n)
 		}
 		if handler != nil && n > 0 {
-			payload := kkbuffer.Get()
-			if cap(payload.B) < n {
-				payload.B = make([]byte, n)
-			} else {
-				payload.B = payload.B[:n]
-			}
+			payload := kkbuffer.GetWithCapacity(n)
+			payload.B = payload.B[:n]
 			copy(payload.B, buf[:n])
 			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "udpclient OnMessage", func() {
 				handler.OnMessage(c, payload)

@@ -2,7 +2,6 @@ package kknet
 
 import (
 	"context"
-	"encoding/binary"
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -30,14 +29,4 @@ var connIDCounter atomic.Int64
 // NextConnID returns a unique connection id.
 func NextConnID() int64 {
 	return connIDCounter.Add(1)
-}
-
-var gByteOrder binary.ByteOrder = binary.BigEndian
-
-func SetByteOrder(order binary.ByteOrder) {
-	gByteOrder = order
-}
-
-func GetByteOrder() binary.ByteOrder {
-	return gByteOrder
 }
