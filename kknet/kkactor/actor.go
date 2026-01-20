@@ -56,6 +56,7 @@ type timerInfo struct {
 }
 
 // actorInstance represents a running actor instance.
+// run in single goroutine, avoid concurrency issues
 type actorInstance struct {
 	pid         *PID
 	actor       Actor
@@ -74,6 +75,34 @@ type actorInstance struct {
 type envelope struct {
 	msg    interface{}
 	sender *PID
+}
+
+// run runs the actor's message processing loop.
+func (inst *actorInstance) run() {
+	defer inst.wg.Done()
+	defer func() {
+		// 清理所有定时器
+		inst.cancelAllTimers()
+		close(inst.doneCh)
+	}()
+
+	for {
+		select {
+		case <-inst.stopCh:
+			return
+		case env := <-inst.mailbox:
+			inst.context.message = env.msg
+			inst.context.sender = env.sender
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						kklog.Errorf("Actor panic in %s: %v", inst.pid.id, r)
+					}
+				}()
+				inst.actor.Receive(inst.context)
+			}()
+		}
+	}
 }
 
 // scheduleAfter schedules a one-shot timer.
@@ -231,34 +260,6 @@ func (inst *actorInstance) cancelAllTimers() {
 		}
 		if info.ticker != nil {
 			info.ticker.Stop()
-		}
-	}
-}
-
-// run runs the actor's message processing loop.
-func (inst *actorInstance) run() {
-	defer inst.wg.Done()
-	defer func() {
-		// 清理所有定时器
-		inst.cancelAllTimers()
-		close(inst.doneCh)
-	}()
-
-	for {
-		select {
-		case <-inst.stopCh:
-			return
-		case env := <-inst.mailbox:
-			inst.context.message = env.msg
-			inst.context.sender = env.sender
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						kklog.Errorf("Actor panic in %s: %v", inst.pid.id, r)
-					}
-				}()
-				inst.actor.Receive(inst.context)
-			}()
 		}
 	}
 }
