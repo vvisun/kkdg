@@ -2,80 +2,92 @@ package kkactor
 
 import "time"
 
-// IContext represents the actor context for receiving messages.
-type IContext interface {
-	Message() interface{}
-	Self() *PID
-	Sender() *PID
-	Send(pid *PID, message interface{})
-	Stop(pid *PID)
-	IContextTimer // timer interface
-}
-
-type IContextTimer interface {
-	// After schedules a message to be sent after the specified duration.
-	// Returns a TimerID that can be used to cancel the timer.
-	After(duration time.Duration, message interface{}) TimerID
-	// Tick schedules a periodic message to be sent at the specified interval.
-	// Returns a TimerID that can be used to cancel the timer.
-	Tick(interval time.Duration, message interface{}) TimerID
-	// CancelTimer cancels a timer identified by the TimerID.
-	CancelTimer(id TimerID)
-}
-
-// actorContext implements Context interface.
 type actorContext struct {
-	instance *actorInstance
-	message  interface{}
-	sender   *PID
+	system  *ActorSystem
+	self    *PID
+	sender  *PID
+	message any
+	respond chan *FutureResult
 }
 
-var _ IContext = (*actorContext)(nil)
-
-func (ctx *actorContext) Message() interface{} {
-	return ctx.message
+func (c *actorContext) reset() {
+	c.sender = nil
+	c.message = nil
+	c.respond = nil
 }
 
-func (ctx *actorContext) Self() *PID {
-	return ctx.instance.pid
+// Message returns the current message.
+func (c *actorContext) Message() any {
+	return c.message
 }
 
-func (ctx *actorContext) Sender() *PID {
-	return ctx.sender
+// Sender returns the sender pid.
+func (c *actorContext) Sender() *PID {
+	return c.sender
 }
 
-func (ctx *actorContext) Send(pid *PID, message interface{}) {
-	if pid == nil || pid.system == nil {
+// Self returns the current actor pid.
+func (c *actorContext) Self() *PID {
+	return c.self
+}
+
+// System returns the actor system.
+func (c *actorContext) System() *ActorSystem {
+	return c.system
+}
+
+// Respond sends response to the requester.
+func (c *actorContext) Respond(msg any) {
+	if c.respond == nil {
 		return
 	}
-	// 通过当前 actor 作为 sender 发送消息
-	pid.system.send(pid, message, ctx.Self())
+	select {
+	case c.respond <- &FutureResult{Message: msg}:
+	default:
+	}
 }
 
-func (ctx *actorContext) Stop(pid *PID) {
-	if pid == nil || pid.system == nil {
+// Send sends a message to another actor.
+func (c *actorContext) Send(pid *PID, msg any) {
+	if c == nil || c.system == nil {
 		return
 	}
-	pid.system.stop(pid)
+	_ = c.system.sendLocal(pid, &Envelope{message: msg, sender: c.self})
 }
 
-func (ctx *actorContext) After(duration time.Duration, message interface{}) TimerID {
-	if ctx.instance == nil {
-		return 0
+// RequestFuture sends a message and returns a future for the response.
+func (c *actorContext) RequestFuture(pid *PID, msg any, timeout ...time.Duration) *Future {
+	if c == nil {
+		fut := newFuture()
+		fut.complete(&FutureResult{Error: ErrActorDead})
+		return fut
 	}
-	return ctx.instance.scheduleAfter(duration, message)
+	root := &RootContext{system: c.system}
+	return root.RequestFuture(pid, msg, timeout...)
 }
 
-func (ctx *actorContext) Tick(interval time.Duration, message interface{}) TimerID {
-	if ctx.instance == nil {
-		return 0
+// Spawn creates a new actor.
+func (c *actorContext) Spawn(props *Props) *PID {
+	if c == nil || c.system == nil {
+		return nil
 	}
-	return ctx.instance.scheduleTick(interval, message)
+	return c.system.Spawn(props)
 }
 
-func (ctx *actorContext) CancelTimer(id TimerID) {
-	if ctx.instance == nil {
+// Stop stops an actor.
+func (c *actorContext) Stop(pid *PID) {
+	if c == nil || c.system == nil {
 		return
 	}
-	ctx.instance.cancelTimer(id)
+	c.system.StopPID(pid)
+}
+
+// StopFuture stops an actor and returns a future for completion.
+func (c *actorContext) StopFuture(pid *PID) *Future {
+	if c == nil || c.system == nil {
+		fut := newFuture()
+		fut.complete(&FutureResult{Error: ErrActorDead})
+		return fut
+	}
+	return c.system.StopFuture(pid)
 }

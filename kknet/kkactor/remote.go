@@ -1,78 +1,447 @@
 package kkactor
 
 import (
-	"encoding/json"
+	"fmt"
+	"reflect"
+	"sync"
+	"time"
 
-	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
-// RemotePID 标识远程 Actor（所在地址 + ActorID）。
-type RemotePID struct {
-	Addr    string // 远程节点地址（由上层传输定义，如 tcp://host:port 或自定义 key）
-	ActorID string // 本地 ActorSystem 内的 actor id（即 PID.id）
+const (
+	remoteFuncName           = "kkactor.remote"
+	remoteBytesType          = "bytes"
+	remoteRawType            = "raw"
+	defaultRemoteWaitTimeout = 30 * time.Second
+)
+
+// RemoteCodec encodes and decodes remote envelopes and messages.
+type RemoteCodec interface {
+	Marshal(v any) ([]byte, error)
+	Unmarshal(data []byte, v any) error
 }
 
-// Transport 抽象远程传输层，由上层使用 kknet/kktcp/kkudp 或其它实现。
-type Transport interface {
-	// Send 向远程地址发送一段原始字节数据。
-	Send(addr string, data []byte) error
+// Remote defines a transport for distributed actors.
+type Remote interface {
+	NodeID() string
+	Publish(nodeID string, data []byte) error
+	Request(nodeID string, data []byte, timeout ...time.Duration) ([]byte, error)
+	SetPublishHandler(handler func(sourceNodeID string, data []byte))
+	SetRequestHandler(handler func(sourceNodeID string, data []byte) ([]byte, error))
 }
 
-// RemoteSystem 为本地 ActorSystem 提供远程通信能力。
-type RemoteSystem struct {
-	local     *ActorSystem
-	transport Transport
+// RawMessage is delivered when message type is unknown or raw bytes are desired.
+type RawMessage struct {
+	Type    string
+	Payload []byte
 }
 
-// NewRemoteSystem 创建一个 RemoteSystem。
-func NewRemoteSystem(local *ActorSystem, transport Transport) *RemoteSystem {
-	if local == nil || transport == nil {
-		return nil
-	}
-	return &RemoteSystem{
-		local:     local,
-		transport: transport,
-	}
-}
-
-// remoteEnvelope 是远程消息的线协议封装。
 type remoteEnvelope struct {
-	ActorID string `json:"actorId"`
-	Data    []byte `json:"data"`
+	TargetID      string `json:"targetID"`
+	SenderID      string `json:"senderID,omitempty"`
+	MessageType   string `json:"messageType,omitempty"`
+	Payload       []byte `json:"payload,omitempty"`
+	TimeoutMillis int64  `json:"timeoutMillis,omitempty"`
 }
 
-// TellBytes 向远程 Actor 发送一个二进制消息（fire-and-forget）。
-// 上层可以在 Data 中自行使用 JSON / ProtoBuf 等编码业务消息。
-func (rs *RemoteSystem) TellBytes(pid RemotePID, data []byte) error {
-	if rs == nil || rs.transport == nil {
+type remoteResponse struct {
+	MessageType string `json:"messageType,omitempty"`
+	Payload     []byte `json:"payload,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
+var (
+	registryByName sync.Map // string -> func() any
+	registryByType sync.Map // reflect.Type -> string
+)
+
+// RegisterMessage registers a message factory by name.
+func RegisterMessage(name string, factory func() any) {
+	if name == "" || factory == nil {
+		return
+	}
+	registryByName.Store(name, factory)
+}
+
+// RegisterMessageType registers a message type by name.
+func RegisterMessageType(name string, sample any) {
+	if name == "" || sample == nil {
+		return
+	}
+	t := reflect.TypeOf(sample)
+	factory := func() any {
+		if t.Kind() == reflect.Pointer {
+			return reflect.New(t.Elem()).Interface()
+		}
+		return reflect.New(t).Interface()
+	}
+	RegisterMessage(name, factory)
+	registryByType.Store(t, name)
+	if t.Kind() == reflect.Pointer {
+		registryByType.Store(t.Elem(), name)
+	}
+}
+
+func defaultRemoteCodec() RemoteCodec {
+	return kkcodec.GetCodec(kkcodec.CodecTypeJson)
+}
+
+// NewActorSystemWithRemote creates a system with remote transport enabled.
+func NewActorSystemWithRemote(nodeID string, remote Remote, codec RemoteCodec) *ActorSystem {
+	sys := NewActorSystem()
+	sys.EnableRemote(nodeID, remote, codec)
+	return sys
+}
+
+// EnableRemote configures the actor system for distributed messaging.
+func (s *ActorSystem) EnableRemote(nodeID string, remote Remote, codec RemoteCodec) {
+	if s == nil {
+		return
+	}
+	if remote != nil && nodeID == "" {
+		nodeID = remote.NodeID()
+	}
+	s.nodeID = nodeID
+	s.remote = remote
+	if codec == nil {
+		codec = defaultRemoteCodec()
+	}
+	s.codec = codec
+	if remote == nil {
+		return
+	}
+	remote.SetPublishHandler(func(sourceNodeID string, data []byte) {
+		s.handleRemotePublish(sourceNodeID, data)
+	})
+	remote.SetRequestHandler(func(sourceNodeID string, data []byte) ([]byte, error) {
+		return s.handleRemoteRequest(sourceNodeID, data)
+	})
+}
+
+// NodeID returns the local node id.
+func (s *ActorSystem) NodeID() string {
+	if s == nil {
+		return ""
+	}
+	return s.nodeID
+}
+
+// Remote returns the configured remote transport.
+func (s *ActorSystem) Remote() Remote {
+	if s == nil {
 		return nil
 	}
-	env := remoteEnvelope{
-		ActorID: pid.ActorID,
-		Data:    data,
+	return s.remote
+}
+
+func (s *ActorSystem) isRemote(pid *PID) bool {
+	if s == nil || pid == nil {
+		return false
 	}
-	raw, err := json.Marshal(&env)
+	if pid.system != nil && pid.system != s {
+		return true
+	}
+	if pid.nodeID == "" {
+		return false
+	}
+	if s.nodeID == "" {
+		return true
+	}
+	return pid.nodeID != s.nodeID
+}
+
+func (s *ActorSystem) sendRemote(pid *PID, env *Envelope) error {
+	if s == nil || pid == nil {
+		return ErrActorDead
+	}
+	if s.remote == nil {
+		return ErrRemoteNotConfigured
+	}
+	if pid.nodeID == "" {
+		return ErrRemoteUnsupportedType
+	}
+	data, err := s.encodeRemoteEnvelope(pid, env)
 	if err != nil {
 		return err
 	}
-	return rs.transport.Send(pid.Addr, raw)
+	if env.respond != nil {
+		go s.doRemoteRequest(pid.nodeID, data, env.respond, env.timeout)
+		return nil
+	}
+	go func() {
+		_ = s.remote.Publish(pid.nodeID, data)
+	}()
+	return nil
 }
 
-// HandleIncoming 处理从远程传输层收到的数据，解包后投递到本地 ActorSystem。
-// 需要由上层在网络接收回调中调用，例如 kknet handler 中。
-func (rs *RemoteSystem) HandleIncoming(addr string, raw []byte) {
-	if rs == nil || rs.local == nil {
+func (s *ActorSystem) doRemoteRequest(nodeID string, data []byte, respond chan *FutureResult, timeout time.Duration) {
+	if respond == nil {
 		return
+	}
+	var (
+		respData []byte
+		err      error
+	)
+	if timeout > 0 {
+		respData, err = s.remote.Request(nodeID, data, timeout)
+	} else {
+		respData, err = s.remote.Request(nodeID, data)
+	}
+	if err != nil {
+		respond <- &FutureResult{Error: err}
+		return
+	}
+	res, err := s.decodeRemoteResponse(respData)
+	if err != nil {
+		respond <- &FutureResult{Error: err}
+		return
+	}
+	respond <- res
+}
+
+func (s *ActorSystem) handleRemotePublish(sourceNodeID string, data []byte) {
+	env, err := s.decodeRemoteEnvelope(data)
+	if err != nil || env.TargetID == "" {
+		return
+	}
+	msg, err := decodeMessage(s.codec, env.MessageType, env.Payload)
+	if err != nil {
+		msg = RawMessage{Type: env.MessageType, Payload: env.Payload}
+	}
+	target := &PID{id: env.TargetID, system: s, nodeID: s.nodeID}
+	sender := &PID{id: env.SenderID, nodeID: sourceNodeID}
+	_ = s.sendLocal(target, &Envelope{message: msg, sender: sender})
+}
+
+func (s *ActorSystem) handleRemoteRequest(sourceNodeID string, data []byte) ([]byte, error) {
+	env, err := s.decodeRemoteEnvelope(data)
+	if err != nil || env.TargetID == "" {
+		return s.encodeRemoteError(ErrRemoteDecodeFailed)
+	}
+	msg, err := decodeMessage(s.codec, env.MessageType, env.Payload)
+	if err != nil {
+		msg = RawMessage{Type: env.MessageType, Payload: env.Payload}
+	}
+	target := &PID{id: env.TargetID, system: s, nodeID: s.nodeID}
+	sender := &PID{id: env.SenderID, nodeID: sourceNodeID}
+	respond := make(chan *FutureResult, 1)
+	if err := s.sendLocal(target, &Envelope{message: msg, sender: sender, respond: respond}); err != nil {
+		return s.encodeRemoteError(err)
+	}
+	wait := time.Duration(env.TimeoutMillis) * time.Millisecond
+	if wait <= 0 {
+		wait = defaultRemoteWaitTimeout
+	}
+	select {
+	case res := <-respond:
+		return s.encodeRemoteResponse(res)
+	case <-time.After(wait):
+		return s.encodeRemoteError(ErrTimeout)
+	}
+}
+
+func (s *ActorSystem) encodeRemoteEnvelope(pid *PID, env *Envelope) ([]byte, error) {
+	if s.codec == nil {
+		return nil, ErrRemoteEncodeFailed
+	}
+	msgType, payload, err := encodeMessage(s.codec, env.message)
+	if err != nil {
+		return nil, err
+	}
+	timeoutMillis := int64(0)
+	if env.timeout > 0 {
+		timeoutMillis = env.timeout.Milliseconds()
+	}
+	senderID := ""
+	if env.sender != nil {
+		senderID = env.sender.ID()
+	}
+	renv := &remoteEnvelope{
+		TargetID:      pid.id,
+		SenderID:      senderID,
+		MessageType:   msgType,
+		Payload:       payload,
+		TimeoutMillis: timeoutMillis,
+	}
+	data, err := s.codec.Marshal(renv)
+	if err != nil {
+		return nil, ErrRemoteEncodeFailed
+	}
+	return data, nil
+}
+
+func (s *ActorSystem) decodeRemoteEnvelope(data []byte) (*remoteEnvelope, error) {
+	if s.codec == nil {
+		return nil, ErrRemoteDecodeFailed
 	}
 	var env remoteEnvelope
-	if err := json.Unmarshal(raw, &env); err != nil {
-		kklog.Errorf("RemoteSystem decode error from %s: %v", addr, err)
-		return
+	if err := s.codec.Unmarshal(data, &env); err != nil {
+		return nil, ErrRemoteDecodeFailed
 	}
-	if env.ActorID == "" {
-		kklog.Warnf("RemoteSystem got message without actorId from %s", addr)
-		return
+	return &env, nil
+}
+
+func (s *ActorSystem) encodeRemoteResponse(res *FutureResult) ([]byte, error) {
+	if s.codec == nil {
+		return nil, ErrRemoteEncodeFailed
 	}
-	// 将 Data 作为消息体（[]byte）投递到对应本地 actor。
-	rs.local.sendByID(env.ActorID, env.Data, nil)
+	resp := remoteResponse{}
+	if res == nil {
+		data, err := s.codec.Marshal(resp)
+		if err != nil {
+			return nil, ErrRemoteEncodeFailed
+		}
+		return data, nil
+	}
+	if res.Error != nil {
+		resp.Error = res.Error.Error()
+		data, err := s.codec.Marshal(resp)
+		if err != nil {
+			return nil, ErrRemoteEncodeFailed
+		}
+		return data, nil
+	}
+	if errMsg, ok := res.Message.(error); ok {
+		resp.Error = errMsg.Error()
+		data, err := s.codec.Marshal(resp)
+		if err != nil {
+			return nil, ErrRemoteEncodeFailed
+		}
+		return data, nil
+	}
+	msgType, payload, err := encodeMessage(s.codec, res.Message)
+	if err != nil {
+		resp.Error = err.Error()
+		data, err := s.codec.Marshal(resp)
+		if err != nil {
+			return nil, ErrRemoteEncodeFailed
+		}
+		return data, nil
+	}
+	resp.MessageType = msgType
+	resp.Payload = payload
+	data, err := s.codec.Marshal(resp)
+	if err != nil {
+		return nil, ErrRemoteEncodeFailed
+	}
+	return data, nil
+}
+
+func (s *ActorSystem) encodeRemoteError(err error) ([]byte, error) {
+	if s.codec == nil {
+		return nil, ErrRemoteEncodeFailed
+	}
+	resp := remoteResponse{}
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	data, encErr := s.codec.Marshal(resp)
+	if encErr != nil {
+		return nil, ErrRemoteEncodeFailed
+	}
+	return data, nil
+}
+
+func (s *ActorSystem) decodeRemoteResponse(data []byte) (*FutureResult, error) {
+	if s.codec == nil {
+		return nil, ErrRemoteDecodeFailed
+	}
+	var resp remoteResponse
+	if err := s.codec.Unmarshal(data, &resp); err != nil {
+		return nil, ErrRemoteDecodeFailed
+	}
+	if resp.Error != "" {
+		return &FutureResult{Error: fmt.Errorf("%w: %s", ErrRemoteRequestFailed, resp.Error)}, nil
+	}
+	msg, err := decodeMessage(s.codec, resp.MessageType, resp.Payload)
+	if err != nil {
+		return &FutureResult{Error: ErrRemoteDecodeFailed}, nil
+	}
+	return &FutureResult{Message: msg}, nil
+}
+
+func encodeMessage(codec RemoteCodec, msg any) (string, []byte, error) {
+	switch m := msg.(type) {
+	case RawMessage:
+		msgType := m.Type
+		if msgType == "" {
+			msgType = remoteRawType
+		}
+		return msgType, m.Payload, nil
+	case *RawMessage:
+		if m == nil {
+			return "", nil, nil
+		}
+		msgType := m.Type
+		if msgType == "" {
+			msgType = remoteRawType
+		}
+		return msgType, m.Payload, nil
+	case []byte:
+		return remoteBytesType, m, nil
+	default:
+		msgType, ok := messageTypeName(msg)
+		if !ok {
+			return "", nil, ErrMessageNotRegistered
+		}
+		if codec == nil {
+			return "", nil, ErrRemoteEncodeFailed
+		}
+		payload, err := codec.Marshal(msg)
+		if err != nil {
+			return "", nil, ErrRemoteEncodeFailed
+		}
+		return msgType, payload, nil
+	}
+}
+
+func decodeMessage(codec RemoteCodec, msgType string, payload []byte) (any, error) {
+	if msgType == "" {
+		return nil, nil
+	}
+	switch msgType {
+	case remoteBytesType:
+		return payload, nil
+	case remoteRawType:
+		return RawMessage{Type: msgType, Payload: payload}, nil
+	default:
+		v, ok := newMessageByName(msgType)
+		if !ok {
+			return RawMessage{Type: msgType, Payload: payload}, nil
+		}
+		if codec == nil {
+			return nil, ErrRemoteDecodeFailed
+		}
+		if err := codec.Unmarshal(payload, v); err != nil {
+			return nil, ErrRemoteDecodeFailed
+		}
+		return v, nil
+	}
+}
+
+func messageTypeName(msg any) (string, bool) {
+	if msg == nil {
+		return "", true
+	}
+	t := reflect.TypeOf(msg)
+	if name, ok := registryByType.Load(t); ok {
+		return name.(string), true
+	}
+	if t.Kind() == reflect.Pointer {
+		if name, ok := registryByType.Load(t.Elem()); ok {
+			return name.(string), true
+		}
+	}
+	return "", false
+}
+
+func newMessageByName(name string) (any, bool) {
+	if name == "" {
+		return nil, false
+	}
+	if factory, ok := registryByName.Load(name); ok {
+		return factory.(func() any)(), true
+	}
+	return nil, false
 }

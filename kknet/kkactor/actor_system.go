@@ -1,224 +1,192 @@
 package kkactor
 
 import (
-	"encoding/json"
 	"strconv"
 	"sync"
 	"sync/atomic"
-
-	"github.com/vvisun/kkdg/utils/kklog"
+	"time"
 )
 
-// ActorSystem manages actors.
+// ActorSystem manages actor lifecycles.
 type ActorSystem struct {
-	mu           sync.RWMutex
-	actors       map[string]*actorInstance
-	nextID       atomic.Uint64
-	stopCh       chan struct{}
-	stopped      atomic.Bool
-	remoteSystem *ClusterRemoteSystem // 远程通信系统（可选）
-	nodeID       string               // 当前节点ID
+	nextID  uint64
+	actors  sync.Map // map[string]*actorProcess
+	stopped atomic.Bool
+	nodeID  string
+	remote  Remote
+	codec   RemoteCodec
 }
 
-// NewActorSystem creates a new actor system.
+// NewActorSystem creates a new system.
 func NewActorSystem() *ActorSystem {
-	return &ActorSystem{
-		actors: make(map[string]*actorInstance),
-		stopCh: make(chan struct{}),
-	}
+	return &ActorSystem{}
 }
 
-// SetRemoteSystem 设置远程通信系统，启用透明化远程通信
-func (sys *ActorSystem) SetRemoteSystem(remote *ClusterRemoteSystem) {
-	if sys == nil {
-		return
-	}
-	sys.mu.Lock()
-	defer sys.mu.Unlock()
-	sys.remoteSystem = remote
-	if remote != nil {
-		sys.nodeID = remote.GetNodeID()
-	}
-}
-
-// GetRemoteSystem 获取远程通信系统
-func (sys *ActorSystem) GetRemoteSystem() *ClusterRemoteSystem {
-	if sys == nil {
+// Spawn creates and starts an actor.
+func (s *ActorSystem) Spawn(props *Props) *PID {
+	if s == nil || props == nil || props.Producer == nil {
 		return nil
 	}
-	sys.mu.RLock()
-	defer sys.mu.RUnlock()
-	return sys.remoteSystem
-}
-
-// Spawn creates a new actor and returns its PID.
-func (sys *ActorSystem) Spawn(props *Props) *PID {
-	if props == nil || props.actorProducer == nil {
-		return nil
+	if props.MailboxSize <= 0 {
+		props.MailboxSize = defaultMailboxSize
 	}
-
-	id := sys.nextID.Add(1)
-	pidID := "actor-" + strconv.FormatUint(id, 10)
-	pid := &PID{
-		id:     pidID,
-		nodeID: "", // 本地 actor，nodeID 为空
-		system: sys,
-	}
-
-	instance := &actorInstance{
-		pid:     pid,
-		actor:   props.actorProducer(),
-		mailbox: make(chan envelope, 100), // 缓冲通道，避免阻塞
-		stopCh:  make(chan struct{}),
-		doneCh:  make(chan struct{}),
-		timers:  make(map[TimerID]*timerInfo),
-	}
-
-	instance.context = &actorContext{
-		instance: instance,
-	}
-
-	sys.mu.Lock()
-	sys.actors[pidID] = instance
-	sys.mu.Unlock()
-
-	// 启动 actor 的消息处理循环
-	instance.wg.Add(1)
-	go instance.run()
-
+	id := strconv.FormatUint(atomic.AddUint64(&s.nextID, 1), 10)
+	pid := &PID{id: id, system: s, nodeID: s.nodeID}
+	process := newActorProcess(s, pid, props)
+	s.actors.Store(pid.id, process)
+	process.start()
 	return pid
 }
 
-// send sends a message to an actor.
-// 自动判断本地/远程并路由。
-func (sys *ActorSystem) send(pid *PID, message interface{}, sender *PID) {
-	if pid == nil {
+// Stop stops all actors in the system.
+func (s *ActorSystem) Stop() {
+	if s == nil || s.stopped.Swap(true) {
 		return
 	}
-
-	// 如果是远程 actor，通过远程系统发送
-	if pid.IsRemote() {
-		sys.sendRemote(pid, message, sender)
-		return
-	}
-
-	// 本地 actor，检查是否属于当前系统
-	if pid.system != sys {
-		kklog.Warnf("ActorSystem send: PID %s belongs to different system", pid.id)
-		return
-	}
-
-	sys.sendByID(pid.id, message, sender)
+	s.actors.Range(func(_, value any) bool {
+		process, ok := value.(*actorProcess)
+		if ok {
+			process.stop(nil)
+		}
+		return true
+	})
 }
 
-// sendRemote 发送消息到远程 actor
-func (sys *ActorSystem) sendRemote(pid *PID, message interface{}, sender *PID) {
-	sys.mu.RLock()
-	remote := sys.remoteSystem
-	sys.mu.RUnlock()
-
-	if remote == nil {
-		kklog.Warnf("ActorSystem sendRemote: no remote system configured, cannot send to %s", pid.String())
+// StopPID stops a specific actor.
+func (s *ActorSystem) StopPID(pid *PID) {
+	if s == nil {
 		return
 	}
+	_ = s.StopFuture(pid)
+}
 
-	// 创建远程 PID
-	remotePID := RemotePID{
-		Addr:    pid.nodeID,
-		ActorID: pid.id,
+// StopFuture stops a specific actor and returns a future.
+func (s *ActorSystem) StopFuture(pid *PID) *Future {
+	fut := newFuture()
+	if s == nil || pid == nil {
+		fut.complete(&FutureResult{Error: ErrActorDead})
+		return fut
 	}
+	process, ok := s.actors.Load(pid.id)
+	if !ok {
+		fut.complete(&FutureResult{Error: ErrActorDead})
+		return fut
+	}
+	if ap, ok := process.(*actorProcess); ok {
+		ap.stop(fut)
+		return fut
+	}
+	fut.complete(&FutureResult{Error: ErrActorDead})
+	return fut
+}
 
-	// 如果消息已经是 []byte，直接使用 TellBytes，避免 JSON 序列化
-	if msgData, ok := message.([]byte); ok {
-		if err := remote.TellBytes(remotePID, msgData); err != nil {
-			kklog.Errorf("ActorSystem sendRemote failed: %v", err)
+func (s *ActorSystem) sendLocal(pid *PID, env *Envelope) error {
+	if s == nil || pid == nil {
+		return ErrActorDead
+	}
+	if s.isRemote(pid) {
+		return s.sendRemote(pid, env)
+	}
+	process, ok := s.actors.Load(pid.id)
+	if !ok {
+		return ErrActorDead
+	}
+	ap, ok := process.(*actorProcess)
+	if !ok {
+		return ErrActorDead
+	}
+	return ap.send(env)
+}
+
+type Envelope struct {
+	message any
+	sender  *PID
+	respond chan *FutureResult
+	timeout time.Duration
+}
+
+type stopMessage struct {
+	future *Future
+}
+
+type actorProcess struct {
+	system  *ActorSystem
+	pid     *PID
+	props   *Props
+	mailbox chan *Envelope
+	stopped chan struct{}
+	actor   Actor
+}
+
+func newActorProcess(system *ActorSystem, pid *PID, props *Props) *actorProcess {
+	actor := props.Producer()
+	if actor == nil {
+		actor = noopActor{}
+	}
+	return &actorProcess{
+		system:  system,
+		pid:     pid,
+		props:   props,
+		mailbox: make(chan *Envelope, props.MailboxSize),
+		stopped: make(chan struct{}),
+		actor:   actor,
+	}
+}
+
+func (p *actorProcess) start() {
+	go p.run()
+}
+
+func (p *actorProcess) send(env *Envelope) error {
+	if p == nil {
+		return ErrActorDead
+	}
+	select {
+	case <-p.stopped:
+		return ErrActorDead
+	case p.mailbox <- env:
+		return nil
+	}
+}
+
+func (p *actorProcess) stop(fut *Future) {
+	if p == nil {
+		if fut != nil {
+			fut.complete(&FutureResult{Error: ErrActorDead})
 		}
 		return
 	}
-
-	// 其他类型序列化为 JSON
-	msgData, err := json.Marshal(message)
-	if err != nil {
-		kklog.Errorf("ActorSystem sendRemote marshal failed: %v", err)
-		return
-	}
-
-	// 通过远程系统发送
-	if err := remote.TellBytes(remotePID, msgData); err != nil {
-		kklog.Errorf("ActorSystem sendRemote failed: %v", err)
-	}
+	_ = p.send(&Envelope{message: stopMessage{future: fut}})
 }
 
-// sendByID 根据 actor ID 发送消息（用于远程消息等场景）。
-func (sys *ActorSystem) sendByID(id string, message interface{}, sender *PID) {
-	if id == "" {
-		return
+func (p *actorProcess) run() {
+	ctx := &actorContext{
+		system: p.system,
+		self:   p.pid,
 	}
-
-	sys.mu.RLock()
-	instance, exists := sys.actors[id]
-	sys.mu.RUnlock()
-
-	if !exists {
-		return
-	}
-
-	// 非阻塞发送，如果邮箱满了就丢弃消息
-	select {
-	case instance.mailbox <- envelope{msg: message, sender: sender}:
-	default:
-		kklog.Warnf("Actor mailbox full, dropping message to %s", id)
-	}
-}
-
-// stop stops an actor.
-func (sys *ActorSystem) stop(pid *PID) {
-	if pid == nil || pid.system != sys {
-		return
-	}
-
-	sys.mu.Lock()
-	instance, exists := sys.actors[pid.id]
-	if exists {
-		delete(sys.actors, pid.id)
-	}
-	sys.mu.Unlock()
-
-	if !exists {
-		return
-	}
-
-	if instance.stopping.Swap(true) {
-		return
-	}
-
-	close(instance.stopCh)
-	instance.wg.Wait()
-}
-
-// Stop stops all actors and the system.
-func (sys *ActorSystem) Stop() {
-	if sys.stopped.Swap(true) {
-		return
-	}
-
-	close(sys.stopCh)
-
-	sys.mu.Lock()
-	instances := make([]*actorInstance, 0, len(sys.actors))
-	for _, instance := range sys.actors {
-		instances = append(instances, instance)
-	}
-	sys.mu.Unlock()
-
-	for _, instance := range instances {
-		if instance.stopping.Swap(true) {
+	for {
+		env := <-p.mailbox
+		if env == nil {
 			continue
 		}
-		close(instance.stopCh)
-	}
-
-	for _, instance := range instances {
-		instance.wg.Wait()
+		switch msg := env.message.(type) {
+		case stopMessage:
+			if msg.future != nil {
+				msg.future.complete(&FutureResult{})
+			}
+			close(p.stopped)
+			p.system.actors.Delete(p.pid.id)
+			return
+		default:
+			ctx.sender = env.sender
+			ctx.message = env.message
+			ctx.respond = env.respond
+			p.actor.Receive(ctx)
+			ctx.reset()
+		}
 	}
 }
+
+type noopActor struct{}
+
+func (noopActor) Receive(ctx Context) {}
