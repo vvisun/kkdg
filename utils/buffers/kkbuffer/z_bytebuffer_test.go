@@ -24,17 +24,6 @@ func TestByteBuffer_Len(t *testing.T) {
 	}
 }
 
-func TestByteBuffer_WriteByte(t *testing.T) {
-	buf := Get()
-	defer Put(buf)
-
-	_ = buf.WriteByte('a')
-	_ = buf.WriteByte('b')
-	if string(buf.B) != "ab" {
-		t.Fatalf("WriteByte: got %q, want ab", buf.B)
-	}
-}
-
 func TestByteBuffer_WriteString(t *testing.T) {
 	buf := Get()
 	defer Put(buf)

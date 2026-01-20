@@ -3,6 +3,8 @@ package kkbuffer
 import (
 	"io"
 	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 )
 
 // ByteBuffer provides byte buffer, which can be used for minimizing
@@ -72,29 +74,18 @@ func (b *ByteBuffer) Bytes() []byte {
 	return b.B
 }
 
-// WriteByte appends the byte c to the buffer.
-//
-// The purpose of this function is bytes.Buffer compatibility.
-// The function always returns nil.
-//
-// For writing many bytes in a loop, call Grow(b.Len()+n) first to avoid
-// repeated reallocations; then write n bytes.
-func (b *ByteBuffer) WriteByte(c byte) error {
-	b.B = append(b.B, c)
-	return nil
-}
-
 // SetBytes sets ByteBuffer.B to p.
 //
 // If cap(b.B) >= len(p), it uses copy (no alloc). Use GetWithCapacity
 // or Grow before Reset+SetBytes when repeatedly setting similar-sized data.
 func (b *ByteBuffer) SetBytes(p []byte) {
-	if cap(b.B) >= len(p) {
-		b.B = b.B[:len(p)]
-		copy(b.B, p)
-	} else {
-		b.B = append(b.B[:0], p...)
+	if cap(b.B) < len(p) {
+		old := b.B
+		b.B = byteslice.Get(len(p))
+		byteslice.Put(old)
 	}
+	b.B = b.B[:len(p)]
+	copy(b.B, p)
 }
 
 // SetString sets ByteBuffer.B to s.
@@ -102,12 +93,13 @@ func (b *ByteBuffer) SetBytes(p []byte) {
 // If cap(b.B) >= len(s), it uses copy (no alloc). Use GetWithCapacity
 // or Grow before Reset+SetString when repeatedly setting similar-sized data.
 func (b *ByteBuffer) SetString(s string) {
-	if cap(b.B) >= len(s) {
-		b.B = b.B[:len(s)]
-		copy(b.B, s)
-	} else {
-		b.B = append(b.B[:0], s...)
+	if cap(b.B) < len(s) {
+		old := b.B
+		b.B = byteslice.Get(len(s))
+		byteslice.Put(old)
 	}
+	b.B = b.B[:len(s)]
+	copy(b.B, s)
 }
 
 // Grow ensures the buffer has at least n bytes capacity.
