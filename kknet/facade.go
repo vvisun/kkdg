@@ -30,3 +30,19 @@ var connIDCounter atomic.Int64
 func NextConnID() int64 {
 	return connIDCounter.Add(1)
 }
+
+// IServer represents a server.
+type IServer interface {
+	Start() error
+	Stop() error
+	Addr() string
+	Stats() StatsSnapshot
+}
+
+// IClient represents a client.
+type IClient interface {
+	Connect() error
+	Close() error
+	Addr() string
+	Stats() StatsSnapshot
+}
