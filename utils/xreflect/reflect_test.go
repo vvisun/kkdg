@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
@@ -250,4 +251,184 @@ func TestTypeName(t *testing.T) {
 		t.Error("Expected non-empty type name for int")
 	}
 	t.Logf("TypeName for int: %s", iname)
+}
+
+func TestGetFuncInfo(t *testing.T) {
+	// 测试 nil 函数
+	funcInfo, err := xreflect.GetFuncInfo(nil)
+	if err != kkerrors.ErrFuncIsNil {
+		t.Errorf("Expected ErrFuncIsNil, got %v", err)
+	}
+	if funcInfo.Type != nil {
+		t.Error("Expected nil Type for nil function")
+	}
+
+	// 测试非函数类型
+	var i int = 42
+	funcInfo, err = xreflect.GetFuncInfo(i)
+	if err != kkerrors.ErrFuncTypeError {
+		t.Errorf("Expected ErrFuncTypeError, got %v", err)
+	}
+
+	// 测试字符串类型
+	s := "hello"
+	funcInfo, err = xreflect.GetFuncInfo(s)
+	if err != kkerrors.ErrFuncTypeError {
+		t.Errorf("Expected ErrFuncTypeError, got %v", err)
+	}
+
+	// 测试无参数无返回值的函数
+	noArgsNoReturn := func() {}
+	funcInfo, err = xreflect.GetFuncInfo(noArgsNoReturn)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if funcInfo.Type == nil {
+		t.Error("Expected non-nil Type")
+	}
+	if funcInfo.InArgsLen != 0 {
+		t.Errorf("Expected InArgsLen 0, got %d", funcInfo.InArgsLen)
+	}
+	if len(funcInfo.InArgs) != 0 {
+		t.Errorf("Expected empty InArgs, got %d elements", len(funcInfo.InArgs))
+	}
+	if funcInfo.OutArgsLen != 0 {
+		t.Errorf("Expected OutArgsLen 0, got %d", funcInfo.OutArgsLen)
+	}
+	if len(funcInfo.OutArgs) != 0 {
+		t.Errorf("Expected empty OutArgs, got %d elements", len(funcInfo.OutArgs))
+	}
+
+	// 测试只有输入参数的函数
+	withArgs := func(a int, b string) {}
+	funcInfo, err = xreflect.GetFuncInfo(withArgs)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if funcInfo.InArgsLen != 2 {
+		t.Errorf("Expected InArgsLen 2, got %d", funcInfo.InArgsLen)
+	}
+	if len(funcInfo.InArgs) != 2 {
+		t.Errorf("Expected InArgs length 2, got %d", len(funcInfo.InArgs))
+	}
+	if funcInfo.InArgs[0].Kind() != reflect.Int {
+		t.Errorf("Expected first arg type Int, got %v", funcInfo.InArgs[0].Kind())
+	}
+	if funcInfo.InArgs[1].Kind() != reflect.String {
+		t.Errorf("Expected second arg type String, got %v", funcInfo.InArgs[1].Kind())
+	}
+	if funcInfo.OutArgsLen != 0 {
+		t.Errorf("Expected OutArgsLen 0, got %d", funcInfo.OutArgsLen)
+	}
+
+	// 测试只有返回值的函数
+	withReturn := func() int { return 42 }
+	funcInfo, err = xreflect.GetFuncInfo(withReturn)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if funcInfo.InArgsLen != 0 {
+		t.Errorf("Expected InArgsLen 0, got %d", funcInfo.InArgsLen)
+	}
+	if funcInfo.OutArgsLen != 1 {
+		t.Errorf("Expected OutArgsLen 1, got %d", funcInfo.OutArgsLen)
+	}
+	if len(funcInfo.OutArgs) != 1 {
+		t.Errorf("Expected OutArgs length 1, got %d", len(funcInfo.OutArgs))
+	}
+	if funcInfo.OutArgs[0].Kind() != reflect.Int {
+		t.Errorf("Expected return type Int, got %v", funcInfo.OutArgs[0].Kind())
+	}
+
+	// 测试既有输入参数又有返回值的函数
+	withArgsAndReturn := func(a int, b string) (int, error) { return 0, nil }
+	funcInfo, err = xreflect.GetFuncInfo(withArgsAndReturn)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if funcInfo.InArgsLen != 2 {
+		t.Errorf("Expected InArgsLen 2, got %d", funcInfo.InArgsLen)
+	}
+	if funcInfo.OutArgsLen != 2 {
+		t.Errorf("Expected OutArgsLen 2, got %d", funcInfo.OutArgsLen)
+	}
+	if funcInfo.OutArgs[0].Kind() != reflect.Int {
+		t.Errorf("Expected first return type Int, got %v", funcInfo.OutArgs[0].Kind())
+	}
+	if funcInfo.OutArgs[1].Name() != "error" {
+		t.Errorf("Expected second return type error, got %s", funcInfo.OutArgs[1].Name())
+	}
+
+	// 测试结构体参数
+	type TestStruct struct {
+		Name string
+	}
+	withStruct := func(ts TestStruct) {}
+	funcInfo, err = xreflect.GetFuncInfo(withStruct)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if funcInfo.InArgsLen != 1 {
+		t.Errorf("Expected InArgsLen 1, got %d", funcInfo.InArgsLen)
+	}
+	if funcInfo.InArgs[0].Kind() != reflect.Struct {
+		t.Errorf("Expected arg type Struct, got %v", funcInfo.InArgs[0].Kind())
+	}
+
+	// 测试指针参数
+	withPointer := func(pi *int) {}
+	funcInfo, err = xreflect.GetFuncInfo(withPointer)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if funcInfo.InArgsLen != 1 {
+		t.Errorf("Expected InArgsLen 1, got %d", funcInfo.InArgsLen)
+	}
+	if funcInfo.InArgs[0].Kind() != reflect.Ptr {
+		t.Errorf("Expected arg type Ptr, got %v", funcInfo.InArgs[0].Kind())
+	}
+
+	// 测试 slice 参数
+	withSlice := func(s []int) {}
+	funcInfo, err = xreflect.GetFuncInfo(withSlice)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if funcInfo.InArgsLen != 1 {
+		t.Errorf("Expected InArgsLen 1, got %d", funcInfo.InArgsLen)
+	}
+	if funcInfo.InArgs[0].Kind() != reflect.Slice {
+		t.Errorf("Expected arg type Slice, got %v", funcInfo.InArgs[0].Kind())
+	}
+
+	// 测试 map 参数
+	withMap := func(m map[string]int) {}
+	funcInfo, err = xreflect.GetFuncInfo(withMap)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if funcInfo.InArgsLen != 1 {
+		t.Errorf("Expected InArgsLen 1, got %d", funcInfo.InArgsLen)
+	}
+	if funcInfo.InArgs[0].Kind() != reflect.Map {
+		t.Errorf("Expected arg type Map, got %v", funcInfo.InArgs[0].Kind())
+	}
+
+	// 验证 Value 字段
+	testFunc := func(x int) int { return x * 2 }
+	funcInfo, err = xreflect.GetFuncInfo(testFunc)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if !funcInfo.Value.IsValid() {
+		t.Error("Expected valid Value")
+	}
+	if funcInfo.Value.Kind() != reflect.Func {
+		t.Errorf("Expected Value kind Func, got %v", funcInfo.Value.Kind())
+	}
+
+	// 验证 Type 字段与 reflect.TypeOf 一致
+	if funcInfo.Type != reflect.TypeOf(testFunc) {
+		t.Error("Expected Type to match reflect.TypeOf")
+	}
 }
