@@ -71,7 +71,7 @@ func TestClusterRemote_ActorTellAndAsk(t *testing.T) {
 
 	// 在 node2 上启动一个处理二进制消息并回显的 actor
 	recv := make(chan []byte, 1)
-	serverPID := sys2.Spawn(kkactor.PropsFromFunc(func(ctx kkactor.Context) {
+	serverPID := sys2.Spawn(kkactor.PropsFromFunc(func(ctx kkactor.IContext) {
 		switch m := ctx.Message().(type) {
 		case []byte:
 			// 记录收到的消息

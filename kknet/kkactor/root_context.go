@@ -44,7 +44,7 @@ func (rc *RootContext) Ask(pid *PID, message interface{}, timeout time.Duration)
 	fut := NewFuture()
 
 	// 临时回复 actor：收到第一条消息就写入 future 并自杀
-	props := PropsFromFunc(func(ctx Context) {
+	props := PropsFromFunc(func(ctx IContext) {
 		select {
 		case fut.ch <- ctx.Message():
 		default:

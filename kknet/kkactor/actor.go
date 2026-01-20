@@ -11,33 +11,16 @@ import (
 // TimerID represents a timer identifier for cancellation.
 type TimerID int64
 
-// Context represents the actor context for receiving messages.
-type Context interface {
-	Message() interface{}
-	Self() *PID
-	Sender() *PID
-	Send(pid *PID, message interface{})
-	Stop(pid *PID)
-	// After schedules a message to be sent after the specified duration.
-	// Returns a TimerID that can be used to cancel the timer.
-	After(duration time.Duration, message interface{}) TimerID
-	// Tick schedules a periodic message to be sent at the specified interval.
-	// Returns a TimerID that can be used to cancel the timer.
-	Tick(interval time.Duration, message interface{}) TimerID
-	// CancelTimer cancels a timer identified by the TimerID.
-	CancelTimer(id TimerID)
-}
-
 // Actor is the interface that actors must implement.
 type Actor interface {
-	Receive(ctx Context)
+	Receive(ctx IContext)
 }
 
 // ActorFunc is a function that implements Actor.
-type ActorFunc func(ctx Context)
+type ActorFunc func(ctx IContext)
 
 // Receive implements Actor.
-func (f ActorFunc) Receive(ctx Context) {
+func (f ActorFunc) Receive(ctx IContext) {
 	f(ctx)
 }
 
@@ -47,7 +30,7 @@ type Props struct {
 }
 
 // PropsFromFunc creates Props from an ActorFunc.
-func PropsFromFunc(fn func(ctx Context)) *Props {
+func PropsFromFunc(fn func(ctx IContext)) *Props {
 	return &Props{
 		actorProducer: func() Actor {
 			return ActorFunc(fn)

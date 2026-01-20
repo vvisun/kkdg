@@ -2,12 +2,35 @@ package kkactor
 
 import "time"
 
+// IContext represents the actor context for receiving messages.
+type IContext interface {
+	Message() interface{}
+	Self() *PID
+	Sender() *PID
+	Send(pid *PID, message interface{})
+	Stop(pid *PID)
+	IContextTimer // timer interface
+}
+
+type IContextTimer interface {
+	// After schedules a message to be sent after the specified duration.
+	// Returns a TimerID that can be used to cancel the timer.
+	After(duration time.Duration, message interface{}) TimerID
+	// Tick schedules a periodic message to be sent at the specified interval.
+	// Returns a TimerID that can be used to cancel the timer.
+	Tick(interval time.Duration, message interface{}) TimerID
+	// CancelTimer cancels a timer identified by the TimerID.
+	CancelTimer(id TimerID)
+}
+
 // actorContext implements Context interface.
 type actorContext struct {
 	instance *actorInstance
 	message  interface{}
 	sender   *PID
 }
+
+var _ IContext = (*actorContext)(nil)
 
 func (ctx *actorContext) Message() interface{} {
 	return ctx.message

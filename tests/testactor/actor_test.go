@@ -14,7 +14,7 @@ func TestActor_SendAndStop(t *testing.T) {
 
 	received := make(chan interface{}, 1)
 
-	pid := sys.Spawn(kkactor.PropsFromFunc(func(ctx kkactor.Context) {
+	pid := sys.Spawn(kkactor.PropsFromFunc(func(ctx kkactor.IContext) {
 		received <- ctx.Message()
 	}))
 	if pid == nil {
@@ -50,7 +50,7 @@ func TestActor_AskLocal(t *testing.T) {
 
 	replyPayload := []byte("ok")
 
-	pid := sys.Spawn(kkactor.PropsFromFunc(func(ctx kkactor.Context) {
+	pid := sys.Spawn(kkactor.PropsFromFunc(func(ctx kkactor.IContext) {
 		switch m := ctx.Message().(type) {
 		case []byte:
 			if string(m) != "ping" {
@@ -93,7 +93,7 @@ func TestActor_Timers(t *testing.T) {
 
 	var tickID kkactor.TimerID
 
-	pid := sys.Spawn(kkactor.PropsFromFunc(func(ctx kkactor.Context) {
+	pid := sys.Spawn(kkactor.PropsFromFunc(func(ctx kkactor.IContext) {
 		switch m := ctx.Message().(type) {
 		case string:
 			switch m {
