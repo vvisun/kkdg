@@ -1,5 +1,7 @@
 package kkcluster
 
+import "strconv"
+
 // Member 实现IMember接口的成员结构
 type Member struct {
 	nodeID   string
@@ -12,6 +14,12 @@ var _ IMember = (*Member)(nil)
 
 // NewMember 创建新的成员
 func NewMember(nodeID, nodeType, address string, settings map[string]string) *Member {
+	if len(nodeID) > MaxNodeIDLength {
+		panic("nodeID长度不能超过" + strconv.Itoa(MaxNodeIDLength))
+	}
+	if len(nodeType) > MaxNodeTypeLength {
+		panic("nodeType长度不能超过" + strconv.Itoa(MaxNodeTypeLength))
+	}
 	if settings == nil {
 		settings = make(map[string]string)
 	}

@@ -498,6 +498,11 @@ func (c *NatsCluster) Stats() ClusterStatsSnapshot {
 // generateRequestID 生成请求ID
 func (c *NatsCluster) generateRequestID() string {
 	seq := atomic.AddUint64(&c.requestSeq, 1)
+	if seq > 900000000 {
+		// 防止溢出。这时候为1的请求必然已经失效，所以是安全的。
+		seq = 1
+		atomic.StoreUint64(&c.requestSeq, seq)
+	}
 	return c.nodeID + "." + strconv.FormatUint(seq, 10)
 }
 
