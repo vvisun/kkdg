@@ -428,7 +428,7 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 }
 
 // SetRequestHandler 设置请求处理器
-func (c *NatsCluster) SetRequestHandler(handler func(req *ClusterRequest) (*ClusterResponse, error)) {
+func (c *NatsCluster) SetRequestHandler(handler FunRequestHandler) {
 	c.requestHandler = handler
 }
 
@@ -485,7 +485,7 @@ func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 }
 
 // SetPublishHandler 设置发布消息处理器
-func (c *NatsCluster) SetPublishHandler(handler func(nodeID string, packet *ClusterPacket)) {
+func (c *NatsCluster) SetPublishHandler(handler FunPublishHandler) {
 	c.publishHandler = handler
 }
 

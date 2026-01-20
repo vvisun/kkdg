@@ -49,7 +49,15 @@ type ICluster interface {
 	RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, ClusterErrorCode)
 	// 停止
 	Stop()
+
+	SetPublishHandler(handler FunPublishHandler)
+	SetRequestHandler(handler FunRequestHandler)
 }
+
+type (
+	FunPublishHandler func(nodeID string, packet *ClusterPacket)
+	FunRequestHandler func(req *ClusterRequest) (*ClusterResponse, error)
+)
 
 // NewNatsDiscoveryWithDefaults 使用默认配置创建NATS服务发现
 func NewNatsDiscoveryWithDefaults(name, nodeID, nodeType, address string) *NatsDiscovery {
