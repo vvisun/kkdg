@@ -1,6 +1,7 @@
 package kkactor
 
 import (
+	"encoding/json"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -10,11 +11,13 @@ import (
 
 // ActorSystem manages actors.
 type ActorSystem struct {
-	mu      sync.RWMutex
-	actors  map[string]*actorInstance
-	nextID  atomic.Uint64
-	stopCh  chan struct{}
-	stopped atomic.Bool
+	mu           sync.RWMutex
+	actors       map[string]*actorInstance
+	nextID       atomic.Uint64
+	stopCh       chan struct{}
+	stopped      atomic.Bool
+	remoteSystem *ClusterRemoteSystem // 远程通信系统（可选）
+	nodeID       string               // 当前节点ID
 }
 
 // NewActorSystem creates a new actor system.
@@ -23,6 +26,29 @@ func NewActorSystem() *ActorSystem {
 		actors: make(map[string]*actorInstance),
 		stopCh: make(chan struct{}),
 	}
+}
+
+// SetRemoteSystem 设置远程通信系统，启用透明化远程通信
+func (sys *ActorSystem) SetRemoteSystem(remote *ClusterRemoteSystem) {
+	if sys == nil {
+		return
+	}
+	sys.mu.Lock()
+	defer sys.mu.Unlock()
+	sys.remoteSystem = remote
+	if remote != nil {
+		sys.nodeID = remote.GetNodeID()
+	}
+}
+
+// GetRemoteSystem 获取远程通信系统
+func (sys *ActorSystem) GetRemoteSystem() *ClusterRemoteSystem {
+	if sys == nil {
+		return nil
+	}
+	sys.mu.RLock()
+	defer sys.mu.RUnlock()
+	return sys.remoteSystem
 }
 
 // Spawn creates a new actor and returns its PID.
@@ -35,6 +61,7 @@ func (sys *ActorSystem) Spawn(props *Props) *PID {
 	pidID := "actor-" + strconv.FormatUint(id, 10)
 	pid := &PID{
 		id:     pidID,
+		nodeID: "", // 本地 actor，nodeID 为空
 		system: sys,
 	}
 
@@ -63,12 +90,55 @@ func (sys *ActorSystem) Spawn(props *Props) *PID {
 }
 
 // send sends a message to an actor.
+// 自动判断本地/远程并路由。
 func (sys *ActorSystem) send(pid *PID, message interface{}, sender *PID) {
-	if pid == nil || pid.system != sys {
+	if pid == nil {
+		return
+	}
+
+	// 如果是远程 actor，通过远程系统发送
+	if pid.IsRemote() {
+		sys.sendRemote(pid, message, sender)
+		return
+	}
+
+	// 本地 actor，检查是否属于当前系统
+	if pid.system != sys {
+		kklog.Warnf("ActorSystem send: PID %s belongs to different system", pid.id)
 		return
 	}
 
 	sys.sendByID(pid.id, message, sender)
+}
+
+// sendRemote 发送消息到远程 actor
+func (sys *ActorSystem) sendRemote(pid *PID, message interface{}, sender *PID) {
+	sys.mu.RLock()
+	remote := sys.remoteSystem
+	sys.mu.RUnlock()
+
+	if remote == nil {
+		kklog.Warnf("ActorSystem sendRemote: no remote system configured, cannot send to %s", pid.String())
+		return
+	}
+
+	// 创建远程 PID
+	remotePID := RemotePID{
+		Addr:    pid.nodeID,
+		ActorID: pid.id,
+	}
+
+	// 序列化消息
+	msgData, err := json.Marshal(message)
+	if err != nil {
+		kklog.Errorf("ActorSystem sendRemote marshal failed: %v", err)
+		return
+	}
+
+	// 通过远程系统发送
+	if err := remote.TellBytes(remotePID, msgData); err != nil {
+		kklog.Errorf("ActorSystem sendRemote failed: %v", err)
+	}
 }
 
 // sendByID 根据 actor ID 发送消息（用于远程消息等场景）。

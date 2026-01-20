@@ -1,6 +1,10 @@
 package kkactor
 
-import "time"
+import (
+	"time"
+
+	"github.com/vvisun/kkdg/utils/kklog"
+)
 
 // Root returns the root context for sending messages.
 type RootContext struct {
@@ -17,12 +21,18 @@ func (rc *RootContext) Send(pid *PID, message interface{}) {
 
 // Ask sends a message to an actor and waits synchronously for a single reply.
 // 返回值 ok=false 表示超时或系统为空。
+// 支持本地和远程 actor（透明化）。
 func (rc *RootContext) Ask(pid *PID, message interface{}, timeout time.Duration) (reply interface{}, ok bool) {
 	if rc == nil || rc.system == nil {
 		return nil, false
 	}
 
-	// Future 用于接收一次性回复
+	// 如果是远程 actor，使用远程系统的 Ask
+	if pid != nil && pid.IsRemote() {
+		return rc.askRemote(pid, message, timeout)
+	}
+
+	// 本地 actor，使用 Future 模式
 	fut := NewFuture()
 
 	// 临时回复 actor：收到第一条消息就写入 future 并自杀
@@ -43,6 +53,22 @@ func (rc *RootContext) Ask(pid *PID, message interface{}, timeout time.Duration)
 	rc.system.send(pid, message, replyPID)
 
 	return fut.Result(timeout)
+}
+
+// askRemote 向远程 actor 发送 Ask 请求
+func (rc *RootContext) askRemote(pid *PID, message interface{}, timeout time.Duration) (reply interface{}, ok bool) {
+	remote := rc.system.GetRemoteSystem()
+	if remote == nil {
+		kklog.Warnf("RootContext askRemote: no remote system configured")
+		return nil, false
+	}
+
+	remotePID := RemotePID{
+		Addr:    pid.nodeID,
+		ActorID: pid.id,
+	}
+
+	return remote.Ask(remotePID, message, timeout)
 }
 
 // StopFuture stops an actor and returns a future that completes when the actor is stopped.
