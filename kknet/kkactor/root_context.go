@@ -66,6 +66,7 @@ func (r *RootContext) RequestFuture(pid *PID, msg any, timeout ...time.Duration)
 	if len(timeout) > 0 && timeout[0] > 0 {
 		waitTimeout = timeout[0]
 	}
+	fut.bind(respond, waitTimeout)
 	if err := system.sendLocal(pid, &Envelope{
 		message: msg,
 		respond: respond,
@@ -74,19 +75,6 @@ func (r *RootContext) RequestFuture(pid *PID, msg any, timeout ...time.Duration)
 		fut.complete(&FutureResult{Error: err})
 		return fut
 	}
-	go func() {
-		if waitTimeout > 0 {
-			select {
-			case res := <-respond:
-				fut.complete(res)
-			case <-time.After(waitTimeout):
-				fut.complete(&FutureResult{Error: ErrTimeout})
-			}
-			return
-		}
-		res := <-respond
-		fut.complete(res)
-	}()
 	return fut
 }
 
@@ -116,13 +104,25 @@ type FutureResult struct {
 
 // Future waits for an async result.
 type Future struct {
-	once   sync.Once
-	done   chan struct{}
-	result *FutureResult
+	once    sync.Once
+	done    chan struct{}
+	result  *FutureResult
+	respond chan *FutureResult
+	timeout time.Duration
 }
+
+var futureTimerPool sync.Pool
 
 func newFuture() *Future {
 	return &Future{done: make(chan struct{})}
+}
+
+func (f *Future) bind(respond chan *FutureResult, timeout time.Duration) {
+	if f == nil {
+		return
+	}
+	f.respond = respond
+	f.timeout = timeout
 }
 
 func (f *Future) complete(result *FutureResult) {
@@ -140,6 +140,23 @@ func (f *Future) Result() (any, error) {
 	if f == nil {
 		return nil, ErrActorDead
 	}
+	if f.respond != nil {
+		f.once.Do(func() {
+			if f.timeout > 0 {
+				timer := acquireFutureTimer(f.timeout)
+				defer releaseFutureTimer(timer)
+				select {
+				case res := <-f.respond:
+					f.result = res
+				case <-timer.C:
+					f.result = &FutureResult{Error: ErrTimeout}
+				}
+			} else {
+				f.result = <-f.respond
+			}
+			close(f.done)
+		})
+	}
 	<-f.done
 	if f.result == nil {
 		return nil, nil
@@ -151,4 +168,29 @@ func (f *Future) Result() (any, error) {
 func (f *Future) Wait() error {
 	_, err := f.Result()
 	return err
+}
+
+func acquireFutureTimer(d time.Duration) *time.Timer {
+	if d <= 0 {
+		return time.NewTimer(0)
+	}
+	if v := futureTimerPool.Get(); v != nil {
+		t := v.(*time.Timer)
+		t.Reset(d)
+		return t
+	}
+	return time.NewTimer(d)
+}
+
+func releaseFutureTimer(t *time.Timer) {
+	if t == nil {
+		return
+	}
+	if !t.Stop() {
+		select {
+		case <-t.C:
+		default:
+		}
+	}
+	futureTimerPool.Put(t)
 }
