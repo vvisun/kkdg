@@ -57,15 +57,17 @@ func ParseHeadMidSeq(data []byte, endian binary.ByteOrder) HeadMidSeq {
 注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
 
 	@param data []byte 包数据
-	@param headType uint8 头类型
-	@param codecType uint8 编解码器类型
+	@param pkType *packer 包类型
 	@return *T 消息对象
 	@return error 错误
 */
 func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
 	headSize := GetHeadSize(pkType.headType)
-	if headSize < 0 || len(data) < headSize {
+	if headSize < 0 {
 		return nil, kkerrors.ErrInvalidMsgHeadType
+	}
+	if len(data) < headSize {
+		return nil, kkerrors.ErrDataTooShortToDecode
 	}
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
@@ -106,11 +108,70 @@ func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
 }
 
 /*
+解码包。
+注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
+
+	@param data []byte 包数据
+	@param pkType *packer 包类型
+	@return any 消息对象
+	@return error 错误
+*/
+func DecodePacketBytes(data []byte, pkType *packer) (any, error) {
+	headSize := GetHeadSize(pkType.headType)
+	if headSize < 0 || len(data) < headSize {
+		return nil, kkerrors.ErrInvalidMsgHeadType
+	}
+	codec := kkcodec.GetCodec(pkType.codecType)
+	if codec == nil {
+		return nil, kkerrors.ErrInvalidCodec
+	}
+
+	endian := kknet.GetByteOrder()
+	msgID := uint32(0)
+	switch pkType.headType {
+	case HeadTypeMid:
+		head := ParseHeadMid(data[:headSize], endian)
+		head.mid = endian.Uint32(data[:4])
+		if head.mid == 0 {
+			return nil, kkerrors.ErrInvalidMsgHeadType
+		}
+		if GetMsgType(head.mid) == nil {
+			return nil, kkerrors.ErrMsgIDNotRegistered
+		}
+		msgID = head.mid
+	case HeadTypeMidSeq:
+		head := ParseHeadMidSeq(data[:headSize], endian)
+		head.mid = endian.Uint32(data[:4])
+		head.seq = endian.Uint32(data[4:8])
+		if head.mid == 0 {
+			return nil, kkerrors.ErrInvalidMsgHeadType
+		}
+		if GetMsgType(head.mid) == nil {
+			return nil, kkerrors.ErrMsgIDNotRegistered
+		}
+		msgID = head.mid
+	}
+
+	msgType := GetMsgType(msgID)
+	if msgType == nil {
+		return nil, kkerrors.ErrMsgIDNotRegistered
+	}
+
+	body := data[headSize:]
+	v := kkpool.GetFactoryByType(msgType).Get()
+	err := codec.Unmarshal(body, v)
+	if err != nil {
+		kkpool.GetFactoryByType(msgType).Put(v)
+		return nil, kkerrors.ErrDecodeFailed
+	}
+	return v, nil
+}
+
+/*
 编码包
 
 	@param v *T 消息类型
-	@param headType int 头类型
-	@param codecType int 编解码器类型
+	@param pkType *packer 包类型
 	@return []byte 包数据
 	@return error 错误
 */
@@ -152,9 +213,8 @@ func EncodePacket[T any](v *T, pkType *packer) ([]byte, error) {
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
 	@param v *T 消息类型
-	@param headType uint8 头类型
-	@param codecType uint8 编解码器类型
-	@return []byte 包数据
+	@param pkType *packer 包类型
+	@return buffers.IBuffer 包数据
 	@return error 错误
 */
 func EncodePacketEx[T any](v *T, pkType *packer) (buffers.IBuffer, error) {

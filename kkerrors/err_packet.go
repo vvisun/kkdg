@@ -10,6 +10,8 @@ var (
 	ErrInvalidCodec = errors.New("invalid codec")
 	// 解码失败
 	ErrDecodeFailed = errors.New("decode failed")
+	// 数据太短，无法解码
+	ErrDataTooShortToDecode = errors.New("data too short to decode")
 	// 编码失败
 	ErrEncodeFailed = errors.New("encode failed")
 	// 无效的消息ID

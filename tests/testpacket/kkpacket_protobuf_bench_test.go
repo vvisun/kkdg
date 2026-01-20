@@ -3,8 +3,8 @@ package testpacket
 import (
 	"testing"
 
-	"github.com/vvisun/kkdg/examples/tests/pbmsg"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/tests/pbmsg"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )

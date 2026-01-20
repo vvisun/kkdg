@@ -58,3 +58,7 @@ func (u *LengthFieldUnpacker) Unpack(r IStreamReader) ([]byte, bool, error) {
 	}
 	return data, true, nil
 }
+
+func (u *LengthFieldUnpacker) GetMaxSize() int {
+	return u.maxSize
+}
