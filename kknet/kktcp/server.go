@@ -13,6 +13,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -37,7 +38,7 @@ type Server struct {
 	tlsMu       sync.Mutex
 	tlsWg       sync.WaitGroup
 
-	unpacker kknet.IStreamUnpacker
+	unpacker kkpacket.IStreamUnpacker
 }
 
 // NewServer creates a new TCP server.
@@ -47,13 +48,13 @@ func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Serve
 		addr:     addr,
 		handler:  handler,
 		opts:     cfg,
-		unpacker: kknet.NewLengthFieldUnpacker(cfg.MaxMessageSize),
+		unpacker: kkpacket.NewLengthFieldUnpacker(cfg.MaxMessageSize, nil),
 	}
 }
 
 // SetUnpacker overrides the default length-field unpacker.
 // Call before Start.
-func (s *Server) SetUnpacker(u kknet.IStreamUnpacker) {
+func (s *Server) SetUnpacker(u kkpacket.IStreamUnpacker) {
 	if u == nil {
 		return
 	}

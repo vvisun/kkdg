@@ -1,10 +1,11 @@
-package kknet
+package kkpacket
 
 import (
 	"errors"
 	"io"
 
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet"
 )
 
 // IStreamReader provides buffered stream access for unpacking.
@@ -22,12 +23,13 @@ type IStreamUnpacker interface {
 
 // LengthFieldUnpacker parses 4-byte length-prefixed frames.
 type LengthFieldUnpacker struct {
-	MaxSize int
+	maxSize   int
+	msgPacket *packer
 }
 
 // NewLengthFieldUnpacker creates a length-field unpacker.
-func NewLengthFieldUnpacker(maxSize int) *LengthFieldUnpacker {
-	return &LengthFieldUnpacker{MaxSize: maxSize}
+func NewLengthFieldUnpacker(maxSize int, msgPacket *packer) *LengthFieldUnpacker {
+	return &LengthFieldUnpacker{maxSize: maxSize, msgPacket: msgPacket}
 }
 
 // Unpack implements StreamUnpacker.
@@ -42,8 +44,8 @@ func (u *LengthFieldUnpacker) Unpack(r IStreamReader) ([]byte, bool, error) {
 		}
 		return nil, false, err
 	}
-	size := int(GetByteOrder().Uint32(header))
-	if size < 0 || size > u.MaxSize {
+	size := int(kknet.GetByteOrder().Uint32(header))
+	if size < 0 || size > u.maxSize {
 		return nil, false, kkerrors.ErrMaxMessageSize
 	}
 	if r.InboundBuffered() < 4+size {

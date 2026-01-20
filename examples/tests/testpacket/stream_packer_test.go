@@ -6,23 +6,24 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
 func TestNewLengthFieldPacker(t *testing.T) {
 	maxSize := 1024
-	packer := kknet.NewLengthFieldPacker(maxSize)
+	packer := kkpacket.NewLengthFieldPacker(maxSize, nil)
 
 	if packer == nil {
 		t.Fatal("NewLengthFieldPacker returned nil")
 	}
 
-	if packer.MaxSize != maxSize {
-		t.Errorf("Expected MaxSize %d, got %d", maxSize, packer.MaxSize)
+	if packer.GetMaxSize() != maxSize {
+		t.Errorf("Expected MaxSize %d, got %d", maxSize, packer.GetMaxSize())
 	}
 }
 
 func TestLengthFieldPacker_Pack_EmptyData(t *testing.T) {
-	packer := kknet.NewLengthFieldPacker(1024)
+	packer := kkpacket.NewLengthFieldPacker(1024, nil)
 	data := []byte{}
 
 	buf, err := packer.Pack(data)
@@ -46,7 +47,7 @@ func TestLengthFieldPacker_Pack_EmptyData(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_NormalData(t *testing.T) {
-	packer := kknet.NewLengthFieldPacker(1024)
+	packer := kkpacket.NewLengthFieldPacker(1024, nil)
 	data := []byte("hello world")
 
 	buf, err := packer.Pack(data)
@@ -76,7 +77,7 @@ func TestLengthFieldPacker_Pack_NormalData(t *testing.T) {
 
 func TestLengthFieldPacker_Pack_MaxSizeBoundary(t *testing.T) {
 	maxSize := 100
-	packer := kknet.NewLengthFieldPacker(maxSize)
+	packer := kkpacket.NewLengthFieldPacker(maxSize, nil)
 
 	// Test at MaxSize (should succeed)
 	data := make([]byte, maxSize)
@@ -104,7 +105,7 @@ func TestLengthFieldPacker_Pack_MaxSizeBoundary(t *testing.T) {
 
 func TestLengthFieldPacker_Pack_ExceedsMaxSize(t *testing.T) {
 	maxSize := 100
-	packer := kknet.NewLengthFieldPacker(maxSize)
+	packer := kkpacket.NewLengthFieldPacker(maxSize, nil)
 
 	// Test exceeding MaxSize (should fail)
 	data := make([]byte, maxSize+1)
@@ -123,7 +124,7 @@ func TestLengthFieldPacker_Pack_ExceedsMaxSize(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_LargeData(t *testing.T) {
-	packer := kknet.NewLengthFieldPacker(10240)
+	packer := kkpacket.NewLengthFieldPacker(10240, nil)
 	data := make([]byte, 5000)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -152,7 +153,7 @@ func TestLengthFieldPacker_Pack_LargeData(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
-	packer := kknet.NewLengthFieldPacker(1024)
+	packer := kkpacket.NewLengthFieldPacker(1024, nil)
 	data := []byte("test")
 
 	// Save original byte order
@@ -196,7 +197,7 @@ func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_MultiplePacks(t *testing.T) {
-	packer := kknet.NewLengthFieldPacker(1024)
+	packer := kkpacket.NewLengthFieldPacker(1024, nil)
 
 	testCases := []struct {
 		name string
