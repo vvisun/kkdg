@@ -330,11 +330,6 @@ func (d *NatsDiscovery) resubscribe() error {
 	return nil
 }
 
-// getDiscoverySubject 获取服务发现主题
-func (d *NatsDiscovery) getDiscoverySubject() string {
-	return "kkcluster.discovery"
-}
-
 // handleDiscoveryMessage 处理服务发现消息
 func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 	// 记录心跳接收统计
@@ -380,7 +375,7 @@ func (d *NatsDiscovery) publishSelf() error {
 		Settings: d.settings,
 	}
 
-	data, err := json.Marshal(memberInfo)
+	data, err := json.Marshal(&memberInfo)
 	if err != nil {
 		d.stats.AddError()
 		return err
@@ -420,11 +415,11 @@ func (d *NatsDiscovery) requestAllMembers() {
 	time.Sleep(1 * time.Second)
 
 	// 发送请求消息
-	reqMsg := &DiscoveryRequest{
+	reqMsg := DiscoveryRequest{
 		RequesterID: d.nodeID,
 	}
 
-	data, err := json.Marshal(reqMsg)
+	data, err := json.Marshal(&reqMsg)
 	if err != nil {
 		kklog.Errorf("NatsDiscovery marshal request failed: %v", err)
 		d.stats.AddError()
@@ -500,11 +495,6 @@ func (d *NatsDiscovery) checkMemberTimeout() {
 	}
 }
 
-// getDiscoveryRequestSubject 获取服务发现请求主题
-func (d *NatsDiscovery) getDiscoveryRequestSubject() string {
-	return "kkcluster.discovery.request"
-}
-
 // notifyAddListeners 通知添加监听器
 func (d *NatsDiscovery) notifyAddListeners(member IMember) {
 	d.listenersMu.RLock()
@@ -545,15 +535,27 @@ func (d *NatsDiscovery) notifyRemoveListeners(member IMember) {
 	}
 }
 
-// MemberInfo 成员信息（用于序列化）
-type MemberInfo struct {
-	NodeID   string            `json:"nodeID"`
-	NodeType string            `json:"nodeType"`
-	Address  string            `json:"address"`
-	Settings map[string]string `json:"settings"`
+// getDiscoverySubject 获取服务发现主题
+func (d *NatsDiscovery) getDiscoverySubject() string {
+	return "kkcluster.discovery"
 }
 
-// DiscoveryRequest 发现请求
-type DiscoveryRequest struct {
-	RequesterID string `json:"requesterID"`
+// getDiscoveryRequestSubject 获取服务发现请求主题
+func (d *NatsDiscovery) getDiscoveryRequestSubject() string {
+	return "kkcluster.discovery.request"
 }
+
+type (
+	// MemberInfo 成员信息（用于序列化）
+	MemberInfo struct {
+		NodeID   string            `json:"nodeID"`
+		NodeType string            `json:"nodeType"`
+		Address  string            `json:"address"`
+		Settings map[string]string `json:"settings"`
+	}
+
+	// DiscoveryRequest 发现请求
+	DiscoveryRequest struct {
+		RequesterID string `json:"requesterID"`
+	}
+)

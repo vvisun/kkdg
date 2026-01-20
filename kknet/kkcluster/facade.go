@@ -20,10 +20,10 @@ type (
 
 	// IMember 成员接口
 	IMember interface {
-		GetNodeID() string
-		GetNodeType() string
-		GetAddress() string
-		GetSettings() map[string]string
+		GetNodeID() string              // 节点ID。必须唯一。
+		GetNodeType() string            // 节点类型。如：gate、game、login等
+		GetAddress() string             // 节点地址。如：127.0.0.1:8080
+		GetSettings() map[string]string // 额外数据，可以为空。
 	}
 
 	// MemberListener 成员增、删监听函数

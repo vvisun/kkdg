@@ -259,8 +259,8 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 
 	data, code := cluster1.RequestRemote("node2", packet, 2*time.Second)
 	// 由于当前实现返回空响应，code应该是0，data应该是nil
-	if code != 0 {
-		t.Errorf("RequestRemote() code = %d, want 0", code)
+	if code != kkcluster.ClusterErrorCodeFail {
+		t.Errorf("RequestRemote() code = %d, want ClusterErrorCodeFail", code)
 	}
 	_ = data // 当前实现返回nil
 }
