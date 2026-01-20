@@ -158,7 +158,7 @@ func (c *clientConn) Send(data []byte) error {
 		return kkerrors.ErrMaxMessageSize
 	}
 
-	bb, err1 := c.opts.Packer.Pack(data)
+	bb, err1 := c.opts.StreamPacket.Pack(data)
 	if err1 != nil {
 		kkbuffer.Put(bb)
 		if c.stats != nil {

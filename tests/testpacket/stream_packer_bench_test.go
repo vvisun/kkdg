@@ -10,7 +10,7 @@ import (
 
 func BenchmarkLengthFieldPacker_Pack(b *testing.B) {
 	sizes := []int{0, 64, 256, 1024, 4096, 16384}
-	packer := kkpacket.NewLengthFieldPacker(65536, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(65536, nil)
 
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("Size_%d", size), func(b *testing.B) {
@@ -35,7 +35,7 @@ func BenchmarkLengthFieldPacker_Pack(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_Small(b *testing.B) {
-	packer := kkpacket.NewLengthFieldPacker(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
 	data := []byte("hello")
 
 	b.ResetTimer()
@@ -51,7 +51,7 @@ func BenchmarkLengthFieldPacker_Pack_Small(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_Medium(b *testing.B) {
-	packer := kkpacket.NewLengthFieldPacker(65536, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(65536, nil)
 	data := make([]byte, 1024)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -70,7 +70,7 @@ func BenchmarkLengthFieldPacker_Pack_Medium(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_Large(b *testing.B) {
-	packer := kkpacket.NewLengthFieldPacker(1048576, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(1048576, nil)
 	data := make([]byte, 65536)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -89,7 +89,7 @@ func BenchmarkLengthFieldPacker_Pack_Large(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_Empty(b *testing.B) {
-	packer := kkpacket.NewLengthFieldPacker(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
 	data := []byte{}
 
 	b.ResetTimer()
@@ -105,7 +105,7 @@ func BenchmarkLengthFieldPacker_Pack_Empty(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_WithoutPut(b *testing.B) {
-	packer := kkpacket.NewLengthFieldPacker(65536, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(65536, nil)
 	data := make([]byte, 1024)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -125,7 +125,7 @@ func BenchmarkLengthFieldPacker_Pack_WithoutPut(b *testing.B) {
 
 func BenchmarkLengthFieldPacker_Pack_MaxSize(b *testing.B) {
 	maxSize := 1024
-	packer := kkpacket.NewLengthFieldPacker(maxSize, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(maxSize, nil)
 	data := make([]byte, maxSize)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -144,7 +144,7 @@ func BenchmarkLengthFieldPacker_Pack_MaxSize(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_VariousSizes(b *testing.B) {
-	packer := kkpacket.NewLengthFieldPacker(65536, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(65536, nil)
 	testSizes := []int{1, 16, 128, 512, 2048, 8192}
 
 	for _, size := range testSizes {

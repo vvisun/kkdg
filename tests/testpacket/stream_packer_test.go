@@ -10,7 +10,7 @@ import (
 
 func TestNewLengthFieldPacker(t *testing.T) {
 	maxSize := 1024
-	packer := kkpacket.NewLengthFieldPacker(maxSize, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(maxSize, nil)
 
 	if packer == nil {
 		t.Fatal("NewLengthFieldPacker returned nil")
@@ -22,7 +22,7 @@ func TestNewLengthFieldPacker(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_EmptyData(t *testing.T) {
-	packer := kkpacket.NewLengthFieldPacker(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
 	data := []byte{}
 
 	buf, err := packer.Pack(data)
@@ -46,7 +46,7 @@ func TestLengthFieldPacker_Pack_EmptyData(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_NormalData(t *testing.T) {
-	packer := kkpacket.NewLengthFieldPacker(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
 	data := []byte("hello world")
 
 	buf, err := packer.Pack(data)
@@ -76,7 +76,7 @@ func TestLengthFieldPacker_Pack_NormalData(t *testing.T) {
 
 func TestLengthFieldPacker_Pack_MaxSizeBoundary(t *testing.T) {
 	maxSize := 100
-	packer := kkpacket.NewLengthFieldPacker(maxSize, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(maxSize, nil)
 
 	// Test at MaxSize (should succeed)
 	data := make([]byte, maxSize)
@@ -104,7 +104,7 @@ func TestLengthFieldPacker_Pack_MaxSizeBoundary(t *testing.T) {
 
 func TestLengthFieldPacker_Pack_ExceedsMaxSize(t *testing.T) {
 	maxSize := 100
-	packer := kkpacket.NewLengthFieldPacker(maxSize, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(maxSize, nil)
 
 	// Test exceeding MaxSize (should fail)
 	data := make([]byte, maxSize+1)
@@ -123,7 +123,7 @@ func TestLengthFieldPacker_Pack_ExceedsMaxSize(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_LargeData(t *testing.T) {
-	packer := kkpacket.NewLengthFieldPacker(10240, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(10240, nil)
 	data := make([]byte, 5000)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -152,7 +152,7 @@ func TestLengthFieldPacker_Pack_LargeData(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
-	packer := kkpacket.NewLengthFieldPacker(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
 	data := []byte("test")
 
 	// Save original byte order
@@ -196,7 +196,7 @@ func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_MultiplePacks(t *testing.T) {
-	packer := kkpacket.NewLengthFieldPacker(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
 
 	testCases := []struct {
 		name string
