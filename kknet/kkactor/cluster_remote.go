@@ -17,6 +17,8 @@ type ClusterRemoteSystem struct {
 	nodeID    string
 	mu        sync.RWMutex
 	started   bool
+	// 用户自定义的集群请求处理器（用于透传非 actor.ask 的请求）
+	userRequestHandler func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error)
 }
 
 // NewClusterRemoteSystem 创建一个基于 kkcluster 的远程 actor 系统
@@ -216,6 +218,18 @@ func (rs *ClusterRemoteSystem) Ask(remotePID RemotePID, message interface{}, tim
 	return replyMsg, true
 }
 
+// SetRequestHandler 设置用户自定义的集群请求处理器。
+// ClusterRemoteSystem 会优先拦截并处理 FuncName == "actor.ask" 的请求，
+// 其他 FuncName 将在本地处理完成后透传给该 handler（如果不为 nil）。
+func (rs *ClusterRemoteSystem) SetRequestHandler(handler func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error)) {
+	if rs == nil {
+		return
+	}
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+	rs.userRequestHandler = handler
+}
+
 // handleRemoteMessage 处理来自远程节点的发布消息（单向 actor.message）
 func (rs *ClusterRemoteSystem) handleRemoteMessage(sourceNodeID string, packet *kkcluster.ClusterPacket) {
 	if rs == nil || packet == nil {
@@ -261,9 +275,15 @@ func (rs *ClusterRemoteSystem) handleClusterRequest(req *kkcluster.ClusterReques
 		}, nil
 	}
 
-	// 只处理 actor.ask 请求
+	// 如果不是 actor.ask，则透传给用户自定义的集群请求处理器（如有）
 	if req.Packet.FuncName != "actor.ask" {
-		// 非本模块处理的请求，返回错误码，避免静默吞掉请求
+		rs.mu.RLock()
+		handler := rs.userRequestHandler
+		rs.mu.RUnlock()
+		if handler != nil {
+			return handler(req)
+		}
+		// 没有用户处理器，则返回无效请求错误
 		return &kkcluster.ClusterResponse{
 			RequestID: req.RequestID,
 			Code:      int32(kkcluster.ClusterErrorCodeInvalidRequest),
