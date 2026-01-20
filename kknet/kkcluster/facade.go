@@ -22,7 +22,8 @@ type (
 		RemoveMember(nodeID string)                                   // 移除成员
 		OnAddMember(listener MemberListener)                          // 添加成员监听函数
 		OnRemoveMember(listener MemberListener)                       // 移除成员监听函数
-		Stop()
+		Start() error                                                 // 启动
+		Stop()                                                        // 停止
 	}
 
 	// IMember 成员接口

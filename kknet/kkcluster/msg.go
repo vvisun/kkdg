@@ -1,6 +1,21 @@
 package kkcluster
 
 type (
+	// MemberInfo 成员信息（用于序列化）
+	MemberInfo struct {
+		NodeID   string            `json:"nodeID"`
+		NodeType string            `json:"nodeType"`
+		Address  string            `json:"address"`
+		Settings map[string]string `json:"settings"`
+	}
+
+	// DiscoveryRequest 发现请求
+	DiscoveryRequest struct {
+		RequesterID string `json:"requesterID"`
+	}
+)
+
+type (
 	// ClusterPacket 集群消息包
 	ClusterPacket struct {
 		BuildTime  int64    `json:"buildTime,omitempty"`  // 构建时间（毫秒）
