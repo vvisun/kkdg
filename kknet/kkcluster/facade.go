@@ -4,9 +4,9 @@ import "time"
 
 const (
 	// 节点ID最大长度
-	MaxNodeIDLength int = 16
+	MaxNodeIDLength int = 24
 	// 节点类型最大长度
-	MaxNodeTypeLength int = 16
+	MaxNodeTypeLength int = 24
 )
 
 type (
