@@ -17,19 +17,18 @@ package kkbuffer
 
 const (
 	minBitSize = 6  // 2**6=64 是CPU缓存行大小
-	steps      = 20 // 20个步长
+	steps      = 20 // 20个步长 = 2^6 * 2^19 = 524288 = 512KB
 
-	minSize = 1 << minBitSize               // 64
-	maxSize = 1 << (minBitSize + steps - 1) // 64 * 2^19 = 524288 = 512KB
+	minItemSize = 1 << minBitSize               // 64
+	maxItemSize = 1 << (minBitSize + steps - 1) // 64 * 2^19 = 524288 = 512KB
 
-	calibrateCallsThreshold = 42000 // 42000次调用后进行校准
-	maxPercentile           = 0.95  // 95% 分位数
+	calibrateCallsThreshold = 10000 // 多少次调用后进行校准
 )
 
 var defaultPool bfPool
 
 func init() {
-	defaultPool.defaultSize = minSize
+	defaultPool.defaultSize = 256
 }
 
 // Get returns an empty byte buffer from the pool.
@@ -44,7 +43,7 @@ func Get() *ByteBuffer { return defaultPool.Get() }
 // Prefer this over Get when the expected size is known, to avoid
 // reallocations on the first Write/Set/SetString.
 func GetWithCapacity(capacity int) *ByteBuffer {
-	return defaultPool.GetWithCapacity(capacity)
+	return defaultPool.GetWithCap(capacity)
 }
 
 // Put returns byte buffer to the pool.

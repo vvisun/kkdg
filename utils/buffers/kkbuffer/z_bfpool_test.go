@@ -1,6 +1,7 @@
 package kkbuffer
 
 import (
+	"strings"
 	"sync"
 	"testing"
 )
@@ -71,7 +72,7 @@ func TestPool_Concurrent(t *testing.T) {
 func TestPool_GetWithCapacity(t *testing.T) {
 	pool := &bfPool{}
 
-	buf := pool.GetWithCapacity(100)
+	buf := pool.GetWithCap(100)
 	if buf == nil {
 		t.Fatal("GetWithCapacity returned nil")
 	}
@@ -84,7 +85,7 @@ func TestPool_GetWithCapacity(t *testing.T) {
 	pool.Put(buf)
 
 	// 指定较小容量时可能复用
-	buf2 := pool.GetWithCapacity(50)
+	buf2 := pool.GetWithCap(50)
 	if buf2 == nil {
 		t.Fatal("GetWithCapacity(50) returned nil")
 	}
@@ -155,10 +156,11 @@ func TestIndex(t *testing.T) {
 
 func TestPool_Calibrate(t *testing.T) {
 	pool := &bfPool{}
+	tstData := strings.Repeat("x", 666)
 
 	for i := 0; i < calibrateCallsThreshold+1; i++ {
 		buf := pool.Get()
-		buf.SetString("x")
+		buf.SetString(tstData)
 		pool.Put(buf)
 	}
 
