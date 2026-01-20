@@ -9,23 +9,18 @@ import (
 )
 
 func TestNewLengthFieldPacker(t *testing.T) {
-	maxSize := 1024
-	packer := kkpacket.NewLengthFieldStreamPacket(maxSize, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 
 	if packer == nil {
 		t.Fatal("NewLengthFieldPacker returned nil")
 	}
-
-	if packer.GetMaxSize() != maxSize {
-		t.Errorf("Expected MaxSize %d, got %d", maxSize, packer.GetMaxSize())
-	}
 }
 
 func TestLengthFieldPacker_Pack_EmptyData(t *testing.T) {
-	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := []byte{}
 
-	buf, err := packer.Pack(data)
+	buf, err := packer.Pack(data, 1024)
 	if err != nil {
 		t.Fatalf("Pack returned error: %v", err)
 	}
@@ -46,10 +41,10 @@ func TestLengthFieldPacker_Pack_EmptyData(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_NormalData(t *testing.T) {
-	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := []byte("hello world")
 
-	buf, err := packer.Pack(data)
+	buf, err := packer.Pack(data, 1024)
 	if err != nil {
 		t.Fatalf("Pack returned error: %v", err)
 	}
@@ -76,7 +71,7 @@ func TestLengthFieldPacker_Pack_NormalData(t *testing.T) {
 
 func TestLengthFieldPacker_Pack_MaxSizeBoundary(t *testing.T) {
 	maxSize := 100
-	packer := kkpacket.NewLengthFieldStreamPacket(maxSize, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 
 	// Test at MaxSize (should succeed)
 	data := make([]byte, maxSize)
@@ -84,7 +79,7 @@ func TestLengthFieldPacker_Pack_MaxSizeBoundary(t *testing.T) {
 		data[i] = byte(i % 256)
 	}
 
-	buf, err := packer.Pack(data)
+	buf, err := packer.Pack(data, maxSize)
 	if err != nil {
 		t.Fatalf("Pack at MaxSize returned error: %v", err)
 	}
@@ -104,12 +99,12 @@ func TestLengthFieldPacker_Pack_MaxSizeBoundary(t *testing.T) {
 
 func TestLengthFieldPacker_Pack_ExceedsMaxSize(t *testing.T) {
 	maxSize := 100
-	packer := kkpacket.NewLengthFieldStreamPacket(maxSize, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 
 	// Test exceeding MaxSize (should fail)
 	data := make([]byte, maxSize+1)
 
-	buf, err := packer.Pack(data)
+	buf, err := packer.Pack(data, maxSize)
 	if err == nil {
 		t.Fatal("Pack should return error when data exceeds MaxSize")
 	}
@@ -123,13 +118,13 @@ func TestLengthFieldPacker_Pack_ExceedsMaxSize(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_LargeData(t *testing.T) {
-	packer := kkpacket.NewLengthFieldStreamPacket(10240, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := make([]byte, 5000)
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
 
-	buf, err := packer.Pack(data)
+	buf, err := packer.Pack(data, 10240)
 	if err != nil {
 		t.Fatalf("Pack returned error: %v", err)
 	}
@@ -152,7 +147,7 @@ func TestLengthFieldPacker_Pack_LargeData(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
-	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := []byte("test")
 
 	// Save original byte order
@@ -161,7 +156,7 @@ func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
 
 	// Test with BigEndian (default)
 	kkpacket.SetByteOrder(binary.BigEndian)
-	buf, err := packer.Pack(data)
+	buf, err := packer.Pack(data, 1024)
 	if err != nil {
 		t.Fatalf("Pack returned error: %v", err)
 	}
@@ -173,7 +168,7 @@ func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
 
 	// Test with LittleEndian
 	kkpacket.SetByteOrder(binary.LittleEndian)
-	buf2, err := packer.Pack(data)
+	buf2, err := packer.Pack(data, 1024)
 	if err != nil {
 		t.Fatalf("Pack returned error: %v", err)
 	}
@@ -196,7 +191,7 @@ func TestLengthFieldPacker_Pack_ByteOrder(t *testing.T) {
 }
 
 func TestLengthFieldPacker_Pack_MultiplePacks(t *testing.T) {
-	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 
 	testCases := []struct {
 		name string
@@ -210,7 +205,7 @@ func TestLengthFieldPacker_Pack_MultiplePacks(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			buf, err := packer.Pack(tc.data)
+			buf, err := packer.Pack(tc.data, 1024)
 			if err != nil {
 				t.Fatalf("Pack returned error: %v", err)
 			}

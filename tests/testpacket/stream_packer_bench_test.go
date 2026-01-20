@@ -10,7 +10,7 @@ import (
 
 func BenchmarkLengthFieldPacker_Pack(b *testing.B) {
 	sizes := []int{0, 64, 256, 1024, 4096, 16384}
-	packer := kkpacket.NewLengthFieldStreamPacket(65536, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("Size_%d", size), func(b *testing.B) {
@@ -23,7 +23,7 @@ func BenchmarkLengthFieldPacker_Pack(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				buf, err := packer.Pack(data)
+				buf, err := packer.Pack(data, 65536)
 				if err != nil {
 					b.Fatalf("Pack returned error: %v", err)
 				}
@@ -35,14 +35,14 @@ func BenchmarkLengthFieldPacker_Pack(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_Small(b *testing.B) {
-	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := []byte("hello")
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data)
+		buf, err := packer.Pack(data, 1024)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -51,7 +51,7 @@ func BenchmarkLengthFieldPacker_Pack_Small(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_Medium(b *testing.B) {
-	packer := kkpacket.NewLengthFieldStreamPacket(65536, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := make([]byte, 1024)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -61,7 +61,7 @@ func BenchmarkLengthFieldPacker_Pack_Medium(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data)
+		buf, err := packer.Pack(data, 65536)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -70,7 +70,7 @@ func BenchmarkLengthFieldPacker_Pack_Medium(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_Large(b *testing.B) {
-	packer := kkpacket.NewLengthFieldStreamPacket(1048576, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := make([]byte, 65536)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -80,7 +80,7 @@ func BenchmarkLengthFieldPacker_Pack_Large(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data)
+		buf, err := packer.Pack(data, 1048576)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -89,14 +89,14 @@ func BenchmarkLengthFieldPacker_Pack_Large(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_Empty(b *testing.B) {
-	packer := kkpacket.NewLengthFieldStreamPacket(1024, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := []byte{}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data)
+		buf, err := packer.Pack(data, 1024)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -105,7 +105,7 @@ func BenchmarkLengthFieldPacker_Pack_Empty(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_WithoutPut(b *testing.B) {
-	packer := kkpacket.NewLengthFieldStreamPacket(65536, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := make([]byte, 1024)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -115,7 +115,7 @@ func BenchmarkLengthFieldPacker_Pack_WithoutPut(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data)
+		buf, err := packer.Pack(data, 65536)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -125,7 +125,7 @@ func BenchmarkLengthFieldPacker_Pack_WithoutPut(b *testing.B) {
 
 func BenchmarkLengthFieldPacker_Pack_MaxSize(b *testing.B) {
 	maxSize := 1024
-	packer := kkpacket.NewLengthFieldStreamPacket(maxSize, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	data := make([]byte, maxSize)
 	for i := range data {
 		data[i] = byte(i % 256)
@@ -135,7 +135,7 @@ func BenchmarkLengthFieldPacker_Pack_MaxSize(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data)
+		buf, err := packer.Pack(data, maxSize)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -144,7 +144,7 @@ func BenchmarkLengthFieldPacker_Pack_MaxSize(b *testing.B) {
 }
 
 func BenchmarkLengthFieldPacker_Pack_VariousSizes(b *testing.B) {
-	packer := kkpacket.NewLengthFieldStreamPacket(65536, nil)
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 	testSizes := []int{1, 16, 128, 512, 2048, 8192}
 
 	for _, size := range testSizes {
@@ -158,7 +158,7 @@ func BenchmarkLengthFieldPacker_Pack_VariousSizes(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				buf, err := packer.Pack(data)
+				buf, err := packer.Pack(data, size)
 				if err != nil {
 					b.Fatalf("Pack returned error: %v", err)
 				}

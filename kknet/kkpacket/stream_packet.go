@@ -20,30 +20,27 @@ type IStreamReader interface {
 type IStreamPacket interface {
 	// pack message to stream
 	// 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
-	Pack(data []byte) (buffers.IBuffer, error)
+	Pack(data []byte, maxSize int) (buffers.IBuffer, error)
 	// unpack message from stream
-	Unpack(r IStreamReader) (data []byte, ok bool, err error)
-	// get max size
-	GetMaxSize() int
-	// set max size
-	SetMaxSize(maxSize int)
+	Unpack(r IStreamReader, maxSize int) (data []byte, ok bool, err error)
 }
 
 // LengthFieldStreamPacket packs and unpacks 4-byte length-prefixed frames.
 type LengthFieldStreamPacket struct {
-	maxSize   int
 	msgPacket *packer
 }
 
+var _ IStreamPacket = (*LengthFieldStreamPacket)(nil)
+
 // NewLengthFieldStreamPacket creates a length-field stream packet.
-func NewLengthFieldStreamPacket(maxSize int, msgPacket *packer) *LengthFieldStreamPacket {
-	return &LengthFieldStreamPacket{maxSize: maxSize, msgPacket: msgPacket}
+func NewLengthFieldStreamPacket(msgPacket *packer) *LengthFieldStreamPacket {
+	return &LengthFieldStreamPacket{msgPacket: msgPacket}
 }
 
 // Pack implements IStreamPacket.
 // 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
-func (p *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
-	if len(data) > p.maxSize {
+func (slf *LengthFieldStreamPacket) Pack(data []byte, maxSize int) (buffers.IBuffer, error) {
+	if len(data) > maxSize {
 		return nil, kkerrors.ErrMaxMessageSize
 	}
 
@@ -57,7 +54,7 @@ func (p *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 }
 
 // Unpack implements IStreamPacket.
-func (u *LengthFieldStreamPacket) Unpack(r IStreamReader) ([]byte, bool, error) {
+func (slf *LengthFieldStreamPacket) Unpack(r IStreamReader, maxSize int) ([]byte, bool, error) {
 	if r.InboundBuffered() < 4 {
 		return nil, false, nil
 	}
@@ -69,7 +66,7 @@ func (u *LengthFieldStreamPacket) Unpack(r IStreamReader) ([]byte, bool, error) 
 		return nil, false, err
 	}
 	size := int(GetByteOrder().Uint32(header))
-	if size < 0 || size > u.maxSize {
+	if size < 0 || size > maxSize {
 		return nil, false, kkerrors.ErrMaxMessageSize
 	}
 	if r.InboundBuffered() < 4+size {
@@ -81,12 +78,4 @@ func (u *LengthFieldStreamPacket) Unpack(r IStreamReader) ([]byte, bool, error) 
 		return nil, false, err
 	}
 	return data, true, nil
-}
-
-func (p *LengthFieldStreamPacket) GetMaxSize() int {
-	return p.maxSize
-}
-
-func (p *LengthFieldStreamPacket) SetMaxSize(maxSize int) {
-	p.maxSize = maxSize
 }

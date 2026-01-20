@@ -63,7 +63,7 @@ func DefaultOptions() Options {
 		UDPCleanupInterval: defaultUDPCleanupInterval,
 		ReadTimeout:        defaultReadTimeout,
 		WriteTimeout:       defaultWriteTimeout,
-		StreamPacket:       kkpacket.NewLengthFieldStreamPacket(defaultMaxMessageSize, nil),
+		StreamPacket:       kkpacket.NewLengthFieldStreamPacket(nil),
 	}
 }
 
@@ -96,7 +96,6 @@ func WithMaxMessageSize(size int) Option {
 		}
 		if size > 0 {
 			o.MaxMessageSize = size
-			o.StreamPacket.SetMaxSize(size)
 		}
 	}
 }

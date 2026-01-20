@@ -286,7 +286,7 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	}
 
 	for {
-		data, ok, err := h.server.opts.StreamPacket.Unpack(c)
+		data, ok, err := h.server.opts.StreamPacket.Unpack(c, h.server.opts.MaxMessageSize)
 		if err != nil {
 			h.server.stats.AddError()
 			return gnet.Close
@@ -358,7 +358,7 @@ func (c *tcpConn) Send(data []byte) error {
 		return kkerrors.ErrMaxMessageSize
 	}
 
-	bb, err1 := c.opts.StreamPacket.Pack(data)
+	bb, err1 := c.opts.StreamPacket.Pack(data, c.opts.MaxMessageSize)
 	if err1 != nil {
 		kkbuffer.Put(bb)
 		if c.stats != nil {
@@ -439,7 +439,7 @@ func (c *tlsConn) Send(data []byte) error {
 		return kkerrors.ErrMaxMessageSize
 	}
 
-	bb, err1 := c.opts.StreamPacket.Pack(data)
+	bb, err1 := c.opts.StreamPacket.Pack(data, c.opts.MaxMessageSize)
 	if err1 != nil {
 		kkbuffer.Put(bb)
 		if c.stats != nil {
