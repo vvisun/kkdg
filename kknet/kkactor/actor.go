@@ -19,6 +19,7 @@ type Context interface {
 
 	Respond(msg any)
 	Send(pid *PID, msg any)
+	Request(pid *PID, msg any, timeout ...time.Duration) (any, error)
 	RequestFuture(pid *PID, msg any, timeout ...time.Duration) *Future
 	Spawn(props *Props) *PID
 	Stop(pid *PID)

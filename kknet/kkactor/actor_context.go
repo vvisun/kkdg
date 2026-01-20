@@ -55,6 +55,15 @@ func (c *actorContext) Send(pid *PID, msg any) {
 	_ = c.system.sendLocal(pid, &Envelope{message: msg, sender: c.self})
 }
 
+// Request sends a message and waits for a response.
+func (c *actorContext) Request(pid *PID, msg any, timeout ...time.Duration) (any, error) {
+	if c == nil {
+		return nil, ErrActorDead
+	}
+	root := &RootContext{system: c.system}
+	return root.Request(pid, msg, timeout...)
+}
+
 // RequestFuture sends a message and returns a future for the response.
 func (c *actorContext) RequestFuture(pid *PID, msg any, timeout ...time.Duration) *Future {
 	if c == nil {

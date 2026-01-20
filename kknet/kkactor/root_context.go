@@ -46,6 +46,12 @@ func (r *RootContext) Send(pid *PID, msg any) {
 	_ = system.sendLocal(pid, &Envelope{message: msg})
 }
 
+// Request sends a message and waits for a response.
+func (r *RootContext) Request(pid *PID, msg any, timeout ...time.Duration) (any, error) {
+	fut := r.RequestFuture(pid, msg, timeout...)
+	return fut.Result()
+}
+
 // RequestFuture sends a message and returns a future for the response.
 func (r *RootContext) RequestFuture(pid *PID, msg any, timeout ...time.Duration) *Future {
 	fut := newFuture()
