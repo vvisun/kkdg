@@ -17,7 +17,7 @@ package kkbuffer
 
 const (
 	minBitSize = 6  // 2**6=64 是CPU缓存行大小
-	steps      = 20 // 20个步长 = 2^6 * 2^19 = 524288 = 512KB
+	steps      = 16 // 16个步长 = 2^6 * 2^16 = 65536 = 64KB
 
 	minItemSize = 1 << minBitSize               // 64
 	maxItemSize = 1 << (minBitSize + steps - 1) // 64 * 2^19 = 524288 = 512KB

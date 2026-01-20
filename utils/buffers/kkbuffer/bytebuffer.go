@@ -3,8 +3,6 @@ package kkbuffer
 import (
 	"io"
 	"sync/atomic"
-
-	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 )
 
 // ByteBuffer provides byte buffer, which can be used for minimizing
@@ -25,6 +23,18 @@ type ByteBuffer struct {
 // Len returns the size of the byte buffer.
 func (b *ByteBuffer) Len() int {
 	return len(b.B)
+}
+
+// Bytes returns b.B, i.e. all the bytes accumulated in the buffer.
+//
+// The purpose of this function is bytes.Buffer compatibility.
+func (b *ByteBuffer) Bytes() []byte {
+	return b.B
+}
+
+// Reset makes ByteBuffer.B empty.
+func (b *ByteBuffer) Reset() {
+	b.B = b.B[:0]
 }
 
 // ReadFrom implements io.ReaderFrom.
@@ -67,24 +77,14 @@ func (b *ByteBuffer) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
-// Bytes returns b.B, i.e. all the bytes accumulated in the buffer.
-//
-// The purpose of this function is bytes.Buffer compatibility.
-func (b *ByteBuffer) Bytes() []byte {
-	return b.B
-}
-
 // SetBytes sets ByteBuffer.B to p.
 //
 // If cap(b.B) >= len(p), it uses copy (no alloc). Use GetWithCapacity
 // or Grow before Reset+SetBytes when repeatedly setting similar-sized data.
 func (b *ByteBuffer) SetBytes(p []byte) {
-	if cap(b.B) < len(p) {
-		old := b.B
-		b.B = byteslice.Get(len(p))
-		byteslice.Put(old)
-	}
-	b.B = b.B[:len(p)]
+	cnt := len(p)
+	b.Grow(cnt)
+	b.B = b.B[:cnt]
 	copy(b.B, p)
 }
 
@@ -93,12 +93,9 @@ func (b *ByteBuffer) SetBytes(p []byte) {
 // If cap(b.B) >= len(s), it uses copy (no alloc). Use GetWithCapacity
 // or Grow before Reset+SetString when repeatedly setting similar-sized data.
 func (b *ByteBuffer) SetString(s string) {
-	if cap(b.B) < len(s) {
-		old := b.B
-		b.B = byteslice.Get(len(s))
-		byteslice.Put(old)
-	}
-	b.B = b.B[:len(s)]
+	cnt := len(s)
+	b.Grow(cnt)
+	b.B = b.B[:cnt]
 	copy(b.B, s)
 }
 
@@ -111,7 +108,6 @@ func (b *ByteBuffer) Grow(n int) {
 	if cap(b.B) < n {
 		newCap := n
 		if cap(b.B) > 0 {
-			// Double the capacity, but ensure it's at least n
 			newCap = cap(b.B) * 2
 			if newCap < n {
 				newCap = n
@@ -126,9 +122,4 @@ func (b *ByteBuffer) Grow(n int) {
 // String returns string representation of ByteBuffer.B.
 func (b *ByteBuffer) String() string {
 	return string(b.B)
-}
-
-// Reset makes ByteBuffer.B empty.
-func (b *ByteBuffer) Reset() {
-	b.B = b.B[:0]
 }
