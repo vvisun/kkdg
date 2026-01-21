@@ -56,3 +56,23 @@ func BenchmarkActorRequestLocal(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkActorRequestSyncLocal(b *testing.B) {
+	sys := NewActorSystem()
+	root := NewRootContext(sys)
+	pid := sys.Spawn(FromProducer(func() Actor { return benchActor{} }))
+	if pid == nil {
+		b.Fatalf("spawn returned nil pid")
+	}
+	b.Cleanup(func() {
+		sys.Stop()
+	})
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := root.Request(pid, "ping", 5*time.Second); err != nil {
+			b.Fatalf("request failed: %v", err)
+		}
+	}
+}
