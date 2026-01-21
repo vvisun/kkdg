@@ -14,18 +14,17 @@ type IComponentLifecycle interface {
 }
 
 type IComponentContainer interface {
-	AddChild(child IComponent) error
+	AddCompenent(child IComponent) error
 	RemoveChild(child IComponent) error
-	GetParent() IComponent
-	GetChildrens() []IComponent
-	GetRoot() IComponent
+	GetComponents() []IComponent
 }
 
 type IComponent interface {
-	GetID() string   // 组件ID。unique id for the component.
-	GetName() string // 组件名称。name for the component.
+	GetID() string // 组件ID。unique id for the component.
 	IComponentLifecycle
 	IComponentContainer
+	SetApplication(app IApplication)
+	GetApplication() IApplication
 }
 
 type ComponentState = int64
@@ -40,8 +39,7 @@ const (
 
 type Component struct {
 	id        string
-	name      string
-	parent    IComponent
+	app       IApplication
 	childlist []IComponent
 }
 
@@ -51,7 +49,15 @@ func IsEqual(a, b IComponent) bool {
 	return a == b || a.GetID() == b.GetID()
 }
 
-func (slf *Component) HasChild(target IComponent) bool {
+func (slf *Component) SetApplication(app IApplication) {
+	slf.app = app
+}
+
+func (slf *Component) GetApplication() IApplication {
+	return slf.app
+}
+
+func (slf *Component) HasComponent(target IComponent) bool {
 	for _, child := range slf.childlist {
 		if IsEqual(child, target) {
 			return true
@@ -60,15 +66,11 @@ func (slf *Component) HasChild(target IComponent) bool {
 	return false
 }
 
-func (slf *Component) AddChild(child IComponent) error {
-	if child.GetParent() != nil {
-		return kkerrors.ErrComponentAlreadySetParent
-	}
-	if slf.HasChild(child) {
+func (slf *Component) AddCompenent(child IComponent) error {
+	if slf.HasComponent(child) {
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	slf.childlist = append(slf.childlist, child)
-	child.(*Component).parent = slf
 	return nil
 }
 
@@ -76,49 +78,21 @@ func (slf *Component) RemoveChild(target IComponent) error {
 	for i, child := range slf.childlist {
 		if IsEqual(child, target) {
 			if err := child.Stop(); err != nil {
-				return kkerrors.FormatErrorErr("component", err, "remove child failed: %s", child.GetName())
+				return kkerrors.FormatErrorErr("component", err, "remove child failed: %s", child.GetID())
 			}
-
-			target.(*Component).parent = nil
 			slf.childlist = append(slf.childlist[:i], slf.childlist[i+1:]...)
-
 			break
 		}
 	}
 	return nil
 }
 
-func (slf *Component) GetParent() IComponent {
-	return slf.parent
-}
-
-func (slf *Component) GetChildrens() []IComponent {
+func (slf *Component) GetComponents() []IComponent {
 	return slf.childlist
-}
-
-func (slf *Component) GetRoot() IComponent {
-	if slf.parent == nil {
-		return slf
-	}
-	return slf.parent.GetRoot()
 }
 
 func (slf *Component) GetID() string {
 	return slf.id
-}
-
-func (slf *Component) GetName() string {
-	if slf.name != "" {
-		return slf.name
-	}
-	name := slf.GetID()
-	cur := slf.parent
-	for cur != nil {
-		name = cur.GetID() + "." + name
-		cur = cur.GetParent()
-	}
-	slf.name = name
-	return slf.name
 }
 
 // Init was called to initialize the component.
