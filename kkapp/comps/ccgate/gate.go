@@ -30,3 +30,11 @@ func (slf *GateComponent) Start() error {
 func (slf *GateComponent) Stop() error {
 	return nil
 }
+
+func (slf *GateComponent) startTCPServer() error {
+	return nil
+}
+
+func (slf *GateComponent) startWSServer() error {
+	return nil
+}
