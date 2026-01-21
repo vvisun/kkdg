@@ -24,6 +24,7 @@ type Server struct {
 	addr    string
 	handler kknet.IHandler
 	opts    kknet.Options
+	connMgr *kknet.ConnManager
 
 	engine  gnet.Engine
 	pool    *ants.Pool
@@ -39,6 +40,8 @@ type Server struct {
 	tlsWg       sync.WaitGroup
 }
 
+var _ kknet.IServer = (*Server)(nil)
+
 // NewServer creates a new TCP server.
 func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
 	cfg := kknet.ApplyOptions(opts...)
@@ -46,6 +49,7 @@ func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Serve
 		addr:    addr,
 		handler: handler,
 		opts:    cfg,
+		connMgr: kknet.NewConnManager(),
 	}
 }
 
@@ -149,6 +153,11 @@ func (s *Server) Stats() kknet.StatsSnapshot {
 	return s.stats.Snapshot()
 }
 
+// GetConnManager returns the connection manager.
+func (s *Server) GetConnManager() kknet.IConnManager {
+	return s.connMgr
+}
+
 func (s *Server) startTLS() error {
 	ln, err := net.Listen("tcp", s.addr)
 	if err != nil {
@@ -204,6 +213,7 @@ func (s *Server) acceptTLS() {
 
 func (s *Server) handleTLSConn(conn net.Conn) {
 	tc := newTLSConn(conn, s.opts, &s.stats)
+	s.connMgr.AddConn(tc)
 	s.tlsMu.Lock()
 	s.tlsConns[tc.id] = tc
 	s.tlsMu.Unlock()
@@ -220,6 +230,7 @@ func (s *Server) handleTLSConn(conn net.Conn) {
 		defer s.tlsWg.Done()
 		err := tc.readLoop(s.handler, s.opts.Logger)
 		tc.closeWithError(s.handler, err)
+		s.connMgr.RemoveConn(tc.id)
 		s.tlsMu.Lock()
 		delete(s.tlsConns, tc.id)
 		s.tlsMu.Unlock()
@@ -254,6 +265,7 @@ func (h *tcpEventHandler) OnShutdown(eng gnet.Engine) {
 func (h *tcpEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	h.server.stats.OnConnect()
 	tconn := newTCPConn(c, h.server.opts, &h.server.stats)
+	h.server.connMgr.AddConn(tconn)
 	c.SetContext(tconn)
 	if h.server.handler != nil {
 		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnConnect", func() {
@@ -267,6 +279,9 @@ func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 	h.server.stats.OnClose()
 	if err != nil {
 		h.server.stats.AddError()
+	}
+	if tc, ok := c.Context().(*tcpConn); ok {
+		h.server.connMgr.RemoveConn(tc.id)
 	}
 	if h.server.handler == nil {
 		return gnet.None
@@ -331,6 +346,8 @@ type tcpConn struct {
 	ctxMu sync.RWMutex
 	ctx   context.Context
 }
+
+var _ kknet.IConn = (*tcpConn)(nil)
 
 func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
 	return &tcpConn{
@@ -412,6 +429,8 @@ type tlsConn struct {
 	ctxMu sync.RWMutex
 	ctx   context.Context
 }
+
+var _ kknet.IConn = (*tlsConn)(nil)
 
 func newTLSConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *tlsConn {
 	return &tlsConn{

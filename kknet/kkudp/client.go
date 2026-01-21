@@ -118,6 +118,8 @@ type clientConn struct {
 	ctx   context.Context
 }
 
+var _ kknet.IConn = (*clientConn)(nil)
+
 func newClientConn(conn *net.UDPConn, opts kknet.Options, stats *kknet.Stats) *clientConn {
 	return &clientConn{
 		id:    kknet.NextConnID(),

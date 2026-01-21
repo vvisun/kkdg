@@ -23,6 +23,7 @@ type Server struct {
 	path    string
 	handler kknet.IHandler
 	opts    kknet.Options
+	connMgr *kknet.ConnManager
 
 	httpServer *http.Server
 	pool       *ants.Pool
@@ -38,6 +39,8 @@ type Server struct {
 	connWg  sync.WaitGroup
 }
 
+var _ kknet.IServer = (*Server)(nil)
+
 // NewServer creates a new WebSocket server.
 func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
 	return &Server{
@@ -46,6 +49,7 @@ func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Serve
 		handler: handler,
 		opts:    kknet.ApplyOptions(opts...),
 		conns:   make(map[int64]*wsConn),
+		connMgr: kknet.NewConnManager(),
 	}
 }
 
@@ -115,6 +119,7 @@ func (s *Server) Start() error {
 		s.connsMu.Lock()
 		s.conns[wsConn.id] = wsConn
 		s.connsMu.Unlock()
+		s.connMgr.AddConn(wsConn)
 		s.connWg.Add(1)
 
 		s.stats.OnConnect()
@@ -132,6 +137,7 @@ func (s *Server) Start() error {
 			s.connsMu.Lock()
 			delete(s.conns, wsConn.id)
 			s.connsMu.Unlock()
+			s.connMgr.RemoveConn(wsConn.id)
 		}()
 	})
 
@@ -267,6 +273,11 @@ func (s *Server) Addr() string {
 // Stats returns a snapshot of server statistics.
 func (s *Server) Stats() kknet.StatsSnapshot {
 	return s.stats.Snapshot()
+}
+
+// GetConnManager returns the connection manager.
+func (s *Server) GetConnManager() kknet.IConnManager {
+	return s.connMgr
 }
 
 func (s *Server) dispatch(c kknet.IConn, data buffers.IBuffer) {

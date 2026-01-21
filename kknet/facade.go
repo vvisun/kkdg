@@ -37,6 +37,14 @@ type IServer interface {
 	Stop() error
 	Addr() string
 	Stats() StatsSnapshot
+	GetConnManager() IConnManager
+}
+
+// IConnManager manages server connections.
+type IConnManager interface {
+	GetAllConns() map[int64]IConn //获取所有连接
+	GetConn(id int64) IConn       //获取指定连接
+	KickConn(id int64)            //踢出指定连接
 }
 
 // IClient represents a client.

@@ -25,6 +25,8 @@ type wsConn struct {
 	ctx   context.Context
 }
 
+var _ kknet.IConn = (*wsConn)(nil)
+
 func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *wsConn {
 	return &wsConn{
 		id:    kknet.NextConnID(),

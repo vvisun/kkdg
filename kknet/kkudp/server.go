@@ -15,9 +15,11 @@ import (
 
 // Server represents a UDP server.
 type Server struct {
-	addr    string
-	handler kknet.IHandler
-	opts    kknet.Options
+	addr     string
+	handler  kknet.IHandler
+	opts     kknet.Options
+	connMgr  *kknet.ConnManager
+	connView *udpConnManager
 
 	engine  gnet.Engine
 	started atomic.Bool
@@ -33,14 +35,21 @@ type Server struct {
 	cleanupDone chan struct{}
 }
 
+var _ kknet.IServer = (*Server)(nil)
+
 // NewServer creates a new UDP server.
 func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
-	return &Server{
-		addr:    addr,
-		handler: handler,
-		opts:    kknet.ApplyOptions(opts...),
-		conns:   make(map[string]*udpConn),
+	baseMgr := kknet.NewConnManager()
+	s := &Server{
+		addr:     addr,
+		handler:  handler,
+		opts:     kknet.ApplyOptions(opts...),
+		conns:    make(map[string]*udpConn),
+		connMgr:  baseMgr,
+		connView: &udpConnManager{base: baseMgr},
 	}
+	s.connView.server = s
+	return s
 }
 
 // Start begins listening for datagrams.
@@ -95,6 +104,11 @@ func (s *Server) Addr() string {
 // Stats returns a snapshot of server statistics.
 func (s *Server) Stats() kknet.StatsSnapshot {
 	return s.stats.Snapshot()
+}
+
+// GetConnManager returns the connection manager.
+func (s *Server) GetConnManager() kknet.IConnManager {
+	return s.connView
 }
 
 type udpEventHandler struct {
@@ -158,6 +172,7 @@ func (s *Server) newConn(c gnet.Conn) *udpConn {
 	s.connsMu.Unlock()
 
 	if !exists {
+		s.connMgr.AddConn(conn)
 		s.stats.OnConnect()
 		if s.handler != nil {
 			kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kkudp OnConnect", func() {
@@ -285,6 +300,7 @@ func (c *udpConn) isIdle(now time.Time, timeout time.Duration) bool {
 
 func (s *Server) closeConn(conn *udpConn, err error) {
 	s.stats.OnClose()
+	s.connMgr.RemoveConn(conn.id)
 	if s.handler == nil {
 		return
 	}
@@ -347,4 +363,42 @@ func (s *Server) pruneIdle() {
 	for _, conn := range idle {
 		s.closeConn(conn, kkerrors.ErrConnectionClosed)
 	}
+}
+
+type udpConnManager struct {
+	base   *kknet.ConnManager
+	server *Server
+}
+
+func (m *udpConnManager) GetAllConns() map[int64]kknet.IConn {
+	return m.base.GetAllConns()
+}
+
+func (m *udpConnManager) GetConn(id int64) kknet.IConn {
+	return m.base.GetConn(id)
+}
+
+func (m *udpConnManager) KickConn(id int64) {
+	if m.server == nil {
+		m.base.KickConn(id)
+		return
+	}
+	conn := m.server.removeConnByID(id)
+	if conn != nil {
+		m.server.closeConn(conn, kkerrors.ErrConnectionClosed)
+		return
+	}
+	m.base.RemoveConn(id)
+}
+
+func (s *Server) removeConnByID(id int64) *udpConn {
+	s.connsMu.Lock()
+	defer s.connsMu.Unlock()
+	for key, conn := range s.conns {
+		if conn.id == id {
+			delete(s.conns, key)
+			return conn
+		}
+	}
+	return nil
 }
