@@ -22,9 +22,9 @@ type (
 		SourcePath string   `json:"sourcePath,omitempty"` // 源节点路径
 		TargetPath string   `json:"targetPath,omitempty"` // 目标节点路径
 		FuncName   string   `json:"funcName,omitempty"`   // 函数名
-		ArgBytes   []byte   `json:"argBytes,omitempty"`   // 参数
-		Timeout    int64    `json:"timeout,omitempty"`    // FuncName请求超时时间(毫秒)
-		Session    *Session `json:"session,omitempty"`    // 会话
+		ArgBytes   []byte   `json:"argBytes,omitempty"`   // 函数参数
+		Timeout    int64    `json:"timeout,omitempty"`    // 函数请求超时时间(毫秒)
+		Session    *Session `json:"session,omitempty"`    // 会话(可选项，可以为空)
 	}
 	// Session 会话
 	Session struct {
@@ -32,7 +32,7 @@ type (
 		Uid       int64             `json:"uid,omitempty"`       // 用户id
 		AgentPath string            `json:"agentPath,omitempty"` // 前端actor agent路径
 		Ip        string            `json:"ip,omitempty"`        // ip地址
-		Data      map[string]string `json:"data,omitempty"`      // 扩展数据
+		Data      map[string]string `json:"data,omitempty"`      // 扩展数据(可选项，可以为空)
 	}
 )
 
