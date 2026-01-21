@@ -103,6 +103,10 @@ func (p *bfPool) calibrate() {
 		defaultSize = minItemSize
 	}
 
+	calibrateCallsThreshold *= 2
+	if calibrateCallsThreshold > 40000 {
+		calibrateCallsThreshold = 40000
+	}
 	atomic.StoreUint64(&p.defaultSize, uint64(defaultSize))
 	atomic.StoreUint64(&p.calibrating, 0)
 }

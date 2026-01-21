@@ -22,9 +22,9 @@ const (
 	minItemSize = 1 << minBitSize               // 64
 	maxItemSize = 1 << (minBitSize + steps - 1) // 64 * 2^19 = 524288 = 512KB
 
-	calibrateCallsThreshold = 10000 // 多少次调用后进行校准
 )
 
+var calibrateCallsThreshold uint64 = 500 // 多少次调用后进行校准
 var defaultPool bfPool
 
 func init() {

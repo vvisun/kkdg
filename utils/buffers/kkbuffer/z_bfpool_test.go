@@ -158,7 +158,7 @@ func TestPool_Calibrate(t *testing.T) {
 	pool := &bfPool{}
 	tstData := strings.Repeat("x", 666)
 
-	for i := 0; i < calibrateCallsThreshold+1; i++ {
+	for i := uint64(0); i < calibrateCallsThreshold+1; i++ {
 		buf := pool.Get()
 		buf.SetString(tstData)
 		pool.Put(buf)

@@ -2,9 +2,6 @@ package kktcp
 
 import (
 	"context"
-	"crypto/tls"
-	"errors"
-	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,10 +10,8 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // Server represents a TCP server with length-prefixed messages.
@@ -33,11 +28,6 @@ type Server struct {
 	done    chan error
 
 	stats kknet.Stats
-
-	tlsListener net.Listener
-	tlsConns    map[int64]*tlsConn
-	tlsMu       sync.Mutex
-	tlsWg       sync.WaitGroup
 }
 
 var _ kknet.IServer = (*Server)(nil)
@@ -61,10 +51,6 @@ func (s *Server) Start() error {
 
 	// Apply middlewares to handler
 	s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
-
-	if s.opts.TLSConfig != nil {
-		return s.startTLS()
-	}
 
 	if s.opts.PoolSize > 0 {
 		poolOpts := make([]ants.Option, 0, 1)
@@ -115,10 +101,6 @@ func (s *Server) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	if s.opts.TLSConfig != nil {
-		return s.stopTLSWithTimeout(ctx)
-	}
-
 	// Stop the gnet engine with timeout
 	if err := s.engine.Stop(ctx); err != nil {
 		if ctx.Err() != nil {
@@ -156,94 +138,6 @@ func (s *Server) Stats() kknet.StatsSnapshot {
 // GetConnManager returns the connection manager.
 func (s *Server) GetConnManager() kknet.IConnManager {
 	return s.connMgr
-}
-
-func (s *Server) startTLS() error {
-	ln, err := net.Listen("tcp", s.addr)
-	if err != nil {
-		s.started.Store(false)
-		return err
-	}
-	s.tlsListener = tls.NewListener(ln, s.opts.TLSConfig)
-	s.tlsConns = make(map[int64]*tlsConn)
-	s.opts.Logger.Infof("kktcp tls server listen on %s", s.addr)
-
-	s.tlsWg.Add(1)
-	go s.acceptTLS()
-	return nil
-}
-
-func (s *Server) stopTLSWithTimeout(ctx context.Context) error {
-	if s.tlsListener != nil {
-		_ = s.tlsListener.Close()
-	}
-	s.closeAllTLS()
-
-	// Wait for all TLS connections to close with timeout
-	done := make(chan struct{})
-	go func() {
-		s.tlsWg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		s.opts.Logger.Warnf("kktcp tls server: some connections did not close within timeout")
-		return ctx.Err()
-	}
-}
-
-func (s *Server) acceptTLS() {
-	defer s.tlsWg.Done()
-	for {
-		conn, err := s.tlsListener.Accept()
-		if err != nil {
-			if errors.Is(err, net.ErrClosed) {
-				return
-			}
-			s.stats.AddError()
-			s.opts.Logger.Errorf("kktcp tls accept error: %v", err)
-			continue
-		}
-		s.handleTLSConn(conn)
-	}
-}
-
-func (s *Server) handleTLSConn(conn net.Conn) {
-	tc := newTLSConn(conn, s.opts, &s.stats)
-	s.connMgr.AddConn(tc)
-	s.tlsMu.Lock()
-	s.tlsConns[tc.id] = tc
-	s.tlsMu.Unlock()
-
-	s.stats.OnConnect()
-	if s.handler != nil {
-		kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kktcp OnConnect", func() {
-			s.handler.OnConnect(tc)
-		})
-	}
-
-	s.tlsWg.Add(1)
-	go func() {
-		defer s.tlsWg.Done()
-		err := tc.readLoop(s.handler, s.opts.Logger)
-		tc.closeWithError(s.handler, err)
-		s.connMgr.RemoveConn(tc.id)
-		s.tlsMu.Lock()
-		delete(s.tlsConns, tc.id)
-		s.tlsMu.Unlock()
-	}()
-}
-
-func (s *Server) closeAllTLS() {
-	s.tlsMu.Lock()
-	defer s.tlsMu.Unlock()
-	for _, c := range s.tlsConns {
-		c.closeWithError(s.handler, kkerrors.ErrServerStopped)
-	}
-	s.tlsConns = make(map[int64]*tlsConn)
 }
 
 type tcpEventHandler struct {
@@ -415,138 +309,4 @@ func (c *tcpConn) SetContext(ctx context.Context) {
 	c.ctxMu.Lock()
 	c.ctx = ctx
 	c.ctxMu.Unlock()
-}
-
-type tlsConn struct {
-	id    int64
-	conn  net.Conn
-	opts  kknet.Options
-	stats *kknet.Stats
-
-	writeMu   sync.Mutex
-	closeOnce sync.Once
-
-	ctxMu sync.RWMutex
-	ctx   context.Context
-}
-
-var _ kknet.IConn = (*tlsConn)(nil)
-
-func newTLSConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *tlsConn {
-	return &tlsConn{
-		id:    kknet.NextConnID(),
-		conn:  conn,
-		opts:  opts,
-		stats: stats,
-		ctx:   context.Background(),
-	}
-}
-
-func (c *tlsConn) ID() int64 {
-	return c.id
-}
-
-func (c *tlsConn) RemoteAddr() string {
-	return c.conn.RemoteAddr().String()
-}
-
-func (c *tlsConn) Send(data []byte) error {
-	if len(data) > c.opts.MaxMessageSize {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return kkerrors.ErrMaxMessageSize
-	}
-
-	bb, err1 := c.opts.StreamPacket.Pack(data, c.opts.MaxMessageSize)
-	if err1 != nil {
-		kkbuffer.Put(bb)
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err1
-	}
-
-	defer kkbuffer.Put(bb)
-
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-
-	err := writeFull(c.conn, bb.B)
-	if err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
-	if c.stats != nil {
-		c.stats.AddSent(len(data))
-	}
-	return nil
-}
-
-func (c *tlsConn) Close() error {
-	return c.conn.Close()
-}
-
-func (c *tlsConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
-
-func (c *tlsConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
-}
-
-func (c *tlsConn) readLoop(handler kknet.IHandler, logger kklog.ILogger) error {
-	header := make([]byte, 4)
-	for {
-		if err := readFull(c.conn, header); err != nil {
-			return err
-		}
-		size := int(kkpacket.GetByteOrder().Uint32(header))
-		if size < 0 || size > c.opts.MaxMessageSize {
-			if c.stats != nil {
-				c.stats.AddError()
-			}
-			return kkerrors.ErrMaxMessageSize
-		}
-		payload := kkbuffer.GetWithCapacity(size)
-		payload.B = payload.B[:size]
-		if err := readFull(c.conn, payload.B); err != nil {
-			kkbuffer.Put(payload)
-			return err
-		}
-		if c.stats != nil {
-			c.stats.AddRecv(len(payload.B))
-		}
-		if handler != nil {
-			kknet.SafeHandlerCall(logger, c.stats, "kktcp OnMessage", func() {
-				handler.OnMessage(c, payload)
-			})
-			kkbuffer.Put(payload)
-			continue
-		}
-		kkbuffer.Put(payload)
-	}
-}
-
-func (c *tlsConn) closeWithError(handler kknet.IHandler, err error) {
-	c.closeOnce.Do(func() {
-		if c.stats != nil {
-			c.stats.OnClose()
-			if err != nil {
-				c.stats.AddError()
-			}
-		}
-		_ = c.conn.Close()
-		if handler != nil {
-			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "kktcp OnClose", func() {
-				handler.OnClose(c, err)
-			})
-		}
-	})
 }
