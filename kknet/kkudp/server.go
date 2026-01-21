@@ -9,8 +9,6 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Server represents a UDP server.
@@ -111,54 +109,6 @@ func (s *Server) GetConnManager() kknet.IConnManager {
 	return s.connView
 }
 
-type udpEventHandler struct {
-	*gnet.BuiltinEventEngine
-	server *Server
-}
-
-func (h *udpEventHandler) OnBoot(eng gnet.Engine) (action gnet.Action) {
-	h.server.engine = eng
-	h.server.opts.Logger.Infof("kkudp server listen on %s", h.server.addr)
-	close(h.server.booted)
-	return gnet.None
-}
-
-func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
-	size := c.InboundBuffered()
-	if size <= 0 {
-		return gnet.None
-	}
-	if size > h.server.opts.MaxMessageSize {
-		h.server.stats.AddError()
-		h.server.opts.Logger.Errorf("kkudp message too large: %d", size)
-		return gnet.None
-	}
-	data, err := c.Next(size)
-	if err != nil {
-		h.server.stats.AddError()
-		h.server.opts.Logger.Errorf("kkudp read error: %v", err)
-		return gnet.None
-	}
-
-	uc := h.server.newConn(c)
-	h.server.stats.AddRecv(len(data))
-	if h.server.handler != nil {
-		payload := kkbuffer.Get()
-		payload.SetBytes(data)
-		h.dispatch(uc, payload)
-	}
-	uc.deactivate()
-	return gnet.None
-}
-
-func (h *udpEventHandler) dispatch(c *udpConn, data buffers.IBuffer) {
-	// UDP connection is only valid during OnTraffic callback.
-	defer kkbuffer.Put(data)
-	kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kkudp OnMessage", func() {
-		h.server.handler.OnMessage(c, data)
-	})
-}
-
 func (s *Server) newConn(c gnet.Conn) *udpConn {
 	key := c.RemoteAddr().String()
 	now := time.Now()
@@ -194,108 +144,6 @@ func (s *Server) closeAll(err error) {
 	for _, conn := range conns {
 		s.closeConn(conn, err)
 	}
-}
-
-type udpConn struct {
-	id         int64
-	conn       gnet.Conn
-	remoteAddr string
-	opts       kknet.Options
-	active     atomic.Bool
-	stats      *kknet.Stats
-	lastSeen   atomic.Int64
-
-	ctxMu sync.RWMutex
-	ctx   context.Context
-}
-
-func newUDPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats, now time.Time) *udpConn {
-	conn := &udpConn{
-		id:         kknet.NextConnID(),
-		conn:       c,
-		remoteAddr: c.RemoteAddr().String(),
-		opts:       opts,
-		stats:      stats,
-		ctx:        context.Background(),
-	}
-	conn.active.Store(true)
-	conn.lastSeen.Store(now.UnixNano())
-	return conn
-}
-
-func (c *udpConn) ID() int64 {
-	return c.id
-}
-
-func (c *udpConn) RemoteAddr() string {
-	return c.remoteAddr
-}
-
-func (c *udpConn) Send(data []byte) error {
-	if !c.active.Load() {
-		return kkerrors.ErrConnectionClosed
-	}
-	if len(data) > c.opts.MaxMessageSize {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return kkerrors.ErrMaxMessageSize
-	}
-	if c.conn == nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return kkerrors.ErrConnectionClosed
-	}
-	_, err := c.conn.Write(data)
-	if err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
-	if c.stats != nil {
-		c.stats.AddSent(len(data))
-	}
-	return nil
-}
-
-func (c *udpConn) Close() error {
-	return nil
-}
-
-func (c *udpConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
-
-func (c *udpConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
-}
-
-func (c *udpConn) deactivate() {
-	c.active.Store(false)
-}
-
-func (c *udpConn) activate(conn gnet.Conn, now time.Time) {
-	c.conn = conn
-	c.remoteAddr = conn.RemoteAddr().String()
-	c.active.Store(true)
-	c.lastSeen.Store(now.UnixNano())
-}
-
-func (c *udpConn) isIdle(now time.Time, timeout time.Duration) bool {
-	if c.active.Load() {
-		return false
-	}
-	last := c.lastSeen.Load()
-	if last == 0 {
-		return false
-	}
-	return now.Sub(time.Unix(0, last)) >= timeout
 }
 
 func (s *Server) closeConn(conn *udpConn, err error) {
@@ -365,6 +213,18 @@ func (s *Server) pruneIdle() {
 	}
 }
 
+func (s *Server) removeConnByID(id int64) *udpConn {
+	s.connsMu.Lock()
+	defer s.connsMu.Unlock()
+	for key, conn := range s.conns {
+		if conn.id == id {
+			delete(s.conns, key)
+			return conn
+		}
+	}
+	return nil
+}
+
 type udpConnManager struct {
 	base   *kknet.ConnManager
 	server *Server
@@ -389,16 +249,4 @@ func (m *udpConnManager) KickConn(id int64) {
 		return
 	}
 	m.base.RemoveConn(id)
-}
-
-func (s *Server) removeConnByID(id int64) *udpConn {
-	s.connsMu.Lock()
-	defer s.connsMu.Unlock()
-	for key, conn := range s.conns {
-		if conn.id == id {
-			delete(s.conns, key)
-			return conn
-		}
-	}
-	return nil
 }
