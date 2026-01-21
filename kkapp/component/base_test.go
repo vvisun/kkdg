@@ -27,6 +27,15 @@ func TestAddChildSuccess(t *testing.T) {
 	}
 }
 
+func TestAddChildWithoutStart(t *testing.T) {
+	parent := newComponent("parent")
+	child := newComponent("child")
+
+	if err := parent.AddChild(child, false); err != nil {
+		t.Fatalf("AddChild without start unexpected error: %v", err)
+	}
+}
+
 func TestAddChildAlreadyHasParent(t *testing.T) {
 	parent1 := newComponent("p1")
 	parent2 := newComponent("p2")

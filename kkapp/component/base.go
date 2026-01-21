@@ -7,7 +7,6 @@ import (
 
 type IComponentLifecycle interface {
 	Start() error
-	BeforeShutdown() error
 	Stop() error
 	AfterShutdown() error
 }
@@ -23,6 +22,7 @@ type IComponentContainer interface {
 type IComponent interface {
 	GetID() string
 	GetName() string
+	SetName(name string)
 	IComponentLifecycle
 	IComponentContainer
 }
@@ -39,6 +39,7 @@ const (
 
 type Component struct {
 	id        string
+	name      string
 	parent    IComponent
 	childlist []IComponent
 }
@@ -111,29 +112,25 @@ func (slf *Component) GetID() string {
 }
 
 func (slf *Component) GetName() string {
+	if slf.name != "" {
+		return slf.name
+	}
 	name := slf.GetID()
 	cur := slf.parent
 	for cur != nil {
 		name = cur.GetID() + "." + name
 		cur = cur.GetParent()
 	}
-	return name
+	slf.name = name
+	return slf.name
+}
+
+func (slf *Component) SetName(name string) {
+	slf.name = name
 }
 
 // Start was called to start the component.
 func (slf *Component) Start() error {
-	return nil
-}
-
-// BeforeShutdown was called before the component to shutdown.
-func (slf *Component) BeforeShutdown() error {
-	for i := len(slf.childlist) - 1; i >= 0; i-- {
-		if err := slf.childlist[i].BeforeShutdown(); err != nil {
-			kklog.Errorf("[component] %s before shutdown error: %v", slf.childlist[i].GetName(), err)
-			return kkerrors.FormatErrorErr("component", err, "before shutdown failed: %s", slf.childlist[i].GetName())
-		}
-		kklog.Infof("[component] %s before shutdown success", slf.childlist[i].GetName())
-	}
 	return nil
 }
 
