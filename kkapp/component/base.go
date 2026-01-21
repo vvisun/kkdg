@@ -12,7 +12,7 @@ type IComponentLifecycle interface {
 }
 
 type IComponentContainer interface {
-	AddChild(child IComponent, start bool) error
+	AddChild(child IComponent) error
 	RemoveChild(child IComponent) error
 	GetParent() IComponent
 	GetChildrens() []IComponent
@@ -20,9 +20,8 @@ type IComponentContainer interface {
 }
 
 type IComponent interface {
-	GetID() string
-	GetName() string
-	SetName(name string)
+	GetID() string   // 组件ID。unique id for the component.
+	GetName() string // 组件名称。name for the component.
 	IComponentLifecycle
 	IComponentContainer
 }
@@ -59,7 +58,7 @@ func (slf *Component) HasChild(target IComponent) bool {
 	return false
 }
 
-func (slf *Component) AddChild(child IComponent, start bool) error {
+func (slf *Component) AddChild(child IComponent) error {
 	if child.GetParent() != nil {
 		return kkerrors.ErrComponentAlreadySetParent
 	}
@@ -68,11 +67,6 @@ func (slf *Component) AddChild(child IComponent, start bool) error {
 	}
 	slf.childlist = append(slf.childlist, child)
 	child.(*Component).parent = slf
-	if start {
-		if err := child.Start(); err != nil {
-			return kkerrors.FormatErrorErr("component", err, "add child failed: %s", child.GetID())
-		}
-	}
 	return nil
 }
 
@@ -123,10 +117,6 @@ func (slf *Component) GetName() string {
 	}
 	slf.name = name
 	return slf.name
-}
-
-func (slf *Component) SetName(name string) {
-	slf.name = name
 }
 
 // Start was called to start the component.

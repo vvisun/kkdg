@@ -12,7 +12,7 @@ import (
 )
 
 type udpConn struct {
-	id         int64
+	id         kknet.CONN_ID
 	conn       gnet.Conn
 	remoteAddr string
 	opts       kknet.Options
@@ -38,7 +38,7 @@ func newUDPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats, now time.Ti
 	return conn
 }
 
-func (c *udpConn) ID() int64 {
+func (c *udpConn) ID() kknet.CONN_ID {
 	return c.id
 }
 

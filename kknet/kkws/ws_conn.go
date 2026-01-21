@@ -13,7 +13,7 @@ import (
 )
 
 type wsConn struct {
-	id    int64
+	id    kknet.CONN_ID
 	conn  *websocket.Conn
 	opts  kknet.Options
 	stats *kknet.Stats
@@ -37,7 +37,7 @@ func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *ws
 	}
 }
 
-func (c *wsConn) ID() int64 {
+func (c *wsConn) ID() kknet.CONN_ID {
 	return c.id
 }
 

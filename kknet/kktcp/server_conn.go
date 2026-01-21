@@ -11,7 +11,7 @@ import (
 )
 
 type tcpConn struct {
-	id    int64
+	id    kknet.CONN_ID
 	conn  gnet.Conn
 	opts  kknet.Options
 	stats *kknet.Stats
@@ -32,7 +32,7 @@ func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
 	}
 }
 
-func (c *tcpConn) ID() int64 {
+func (c *tcpConn) ID() kknet.CONN_ID {
 	return c.id
 }
 

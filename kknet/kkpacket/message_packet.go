@@ -7,7 +7,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-type packer struct {
+type PacketCodec struct {
 	headType  uint8
 	codecType uint8
 }
@@ -15,7 +15,7 @@ type packer struct {
 type packerKey int
 
 var (
-	packerCache = make(map[packerKey]*packer)
+	packerCache = make(map[packerKey]*PacketCodec)
 )
 
 func init() {
@@ -32,14 +32,14 @@ func initPacker(headType uint8, codecType uint8) {
 	// headType: bits 16-23 (8 bits, 0-255)
 	// codecType: bits 8-15 (8 bits, 0-255)
 	key := packerKey(headType)<<16 | packerKey(codecType)<<8
-	p := &packer{
+	p := &PacketCodec{
 		headType:  headType,
 		codecType: codecType,
 	}
 	packerCache[key] = p
 }
 
-func NewPacker(headType uint8, codecType uint8) *packer {
+func NewPacker(headType uint8, codecType uint8) *PacketCodec {
 	// key layout: [headType:8 bits][codecType:8 bits]
 	// headType: bits 16-23 (8 bits, 0-255)
 	// codecType: bits 8-15 (8 bits, 0-255)

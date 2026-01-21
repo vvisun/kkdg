@@ -13,7 +13,7 @@ import (
 )
 
 type clientConn struct {
-	id    int64
+	id    kknet.CONN_ID
 	conn  net.Conn
 	opts  kknet.Options
 	stats *kknet.Stats
@@ -37,7 +37,7 @@ func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clien
 	}
 }
 
-func (c *clientConn) ID() int64 {
+func (c *clientConn) ID() kknet.CONN_ID {
 	return c.id
 }
 

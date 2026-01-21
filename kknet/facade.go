@@ -7,16 +7,19 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers"
 )
 
-var connIDCounter atomic.Int64
+// CONN_ID is the type of connection ID.
+type CONN_ID = int64
 
-// NextConnID returns a unique connection id.
-func NextConnID() int64 {
+var connIDCounter atomic.Int64 // counter for connection ID. unique id for the connection.
+
+// NextConnID returns a unique connection ID.
+func NextConnID() CONN_ID {
 	return connIDCounter.Add(1)
 }
 
 // IConn represents a network connection.
 type IConn interface {
-	ID() int64                      //unique connection id
+	ID() CONN_ID                    //unique connection id
 	Send(data []byte) error         //send data
 	Close() error                   //close connection
 	RemoteAddr() string             //remote address

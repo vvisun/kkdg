@@ -60,7 +60,7 @@ func ParseHeadMidSeq(data []byte, endian binary.ByteOrder) HeadMidSeq {
 	@return *T 消息对象
 	@return error 错误
 */
-func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
+func DecodePacket[T any](data []byte, pkType *PacketCodec) (*T, error) {
 	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 {
 		return nil, kkerrors.ErrInvalidMsgHeadType
@@ -115,7 +115,7 @@ func DecodePacket[T any](data []byte, pkType *packer) (*T, error) {
 	@return any 消息对象
 	@return error 错误
 */
-func DecodePacketBytes(data []byte, pkType *packer) (any, error) {
+func DecodePacketBytes(data []byte, pkType *PacketCodec) (any, error) {
 	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 || len(data) < headSize {
 		return nil, kkerrors.ErrInvalidMsgHeadType
@@ -174,7 +174,7 @@ func DecodePacketBytes(data []byte, pkType *packer) (any, error) {
 	@return []byte 包数据
 	@return error 错误
 */
-func EncodePacket[T any](v *T, pkType *packer) ([]byte, error) {
+func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
@@ -216,7 +216,7 @@ func EncodePacket[T any](v *T, pkType *packer) ([]byte, error) {
 	@return buffers.IBuffer 包数据
 	@return error 错误
 */
-func EncodePacketEx[T any](v *T, pkType *packer) (buffers.IBuffer, error) {
+func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec

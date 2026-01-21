@@ -15,7 +15,7 @@ func TestAddChildSuccess(t *testing.T) {
 	parent := newComponent("parent")
 	child := newComponent("child")
 
-	if err := parent.AddChild(child, true); err != nil {
+	if err := parent.AddChild(child); err != nil {
 		t.Fatalf("AddChild unexpected error: %v", err)
 	}
 
@@ -31,7 +31,7 @@ func TestAddChildWithoutStart(t *testing.T) {
 	parent := newComponent("parent")
 	child := newComponent("child")
 
-	if err := parent.AddChild(child, false); err != nil {
+	if err := parent.AddChild(child); err != nil {
 		t.Fatalf("AddChild without start unexpected error: %v", err)
 	}
 }
@@ -43,7 +43,7 @@ func TestAddChildAlreadyHasParent(t *testing.T) {
 	// Simulate existing parent relationship.
 	child.parent = parent1
 
-	if err := parent2.AddChild(child, true); !errors.Is(err, kkerrors.ErrComponentAlreadySetParent) {
+	if err := parent2.AddChild(child); !errors.Is(err, kkerrors.ErrComponentAlreadySetParent) {
 		t.Fatalf("expected ErrComponentAlreadySetParent, got %v", err)
 	}
 }
@@ -52,10 +52,10 @@ func TestAddChildDuplicate(t *testing.T) {
 	parent := newComponent("parent")
 	child := newComponent("child")
 
-	if err := parent.AddChild(child, true); err != nil {
+	if err := parent.AddChild(child); err != nil {
 		t.Fatalf("first AddChild unexpected error: %v", err)
 	}
-	if err := parent.AddChild(child, true); !errors.Is(err, kkerrors.ErrComponentAlreadySetParent) {
+	if err := parent.AddChild(child); !errors.Is(err, kkerrors.ErrComponentAlreadySetParent) {
 		t.Fatalf("expected ErrComponentAlreadySetParent, got %v", err)
 	}
 }
@@ -63,7 +63,7 @@ func TestAddChildDuplicate(t *testing.T) {
 func TestRemoveChild(t *testing.T) {
 	parent := newComponent("parent")
 	child := newComponent("child")
-	if err := parent.AddChild(child, true); err != nil {
+	if err := parent.AddChild(child); err != nil {
 		t.Fatalf("AddChild unexpected error: %v", err)
 	}
 
@@ -83,10 +83,10 @@ func TestGetRoot(t *testing.T) {
 	level1 := newComponent("level1")
 	level2 := newComponent("level2")
 
-	if err := root.AddChild(level1, true); err != nil {
+	if err := root.AddChild(level1); err != nil {
 		t.Fatalf("AddChild level1 error: %v", err)
 	}
-	if err := level1.AddChild(level2, true); err != nil {
+	if err := level1.AddChild(level2); err != nil {
 		t.Fatalf("AddChild level2 error: %v", err)
 	}
 

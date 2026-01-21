@@ -27,13 +27,13 @@ type IStreamPacket interface {
 
 // LengthFieldStreamPacket packs and unpacks 4-byte length-prefixed frames.
 type LengthFieldStreamPacket struct {
-	msgPacket *packer
+	msgPacket *PacketCodec
 }
 
 var _ IStreamPacket = (*LengthFieldStreamPacket)(nil)
 
 // NewLengthFieldStreamPacket creates a length-field stream packet.
-func NewLengthFieldStreamPacket(msgPacket *packer) *LengthFieldStreamPacket {
+func NewLengthFieldStreamPacket(msgPacket *PacketCodec) *LengthFieldStreamPacket {
 	return &LengthFieldStreamPacket{msgPacket: msgPacket}
 }
 
