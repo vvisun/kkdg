@@ -8,7 +8,25 @@ import (
 // codec for the gate
 var codec kkpacket.PacketCodec
 
-// GateComponent is a component that provides a gate for the application.
+// 网关服
 type GateComponent struct {
 	component.Component
+}
+
+func (slf *GateComponent) GetID() string {
+	return "gate"
+}
+
+var _ component.IComponent = (*GateComponent)(nil)
+
+func (slf *GateComponent) Init() error {
+	return nil
+}
+
+func (slf *GateComponent) Start() error {
+	return nil
+}
+
+func (slf *GateComponent) Stop() error {
+	return nil
 }

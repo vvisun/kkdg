@@ -31,10 +31,12 @@ func (slf *Application) Start() error {
 }
 
 func (slf *Application) Stop() error {
-	err := slf.Component.Stop()
-	if err != nil {
-		kklog.Errorf("[kkapp] application %s stop error: %v", slf.GetName(), err)
+	childlist := slf.GetChildrens()
+	for i := len(childlist) - 1; i >= 0; i-- {
+		if err := childlist[i].Stop(); err != nil {
+			kklog.Errorf("[kkapp] application %s stop child %s error: %v", slf.GetName(), childlist[i].GetName(), err)
+		}
+		kklog.Infof("[kkapp] application %s stop child %s success", slf.GetName(), childlist[i].GetName())
 	}
-	kklog.Infof("[kkapp] application %s stop success", slf.GetName())
 	return nil
 }

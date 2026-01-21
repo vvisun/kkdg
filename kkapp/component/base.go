@@ -2,13 +2,15 @@ package component
 
 import (
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type IComponentLifecycle interface {
-	Start() error
-	Stop() error
-	AfterShutdown() error
+	Init() error //初始化组件
+	//OnInit() error  //初始化组件时调用
+	Start() error //启动组件
+	//OnStart() error //启动组件时调用
+	Stop() error //停止组件
+	//OnStop() error  //停止组件时调用
 }
 
 type IComponentContainer interface {
@@ -119,29 +121,32 @@ func (slf *Component) GetName() string {
 	return slf.name
 }
 
+// Init was called to initialize the component.
+func (slf *Component) Init() error {
+	return nil
+}
+
+// OnInit was called to initialize the component.
+func (slf *Component) OnInit() error {
+	return nil
+}
+
 // Start was called to start the component.
 func (slf *Component) Start() error {
 	return nil
 }
 
-// Stop was called to stop the component.
-func (slf *Component) Stop() error {
-	for i := len(slf.childlist) - 1; i >= 0; i-- {
-		if err := slf.childlist[i].Stop(); err != nil {
-			kklog.Errorf("[component] %s stop error: %v", slf.childlist[i].GetName(), err)
-		}
-		kklog.Infof("[component] %s stop success", slf.childlist[i].GetName())
-	}
+// OnStart was called to start the component.
+func (slf *Component) OnStart() error {
 	return nil
 }
 
-// AfterShutdown was called after the component is shutdown.
-func (slf *Component) AfterShutdown() error {
-	for i := len(slf.childlist) - 1; i >= 0; i-- {
-		if err := slf.childlist[i].AfterShutdown(); err != nil {
-			kklog.Errorf("[component] %s after shutdown error: %v", slf.childlist[i].GetName(), err)
-		}
-		kklog.Infof("[component] %s after shutdown success", slf.childlist[i].GetName())
-	}
+// Stop was called to stop the component.
+func (slf *Component) Stop() error {
+	return nil
+}
+
+// OnStop was called to stop the component.
+func (slf *Component) OnStop() error {
 	return nil
 }
