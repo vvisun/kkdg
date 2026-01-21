@@ -26,21 +26,16 @@ func (slf *Application) GetID() string {
 }
 
 func (slf *Application) Start() error {
-	if err := slf.Init(); err != nil {
-		kklog.Errorf("[kkapp] application start failed: %v", err)
-		return err
-	}
 	return nil
 }
 
 func (slf *Application) Stop() error {
 	if err := slf.BeforeShutdown(); err != nil {
-		kklog.Errorf("[kkapp] application before shutdown failed: %v", err)
-		return err
+		kklog.Errorf("[kkapp] application %s before shutdown error: %v", slf.GetName(), err)
 	}
-	if err := slf.Shutdown(); err != nil {
-		kklog.Errorf("[kkapp] application shutdown failed: %v", err)
-		return err
+	err := slf.Component.Stop()
+	if err != nil {
+		kklog.Errorf("[kkapp] application %s stop error: %v", slf.GetName(), err)
 	}
 	return nil
 }
