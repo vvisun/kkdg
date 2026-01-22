@@ -11,6 +11,8 @@ import (
 )
 
 // message = head + body
+// head = msgID + seq + ...(optional)
+// body = object data
 
 const (
 	HeadTypeMid uint8 = iota
@@ -56,6 +58,7 @@ type MsgInfo struct {
 	Err  error
 }
 
+// 解析消息信息。二进制流解析为 消息ID 和 消息体
 func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 {
