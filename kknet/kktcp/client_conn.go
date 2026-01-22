@@ -13,6 +13,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"golang.org/x/sync/semaphore"
 )
 
 type clientConn struct {
@@ -21,15 +22,19 @@ type clientConn struct {
 	opts  kknet.Options
 	stats *kknet.Stats
 
-	sendMu     sync.Mutex
-	sendCond   *sync.Cond
-	sendQueue  []*kkbuffer.ByteBuffer
-	sendHead   int
-	sendQueued int
-	sendLimit  int
-	sendClosed bool
-	sendDrain  bool
-	closeOnce  sync.Once
+	sendMu      sync.Mutex
+	sendData    *sync.Cond
+	sendQueue   []*kkbuffer.ByteBuffer
+	sendHead    int
+	sendTail    int
+	sendCount   int
+	sendLimit   int
+	sendClosed  bool
+	sendDrain   bool
+	spaceSem    *semaphore.Weighted
+	spaceCtx    context.Context
+	spaceCancel context.CancelFunc
+	closeOnce   sync.Once
 
 	ctxMu sync.RWMutex
 	ctx   context.Context
@@ -42,15 +47,24 @@ func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clien
 	if queueLimit < opts.MaxMessageSize {
 		queueLimit = opts.MaxMessageSize
 	}
-	cc := &clientConn{
-		id:        kknet.NextConnID(),
-		conn:      conn,
-		opts:      opts,
-		stats:     stats,
-		sendLimit: queueLimit,
-		ctx:       context.Background(),
+	spaceCtx, spaceCancel := context.WithCancel(context.Background())
+	queueSize := opts.TcpClientSendQueueSize
+	if queueSize <= 0 {
+		queueSize = 64
 	}
-	cc.sendCond = sync.NewCond(&cc.sendMu)
+	cc := &clientConn{
+		id:          kknet.NextConnID(),
+		conn:        conn,
+		opts:        opts,
+		stats:       stats,
+		sendLimit:   queueLimit,
+		sendQueue:   make([]*kkbuffer.ByteBuffer, queueSize),
+		spaceSem:    semaphore.NewWeighted(int64(queueLimit)),
+		spaceCtx:    spaceCtx,
+		spaceCancel: spaceCancel,
+		ctx:         context.Background(),
+	}
+	cc.sendData = sync.NewCond(&cc.sendMu)
 	return cc
 }
 
@@ -63,6 +77,19 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
+	if len(bb.B) > c.opts.MaxMessageSize {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return kkerrors.ErrMaxMessageSize
+	}
+	if len(bb.B) > c.sendLimit {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return kkerrors.ErrMaxMessageSize
+	}
+
 	// as bb is not used in other places, we can just use it directly
 	// but maybe other places did Put(bb), so we need to get a new one
 	// just swap, no need to copy. avoid other put(bb) and reuse, make bb dirty.
@@ -71,29 +98,42 @@ func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
 	bb.B, oldBB.B = oldBB.B, bb.B
 	kkbuffer.Put(oldBB)
 
-	c.sendMu.Lock()
-	if len(bb.B) > c.sendLimit {
-		c.sendLimit = len(bb.B)
-	}
-	for !c.sendClosed && c.sendQueued+len(bb.B) > c.sendLimit {
-		c.sendCond.Wait()
-	}
-	if c.sendClosed {
-		c.sendMu.Unlock()
+	if err := c.spaceSem.Acquire(c.spaceCtx, int64(len(bb.B))); err != nil {
 		kkbuffer.Put(bb)
 		if c.stats != nil {
 			c.stats.AddError()
 		}
 		return kkerrors.ErrConnectionClosed
 	}
-	c.sendQueue = append(c.sendQueue, bb)
-	c.sendQueued += len(bb.B)
-	c.sendCond.Signal()
+
+	c.sendMu.Lock()
+	if c.sendClosed {
+		c.sendMu.Unlock()
+		c.spaceSem.Release(int64(len(bb.B)))
+		kkbuffer.Put(bb)
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return kkerrors.ErrConnectionClosed
+	}
+	if c.sendCount == len(c.sendQueue) {
+		c.growSendQueueLocked()
+	}
+	c.sendQueue[c.sendTail] = bb
+	c.sendTail = (c.sendTail + 1) % len(c.sendQueue)
+	c.sendCount++
+	c.sendData.Signal()
 	c.sendMu.Unlock()
 	return nil
 }
 
 func (c *clientConn) Send(data []byte) error {
+	if len(data) > c.opts.MaxMessageSize {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return kkerrors.ErrMaxMessageSize
+	}
 	bb := kkbuffer.GetWithCapacity(len(data))
 	bb.B = bb.B[:len(data)]
 	copy(bb.B, data)
@@ -106,8 +146,9 @@ func (c *clientConn) Close() error {
 	c.sendDrain = c.opts.TcpClientNeedFlushOver
 	flushTimeout := c.opts.TimeoutTcpFlushOver
 	flushCb := c.opts.TcpClientFlushTimeoutCallback
-	c.sendCond.Broadcast()
+	c.sendData.Broadcast()
 	c.sendMu.Unlock()
+	c.spaceCancel()
 	if !c.sendDrain {
 		return c.conn.Close()
 	}
@@ -121,7 +162,7 @@ func (c *clientConn) Close() error {
 			if c.sendClosed && c.sendDrain {
 				shouldCallback = flushCb != nil
 				c.sendDrain = false
-				c.sendCond.Broadcast()
+				c.sendData.Broadcast()
 				if c.stats != nil {
 					c.stats.AddError()
 				}
@@ -184,8 +225,9 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 		c.sendMu.Lock()
 		c.sendClosed = true
 		c.sendDrain = false
-		c.sendCond.Broadcast()
+		c.sendData.Broadcast()
 		c.sendMu.Unlock()
+		c.spaceCancel()
 		if c.stats != nil {
 			c.stats.OnClose()
 			if err != nil {
@@ -204,14 +246,14 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 func (c *clientConn) writeLoop() error {
 	for {
 		c.sendMu.Lock()
-		for c.sendHead >= len(c.sendQueue) && !c.sendClosed {
-			c.sendCond.Wait()
+		for c.sendCount == 0 && !c.sendClosed {
+			c.sendData.Wait()
 		}
 		if c.sendClosed && !c.sendDrain {
 			c.sendMu.Unlock()
 			return nil
 		}
-		if c.sendHead >= len(c.sendQueue) {
+		if c.sendCount == 0 {
 			if c.sendClosed && c.sendDrain {
 				c.sendDrain = false
 				c.sendMu.Unlock()
@@ -223,10 +265,13 @@ func (c *clientConn) writeLoop() error {
 		}
 		bb := c.sendQueue[c.sendHead]
 		c.sendQueue[c.sendHead] = nil
-		c.sendHead++
-		c.sendQueued -= len(bb.B)
-		c.compactSendQueueLocked()
-		c.sendCond.Broadcast()
+		c.sendHead = (c.sendHead + 1) % len(c.sendQueue)
+		c.sendCount--
+		if c.sendCount == 0 {
+			c.sendHead = 0
+			c.sendTail = 0
+		}
+		c.spaceSem.Release(int64(len(bb.B)))
 		c.sendMu.Unlock()
 
 		err := writeFull(c.conn, bb.B)
@@ -241,11 +286,23 @@ func (c *clientConn) writeLoop() error {
 	}
 }
 
-func (c *clientConn) compactSendQueueLocked() {
-	if c.sendHead > 0 && c.sendHead*2 >= len(c.sendQueue) {
-		c.sendQueue = append([]*kkbuffer.ByteBuffer(nil), c.sendQueue[c.sendHead:]...)
-		c.sendHead = 0
+func (c *clientConn) growSendQueueLocked() {
+	newSize := len(c.sendQueue) * 2
+	if newSize == 0 {
+		newSize = 64
 	}
+	newQueue := make([]*kkbuffer.ByteBuffer, newSize)
+	if c.sendCount > 0 {
+		if c.sendHead < c.sendTail {
+			copy(newQueue, c.sendQueue[c.sendHead:c.sendTail])
+		} else {
+			n := copy(newQueue, c.sendQueue[c.sendHead:])
+			copy(newQueue[n:], c.sendQueue[:c.sendTail])
+		}
+	}
+	c.sendQueue = newQueue
+	c.sendHead = 0
+	c.sendTail = c.sendCount
 }
 
 func readFull(r io.Reader, buf []byte) error {

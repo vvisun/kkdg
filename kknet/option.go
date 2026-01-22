@@ -31,6 +31,7 @@ type Options struct {
 	TcpClientNeedFlushOver        bool                                    //tcp客户端关闭时是否需要等待 flush 完成
 	TimeoutTcpFlushOver           time.Duration                           //tcp客户端关闭时等待 flush 完成的超时时间
 	TcpClientFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
+	TcpClientSendQueueSize        int                                     //tcp客户端发送队列初始容量
 }
 
 const (
@@ -54,19 +55,20 @@ type Option func(*Options)
 // DefaultOptions returns default settings.
 func DefaultOptions() Options {
 	return Options{
-		Logger:             kklog.Stdout(),
-		MaxMessageSize:     defaultMaxMessageSize,
-		PoolSize:           xos.NumCPU(),
-		ReadBufferSize:     defaultBufferSize,
-		WriteBufferSize:    defaultBufferSize,
-		TLSConfig:          nil,
-		OriginChecker:      defaultOriginChecker,
-		ShutdownTimeout:    defaultShutdownTimeout,
-		UDPConnIdleTimeout: defaultUDPConnIdleTimeout,
-		UDPCleanupInterval: defaultUDPCleanupInterval,
-		ReadTimeout:        defaultReadTimeout,
-		WriteTimeout:       defaultWriteTimeout,
-		StreamPacket:       kkpacket.NewLengthFieldStreamPacket(nil),
+		Logger:                 kklog.Stdout(),
+		MaxMessageSize:         defaultMaxMessageSize,
+		PoolSize:               xos.NumCPU(),
+		ReadBufferSize:         defaultBufferSize,
+		WriteBufferSize:        defaultBufferSize,
+		TLSConfig:              nil,
+		OriginChecker:          defaultOriginChecker,
+		ShutdownTimeout:        defaultShutdownTimeout,
+		UDPConnIdleTimeout:     defaultUDPConnIdleTimeout,
+		UDPCleanupInterval:     defaultUDPCleanupInterval,
+		ReadTimeout:            defaultReadTimeout,
+		WriteTimeout:           defaultWriteTimeout,
+		StreamPacket:           kkpacket.NewLengthFieldStreamPacket(nil),
+		TcpClientSendQueueSize: 64,
 	}
 }
 
@@ -228,5 +230,14 @@ func WithTimeoutTcpFlushOver(timeout time.Duration) Option {
 func WithTcpClientFlushTimeoutCallback(cb func(conn IConn, timeout time.Duration)) Option {
 	return func(o *Options) {
 		o.TcpClientFlushTimeoutCallback = cb
+	}
+}
+
+// WithTcpClientSendQueueSize sets tcp client send queue initial size.
+func WithTcpClientSendQueueSize(size int) Option {
+	return func(o *Options) {
+		if size > 0 {
+			o.TcpClientSendQueueSize = size
+		}
 	}
 }
