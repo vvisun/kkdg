@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/buffers/kkring"
 )
 
 type clientConn struct {
@@ -18,8 +19,12 @@ type clientConn struct {
 	opts  kknet.Options
 	stats *kknet.Stats
 
-	writeMu   sync.Mutex
-	closeOnce sync.Once
+	sendMu     sync.Mutex
+	sendCond   *sync.Cond
+	sendBuf    *kkring.Buffer
+	sendLimit  int
+	sendClosed bool
+	closeOnce  sync.Once
 
 	ctxMu sync.RWMutex
 	ctx   context.Context
@@ -28,13 +33,22 @@ type clientConn struct {
 var _ kknet.IConn = (*clientConn)(nil)
 
 func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clientConn {
-	return &clientConn{
-		id:    kknet.NextConnID(),
-		conn:  conn,
-		opts:  opts,
-		stats: stats,
-		ctx:   context.Background(),
+	queueLimit := opts.WriteBufferSize
+	minPacketSize := opts.MaxMessageSize + 4
+	if queueLimit < minPacketSize {
+		queueLimit = minPacketSize
 	}
+	cc := &clientConn{
+		id:        kknet.NextConnID(),
+		conn:      conn,
+		opts:      opts,
+		stats:     stats,
+		sendBuf:   kkring.New(queueLimit),
+		sendLimit: queueLimit,
+		ctx:       context.Background(),
+	}
+	cc.sendCond = sync.NewCond(&cc.sendMu)
+	return cc
 }
 
 func (c *clientConn) ID() kknet.CONN_ID {
@@ -62,18 +76,29 @@ func (c *clientConn) Send(data []byte) error {
 		return err1
 	}
 
-	defer kkbuffer.Put(bb)
-
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-
-	err := writeFull(c.conn, bb.B)
+	c.sendMu.Lock()
+	for !c.sendClosed && c.sendBuf.Available() < len(bb.B) {
+		c.sendCond.Wait()
+	}
+	if c.sendClosed {
+		c.sendMu.Unlock()
+		kkbuffer.Put(bb)
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return kkerrors.ErrConnectionClosed
+	}
+	_, err := c.sendBuf.Write(bb.B)
+	c.sendCond.Signal()
+	c.sendMu.Unlock()
+	kkbuffer.Put(bb)
 	if err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
 		return err
 	}
+	c.sendCond.Signal()
 	if c.stats != nil {
 		c.stats.AddSent(len(data))
 	}
@@ -81,6 +106,10 @@ func (c *clientConn) Send(data []byte) error {
 }
 
 func (c *clientConn) Close() error {
+	c.sendMu.Lock()
+	c.sendClosed = true
+	c.sendCond.Broadcast()
+	c.sendMu.Unlock()
 	return c.conn.Close()
 }
 
@@ -126,6 +155,10 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 
 func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 	c.closeOnce.Do(func() {
+		c.sendMu.Lock()
+		c.sendClosed = true
+		c.sendCond.Broadcast()
+		c.sendMu.Unlock()
 		if c.stats != nil {
 			c.stats.OnClose()
 			if err != nil {
@@ -139,6 +172,46 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 			})
 		}
 	})
+}
+
+func (c *clientConn) writeLoop() error {
+	for {
+		c.sendMu.Lock()
+		for c.sendBuf.IsEmpty() && !c.sendClosed {
+			c.sendCond.Wait()
+		}
+		if c.sendClosed {
+			c.sendMu.Unlock()
+			return kkerrors.ErrConnectionClosed
+		}
+		buffered := c.sendBuf.Buffered()
+		if buffered == 0 {
+			c.sendMu.Unlock()
+			continue
+		}
+		if buffered > c.sendLimit {
+			buffered = c.sendLimit
+		}
+		head, tail := c.sendBuf.Peek(buffered)
+		chunk := kkbuffer.GetWithCapacity(buffered)
+		chunk.B = chunk.B[:buffered]
+		copy(chunk.B, head)
+		if len(tail) > 0 {
+			copy(chunk.B[len(head):], tail)
+		}
+		c.sendMu.Unlock()
+
+		err := writeFull(c.conn, chunk.B)
+		kkbuffer.Put(chunk)
+		if err != nil {
+			return err
+		}
+
+		c.sendMu.Lock()
+		_, _ = c.sendBuf.Discard(buffered)
+		c.sendCond.Broadcast()
+		c.sendMu.Unlock()
+	}
 }
 
 func readFull(r io.Reader, buf []byte) error {

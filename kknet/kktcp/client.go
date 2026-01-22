@@ -76,6 +76,11 @@ func (c *Client) Connect() error {
 		cc.closeWithError(c.handler, err)
 		c.connected.Store(false)
 	}()
+	go func() {
+		err := cc.writeLoop()
+		cc.closeWithError(c.handler, err)
+		c.connected.Store(false)
+	}()
 
 	return nil
 }
