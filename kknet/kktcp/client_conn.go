@@ -24,10 +24,7 @@ type clientConn struct {
 
 	sendMu      sync.Mutex
 	sendData    *sync.Cond
-	sendQueue   []*kkbuffer.ByteBuffer
-	sendHead    int
-	sendTail    int
-	sendCount   int
+	sendQueue   sendQueue
 	sendLimit   int
 	sendClosed  bool
 	sendDrain   bool
@@ -58,7 +55,7 @@ func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clien
 		opts:        opts,
 		stats:       stats,
 		sendLimit:   queueLimit,
-		sendQueue:   make([]*kkbuffer.ByteBuffer, queueSize),
+		sendQueue:   newSendQueue(queueSize),
 		spaceSem:    semaphore.NewWeighted(int64(queueLimit)),
 		spaceCtx:    spaceCtx,
 		spaceCancel: spaceCancel,
@@ -116,12 +113,7 @@ func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
 		}
 		return kkerrors.ErrConnectionClosed
 	}
-	if c.sendCount == len(c.sendQueue) {
-		c.growSendQueueLocked()
-	}
-	c.sendQueue[c.sendTail] = bb
-	c.sendTail = (c.sendTail + 1) % len(c.sendQueue)
-	c.sendCount++
+	c.sendQueue.Push(bb)
 	c.sendData.Signal()
 	c.sendMu.Unlock()
 	return nil
@@ -246,14 +238,14 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 func (c *clientConn) writeLoop() error {
 	for {
 		c.sendMu.Lock()
-		for c.sendCount == 0 && !c.sendClosed {
+		for c.sendQueue.Len() == 0 && !c.sendClosed {
 			c.sendData.Wait()
 		}
 		if c.sendClosed && !c.sendDrain {
 			c.sendMu.Unlock()
 			return nil
 		}
-		if c.sendCount == 0 {
+		if c.sendQueue.Len() == 0 {
 			if c.sendClosed && c.sendDrain {
 				c.sendDrain = false
 				c.sendMu.Unlock()
@@ -263,14 +255,7 @@ func (c *clientConn) writeLoop() error {
 			c.sendMu.Unlock()
 			continue
 		}
-		bb := c.sendQueue[c.sendHead]
-		c.sendQueue[c.sendHead] = nil
-		c.sendHead = (c.sendHead + 1) % len(c.sendQueue)
-		c.sendCount--
-		if c.sendCount == 0 {
-			c.sendHead = 0
-			c.sendTail = 0
-		}
+		bb := c.sendQueue.Pop()
 		c.spaceSem.Release(int64(len(bb.B)))
 		c.sendMu.Unlock()
 
@@ -286,23 +271,65 @@ func (c *clientConn) writeLoop() error {
 	}
 }
 
-func (c *clientConn) growSendQueueLocked() {
-	newSize := len(c.sendQueue) * 2
+type sendQueue struct {
+	buf   []*kkbuffer.ByteBuffer
+	head  int
+	tail  int
+	count int
+}
+
+func newSendQueue(size int) sendQueue {
+	if size <= 0 {
+		size = 64
+	}
+	return sendQueue{buf: make([]*kkbuffer.ByteBuffer, size)}
+}
+
+func (q *sendQueue) Len() int {
+	return q.count
+}
+
+func (q *sendQueue) Push(bb *kkbuffer.ByteBuffer) {
+	if q.count == len(q.buf) {
+		q.grow()
+	}
+	q.buf[q.tail] = bb
+	q.tail = (q.tail + 1) % len(q.buf)
+	q.count++
+}
+
+func (q *sendQueue) Pop() *kkbuffer.ByteBuffer {
+	if q.count == 0 {
+		return nil
+	}
+	bb := q.buf[q.head]
+	q.buf[q.head] = nil
+	q.head = (q.head + 1) % len(q.buf)
+	q.count--
+	if q.count == 0 {
+		q.head = 0
+		q.tail = 0
+	}
+	return bb
+}
+
+func (q *sendQueue) grow() {
+	newSize := len(q.buf) * 2
 	if newSize == 0 {
 		newSize = 64
 	}
 	newQueue := make([]*kkbuffer.ByteBuffer, newSize)
-	if c.sendCount > 0 {
-		if c.sendHead < c.sendTail {
-			copy(newQueue, c.sendQueue[c.sendHead:c.sendTail])
+	if q.count > 0 {
+		if q.head < q.tail {
+			copy(newQueue, q.buf[q.head:q.tail])
 		} else {
-			n := copy(newQueue, c.sendQueue[c.sendHead:])
-			copy(newQueue[n:], c.sendQueue[:c.sendTail])
+			n := copy(newQueue, q.buf[q.head:])
+			copy(newQueue[n:], q.buf[:q.tail])
 		}
 	}
-	c.sendQueue = newQueue
-	c.sendHead = 0
-	c.sendTail = c.sendCount
+	q.buf = newQueue
+	q.head = 0
+	q.tail = q.count
 }
 
 func readFull(r io.Reader, buf []byte) error {
