@@ -4,6 +4,7 @@ go 1.25.3
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/asynkron/protoactor-go v0.0.0-20260118094027-288962e52f3f
 	github.com/bytedance/sonic v1.14.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/nats-io/nats.go v1.48.0
@@ -50,7 +51,6 @@ require (
 )
 
 require (
-	github.com/asynkron/protoactor-go v0.0.0-20260118094027-288962e52f3f
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
