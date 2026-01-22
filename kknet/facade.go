@@ -21,7 +21,7 @@ func NextConnID() CONN_ID {
 type IConn interface {
 	ID() CONN_ID                             //unique connection id
 	Send(data []byte) error                  //send data
-	SendBuffer(buffer buffers.IBuffer) error //send buffer
+	SendBuffer(buffer buffers.IBuffer) error //send buffer。调用该方法后，buffer 不能被其他地方使用。因为该方法会回收buffer
 	Close() error                            //close connection
 	RemoteAddr() string                      //remote address
 	Context() context.Context                //get context
