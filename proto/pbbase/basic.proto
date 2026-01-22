@@ -1,0 +1,12 @@
+syntax = "proto3";
+package pbbase;
+option go_package = ".;pbbase";
+
+message RawInputArgs{
+	uint32 MsgType = 1;
+	repeated string clientIdList = 2;
+	bytes RawData  = 3;
+}
+
+
+  
