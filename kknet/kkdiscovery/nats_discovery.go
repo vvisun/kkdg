@@ -6,27 +6,22 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xrand"
 )
 
-// NewNatsDiscoveryWithDefaults 使用默认配置创建NATS服务发现
-func NewNatsDiscoveryWithDefaults(name, nodeID, nodeType, address string) *NatsDiscovery {
-	return NewNatsDiscovery(name, nodeID, nodeType, address, defaultNatsAddress, nil)
-}
-
 // NatsDiscovery 基于NATS的服务发现实现
 type NatsDiscovery struct {
-	name        string
-	nodeID      string
-	nodeType    string
-	address     string
-	settings    map[string]string
-	natsAddress string
-	conn        *nats.Conn
-	sub         *nats.Subscription
-	requestSub  *nats.Subscription
+	name       string
+	nodeID     string
+	nodeType   string
+	address    string
+	settings   map[string]string
+	conn       *nats.Conn
+	sub        *nats.Subscription
+	requestSub *nats.Subscription
 
 	members         map[string]IMember
 	memberTimes     map[string]time.Time // 记录成员最后更新时间
@@ -53,20 +48,16 @@ type NatsDiscovery struct {
 var _ IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
-func NewNatsDiscovery(name, nodeID, nodeType, address, natsAddress string, settings map[string]string, options ...nats.Option) *NatsDiscovery {
-	if natsAddress == "" {
-		natsAddress = defaultNatsAddress
-	}
+func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string]string, options ...nats.Option) *NatsDiscovery {
 	if settings == nil {
 		settings = make(map[string]string)
 	}
 	return &NatsDiscovery{
 		name:        name,
-		nodeID:      nodeID,
-		nodeType:    nodeType,
-		address:     address,
+		nodeID:      nodeInfo.GetNodeId(),
+		nodeType:    nodeInfo.GetNodeType(),
+		address:     nodeInfo.GetAddress(),
 		settings:    settings,
-		natsAddress: natsAddress,
 		members:     make(map[string]IMember),   // key: nodeID, value: member
 		memberTimes: make(map[string]time.Time), // key: nodeID, value: last update time
 		stopCh:      make(chan struct{}),
@@ -228,10 +219,7 @@ func (d *NatsDiscovery) Start() error {
 // connectAndSubscribe 连接NATS并订阅主题
 func (d *NatsDiscovery) connectAndSubscribe() error {
 	// 配置NATS连接选项，启用自动重连
-	opts := nats.GetDefaultOptions()
-	for _, option := range d.options {
-		option(&opts)
-	}
+	opts := ApplyNatsOptions(d.options...)
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {

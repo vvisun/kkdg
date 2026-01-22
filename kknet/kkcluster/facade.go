@@ -2,8 +2,6 @@ package kkcluster
 
 import (
 	"time"
-
-	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
 
 // ICluster 集群接口
@@ -31,8 +29,3 @@ type (
 	// 向其他节点发送请求，有response
 	FunRequestHandler func(req *ClusterRequest) (*ClusterResponse, error)
 )
-
-// NewNatsClusterWithDefaults 使用默认配置创建NATS集群
-func NewNatsClusterWithDefaults(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery) *NatsCluster {
-	return NewNatsCluster(nodeID, nodeType, discovery, nil)
-}

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kknet/kkcluster"
 	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
@@ -12,7 +13,8 @@ import (
 // ExampleStats 统计信息使用示例
 func TestStats(t *testing.T) {
 	// 创建服务发现
-	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
+	discovery := kkdiscovery.NewNatsDiscovery("test", nodeInfo, nil)
 
 	// 启动服务发现
 	if err := discovery.Start(); err != nil {

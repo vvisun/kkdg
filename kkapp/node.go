@@ -7,6 +7,12 @@ const (
 	MaxNodeTypeLength int = 24
 )
 
+// INodeIdentity 节点身份接口
+type INodeIdentity interface {
+	GetNodeId() string   // 获取节点ID
+	GetNodeType() string // 获取节点类型
+}
+
 // NewNodeInfo 创建节点信息
 func NewNodeInfo(nodeId, nodeType, address, rpcAddress string, settings map[string]string) *NodeInfo {
 	return &NodeInfo{
@@ -26,6 +32,8 @@ type NodeInfo struct {
 	rpcAddress string            // rpc地址。如：127.0.0.1:8080
 	settings   map[string]string // 节点配置参数。如：{"log_level": "debug"}
 }
+
+var _ INodeIdentity = (*NodeInfo)(nil)
 
 func (slf *NodeInfo) GetNodeId() string {
 	return slf.nodeId
