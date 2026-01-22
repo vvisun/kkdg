@@ -7,24 +7,24 @@ const (
 	MaxNodeTypeLength int = 24
 )
 
-func NewNodeInfo(nodeId, nodeType, address, rpcAddress string, enabled bool, settings map[string]string) *NodeInfo {
+// NewNodeInfo 创建节点信息
+func NewNodeInfo(nodeId, nodeType, address, rpcAddress string, settings map[string]string) *NodeInfo {
 	return &NodeInfo{
 		nodeId:     nodeId,
 		nodeType:   nodeType,
 		address:    address,
 		rpcAddress: rpcAddress,
-		enabled:    enabled,
 		settings:   settings,
 	}
 }
 
+// NodeInfo 节点信息
 type NodeInfo struct {
-	nodeId     string
-	nodeType   string
-	address    string
-	rpcAddress string
-	enabled    bool
-	settings   map[string]string
+	nodeId     string            // 节点ID。全局唯一。
+	nodeType   string            // 节点类型。如：gate、game、login等
+	address    string            // 节点地址。如：127.0.0.1:8080
+	rpcAddress string            // rpc地址。如：127.0.0.1:8080
+	settings   map[string]string // 节点配置参数。如：{"log_level": "debug"}
 }
 
 func (slf *NodeInfo) GetNodeId() string {
@@ -41,10 +41,6 @@ func (slf *NodeInfo) GetAddress() string {
 
 func (slf *NodeInfo) GetRpcAddress() string {
 	return slf.rpcAddress
-}
-
-func (slf *NodeInfo) GetEnabled() bool {
-	return slf.enabled
 }
 
 func (slf *NodeInfo) GetSetting(k string) (string, bool) {

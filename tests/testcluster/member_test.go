@@ -3,12 +3,14 @@ package testcluster
 import (
 	"testing"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
 
 // TestMember_NewMember 测试创建成员
 func TestMember_NewMember(t *testing.T) {
-	member := kkdiscovery.NewMember("node1", "type1", "127.0.0.1:8080", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
+	member := kkdiscovery.NewMember(nodeInfo.GetNodeId(), nodeInfo.GetNodeType(), nodeInfo.GetAddress(), nil)
 
 	if member == nil {
 		t.Fatal("NewMember returned nil")
@@ -38,7 +40,8 @@ func TestMember_WithSettings(t *testing.T) {
 		"key2": "value2",
 	}
 
-	member := kkdiscovery.NewMember("node1", "type1", "127.0.0.1:8080", settings)
+	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
+	member := kkdiscovery.NewMember(nodeInfo.GetNodeId(), nodeInfo.GetNodeType(), nodeInfo.GetAddress(), settings)
 
 	if member == nil {
 		t.Fatal("NewMember returned nil")

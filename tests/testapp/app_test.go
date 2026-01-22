@@ -29,7 +29,7 @@ func TestAppIntegration(t *testing.T) {
 	wsAddr := freeTCPAddr(t)
 
 	// 创建应用
-	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, wsAddr, true, nil)
+	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, wsAddr, nil)
 	app := component.NewApplication(nodeInfo)
 
 	// 创建游戏组件
@@ -96,7 +96,7 @@ func TestAppWebSocket(t *testing.T) {
 	wsAddr := freeTCPAddr(t)
 
 	// 创建应用
-	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, wsAddr, true, nil)
+	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, wsAddr, nil)
 	app := component.NewApplication(nodeInfo)
 
 	// 创建游戏组件
@@ -165,7 +165,7 @@ func TestAppMultipleClients(t *testing.T) {
 	tcpAddr := freeTCPAddr(t)
 
 	// 创建应用
-	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, "", true, nil)
+	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, "", nil)
 	app := component.NewApplication(nodeInfo)
 
 	// 创建游戏组件
