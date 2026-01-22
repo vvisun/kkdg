@@ -53,15 +53,9 @@ type NatsCluster struct {
 var _ ICluster = (*NatsCluster)(nil)
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, discovery kkdiscovery.IDiscovery, natsAddress string, options ...nats.Option) *NatsCluster {
+func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, natsAddress string, options ...nats.Option) *NatsCluster {
 	if natsAddress == "" {
 		natsAddress = defaultNatsAddress
-	}
-
-	// 尝试从 discovery 获取节点类型（如果是 NatsDiscovery）
-	var nodeType string
-	if nd, ok := discovery.(*kkdiscovery.NatsDiscovery); ok {
-		nodeType = nd.GetNodeType()
 	}
 
 	return &NatsCluster{

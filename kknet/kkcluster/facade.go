@@ -33,6 +33,6 @@ type (
 )
 
 // NewNatsClusterWithDefaults 使用默认配置创建NATS集群
-func NewNatsClusterWithDefaults(nodeID string, discovery kkdiscovery.IDiscovery) *NatsCluster {
-	return NewNatsCluster(nodeID, discovery, defaultNatsAddress)
+func NewNatsClusterWithDefaults(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery) *NatsCluster {
+	return NewNatsCluster(nodeID, nodeType, discovery, defaultNatsAddress)
 }

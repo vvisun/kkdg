@@ -80,10 +80,6 @@ func (d *NatsDiscovery) Name() string {
 	return d.name
 }
 
-func (d *NatsDiscovery) GetNodeType() string {
-	return d.nodeType
-}
-
 // Map 获取成员列表
 func (d *NatsDiscovery) Map() map[string]IMember {
 	d.membersMu.RLock()

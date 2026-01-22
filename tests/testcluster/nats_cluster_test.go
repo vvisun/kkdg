@@ -12,7 +12,7 @@ import (
 // TestNatsCluster_New 测试创建NatsCluster
 func TestNatsCluster_New(t *testing.T) {
 	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
-	cluster := kkcluster.NewNatsCluster("node1", discovery, "")
+	cluster := kkcluster.NewNatsCluster("node1", "type1", discovery, "")
 
 	if cluster == nil {
 		t.Fatal("NewNatsCluster returned nil")
@@ -27,7 +27,7 @@ func TestNatsCluster_Init(t *testing.T) {
 	}
 
 	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	cluster := kkcluster.NewNatsCluster("node1", discovery, natsURL)
+	cluster := kkcluster.NewNatsCluster("node1", "type1", discovery, natsURL)
 
 	if err := cluster.Init(); err != nil {
 		t.Fatalf("Init() failed: %v", err)
@@ -65,8 +65,8 @@ func TestNatsCluster_PublishRemote(t *testing.T) {
 		t.Fatal("discovery1 did not discover node2")
 	}
 
-	cluster1 := kkcluster.NewNatsCluster("node1", discovery1, natsURL)
-	cluster2 := kkcluster.NewNatsCluster("node2", discovery2, natsURL)
+	cluster1 := kkcluster.NewNatsCluster("node1", "type1", discovery1, natsURL)
+	cluster2 := kkcluster.NewNatsCluster("node2", "type1", discovery2, natsURL)
 
 	if err := cluster1.Init(); err != nil {
 		t.Fatalf("cluster1.Init() failed: %v", err)
@@ -146,9 +146,9 @@ func TestNatsCluster_PublishRemoteType(t *testing.T) {
 		t.Fatal("discovery1 did not discover other nodes")
 	}
 
-	cluster1 := kkcluster.NewNatsCluster("node1", discovery1, natsURL)
-	cluster2 := kkcluster.NewNatsCluster("node2", discovery2, natsURL)
-	cluster3 := kkcluster.NewNatsCluster("node3", discovery3, natsURL)
+	cluster1 := kkcluster.NewNatsCluster("node1", "type1", discovery1, natsURL)
+	cluster2 := kkcluster.NewNatsCluster("node2", "type1", discovery2, natsURL)
+	cluster3 := kkcluster.NewNatsCluster("node3", "type2", discovery3, natsURL)
 
 	if err := cluster1.Init(); err != nil {
 		t.Fatalf("cluster1.Init() failed: %v", err)
@@ -235,8 +235,8 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 		t.Fatal("discovery1 did not discover node2")
 	}
 
-	cluster1 := kkcluster.NewNatsCluster("node1", discovery1, natsURL)
-	cluster2 := kkcluster.NewNatsCluster("node2", discovery2, natsURL)
+	cluster1 := kkcluster.NewNatsCluster("node1", "type1", discovery1, natsURL)
+	cluster2 := kkcluster.NewNatsCluster("node2", "type1", discovery2, natsURL)
 
 	if err := cluster1.Init(); err != nil {
 		t.Fatalf("cluster1.Init() failed: %v", err)
@@ -274,7 +274,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 	}
 
 	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	cluster := kkcluster.NewNatsCluster("node1", discovery, natsURL)
+	cluster := kkcluster.NewNatsCluster("node1", "type1", discovery, natsURL)
 
 	if err := cluster.Init(); err != nil {
 		t.Fatalf("Init() failed: %v", err)
@@ -303,7 +303,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 	}
 
 	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	cluster := kkcluster.NewNatsCluster("node1", discovery, natsURL)
+	cluster := kkcluster.NewNatsCluster("node1", "type1", discovery, natsURL)
 
 	if err := cluster.Init(); err != nil {
 		t.Fatalf("Init() failed: %v", err)
@@ -332,7 +332,7 @@ func TestNatsCluster_Stop(t *testing.T) {
 	}
 
 	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	cluster := kkcluster.NewNatsCluster("node1", discovery, natsURL)
+	cluster := kkcluster.NewNatsCluster("node1", "type1", discovery, natsURL)
 
 	if err := cluster.Init(); err != nil {
 		t.Fatalf("Init() failed: %v", err)

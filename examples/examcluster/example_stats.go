@@ -21,7 +21,7 @@ func ExampleStats() {
 	defer discovery.Stop()
 
 	// 创建集群
-	cluster := kkcluster.NewNatsCluster("node1", discovery, "")
+	cluster := kkcluster.NewNatsCluster("node1", "type1", discovery, "")
 	if err := cluster.Init(); err != nil {
 		fmt.Printf("Failed to init cluster: %v\n", err)
 		return
