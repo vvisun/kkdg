@@ -55,7 +55,7 @@ type Option func(*Options)
 // DefaultOptions returns default settings.
 func DefaultOptions() Options {
 	return Options{
-		Logger:                 kklog.Stdout(),
+		Logger:                 kklog.Nop(),
 		MaxMessageSize:         defaultMaxMessageSize,
 		PoolSize:               xos.NumCPU(),
 		ReadBufferSize:         defaultBufferSize,

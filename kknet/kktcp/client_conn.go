@@ -375,6 +375,7 @@ func (q *sendQueue) grow() {
 	q.buf = newQueue
 	q.head = 0
 	q.tail = q.count
+	kklog.Infof("send queue grown to %d", newSize)
 }
 
 func readFull(r io.Reader, buf []byte) error {

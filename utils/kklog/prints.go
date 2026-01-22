@@ -37,10 +37,5 @@ func (printsLogger) Panicf(format string, args ...any) {
 
 var printsLoggerInstance = printsLogger{}
 
-// for gnet
-func (printsLogger) Printf(format string, args ...any) {
-	fmt.Printf(format+"\n", args...)
-}
-
 // Stdout returns a logger that prints to stdout (debug-only convenience).
 func Stdout() ILogger { return printsLoggerInstance }
