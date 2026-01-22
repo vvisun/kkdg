@@ -1,6 +1,7 @@
 package testpacket
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -70,6 +71,13 @@ func TestKK_packet_Encode(t *testing.T) {
 		t.Fatalf("encode packet: %v", err)
 	}
 	t.Logf("packet2: %v", packet2)
+
+	msgAA, errAA := kkpacket.DecodePacket(packet[:len(packet)-5], kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	if errAA == nil {
+		fmt.Printf("msgAA: %+v\n", msgAA)
+	} else {
+		fmt.Printf("errAA: %+v\n", errAA)
+	}
 
 	msg22, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
