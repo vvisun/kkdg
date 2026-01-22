@@ -50,64 +50,38 @@ func ParseHeadMidSeq(data []byte, endian binary.ByteOrder) HeadMidSeq {
 	}
 }
 
-/*
-*
-解码包。
-注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
+type MsgInfo struct {
+	Id   MSGID
+	Data []byte
+	Err  error
+}
 
-	@param data []byte 包数据
-	@param pkType *packer 包类型
-	@return *T 消息对象
-	@return error 错误
-*/
-func DecodePacket[T any](data []byte, pkType *PacketCodec) (*T, error) {
+func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 {
-		return nil, kkerrors.ErrInvalidMsgHeadType
+		return 0, nil, kkerrors.ErrInvalidMsgHeadType
 	}
 	if len(data) < headSize {
-		return nil, kkerrors.ErrDataTooShortToDecode
+		return 0, nil, kkerrors.ErrDataTooShortToDecode
 	}
-	codec := kkcodec.GetCodec(pkType.codecType)
-	if codec == nil {
-		return nil, kkerrors.ErrInvalidCodec
-	}
+
+	msgId := uint32(0)
+	body := data[headSize:]
 
 	endian := GetByteOrder()
 	switch pkType.headType {
 	case HeadTypeMid:
 		head := ParseHeadMid(data[:headSize], endian)
-		head.mid = endian.Uint32(data[:4])
-		if head.mid == 0 {
-			return nil, kkerrors.ErrInvalidMsgHeadType
-		}
-		if GetMsgType(head.mid) == nil {
-			return nil, kkerrors.ErrMsgIDNotRegistered
-		}
+		msgId = head.mid
 	case HeadTypeMidSeq:
 		head := ParseHeadMidSeq(data[:headSize], endian)
-		head.mid = endian.Uint32(data[:4])
-		head.seq = endian.Uint32(data[4:8])
-		if head.mid == 0 {
-			return nil, kkerrors.ErrInvalidMsgHeadType
-		}
-		if GetMsgType(head.mid) == nil {
-			return nil, kkerrors.ErrMsgIDNotRegistered
-		}
+		msgId = head.mid
 	}
-
-	body := data[headSize:]
-	v := kkpool.GetFactory[T]().Get().(*T)
-	err := codec.Unmarshal(body, v)
-	if err != nil {
-		kkpool.GetFactory[T]().Put(v)
-		return nil, kkerrors.ErrDecodeFailed
-	}
-	return v, nil
+	return msgId, body, nil
 }
 
 /*
-解码包。
+解码包。二进制流解码为消息对象
 注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
 
 	@param data []byte 包数据
@@ -115,40 +89,15 @@ func DecodePacket[T any](data []byte, pkType *PacketCodec) (*T, error) {
 	@return any 消息对象
 	@return error 错误
 */
-func DecodePacketBytes(data []byte, pkType *PacketCodec) (any, error) {
-	headSize := GetHeadSize(pkType.headType)
-	if headSize < 0 || len(data) < headSize {
-		return nil, kkerrors.ErrInvalidMsgHeadType
-	}
+func DecodePacket(data []byte, pkType *PacketCodec) (any, error) {
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
 	}
 
-	endian := GetByteOrder()
-	msgID := uint32(0)
-	switch pkType.headType {
-	case HeadTypeMid:
-		head := ParseHeadMid(data[:headSize], endian)
-		head.mid = endian.Uint32(data[:4])
-		if head.mid == 0 {
-			return nil, kkerrors.ErrInvalidMsgHeadType
-		}
-		if GetMsgType(head.mid) == nil {
-			return nil, kkerrors.ErrMsgIDNotRegistered
-		}
-		msgID = head.mid
-	case HeadTypeMidSeq:
-		head := ParseHeadMidSeq(data[:headSize], endian)
-		head.mid = endian.Uint32(data[:4])
-		head.seq = endian.Uint32(data[4:8])
-		if head.mid == 0 {
-			return nil, kkerrors.ErrInvalidMsgHeadType
-		}
-		if GetMsgType(head.mid) == nil {
-			return nil, kkerrors.ErrMsgIDNotRegistered
-		}
-		msgID = head.mid
+	msgID, body, err := ParseMsgInfo(data, pkType)
+	if err != nil {
+		return nil, err
 	}
 
 	msgType := GetMsgType(msgID)
@@ -156,9 +105,8 @@ func DecodePacketBytes(data []byte, pkType *PacketCodec) (any, error) {
 		return nil, kkerrors.ErrMsgIDNotRegistered
 	}
 
-	body := data[headSize:]
 	v := kkpool.GetFactoryByType(msgType).Get()
-	err := codec.Unmarshal(body, v)
+	err = codec.Unmarshal(body, v)
 	if err != nil {
 		kkpool.GetFactoryByType(msgType).Put(v)
 		return nil, kkerrors.ErrDecodeFailed
@@ -175,36 +123,15 @@ func DecodePacketBytes(data []byte, pkType *PacketCodec) (any, error) {
 	@return error 错误
 */
 func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
-	codec := kkcodec.GetCodec(pkType.codecType)
-	if codec == nil {
-		return nil, kkerrors.ErrInvalidCodec
-	}
-	msgID := GetMsgID(v)
-	if msgID == 0 {
-		return nil, kkerrors.ErrMsgTypeNotRegistered
-	}
-	seq := uint32(0)
-	headSize := GetHeadSize(pkType.headType)
-	if headSize < 0 {
-		return nil, kkerrors.ErrInvalidMsgHeadType
-	}
-	endian := GetByteOrder()
-	head := make([]byte, headSize)
-	switch pkType.headType {
-	case HeadTypeMid:
-		endian.PutUint32(head[:4], msgID)
-	case HeadTypeMidSeq:
-		endian.PutUint32(head[:4], msgID)
-		endian.PutUint32(head[4:8], seq)
-	default:
-		return nil, kkerrors.ErrInvalidMsgHeadType
-	}
-
-	body, err := codec.Marshal(v)
+	buf, err := EncodePacketEx(v, pkType)
 	if err != nil {
-		return nil, kkerrors.ErrEncodeFailed
+		return nil, err
 	}
-	return append(head, body...), nil
+	if len(buf.B) == 0 {
+		kkbuffer.Put(buf)
+		return make([]byte, 0), nil
+	}
+	return buf.B, nil
 }
 
 /*
@@ -221,14 +148,15 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
 	}
-	msgID := GetMsgID(v)
-	if msgID == 0 {
-		return nil, kkerrors.ErrMsgTypeNotRegistered
-	}
-	seq := uint32(0)
+
 	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 {
 		return nil, kkerrors.ErrInvalidMsgHeadType
+	}
+
+	msgID := GetMsgID(v)
+	if msgID == 0 {
+		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
 
 	body, err := codec.Marshal(v)
@@ -247,6 +175,7 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 	case HeadTypeMid:
 		endian.PutUint32(buf.B[:4], msgID)
 	case HeadTypeMidSeq:
+		seq := uint32(0)
 		endian.PutUint32(buf.B[:4], msgID)
 		endian.PutUint32(buf.B[4:8], seq)
 	default:

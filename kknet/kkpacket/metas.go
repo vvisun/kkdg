@@ -9,6 +9,14 @@ import (
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
+type MsgMeta struct {
+	ID            MSGID
+	Type          reflect.Type
+	Route         string
+	streamPacket  IStreamPacket
+	messagePacket *PacketCodec
+}
+
 type MSGID = uint32 // 消息ID
 
 var (

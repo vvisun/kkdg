@@ -49,7 +49,7 @@ func Benchmark_kkpacket_Decode(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+		kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 		kkpool.GetFactory[msgTest1]().Put(msg)
 	}
 }
@@ -67,7 +67,7 @@ func Benchmark_kkpacket_EncodeDecode(b *testing.B) {
 		if err != nil {
 			b.Fatalf("encode packet: %v", err)
 		}
-		_, err = kkpacket.DecodePacket[msgTest1](packet.B, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+		_, err = kkpacket.DecodePacket(packet.B, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 		if err != nil {
 			b.Fatalf("decode packet: %v", err)
 		}

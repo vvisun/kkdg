@@ -71,8 +71,12 @@ func TestKK_packet_Encode(t *testing.T) {
 	}
 	t.Logf("packet2: %v", packet2)
 
-	msg2, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	msg22, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
+		t.Fatalf("decode packet: %v", err)
+	}
+	msg2, ok := msg22.(*msgTest1)
+	if !ok {
 		t.Fatalf("decode packet: %v", err)
 	}
 	t.Logf("msg2: %v", msg2)
@@ -106,7 +110,14 @@ func TestKK_packet_Decode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
-	msg2, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	msg22, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	if err != nil {
+		t.Fatalf("decode packet: %v", err)
+	}
+	msg2, ok := msg22.(*msgTest1)
+	if !ok {
+		t.Fatalf("decode packet: %v", err)
+	}
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
@@ -116,7 +127,7 @@ func TestKK_packet_Decode(t *testing.T) {
 func TestKK_packet_Decode_InvalidPacket(t *testing.T) {
 	initTestEnv(t)
 	packet := []byte("invalid packet")
-	_, err := kkpacket.DecodePacket[msgTest1](packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	_, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err == nil {
 		t.Fatalf("decode invalid packet should failed")
 	}
