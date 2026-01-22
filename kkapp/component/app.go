@@ -1,20 +1,13 @@
 package component
 
 import (
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-type INode interface {
-	NodeID() string              // 节点id(全局唯一)
-	NodeType() string            // 节点类型
-	Address() string             // 对外网络监听地址(前端节点用)
-	RpcAddress() string          // rpc监听地址(未用)
-	Enabled() bool               // 是否启用
-	Settings() map[string]string // 节点配置参数
-}
-
 type IApplication interface {
+	GetNodeInfo() *kkapp.NodeInfo
 	Start() error
 	Stop() error
 	AddCompenent(child IComponent) error
@@ -23,36 +16,44 @@ type IApplication interface {
 }
 
 type Application struct {
+	nodeInfo *kkapp.NodeInfo
 	compList []IComponent
 }
 
-func NewApplication() *Application {
-	return &Application{}
+var _ IApplication = (*Application)(nil)
+
+func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
+	return &Application{
+		nodeInfo: nodeInfo,
+		compList: make([]IComponent, 0),
+	}
 }
 
-func (slf *Application) GetNodeId() string {
-	return "application"
+func (slf *Application) GetNodeInfo() *kkapp.NodeInfo {
+	return slf.nodeInfo
 }
 
 func (slf *Application) Start() error {
+	nodeId := slf.nodeInfo.GetNodeId()
 	compList := slf.compList
 	for _, comp := range compList {
 		if err := comp.Start(); err != nil {
-			kklog.Errorf("[kkapp] application %s start component %s error: %v", slf.GetNodeId(), comp.GetID(), err)
+			kklog.Errorf("[kkapp] application %s start component %s error: %v", nodeId, comp.GetID(), err)
 			return err
 		}
-		kklog.Infof("[kkapp] application %s start component %s success", slf.GetNodeId(), comp.GetID())
+		kklog.Infof("[kkapp] application %s start component %s success", nodeId, comp.GetID())
 	}
 	return nil
 }
 
 func (slf *Application) Stop() error {
+	nodeId := slf.nodeInfo.GetNodeId()
 	compList := slf.compList
 	for i := len(compList) - 1; i >= 0; i-- {
 		if err := compList[i].Stop(); err != nil {
-			kklog.Errorf("[kkapp] application %s stop component %s error: %v", slf.GetNodeId(), compList[i].GetID(), err)
+			kklog.Errorf("[kkapp] application %s stop component %s error: %v", nodeId, compList[i].GetID(), err)
 		}
-		kklog.Infof("[kkapp] application %s stop component %s success", slf.GetNodeId(), compList[i].GetID())
+		kklog.Infof("[kkapp] application %s stop component %s success", nodeId, compList[i].GetID())
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccclient"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
@@ -28,7 +29,8 @@ func TestAppIntegration(t *testing.T) {
 	wsAddr := freeTCPAddr(t)
 
 	// 创建应用
-	app := component.NewApplication()
+	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, wsAddr, true, nil)
+	app := component.NewApplication(nodeInfo)
 
 	// 创建游戏组件
 	gameComp := ccgame.NewGameComponent()
@@ -94,7 +96,8 @@ func TestAppWebSocket(t *testing.T) {
 	wsAddr := freeTCPAddr(t)
 
 	// 创建应用
-	app := component.NewApplication()
+	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, wsAddr, true, nil)
+	app := component.NewApplication(nodeInfo)
 
 	// 创建游戏组件
 	gameComp := ccgame.NewGameComponent()
@@ -162,7 +165,8 @@ func TestAppMultipleClients(t *testing.T) {
 	tcpAddr := freeTCPAddr(t)
 
 	// 创建应用
-	app := component.NewApplication()
+	nodeInfo := kkapp.NewNodeInfo("testapp", "testapp", tcpAddr, "", true, nil)
+	app := component.NewApplication(nodeInfo)
 
 	// 创建游戏组件
 	gameComp := ccgame.NewGameComponent()
