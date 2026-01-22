@@ -98,10 +98,6 @@ func (c *clientConn) Send(data []byte) error {
 		}
 		return err
 	}
-	c.sendCond.Signal()
-	if c.stats != nil {
-		c.stats.AddSent(len(data))
-	}
 	return nil
 }
 
@@ -175,6 +171,11 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 }
 
 func (c *clientConn) writeLoop() error {
+	var header [4]byte
+	headerRead := 0
+	payloadRemaining := 0
+	currentMsgLen := 0
+
 	for {
 		c.sendMu.Lock()
 		for c.sendBuf.IsEmpty() && !c.sendClosed {
@@ -182,7 +183,7 @@ func (c *clientConn) writeLoop() error {
 		}
 		if c.sendClosed {
 			c.sendMu.Unlock()
-			return kkerrors.ErrConnectionClosed
+			return nil
 		}
 		buffered := c.sendBuf.Buffered()
 		if buffered == 0 {
@@ -202,6 +203,41 @@ func (c *clientConn) writeLoop() error {
 		c.sendMu.Unlock()
 
 		err := writeFull(c.conn, chunk.B)
+		if err == nil && c.stats != nil {
+			n := len(chunk.B)
+			for i := 0; i < n; {
+				if payloadRemaining > 0 {
+					remain := n - i
+					if remain >= payloadRemaining {
+						i += payloadRemaining
+						payloadRemaining = 0
+						c.stats.AddSent(currentMsgLen)
+						continue
+					}
+					payloadRemaining -= remain
+					break
+				}
+				if headerRead < 4 {
+					need := 4 - headerRead
+					remain := n - i
+					if remain < need {
+						copy(header[headerRead:], chunk.B[i:])
+						headerRead += remain
+						break
+					}
+					copy(header[headerRead:], chunk.B[i:i+need])
+					i += need
+					headerRead = 4
+					currentMsgLen = int(kkpacket.GetByteOrder().Uint32(header[:]))
+					payloadRemaining = currentMsgLen
+					headerRead = 0
+					if payloadRemaining == 0 {
+						c.stats.AddSent(0)
+						continue
+					}
+				}
+			}
+		}
 		kkbuffer.Put(chunk)
 		if err != nil {
 			return err
