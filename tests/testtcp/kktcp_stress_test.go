@@ -1,6 +1,7 @@
 package testtcp
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -108,6 +109,9 @@ func TestKKTCPHighConcurrency(t *testing.T) {
 	stats := server.Stats()
 	t.Logf("Server stats: %+v", stats)
 	t.Logf("Success: %d, Errors: %d, Active connections: %d", successCount, errorCount, atomic.LoadInt64(&activeConns))
+
+	fmt.Printf("Server stats: %+v\n", stats)
+	fmt.Printf("Success: %d, Errors: %d, Active connections: %d\n", successCount, errorCount, atomic.LoadInt64(&activeConns))
 
 	// Accept 80% success rate for high concurrency test
 	if successCount < int64(numClients*8/10) {

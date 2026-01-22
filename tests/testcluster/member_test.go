@@ -27,10 +27,6 @@ func TestMember_NewMember(t *testing.T) {
 	if member.GetAddress() != "127.0.0.1:8080" {
 		t.Errorf("GetAddress() = %s, want 127.0.0.1:8080", member.GetAddress())
 	}
-
-	if member.GetSettings() == nil {
-		t.Error("GetSettings() returned nil")
-	}
 }
 
 // TestMember_WithSettings 测试带设置的成员
@@ -47,17 +43,12 @@ func TestMember_WithSettings(t *testing.T) {
 		t.Fatal("NewMember returned nil")
 	}
 
-	gotSettings := member.GetSettings()
-	if len(gotSettings) != 2 {
-		t.Errorf("GetSettings() length = %d, want 2", len(gotSettings))
+	if value, ok := member.GetSetting("key1"); !ok || value != "value1" {
+		t.Errorf("GetSetting(key1) = %s, want value1", value)
 	}
 
-	if gotSettings["key1"] != "value1" {
-		t.Errorf("GetSettings()[key1] = %s, want value1", gotSettings["key1"])
-	}
-
-	if gotSettings["key2"] != "value2" {
-		t.Errorf("GetSettings()[key2] = %s, want value2", gotSettings["key2"])
+	if value, ok := member.GetSetting("key2"); !ok || value != "value2" {
+		t.Errorf("GetSetting(key2) = %s, want value2", value)
 	}
 }
 

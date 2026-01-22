@@ -1,11 +1,5 @@
 package kkdiscovery
 
-import (
-	"strconv"
-
-	"github.com/vvisun/kkdg/kkapp"
-)
-
 // Member 实现IMember接口的成员结构
 type Member struct {
 	nodeID   string
@@ -18,15 +12,6 @@ var _ IMember = (*Member)(nil)
 
 // NewMember 创建新的成员
 func NewMember(nodeID, nodeType, address string, settings map[string]string) *Member {
-	if len(nodeID) > kkapp.MaxNodeIDLength {
-		panic("nodeID长度不能超过" + strconv.Itoa(kkapp.MaxNodeIDLength))
-	}
-	if len(nodeType) > kkapp.MaxNodeTypeLength {
-		panic("nodeType长度不能超过" + strconv.Itoa(kkapp.MaxNodeTypeLength))
-	}
-	if settings == nil {
-		settings = make(map[string]string)
-	}
 	return &Member{
 		nodeID:   nodeID,
 		nodeType: nodeType,
@@ -50,7 +35,11 @@ func (m *Member) GetAddress() string {
 	return m.address
 }
 
-// GetSettings 获取设置
-func (m *Member) GetSettings() map[string]string {
-	return m.settings
+// GetSetting 获取设置
+func (m *Member) GetSetting(k string) (string, bool) {
+	if m.settings == nil {
+		return "", false
+	}
+	value, ok := m.settings[k]
+	return value, ok
 }

@@ -42,7 +42,7 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 		}
 		select {
 		case <-msgCh:
-		case <-time.After(2 * time.Second):
+		case <-time.After(1 * time.Second):
 			b.Fatal("tcp reply timeout")
 		}
 	}
