@@ -2,11 +2,13 @@ package kktcp
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -38,6 +40,11 @@ func (c *tcpConn) ID() kknet.CONN_ID {
 
 func (c *tcpConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
+}
+
+func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
+	// todo:
+	return errors.New("not implemented")
 }
 
 func (c *tcpConn) Send(data []byte) error {

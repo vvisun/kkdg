@@ -196,6 +196,10 @@ func (m *mockConn) Send(data []byte) error {
 	return nil
 }
 
+func (m *mockConn) SendBuffer(buffer buffers.IBuffer) error {
+	return nil
+}
+
 func (m *mockConn) Close() error {
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers"
 )
 
 // Client represents a UDP client.
@@ -76,6 +77,16 @@ func (c *Client) Send(data []byte) error {
 		return kkerrors.ErrClientNotConnected
 	}
 	return conn.Send(data)
+}
+
+func (c *Client) SendBuffer(buffer buffers.IBuffer) error {
+	c.connMu.Lock()
+	conn := c.conn
+	c.connMu.Unlock()
+	if conn == nil {
+		return kkerrors.ErrClientNotConnected
+	}
+	return conn.SendBuffer(buffer)
 }
 
 // Close closes the client connection.

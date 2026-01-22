@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 func TestClientFlushTimeoutCallback(t *testing.T) {
@@ -37,9 +39,11 @@ func TestClientFlushTimeoutCallback(t *testing.T) {
 		close(done)
 	}()
 
-	payload := make([]byte, 128*1024)
+	payload := make([]byte, 4*128*1024)
+	kkpacket.GetByteOrder().PutUint32(payload[:4], uint32(len(payload)))
+	bb := &kkbuffer.ByteBuffer{B: payload}
 	for i := 0; i < 6; i++ {
-		if err := c.Send(payload); err != nil {
+		if err := c.SendBuffer(bb); err != nil {
 			t.Fatalf("send failed: %v", err)
 		}
 	}

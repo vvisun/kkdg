@@ -2,11 +2,13 @@ package kkudp
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync"
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -41,6 +43,11 @@ func (c *clientConn) ID() kknet.CONN_ID {
 
 func (c *clientConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
+}
+
+func (c *clientConn) SendBuffer(buffer buffers.IBuffer) error {
+	// todo:
+	return errors.New("not implemented")
 }
 
 func (c *clientConn) Send(data []byte) error {

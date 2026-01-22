@@ -2,6 +2,7 @@ package kkudp
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers"
 )
 
 type udpConn struct {
@@ -44,6 +46,11 @@ func (c *udpConn) ID() kknet.CONN_ID {
 
 func (c *udpConn) RemoteAddr() string {
 	return c.remoteAddr
+}
+
+func (c *udpConn) SendBuffer(buffer buffers.IBuffer) error {
+	// todo:
+	return errors.New("not implemented")
 }
 
 func (c *udpConn) Send(data []byte) error {

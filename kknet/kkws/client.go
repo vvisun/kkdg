@@ -109,6 +109,16 @@ func (c *Client) Send(data []byte) error {
 	return conn.Send(data)
 }
 
+func (c *Client) SendBuffer(buffer buffers.IBuffer) error {
+	c.connMu.Lock()
+	conn := c.conn
+	c.connMu.Unlock()
+	if conn == nil {
+		return kkerrors.ErrClientNotConnected
+	}
+	return conn.SendBuffer(buffer)
+}
+
 // Close closes the client connection.
 func (c *Client) Close() error {
 	c.connMu.Lock()

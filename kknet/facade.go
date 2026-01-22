@@ -19,12 +19,13 @@ func NextConnID() CONN_ID {
 
 // IConn represents a network connection.
 type IConn interface {
-	ID() CONN_ID                    //unique connection id
-	Send(data []byte) error         //send data
-	Close() error                   //close connection
-	RemoteAddr() string             //remote address
-	Context() context.Context       //get context
-	SetContext(ctx context.Context) //set context
+	ID() CONN_ID                             //unique connection id
+	Send(data []byte) error                  //send data
+	SendBuffer(buffer buffers.IBuffer) error //send buffer
+	Close() error                            //close connection
+	RemoteAddr() string                      //remote address
+	Context() context.Context                //get context
+	SetContext(ctx context.Context)          //set context
 }
 
 // IHandler handles connection lifecycle and messages.

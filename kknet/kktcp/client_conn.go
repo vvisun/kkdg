@@ -10,8 +10,8 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/buffers/kkring"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -23,12 +23,10 @@ type clientConn struct {
 
 	sendMu     sync.Mutex
 	sendCond   *sync.Cond
-	sendBuf    *kkring.Buffer
-	sendLimit  int
-	sendMeta   []sendMeta
+	sendQueue  []*kkbuffer.ByteBuffer
 	sendHead   int
-	sendWire   int
-	sendPayLen int
+	sendQueued int
+	sendLimit  int
 	sendClosed bool
 	sendDrain  bool
 	closeOnce  sync.Once
@@ -41,16 +39,14 @@ var _ kknet.IConn = (*clientConn)(nil)
 
 func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clientConn {
 	queueLimit := opts.WriteBufferSize
-	minPacketSize := opts.MaxMessageSize + 4
-	if queueLimit < minPacketSize {
-		queueLimit = minPacketSize
+	if queueLimit < opts.MaxMessageSize {
+		queueLimit = opts.MaxMessageSize
 	}
 	cc := &clientConn{
 		id:        kknet.NextConnID(),
 		conn:      conn,
 		opts:      opts,
 		stats:     stats,
-		sendBuf:   kkring.New(queueLimit),
 		sendLimit: queueLimit,
 		ctx:       context.Background(),
 	}
@@ -66,25 +62,20 @@ func (c *clientConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
-func (c *clientConn) Send(data []byte) error {
-	if len(data) > c.opts.MaxMessageSize {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return kkerrors.ErrMaxMessageSize
-	}
-
-	bb, err1 := c.opts.StreamPacket.Pack(data, c.opts.MaxMessageSize)
-	if err1 != nil {
-		kkbuffer.Put(bb)
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err1
-	}
+func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
+	// as bb is not used in other places, we can just use it directly
+	// but maybe other places did Put(bb), so we need to get a new one
+	// just swap, no need to copy. avoid other put(bb) and reuse, make bb dirty.
+	oldBB := bb
+	bb = kkbuffer.GetWithCapacity(len(oldBB.B))
+	bb.B, oldBB.B = oldBB.B, bb.B
+	kkbuffer.Put(oldBB)
 
 	c.sendMu.Lock()
-	for !c.sendClosed && c.sendBuf.Available() < len(bb.B) {
+	if len(bb.B) > c.sendLimit {
+		c.sendLimit = len(bb.B)
+	}
+	for !c.sendClosed && c.sendQueued+len(bb.B) > c.sendLimit {
 		c.sendCond.Wait()
 	}
 	if c.sendClosed {
@@ -95,20 +86,18 @@ func (c *clientConn) Send(data []byte) error {
 		}
 		return kkerrors.ErrConnectionClosed
 	}
-	_, err := c.sendBuf.Write(bb.B)
-	if err == nil {
-		c.appendSendMetaLocked(len(bb.B), len(data))
-		c.sendCond.Signal()
-	}
+	c.sendQueue = append(c.sendQueue, bb)
+	c.sendQueued += len(bb.B)
+	c.sendCond.Signal()
 	c.sendMu.Unlock()
-	kkbuffer.Put(bb)
-	if err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
 	return nil
+}
+
+func (c *clientConn) Send(data []byte) error {
+	bb := kkbuffer.GetWithCapacity(len(data))
+	bb.B = bb.B[:len(data)]
+	copy(bb.B, data)
+	return c.SendBuffer(bb)
 }
 
 func (c *clientConn) Close() error {
@@ -215,15 +204,14 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 func (c *clientConn) writeLoop() error {
 	for {
 		c.sendMu.Lock()
-		for c.sendBuf.IsEmpty() && !c.sendClosed {
+		for c.sendHead >= len(c.sendQueue) && !c.sendClosed {
 			c.sendCond.Wait()
 		}
 		if c.sendClosed && !c.sendDrain {
 			c.sendMu.Unlock()
 			return nil
 		}
-		buffered := c.sendBuf.Buffered()
-		if buffered == 0 {
+		if c.sendHead >= len(c.sendQueue) {
 			if c.sendClosed && c.sendDrain {
 				c.sendDrain = false
 				c.sendMu.Unlock()
@@ -233,74 +221,29 @@ func (c *clientConn) writeLoop() error {
 			c.sendMu.Unlock()
 			continue
 		}
-		if buffered > c.sendLimit {
-			buffered = c.sendLimit
-		}
-		head, tail := c.sendBuf.Peek(buffered)
-		chunk := kkbuffer.GetWithCapacity(buffered)
-		chunk.B = chunk.B[:buffered]
-		copy(chunk.B, head)
-		if len(tail) > 0 {
-			copy(chunk.B[len(head):], tail)
-		}
+		bb := c.sendQueue[c.sendHead]
+		c.sendQueue[c.sendHead] = nil
+		c.sendHead++
+		c.sendQueued -= len(bb.B)
+		c.compactSendQueueLocked()
+		c.sendCond.Broadcast()
 		c.sendMu.Unlock()
 
-		err := writeFull(c.conn, chunk.B)
-		kkbuffer.Put(chunk)
+		err := writeFull(c.conn, bb.B)
+		kkbuffer.Put(bb)
 		if err != nil {
 			return err
 		}
-
-		c.sendMu.Lock()
-		_, _ = c.sendBuf.Discard(buffered)
-		c.consumeWrittenLocked(buffered)
-		c.sendCond.Broadcast()
-		c.sendMu.Unlock()
-	}
-}
-
-type sendMeta struct {
-	wireLen    int
-	payloadLen int
-}
-
-func (c *clientConn) appendSendMetaLocked(wireLen, payloadLen int) {
-	if wireLen <= 0 {
-		return
-	}
-	c.sendMeta = append(c.sendMeta, sendMeta{wireLen: wireLen, payloadLen: payloadLen})
-	c.compactSendMetaLocked()
-}
-
-func (c *clientConn) consumeWrittenLocked(written int) {
-	for written > 0 {
-		if c.sendWire == 0 {
-			if c.sendHead >= len(c.sendMeta) {
-				break
-			}
-			meta := c.sendMeta[c.sendHead]
-			c.sendHead++
-			c.sendWire = meta.wireLen
-			c.sendPayLen = meta.payloadLen
+		if c.stats != nil {
+			c.stats.AddSent(len(bb.B))
 		}
-		if written >= c.sendWire {
-			written -= c.sendWire
-			c.sendWire = 0
-			if c.stats != nil {
-				c.stats.AddSent(c.sendPayLen)
-			}
-			c.sendPayLen = 0
-			continue
-		}
-		c.sendWire -= written
-		written = 0
+
 	}
-	c.compactSendMetaLocked()
 }
 
-func (c *clientConn) compactSendMetaLocked() {
-	if c.sendHead > 0 && c.sendHead*2 >= len(c.sendMeta) {
-		c.sendMeta = append([]sendMeta(nil), c.sendMeta[c.sendHead:]...)
+func (c *clientConn) compactSendQueueLocked() {
+	if c.sendHead > 0 && c.sendHead*2 >= len(c.sendQueue) {
+		c.sendQueue = append([]*kkbuffer.ByteBuffer(nil), c.sendQueue[c.sendHead:]...)
 		c.sendHead = 0
 	}
 }
