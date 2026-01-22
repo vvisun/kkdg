@@ -15,11 +15,10 @@ import (
 
 // NatsCluster 基于NATS的集群实现
 type NatsCluster struct {
-	nodeID      string
-	nodeType    string // 节点类型（用于订阅类型主题）
-	discovery   kkdiscovery.IDiscovery
-	natsAddress string
-	conn        *nats.Conn
+	nodeID    string
+	nodeType  string // 节点类型（用于订阅类型主题）
+	discovery kkdiscovery.IDiscovery
+	conn      *nats.Conn
 
 	// 请求响应处理
 	requestSub *nats.Subscription
@@ -53,19 +52,14 @@ type NatsCluster struct {
 var _ ICluster = (*NatsCluster)(nil)
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, natsAddress string, options ...nats.Option) *NatsCluster {
-	if natsAddress == "" {
-		natsAddress = defaultNatsAddress
-	}
-
+func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options ...nats.Option) *NatsCluster {
 	return &NatsCluster{
-		nodeID:      nodeID,
-		nodeType:    nodeType,
-		discovery:   discovery,
-		natsAddress: natsAddress,
-		requestMap:  make(map[string]chan *ClusterResponse),
-		stopCh:      make(chan struct{}),
-		options:     options,
+		nodeID:     nodeID,
+		nodeType:   nodeType,
+		discovery:  discovery,
+		requestMap: make(map[string]chan *ClusterResponse),
+		stopCh:     make(chan struct{}),
+		options:    options,
 	}
 }
 
@@ -77,10 +71,7 @@ func (c *NatsCluster) Init() error {
 // connectAndSubscribe 连接NATS并订阅主题
 func (c *NatsCluster) connectAndSubscribe() error {
 	// 配置NATS连接选项，启用自动重连
-	opts := nats.GetDefaultOptions()
-	for _, option := range c.options {
-		option(&opts)
-	}
+	opts := ApplyNatsOptions(c.options...)
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {
