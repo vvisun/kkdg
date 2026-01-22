@@ -5,9 +5,10 @@ import (
 )
 
 type IComponentLifecycle interface {
-	Init() error  //初始化组件
-	Start() error //启动组件
-	Stop() error  //停止组件
+	Init() error      //初始化组件
+	Start() error     //启动组件
+	Stop() error      //停止组件
+	GraceStop() error //优雅停止组件
 	//OnInit() error  //初始化组件时调用
 	//OnStart() error //启动组件时调用
 	//OnStop() error  //停止组件时调用
@@ -117,6 +118,11 @@ func (slf *Component) OnStart() error {
 
 // Stop was called to stop the component.
 func (slf *Component) Stop() error {
+	return nil
+}
+
+// GraceStop was called to gracefully stop the component.
+func (slf *Component) GraceStop() error {
 	return nil
 }
 
