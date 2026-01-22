@@ -133,13 +133,24 @@ func (c *clientConn) Send(data []byte) error {
 }
 
 func (c *clientConn) Close() error {
+	var drained []*kkbuffer.ByteBuffer
+	var drainedBytes int64
 	c.sendMu.Lock()
 	c.sendClosed = true
 	c.sendDrain = c.opts.TcpClientNeedFlushOver
 	flushTimeout := c.opts.TimeoutTcpFlushOver
 	flushCb := c.opts.TcpClientFlushTimeoutCallback
+	if !c.sendDrain {
+		drained, drainedBytes = c.drainSendQueueLocked()
+	}
 	c.sendData.Broadcast()
 	c.sendMu.Unlock()
+	if drainedBytes > 0 {
+		c.spaceSem.Release(drainedBytes)
+		for _, bb := range drained {
+			kkbuffer.Put(bb)
+		}
+	}
 	c.spaceCancel()
 	if !c.sendDrain {
 		return c.conn.Close()
@@ -150,15 +161,24 @@ func (c *clientConn) Close() error {
 			defer timer.Stop()
 			<-timer.C
 			shouldCallback := false
+			var drained []*kkbuffer.ByteBuffer
+			var drainedBytes int64
 			c.sendMu.Lock()
 			if c.sendClosed && c.sendDrain {
 				shouldCallback = flushCb != nil
 				c.sendDrain = false
+				drained, drainedBytes = c.drainSendQueueLocked()
 				c.sendData.Broadcast()
 				if c.stats != nil {
 					c.stats.AddError()
 				}
 				c.sendMu.Unlock()
+				if drainedBytes > 0 {
+					c.spaceSem.Release(drainedBytes)
+					for _, bb := range drained {
+						kkbuffer.Put(bb)
+					}
+				}
 				if shouldCallback {
 					flushCb(c, flushTimeout)
 				}
@@ -214,11 +234,20 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 
 func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 	c.closeOnce.Do(func() {
+		var drained []*kkbuffer.ByteBuffer
+		var drainedBytes int64
 		c.sendMu.Lock()
 		c.sendClosed = true
 		c.sendDrain = false
+		drained, drainedBytes = c.drainSendQueueLocked()
 		c.sendData.Broadcast()
 		c.sendMu.Unlock()
+		if drainedBytes > 0 {
+			c.spaceSem.Release(drainedBytes)
+			for _, bb := range drained {
+				kkbuffer.Put(bb)
+			}
+		}
 		c.spaceCancel()
 		if c.stats != nil {
 			c.stats.OnClose()
@@ -269,6 +298,22 @@ func (c *clientConn) writeLoop() error {
 		}
 
 	}
+}
+
+func (c *clientConn) drainSendQueueLocked() ([]*kkbuffer.ByteBuffer, int64) {
+	if c.sendQueue.Len() == 0 {
+		return nil, 0
+	}
+	drained := make([]*kkbuffer.ByteBuffer, 0, c.sendQueue.Len())
+	var total int64
+	for c.sendQueue.Len() > 0 {
+		bb := c.sendQueue.Pop()
+		if bb != nil {
+			drained = append(drained, bb)
+			total += int64(len(bb.B))
+		}
+	}
+	return drained, total
 }
 
 type sendQueue struct {

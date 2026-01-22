@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 )
 
@@ -35,9 +36,14 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 	defer func() { _ = client.Close() }()
 
 	payload := []byte("ping")
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+	if err != nil {
+		b.Fatalf("pack failed: %v", err)
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := client.Send(payload); err != nil {
+		bb, _ = kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+		if err := client.SendBuffer(bb); err != nil {
 			b.Fatalf("client send: %v", err)
 		}
 		select {
