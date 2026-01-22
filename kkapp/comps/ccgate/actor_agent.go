@@ -2,7 +2,6 @@ package ccgate
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkactor"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -10,21 +9,21 @@ import (
 
 // ActorAgent 每个网络连接对应一个ActorAgent
 type ActorAgent struct {
-	connID kknet.CONN_ID
-	conn   kknet.IConn
-	router *Router
-	game   *ccgame.GameComponent
+	connID          kknet.CONN_ID
+	conn            kknet.IConn
+	router          *Router
+	businessHandler IBusinessHandler
 }
 
 var _ kkactor.Actor = (*ActorAgent)(nil)
 
 // NewActorAgent creates a new actor agent.
-func NewActorAgent(connID kknet.CONN_ID, conn kknet.IConn, router *Router, game *ccgame.GameComponent) *ActorAgent {
+func NewActorAgent(connID kknet.CONN_ID, conn kknet.IConn, router *Router, businessHandler IBusinessHandler) *ActorAgent {
 	return &ActorAgent{
-		connID: connID,
-		conn:   conn,
-		router: router,
-		game:   game,
+		connID:          connID,
+		conn:            conn,
+		router:          router,
+		businessHandler: businessHandler,
 	}
 }
 
@@ -47,11 +46,11 @@ func (a *ActorAgent) Receive(ctx actor.Context) {
 
 // handleClientMessage 处理来自客户端的消息
 func (a *ActorAgent) handleClientMessage(ctx actor.Context, msg *MessageFromClient) {
-	if a.game == nil {
-		kklog.Warnf("[ccgate] game component not found: connID=%d", a.connID)
+	if a.businessHandler == nil {
+		kklog.Warnf("[ccgate] business handler not found: connID=%d", a.connID)
 		return
 	}
-	a.game.HandleRequest(a.connID, msg.Data)
+	a.businessHandler.HandleRequest(a.connID, msg.Data)
 	_ = ctx
 }
 

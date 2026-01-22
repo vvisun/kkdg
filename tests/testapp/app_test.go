@@ -30,18 +30,6 @@ func TestAppIntegration(t *testing.T) {
 	// 创建应用
 	app := component.NewApplication()
 
-	// 创建网关组件
-	gateComp := ccgate.NewGateComponent(ccgate.Option{
-		TCPAddr: tcpAddr,
-		WSAddr:  wsAddr,
-	})
-	if err := gateComp.Init(); err != nil {
-		t.Fatalf("gate init: %v", err)
-	}
-	if err := app.AddCompenent(gateComp); err != nil {
-		t.Fatalf("add gate: %v", err)
-	}
-
 	// 创建游戏组件
 	gameComp := ccgame.NewGameComponent()
 	if err := gameComp.Init(); err != nil {
@@ -49,6 +37,19 @@ func TestAppIntegration(t *testing.T) {
 	}
 	if err := app.AddCompenent(gameComp); err != nil {
 		t.Fatalf("add game: %v", err)
+	}
+
+	// 创建网关组件，注入业务处理器
+	gateComp := ccgate.NewGateComponent(ccgate.Option{
+		TCPAddr:         tcpAddr,
+		WSAddr:          wsAddr,
+		BusinessHandler: gameComp,
+	})
+	if err := gateComp.Init(); err != nil {
+		t.Fatalf("gate init: %v", err)
+	}
+	if err := app.AddCompenent(gateComp); err != nil {
+		t.Fatalf("add gate: %v", err)
 	}
 
 	// 启动应用
@@ -95,18 +96,6 @@ func TestAppWebSocket(t *testing.T) {
 	// 创建应用
 	app := component.NewApplication()
 
-	// 创建网关组件
-	gateComp := ccgate.NewGateComponent(ccgate.Option{
-		TCPAddr: tcpAddr,
-		WSAddr:  wsAddr,
-	})
-	if err := gateComp.Init(); err != nil {
-		t.Fatalf("gate init: %v", err)
-	}
-	if err := app.AddCompenent(gateComp); err != nil {
-		t.Fatalf("add gate: %v", err)
-	}
-
 	// 创建游戏组件
 	gameComp := ccgame.NewGameComponent()
 	if err := gameComp.Init(); err != nil {
@@ -114,6 +103,19 @@ func TestAppWebSocket(t *testing.T) {
 	}
 	if err := app.AddCompenent(gameComp); err != nil {
 		t.Fatalf("add game: %v", err)
+	}
+
+	// 创建网关组件，注入业务处理器
+	gateComp := ccgate.NewGateComponent(ccgate.Option{
+		TCPAddr:         tcpAddr,
+		WSAddr:          wsAddr,
+		BusinessHandler: gameComp,
+	})
+	if err := gateComp.Init(); err != nil {
+		t.Fatalf("gate init: %v", err)
+	}
+	if err := app.AddCompenent(gateComp); err != nil {
+		t.Fatalf("add gate: %v", err)
 	}
 
 	// 启动应用
@@ -162,17 +164,6 @@ func TestAppMultipleClients(t *testing.T) {
 	// 创建应用
 	app := component.NewApplication()
 
-	// 创建网关组件
-	gateComp := ccgate.NewGateComponent(ccgate.Option{
-		TCPAddr: tcpAddr,
-	})
-	if err := gateComp.Init(); err != nil {
-		t.Fatalf("gate init: %v", err)
-	}
-	if err := app.AddCompenent(gateComp); err != nil {
-		t.Fatalf("add gate: %v", err)
-	}
-
 	// 创建游戏组件
 	gameComp := ccgame.NewGameComponent()
 	if err := gameComp.Init(); err != nil {
@@ -180,6 +171,18 @@ func TestAppMultipleClients(t *testing.T) {
 	}
 	if err := app.AddCompenent(gameComp); err != nil {
 		t.Fatalf("add game: %v", err)
+	}
+
+	// 创建网关组件，注入业务处理器
+	gateComp := ccgate.NewGateComponent(ccgate.Option{
+		TCPAddr:         tcpAddr,
+		BusinessHandler: gameComp,
+	})
+	if err := gateComp.Init(); err != nil {
+		t.Fatalf("gate init: %v", err)
+	}
+	if err := app.AddCompenent(gateComp); err != nil {
+		t.Fatalf("add gate: %v", err)
 	}
 
 	// 启动应用

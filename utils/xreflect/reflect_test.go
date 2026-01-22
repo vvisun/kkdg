@@ -125,22 +125,26 @@ func TestIsNil(t *testing.T) {
 	}
 }
 
+type testStruct1 struct {
+	Name string
+}
+
 func TestGetStructName(t *testing.T) {
 	type TestStruct struct {
 		Name string
 	}
 
 	// 测试指针
-	ts := &TestStruct{}
+	ts := &testStruct1{}
 	name := xreflect.GetStructName(ts)
-	if name != "TestStruct" {
+	if name != "testStruct1" {
 		t.Errorf("Expected 'TestStruct', got '%s'", name)
 	}
 
 	// 测试非指针
-	ts2 := TestStruct{}
+	ts2 := testStruct1{}
 	name = xreflect.GetStructName(ts2)
-	if name != "TestStruct" {
+	if name != "testStruct1" {
 		t.Errorf("Expected 'TestStruct', got '%s'", name)
 	}
 

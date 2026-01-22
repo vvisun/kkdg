@@ -3,7 +3,6 @@ package ccgate
 import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -12,16 +11,24 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+// IBusinessHandler 业务处理器接口，用于处理来自客户端的业务请求
+type IBusinessHandler interface {
+	// HandleRequest 处理客户端请求
+	HandleRequest(connID kknet.CONN_ID, data []byte)
+	// SetResponder 设置响应回调，用于向客户端发送响应
+	SetResponder(responder func(connID kknet.CONN_ID, data []byte))
+}
+
 // 网关服
 type GateComponent struct {
 	component.Component
-	opt       Option
-	router    *Router
-	actorSys  *actor.ActorSystem
-	game      *ccgame.GameComponent
-	tcpServer kknet.IServer
-	wsServer  kknet.IServer
-	handler   *gateHandler
+	opt             Option
+	router          *Router
+	actorSys        *actor.ActorSystem
+	businessHandler IBusinessHandler
+	tcpServer       kknet.IServer
+	wsServer        kknet.IServer
+	handler         *gateHandler
 }
 
 func (slf *GateComponent) GetID() string {
@@ -65,7 +72,11 @@ func (slf *GateComponent) Start() error {
 		}
 	}
 
-	slf.resolveGameComponent()
+	// 设置业务处理器
+	if slf.opt.BusinessHandler != nil {
+		slf.businessHandler = slf.opt.BusinessHandler
+		slf.businessHandler.SetResponder(slf.sendToClient)
+	}
 
 	return nil
 }
@@ -98,8 +109,8 @@ func (slf *GateComponent) Stop() error {
 		}
 	}
 
-	if slf.game != nil {
-		slf.game.SetResponder(nil)
+	if slf.businessHandler != nil {
+		slf.businessHandler.SetResponder(nil)
 	}
 
 	return nil
@@ -146,29 +157,12 @@ func (slf *GateComponent) startWSServer() error {
 	return nil
 }
 
-// resolveGameComponent finds game component and binds responder.
-func (slf *GateComponent) resolveGameComponent() {
-	if slf.game != nil {
-		return
+// SetBusinessHandler 设置业务处理器（可选，也可以通过 Option 设置）
+func (slf *GateComponent) SetBusinessHandler(handler IBusinessHandler) {
+	slf.businessHandler = handler
+	if handler != nil {
+		handler.SetResponder(slf.sendToClient)
 	}
-	slf.game = findGameComponent(slf.GetApplication())
-	if slf.game == nil {
-		kklog.Warnf("[ccgate] game component not found")
-		return
-	}
-	slf.game.SetResponder(slf.sendToClient)
-}
-
-func findGameComponent(node component.IApplication) *ccgame.GameComponent {
-	if node == nil {
-		return nil
-	}
-	for _, child := range node.GetComponents() {
-		if game, ok := child.(*ccgame.GameComponent); ok {
-			return game
-		}
-	}
-	return nil
 }
 
 func (slf *GateComponent) sendToClient(connID kknet.CONN_ID, data []byte) {
@@ -208,7 +202,7 @@ func newGateHandler(gate *GateComponent) *gateHandler {
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
 	// 为每个连接创建一个 ActorAgent
-	agent := NewActorAgent(c.ID(), c, h.gate.router, h.gate.game)
+	agent := NewActorAgent(c.ID(), c, h.gate.router, h.gate.businessHandler)
 	props := actor.PropsFromProducer(func() actor.Actor { return agent })
 	pid := h.gate.actorSys.Root.Spawn(props)
 
