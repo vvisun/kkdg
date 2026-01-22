@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccclient"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
+	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
 
 func freeTCPAddr(t testing.TB) string {
@@ -54,6 +55,15 @@ func TestAppIntegration(t *testing.T) {
 		t.Fatalf("add gate: %v", err)
 	}
 
+	// 创建发现组件
+	discoveryComp := kkdiscovery.NewCompDiscovery(kkdiscovery.NewNatsDiscovery("test", nodeInfo, nil))
+	if err := discoveryComp.Init(); err != nil {
+		t.Fatalf("discovery init: %v", err)
+	}
+	if err := app.AddCompenent(discoveryComp); err != nil {
+		t.Fatalf("add discovery: %v", err)
+	}
+
 	// 启动应用
 	if err := app.Start(); err != nil {
 		t.Fatalf("app start: %v", err)
@@ -65,7 +75,7 @@ func TestAppIntegration(t *testing.T) {
 	}()
 
 	// 等待服务器启动
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// 创建客户端组件（TCP）
 	clientComp := ccclient.NewClientComponent(ccclient.Option{

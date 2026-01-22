@@ -190,10 +190,10 @@ func (d *NatsDiscovery) OnRemoveMember(listener MemberListener) {
 }
 
 // Stop 停止服务发现
-func (d *NatsDiscovery) Stop() {
+func (d *NatsDiscovery) Stop() error {
 	select {
 	case <-d.stopCh:
-		return
+		return nil
 	default:
 		close(d.stopCh)
 	}
@@ -209,6 +209,7 @@ func (d *NatsDiscovery) Stop() {
 	}
 
 	close(d.doneCh)
+	return nil
 }
 
 // Start 启动服务发现（需要在外部调用）

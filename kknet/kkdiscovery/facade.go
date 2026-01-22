@@ -14,7 +14,7 @@ type (
 		OnAddMember(listener MemberListener)                          // 添加成员监听函数
 		OnRemoveMember(listener MemberListener)                       // 移除成员监听函数
 		Start() error                                                 // 启动
-		Stop()                                                        // 停止
+		Stop() error                                                  // 停止
 	}
 
 	// IMember 成员接口
