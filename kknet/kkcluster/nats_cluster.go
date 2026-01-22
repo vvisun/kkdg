@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -16,7 +17,7 @@ import (
 type NatsCluster struct {
 	nodeID      string
 	nodeType    string // 节点类型（用于订阅类型主题）
-	discovery   IDiscovery
+	discovery   kkdiscovery.IDiscovery
 	natsAddress string
 	conn        *nats.Conn
 
@@ -52,15 +53,15 @@ type NatsCluster struct {
 var _ ICluster = (*NatsCluster)(nil)
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, discovery IDiscovery, natsAddress string, options ...nats.Option) *NatsCluster {
+func NewNatsCluster(nodeID string, discovery kkdiscovery.IDiscovery, natsAddress string, options ...nats.Option) *NatsCluster {
 	if natsAddress == "" {
 		natsAddress = defaultNatsAddress
 	}
 
 	// 尝试从 discovery 获取节点类型（如果是 NatsDiscovery）
 	var nodeType string
-	if nd, ok := discovery.(*NatsDiscovery); ok {
-		nodeType = nd.nodeType
+	if nd, ok := discovery.(*kkdiscovery.NatsDiscovery); ok {
+		nodeType = nd.GetNodeType()
 	}
 
 	return &NatsCluster{

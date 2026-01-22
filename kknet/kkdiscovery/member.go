@@ -1,6 +1,10 @@
-package kkcluster
+package kkdiscovery
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/vvisun/kkdg/kknet"
+)
 
 // Member 实现IMember接口的成员结构
 type Member struct {
@@ -14,11 +18,11 @@ var _ IMember = (*Member)(nil)
 
 // NewMember 创建新的成员
 func NewMember(nodeID, nodeType, address string, settings map[string]string) *Member {
-	if len(nodeID) > MaxNodeIDLength {
-		panic("nodeID长度不能超过" + strconv.Itoa(MaxNodeIDLength))
+	if len(nodeID) > kknet.MaxNodeIDLength {
+		panic("nodeID长度不能超过" + strconv.Itoa(kknet.MaxNodeIDLength))
 	}
-	if len(nodeType) > MaxNodeTypeLength {
-		panic("nodeType长度不能超过" + strconv.Itoa(MaxNodeTypeLength))
+	if len(nodeType) > kknet.MaxNodeTypeLength {
+		panic("nodeType长度不能超过" + strconv.Itoa(kknet.MaxNodeTypeLength))
 	}
 	if settings == nil {
 		settings = make(map[string]string)

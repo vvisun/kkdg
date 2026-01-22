@@ -3,12 +3,12 @@ package testcluster
 import (
 	"testing"
 
-	"github.com/vvisun/kkdg/kknet/kkcluster"
+	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
 
 // TestMember_NewMember 测试创建成员
 func TestMember_NewMember(t *testing.T) {
-	member := kkcluster.NewMember("node1", "type1", "127.0.0.1:8080", nil)
+	member := kkdiscovery.NewMember("node1", "type1", "127.0.0.1:8080", nil)
 
 	if member == nil {
 		t.Fatal("NewMember returned nil")
@@ -38,7 +38,7 @@ func TestMember_WithSettings(t *testing.T) {
 		"key2": "value2",
 	}
 
-	member := kkcluster.NewMember("node1", "type1", "127.0.0.1:8080", settings)
+	member := kkdiscovery.NewMember("node1", "type1", "127.0.0.1:8080", settings)
 
 	if member == nil {
 		t.Fatal("NewMember returned nil")
@@ -60,5 +60,5 @@ func TestMember_WithSettings(t *testing.T) {
 
 // TestMember_ImplementsInterface 测试Member实现IMember接口
 func TestMember_ImplementsInterface(t *testing.T) {
-	var _ kkcluster.IMember = (*kkcluster.Member)(nil)
+	var _ kkdiscovery.IMember = (*kkdiscovery.Member)(nil)
 }

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/vvisun/kkdg/kknet/kkcluster"
+	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
 
 // startTestNatsServer 返回测试用的NATS服务器地址
@@ -16,7 +16,7 @@ func startTestNatsServer() (interface{}, string, error) {
 }
 
 // waitForMembers 等待成员出现
-func waitForMembers(d kkcluster.IDiscovery, count int, timeout time.Duration) bool {
+func waitForMembers(d kkdiscovery.IDiscovery, count int, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		members := d.Map()

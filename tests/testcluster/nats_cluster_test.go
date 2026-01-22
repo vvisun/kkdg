@@ -6,11 +6,12 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkcluster"
+	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
 
 // TestNatsCluster_New 测试创建NatsCluster
 func TestNatsCluster_New(t *testing.T) {
-	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
+	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", "", nil)
 	cluster := kkcluster.NewNatsCluster("node1", discovery, "")
 
 	if cluster == nil {
@@ -25,7 +26,7 @@ func TestNatsCluster_Init(t *testing.T) {
 		t.Fatalf("Failed to start NATS server: %v", err)
 	}
 
-	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
 	cluster := kkcluster.NewNatsCluster("node1", discovery, natsURL)
 
 	if err := cluster.Init(); err != nil {
@@ -46,8 +47,8 @@ func TestNatsCluster_PublishRemote(t *testing.T) {
 	}
 
 	// 创建两个节点
-	discovery1 := kkcluster.NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	discovery2 := kkcluster.NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
+	discovery1 := kkdiscovery.NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery2 := kkdiscovery.NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
@@ -121,9 +122,9 @@ func TestNatsCluster_PublishRemoteType(t *testing.T) {
 	}
 
 	// 创建三个节点，两个同类型
-	discovery1 := kkcluster.NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	discovery2 := kkcluster.NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
-	discovery3 := kkcluster.NewNatsDiscovery("test3", "node3", "type2", "127.0.0.1:8082", natsURL, nil)
+	discovery1 := kkdiscovery.NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery2 := kkdiscovery.NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
+	discovery3 := kkdiscovery.NewNatsDiscovery("test3", "node3", "type2", "127.0.0.1:8082", natsURL, nil)
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
@@ -216,8 +217,8 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 	}
 
 	// 创建两个节点
-	discovery1 := kkcluster.NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
-	discovery2 := kkcluster.NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
+	discovery1 := kkdiscovery.NewNatsDiscovery("test1", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery2 := kkdiscovery.NewNatsDiscovery("test2", "node2", "type1", "127.0.0.1:8081", natsURL, nil)
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
@@ -272,7 +273,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 		t.Fatalf("Failed to start NATS server: %v", err)
 	}
 
-	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
 	cluster := kkcluster.NewNatsCluster("node1", discovery, natsURL)
 
 	if err := cluster.Init(); err != nil {
@@ -301,7 +302,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 		t.Fatalf("Failed to start NATS server: %v", err)
 	}
 
-	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
 	cluster := kkcluster.NewNatsCluster("node1", discovery, natsURL)
 
 	if err := cluster.Init(); err != nil {
@@ -330,7 +331,7 @@ func TestNatsCluster_Stop(t *testing.T) {
 		t.Fatalf("Failed to start NATS server: %v", err)
 	}
 
-	discovery := kkcluster.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
+	discovery := kkdiscovery.NewNatsDiscovery("test", "node1", "type1", "127.0.0.1:8080", natsURL, nil)
 	cluster := kkcluster.NewNatsCluster("node1", discovery, natsURL)
 
 	if err := cluster.Init(); err != nil {

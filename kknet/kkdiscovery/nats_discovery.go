@@ -1,4 +1,4 @@
-package kkcluster
+package kkdiscovery
 
 import (
 	"encoding/json"
@@ -10,6 +10,11 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xrand"
 )
+
+// NewNatsDiscoveryWithDefaults 使用默认配置创建NATS服务发现
+func NewNatsDiscoveryWithDefaults(name, nodeID, nodeType, address string) *NatsDiscovery {
+	return NewNatsDiscovery(name, nodeID, nodeType, address, defaultNatsAddress, nil)
+}
 
 // NatsDiscovery 基于NATS的服务发现实现
 type NatsDiscovery struct {
@@ -73,6 +78,10 @@ func NewNatsDiscovery(name, nodeID, nodeType, address, natsAddress string, setti
 // Name 返回发现服务名称
 func (d *NatsDiscovery) Name() string {
 	return d.name
+}
+
+func (d *NatsDiscovery) GetNodeType() string {
+	return d.nodeType
 }
 
 // Map 获取成员列表
