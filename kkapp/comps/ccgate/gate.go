@@ -20,7 +20,7 @@ type IBusinessHandler interface {
 }
 
 // 网关服
-type GateComponent struct {
+type gateComponent struct {
 	component.Component
 	opt             Option
 	router          *Router
@@ -31,20 +31,20 @@ type GateComponent struct {
 	handler         *gateHandler
 }
 
-func (slf *GateComponent) GetID() string {
+func (slf *gateComponent) GetID() string {
 	return "gate"
 }
 
-var _ component.IComponent = (*GateComponent)(nil)
+var _ component.IComponent = (*gateComponent)(nil)
 
 // NewGateComponent creates a new gate component.
-func NewGateComponent(opt Option) *GateComponent {
-	return &GateComponent{
+func NewGateComponent(opt Option) *gateComponent {
+	return &gateComponent{
 		opt: opt,
 	}
 }
 
-func (slf *GateComponent) Init() error {
+func (slf *gateComponent) Init() error {
 	// 初始化 actor system
 	slf.actorSys = actor.NewActorSystem()
 
@@ -57,7 +57,7 @@ func (slf *GateComponent) Init() error {
 	return nil
 }
 
-func (slf *GateComponent) Start() error {
+func (slf *gateComponent) Start() error {
 	// 启动 TCP 服务器
 	if slf.opt.TCPAddr != "" {
 		if err := slf.startTCPServer(); err != nil {
@@ -81,7 +81,7 @@ func (slf *GateComponent) Start() error {
 	return nil
 }
 
-func (slf *GateComponent) Stop() error {
+func (slf *gateComponent) Stop() error {
 	// 停止 TCP 服务器
 	if slf.tcpServer != nil {
 		if err := slf.tcpServer.Stop(); err != nil {
@@ -116,7 +116,7 @@ func (slf *GateComponent) Stop() error {
 	return nil
 }
 
-func (slf *GateComponent) startTCPServer() error {
+func (slf *gateComponent) startTCPServer() error {
 	// 创建 TCP 服务器
 	server := kktcp.NewServer(
 		slf.opt.TCPAddr,
@@ -137,7 +137,7 @@ func (slf *GateComponent) startTCPServer() error {
 	return nil
 }
 
-func (slf *GateComponent) startWSServer() error {
+func (slf *gateComponent) startWSServer() error {
 	// 创建 WebSocket 服务器
 	server := kkws.NewServer(
 		slf.opt.WSAddr,
@@ -158,14 +158,14 @@ func (slf *GateComponent) startWSServer() error {
 }
 
 // SetBusinessHandler 设置业务处理器（可选，也可以通过 Option 设置）
-func (slf *GateComponent) SetBusinessHandler(handler IBusinessHandler) {
+func (slf *gateComponent) SetBusinessHandler(handler IBusinessHandler) {
 	slf.businessHandler = handler
 	if handler != nil {
 		handler.SetResponder(slf.sendToClient)
 	}
 }
 
-func (slf *GateComponent) sendToClient(connID kknet.CONN_ID, data []byte) {
+func (slf *gateComponent) sendToClient(connID kknet.CONN_ID, data []byte) {
 	if slf.router == nil {
 		return
 	}
@@ -180,21 +180,21 @@ func (slf *GateComponent) sendToClient(connID kknet.CONN_ID, data []byte) {
 }
 
 // GetRouter returns the router.
-func (slf *GateComponent) GetRouter() *Router {
+func (slf *gateComponent) GetRouter() *Router {
 	return slf.router
 }
 
 // GetActorSystem returns the actor system.
-func (slf *GateComponent) GetActorSystem() *actor.ActorSystem {
+func (slf *gateComponent) GetActorSystem() *actor.ActorSystem {
 	return slf.actorSys
 }
 
 // gateHandler 实现 kknet.IHandler
 type gateHandler struct {
-	gate *GateComponent
+	gate *gateComponent
 }
 
-func newGateHandler(gate *GateComponent) *gateHandler {
+func newGateHandler(gate *gateComponent) *gateHandler {
 	return &gateHandler{
 		gate: gate,
 	}

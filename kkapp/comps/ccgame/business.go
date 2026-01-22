@@ -9,12 +9,12 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-func NewGameComponent() *GameComponent {
-	return &GameComponent{}
+func NewGameComponent() *gameComponent {
+	return &gameComponent{}
 }
 
 // 业务服：游戏服
-type GameComponent struct {
+type gameComponent struct {
 	component.Component
 	actorSys    *actor.ActorSystem
 	pid         *actor.PID
@@ -22,18 +22,18 @@ type GameComponent struct {
 	responder   func(connID kknet.CONN_ID, data []byte)
 }
 
-func (slf *GameComponent) GetID() string {
+func (slf *gameComponent) GetID() string {
 	return "game"
 }
 
-var _ component.IComponent = (*GameComponent)(nil)
+var _ component.IComponent = (*gameComponent)(nil)
 
-func (slf *GameComponent) Init() error {
+func (slf *gameComponent) Init() error {
 	slf.actorSys = actor.NewActorSystem()
 	return nil
 }
 
-func (slf *GameComponent) Start() error {
+func (slf *gameComponent) Start() error {
 	props := actor.PropsFromProducer(func() actor.Actor {
 		return &gameActor{game: slf}
 	})
@@ -42,7 +42,7 @@ func (slf *GameComponent) Start() error {
 	return nil
 }
 
-func (slf *GameComponent) Stop() error {
+func (slf *gameComponent) Stop() error {
 	if slf.pid != nil {
 		slf.actorSys.Root.Stop(slf.pid)
 		slf.pid = nil
@@ -51,7 +51,7 @@ func (slf *GameComponent) Stop() error {
 }
 
 // HandleRequest forwards a client message to the game actor.
-func (slf *GameComponent) HandleRequest(connID kknet.CONN_ID, data []byte) {
+func (slf *gameComponent) HandleRequest(connID kknet.CONN_ID, data []byte) {
 	if slf.pid == nil {
 		return
 	}
@@ -62,13 +62,13 @@ func (slf *GameComponent) HandleRequest(connID kknet.CONN_ID, data []byte) {
 }
 
 // SetResponder sets the responder for sending data back to gate.
-func (slf *GameComponent) SetResponder(responder func(connID kknet.CONN_ID, data []byte)) {
+func (slf *gameComponent) SetResponder(responder func(connID kknet.CONN_ID, data []byte)) {
 	slf.responderMu.Lock()
 	slf.responder = responder
 	slf.responderMu.Unlock()
 }
 
-func (slf *GameComponent) respond(connID kknet.CONN_ID, data []byte) {
+func (slf *gameComponent) respond(connID kknet.CONN_ID, data []byte) {
 	slf.responderMu.RLock()
 	responder := slf.responder
 	slf.responderMu.RUnlock()
@@ -84,7 +84,7 @@ type GameRequest struct {
 }
 
 type gameActor struct {
-	game *GameComponent
+	game *gameComponent
 }
 
 func (a *gameActor) Receive(ctx actor.Context) {
