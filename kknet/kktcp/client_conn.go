@@ -5,12 +5,14 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/buffers/kkring"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type clientConn struct {
@@ -23,7 +25,12 @@ type clientConn struct {
 	sendCond   *sync.Cond
 	sendBuf    *kkring.Buffer
 	sendLimit  int
+	sendMeta   []sendMeta
+	sendHead   int
+	sendWire   int
+	sendPayLen int
 	sendClosed bool
+	sendDrain  bool
 	closeOnce  sync.Once
 
 	ctxMu sync.RWMutex
@@ -89,6 +96,7 @@ func (c *clientConn) Send(data []byte) error {
 		return kkerrors.ErrConnectionClosed
 	}
 	_, err := c.sendBuf.Write(bb.B)
+	c.appendSendMetaLocked(len(bb.B), len(data))
 	c.sendCond.Signal()
 	c.sendMu.Unlock()
 	kkbuffer.Put(bb)
@@ -104,9 +112,38 @@ func (c *clientConn) Send(data []byte) error {
 func (c *clientConn) Close() error {
 	c.sendMu.Lock()
 	c.sendClosed = true
+	c.sendDrain = c.opts.TcpClientNeedFlushOver
+	flushTimeout := c.opts.TimeoutTcpFlushOver
+	flushCb := c.opts.TcpClientFlushTimeoutCallback
 	c.sendCond.Broadcast()
 	c.sendMu.Unlock()
-	return c.conn.Close()
+	if !c.sendDrain {
+		return c.conn.Close()
+	}
+	if flushTimeout > 0 {
+		go func() {
+			timer := time.NewTimer(flushTimeout)
+			defer timer.Stop()
+			<-timer.C
+			c.sendMu.Lock()
+			if c.sendClosed && c.sendDrain {
+				if flushCb != nil {
+					flushCb(c, flushTimeout)
+				}
+				if c.stats != nil {
+					c.stats.AddError()
+				}
+				c.sendDrain = false
+				c.sendCond.Broadcast()
+				c.sendMu.Unlock()
+				_ = c.conn.Close()
+				kklog.Warnf("tcp client flush timeout: %v", flushTimeout)
+				return
+			}
+			c.sendMu.Unlock()
+		}()
+	}
+	return nil
 }
 
 func (c *clientConn) Context() context.Context {
@@ -153,6 +190,7 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 	c.closeOnce.Do(func() {
 		c.sendMu.Lock()
 		c.sendClosed = true
+		c.sendDrain = false
 		c.sendCond.Broadcast()
 		c.sendMu.Unlock()
 		if c.stats != nil {
@@ -171,22 +209,23 @@ func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
 }
 
 func (c *clientConn) writeLoop() error {
-	var header [4]byte
-	headerRead := 0
-	payloadRemaining := 0
-	currentMsgLen := 0
-
 	for {
 		c.sendMu.Lock()
 		for c.sendBuf.IsEmpty() && !c.sendClosed {
 			c.sendCond.Wait()
 		}
-		if c.sendClosed {
+		if c.sendClosed && !c.sendDrain {
 			c.sendMu.Unlock()
 			return nil
 		}
 		buffered := c.sendBuf.Buffered()
 		if buffered == 0 {
+			if c.sendClosed && c.sendDrain {
+				c.sendDrain = false
+				c.sendMu.Unlock()
+				_ = c.conn.Close()
+				return nil
+			}
 			c.sendMu.Unlock()
 			continue
 		}
@@ -203,41 +242,6 @@ func (c *clientConn) writeLoop() error {
 		c.sendMu.Unlock()
 
 		err := writeFull(c.conn, chunk.B)
-		if err == nil && c.stats != nil {
-			n := len(chunk.B)
-			for i := 0; i < n; {
-				if payloadRemaining > 0 {
-					remain := n - i
-					if remain >= payloadRemaining {
-						i += payloadRemaining
-						payloadRemaining = 0
-						c.stats.AddSent(currentMsgLen)
-						continue
-					}
-					payloadRemaining -= remain
-					break
-				}
-				if headerRead < 4 {
-					need := 4 - headerRead
-					remain := n - i
-					if remain < need {
-						copy(header[headerRead:], chunk.B[i:])
-						headerRead += remain
-						break
-					}
-					copy(header[headerRead:], chunk.B[i:i+need])
-					i += need
-					headerRead = 4
-					currentMsgLen = int(kkpacket.GetByteOrder().Uint32(header[:]))
-					payloadRemaining = currentMsgLen
-					headerRead = 0
-					if payloadRemaining == 0 {
-						c.stats.AddSent(0)
-						continue
-					}
-				}
-			}
-		}
 		kkbuffer.Put(chunk)
 		if err != nil {
 			return err
@@ -245,8 +249,55 @@ func (c *clientConn) writeLoop() error {
 
 		c.sendMu.Lock()
 		_, _ = c.sendBuf.Discard(buffered)
+		c.consumeWrittenLocked(buffered)
 		c.sendCond.Broadcast()
 		c.sendMu.Unlock()
+	}
+}
+
+type sendMeta struct {
+	wireLen    int
+	payloadLen int
+}
+
+func (c *clientConn) appendSendMetaLocked(wireLen, payloadLen int) {
+	if wireLen <= 0 {
+		return
+	}
+	c.sendMeta = append(c.sendMeta, sendMeta{wireLen: wireLen, payloadLen: payloadLen})
+	c.compactSendMetaLocked()
+}
+
+func (c *clientConn) consumeWrittenLocked(written int) {
+	for written > 0 {
+		if c.sendWire == 0 {
+			if c.sendHead >= len(c.sendMeta) {
+				break
+			}
+			meta := c.sendMeta[c.sendHead]
+			c.sendHead++
+			c.sendWire = meta.wireLen
+			c.sendPayLen = meta.payloadLen
+		}
+		if written >= c.sendWire {
+			written -= c.sendWire
+			c.sendWire = 0
+			if c.stats != nil {
+				c.stats.AddSent(c.sendPayLen)
+			}
+			c.sendPayLen = 0
+			continue
+		}
+		c.sendWire -= written
+		written = 0
+	}
+	c.compactSendMetaLocked()
+}
+
+func (c *clientConn) compactSendMetaLocked() {
+	if c.sendHead > 0 && c.sendHead*2 >= len(c.sendMeta) {
+		c.sendMeta = append([]sendMeta(nil), c.sendMeta[c.sendHead:]...)
+		c.sendHead = 0
 	}
 }
 
