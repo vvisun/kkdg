@@ -96,8 +96,10 @@ func (c *clientConn) Send(data []byte) error {
 		return kkerrors.ErrConnectionClosed
 	}
 	_, err := c.sendBuf.Write(bb.B)
-	c.appendSendMetaLocked(len(bb.B), len(data))
-	c.sendCond.Signal()
+	if err == nil {
+		c.appendSendMetaLocked(len(bb.B), len(data))
+		c.sendCond.Signal()
+	}
 	c.sendMu.Unlock()
 	kkbuffer.Put(bb)
 	if err != nil {
@@ -125,17 +127,19 @@ func (c *clientConn) Close() error {
 			timer := time.NewTimer(flushTimeout)
 			defer timer.Stop()
 			<-timer.C
+			shouldCallback := false
 			c.sendMu.Lock()
 			if c.sendClosed && c.sendDrain {
-				if flushCb != nil {
-					flushCb(c, flushTimeout)
-				}
+				shouldCallback = flushCb != nil
+				c.sendDrain = false
+				c.sendCond.Broadcast()
 				if c.stats != nil {
 					c.stats.AddError()
 				}
-				c.sendDrain = false
-				c.sendCond.Broadcast()
 				c.sendMu.Unlock()
+				if shouldCallback {
+					flushCb(c, flushTimeout)
+				}
 				_ = c.conn.Close()
 				kklog.Warnf("tcp client flush timeout: %v", flushTimeout)
 				return
