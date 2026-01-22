@@ -2,31 +2,35 @@ package kkdiscovery
 
 import "github.com/vvisun/kkdg/kkapp/component"
 
-type compDiscovery struct {
+type CompDiscovery struct {
 	component.Component
 	discovery IDiscovery
 }
 
-var _ component.IComponent = (*compDiscovery)(nil)
+var _ component.IComponent = (*CompDiscovery)(nil)
 
-func NewCompDiscovery(discovery IDiscovery) *compDiscovery {
-	return &compDiscovery{
+func NewCompDiscovery(discovery IDiscovery) *CompDiscovery {
+	return &CompDiscovery{
 		discovery: discovery,
 	}
 }
 
-func (slf *compDiscovery) GetID() string {
+func (slf *CompDiscovery) GetID() string {
 	return slf.discovery.Name()
 }
 
-func (slf *compDiscovery) Init() error {
+func (slf *CompDiscovery) Init() error {
 	return nil
 }
 
-func (slf *compDiscovery) Start() error {
+func (slf *CompDiscovery) Start() error {
 	return slf.discovery.Start()
 }
 
-func (slf *compDiscovery) Stop() error {
+func (slf *CompDiscovery) Stop() error {
 	return slf.discovery.Stop()
+}
+
+func (slf *CompDiscovery) GraceStop() error {
+	return slf.Stop()
 }
