@@ -163,9 +163,6 @@ func findGameComponent(node component.IApplication) *ccgame.GameComponent {
 	if node == nil {
 		return nil
 	}
-	if game, ok := node.(*ccgame.GameComponent); ok {
-		return game
-	}
 	for _, child := range node.GetComponents() {
 		if game, ok := child.(*ccgame.GameComponent); ok {
 			return game

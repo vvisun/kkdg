@@ -5,17 +5,17 @@ import (
 )
 
 type IComponentLifecycle interface {
-	Init() error //初始化组件
-	//OnInit() error  //初始化组件时调用
+	Init() error  //初始化组件
 	Start() error //启动组件
+	Stop() error  //停止组件
+	//OnInit() error  //初始化组件时调用
 	//OnStart() error //启动组件时调用
-	Stop() error //停止组件
 	//OnStop() error  //停止组件时调用
 }
 
 type IComponentContainer interface {
-	AddCompenent(child IComponent) error
-	RemoveChild(child IComponent) error
+	AddComponent(child IComponent) error
+	RemoveComponent(child IComponent) error
 	GetComponents() []IComponent
 }
 
@@ -25,6 +25,10 @@ type IComponent interface {
 	IComponentContainer
 	SetApplication(app IApplication)
 	GetApplication() IApplication
+}
+
+func IsEqual(a, b IComponent) bool {
+	return a == b || a.GetID() == b.GetID()
 }
 
 type ComponentState = int64
@@ -45,8 +49,8 @@ type Component struct {
 
 var _ IComponent = (*Component)(nil)
 
-func IsEqual(a, b IComponent) bool {
-	return a == b || a.GetID() == b.GetID()
+func (slf *Component) GetID() string {
+	return slf.id
 }
 
 func (slf *Component) SetApplication(app IApplication) {
@@ -66,15 +70,15 @@ func (slf *Component) HasComponent(target IComponent) bool {
 	return false
 }
 
-func (slf *Component) AddCompenent(child IComponent) error {
-	if slf.HasComponent(child) {
+func (slf *Component) AddComponent(target IComponent) error {
+	if slf.HasComponent(target) {
 		return kkerrors.ErrComponentAlreadyAdded
 	}
-	slf.childlist = append(slf.childlist, child)
+	slf.childlist = append(slf.childlist, target)
 	return nil
 }
 
-func (slf *Component) RemoveChild(target IComponent) error {
+func (slf *Component) RemoveComponent(target IComponent) error {
 	for i, child := range slf.childlist {
 		if IsEqual(child, target) {
 			if err := child.Stop(); err != nil {
@@ -89,10 +93,6 @@ func (slf *Component) RemoveChild(target IComponent) error {
 
 func (slf *Component) GetComponents() []IComponent {
 	return slf.childlist
-}
-
-func (slf *Component) GetID() string {
-	return slf.id
 }
 
 // Init was called to initialize the component.

@@ -22,7 +22,7 @@ func TestAddChildSuccess(t *testing.T) {
 	parent := newComponent("parent")
 	child := newComponent("child")
 
-	if err := parent.AddCompenent(child); err != nil {
+	if err := parent.AddComponent(child); err != nil {
 		t.Fatalf("AddChild unexpected error: %v", err)
 	}
 
@@ -35,7 +35,7 @@ func TestAddChildWithoutStart(t *testing.T) {
 	parent := newComponent("parent")
 	child := newComponent("child")
 
-	if err := parent.AddCompenent(child); err != nil {
+	if err := parent.AddComponent(child); err != nil {
 		t.Fatalf("AddChild without start unexpected error: %v", err)
 	}
 }
@@ -44,7 +44,7 @@ func TestAddChildDuplicate(t *testing.T) {
 	parent := newComponent("parent")
 	child := newComponent("child")
 
-	if err := parent.AddCompenent(child); err != nil {
+	if err := parent.AddComponent(child); err != nil {
 		t.Fatalf("first AddChild unexpected error: %v", err)
 	}
 }
@@ -52,11 +52,11 @@ func TestAddChildDuplicate(t *testing.T) {
 func TestRemoveChild(t *testing.T) {
 	parent := newComponent("parent")
 	child := newComponent("child")
-	if err := parent.AddCompenent(child); err != nil {
+	if err := parent.AddComponent(child); err != nil {
 		t.Fatalf("AddChild unexpected error: %v", err)
 	}
 
-	if err := parent.RemoveChild(child); err != nil {
+	if err := parent.RemoveComponent(child); err != nil {
 		t.Fatalf("RemoveChild unexpected error: %v", err)
 	}
 	if len(parent.GetComponents()) != 0 {
@@ -69,10 +69,10 @@ func TestGetRoot(t *testing.T) {
 	level1 := newComponent("level1")
 	level2 := newComponent("level2")
 
-	if err := root.AddCompenent(level1); err != nil {
+	if err := root.AddComponent(level1); err != nil {
 		t.Fatalf("AddChild level1 error: %v", err)
 	}
-	if err := level1.AddCompenent(level2); err != nil {
+	if err := level1.AddComponent(level2); err != nil {
 		t.Fatalf("AddChild level2 error: %v", err)
 	}
 }
