@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"hash"
+	"hash/crc32"
 	"io"
 )
 
@@ -26,4 +27,8 @@ func SHA256(data string, key ...string) string {
 
 	h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func CRC32(value string) int {
+	return int(crc32.ChecksumIEEE([]byte(value)))
 }

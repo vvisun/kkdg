@@ -21,6 +21,12 @@ type ILogger interface {
 	Errorf(format string, args ...any)
 	Fatalf(format string, args ...any)
 	Panicf(format string, args ...any)
+	Debug(args ...any)
+	Info(args ...any)
+	Warn(args ...any)
+	Error(args ...any)
+	Fatal(args ...any)
+	Panic(args ...any)
 }
 
 var (
@@ -81,4 +87,46 @@ func Panicf(format string, args ...any) {
 		return
 	}
 	defaultLogger.Panicf(format, args...)
+}
+
+func Debug(args ...any) {
+	if defLogLevel > LOG_LEVEL_DEBUG {
+		return
+	}
+	defaultLogger.Debug(args...)
+}
+
+func Info(args ...any) {
+	if defLogLevel > LOG_LEVEL_INFO {
+		return
+	}
+	defaultLogger.Info(args...)
+}
+
+func Warn(args ...any) {
+	if defLogLevel > LOG_LEVEL_WARN {
+		return
+	}
+	defaultLogger.Warn(args...)
+}
+
+func Error(args ...any) {
+	if defLogLevel > LOG_LEVEL_ERROR {
+		return
+	}
+	defaultLogger.Error(args...)
+}
+
+func Fatal(args ...any) {
+	if defLogLevel > LOG_LEVEL_FATAL {
+		return
+	}
+	defaultLogger.Fatal(args...)
+}
+
+func Panic(args ...any) {
+	if defLogLevel > LOG_LEVEL_PANIC {
+		return
+	}
+	defaultLogger.Panic(args...)
 }
