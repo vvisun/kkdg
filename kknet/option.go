@@ -30,7 +30,7 @@ type Options struct {
 
 	TcpClientNeedFlushOver        bool                                    //tcp客户端关闭时是否需要等待 flush 完成
 	TcpTimeoutFlushOver           time.Duration                           //tcp客户端关闭时等待 flush 完成的超时时间
-	TcpClientFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
+	TcpClientFlushTimeoutCallback func(conn IConn, timeout time.Duration) //tcp客户端flush 超时回调
 	TcpClientSendQueueSize        int                                     //tcp客户端发送队列初始容量
 	TcpClientNeedReconnect        bool                                    //tcp客户端是否需要重连
 	TcpClientReconnectInterval    time.Duration                           //tcp客户端重连间隔
@@ -39,9 +39,7 @@ type Options struct {
 }
 
 const (
-	defaultMaxMessageSize     = 8 * 1024         //默认MaxMessageSize为8KB
 	defaultBufferSize         = 64 * 1024        //默认缓冲区大小为64KB
-	message_size_limit        = 1 * 1024 * 1024  //最大的MaxMessageSize不能超过该值: 1MB
 	defaultShutdownTimeout    = 30 * time.Second //默认关闭超时时间为30秒
 	defaultUDPConnIdleTimeout = 5 * time.Minute  //默认UDP连接空闲超时时间为5分钟
 	defaultUDPCleanupInterval = 1 * time.Minute  //默认UDP清理间隔时间为1分钟

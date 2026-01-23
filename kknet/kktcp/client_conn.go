@@ -207,14 +207,14 @@ func (c *clientConn) SetContext(ctx context.Context) {
 }
 
 func (c *clientConn) readLoop(handler kknet.IHandler) error {
-	header := make([]byte, 4)
+	header := make([]byte, kkpacket.DefaultStreamPacket().LengthFieldByteCount())
 	for {
 		if err := readFull(c.conn, header); err != nil {
 			return err
 		}
-		size := int(kkpacket.GetByteOrder().Uint32(header))
-		if size < 0 || size > kkpacket.DefaultMaxMessageSize() {
-			return kkerrors.ErrMaxMessageSize
+		size, err := kkpacket.DefaultStreamPacket().ReadHeadSize(header)
+		if err != nil {
+			return err
 		}
 		payload := kkbuffer.GetWithCapacity(size)
 		payload.B = payload.B[:size]

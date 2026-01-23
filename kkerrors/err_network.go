@@ -18,4 +18,6 @@ var (
 	ErrMaxMessageSize = errors.New("message size exceeds maximum")
 	// 服务器已停止
 	ErrServerStopped = errors.New("server is stopped")
+	// 无效的长度字段字节数
+	ErrInvalidLengthFieldByteCount = errors.New("invalid length field byte count")
 )
