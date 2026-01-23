@@ -32,6 +32,9 @@ type Options struct {
 	TimeoutTcpFlushOver           time.Duration                           //tcp客户端关闭时等待 flush 完成的超时时间
 	TcpClientFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
 	TcpClientSendQueueSize        int                                     //tcp客户端发送队列初始容量
+	TcpClientNeedReconnect        bool                                    //tcp客户端是否需要重连
+	TcpClientReconnectInterval    time.Duration                           //tcp客户端重连间隔
+	TcpClientReconnectMaxRetries  int                                     //tcp客户端重连最大次数(<=0为无限)
 }
 
 const (
@@ -239,5 +242,16 @@ func WithTcpClientSendQueueSize(size int) Option {
 		if size > 0 {
 			o.TcpClientSendQueueSize = size
 		}
+	}
+}
+
+// WithTcpClientReconnect sets tcp client reconnect settings.
+func WithTcpClientReconnect(enable bool, interval time.Duration, maxRetries int) Option {
+	return func(o *Options) {
+		o.TcpClientNeedReconnect = enable
+		if interval > 0 {
+			o.TcpClientReconnectInterval = interval
+		}
+		o.TcpClientReconnectMaxRetries = maxRetries
 	}
 }
