@@ -2,7 +2,6 @@ package kkudp
 
 import (
 	"context"
-	"errors"
 	"net"
 	"sync"
 
@@ -47,8 +46,7 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) SendBuffer(buffer buffers.IBuffer) error {
-	// todo:
-	return errors.New("not implemented")
+	return c.Send(buffer.B)
 }
 
 func (c *clientConn) Send(data []byte) error {

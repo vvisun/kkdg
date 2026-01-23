@@ -2,7 +2,6 @@ package kktcp
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/panjf2000/gnet/v2"
@@ -44,8 +43,30 @@ func (c *tcpConn) RemoteAddr() string {
 }
 
 func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
-	// todo:
-	return errors.New("not implemented")
+	if len(buffer.B) > kkpacket.DefaultMaxMessageSize() {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return kkerrors.ErrMaxMessageSize
+	}
+
+	bb := buffer
+
+	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, _ error) error {
+		kkbuffer.Put(bb)
+		return nil
+	})
+	if err != nil {
+		kkbuffer.Put(bb)
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
+	}
+	if c.stats != nil {
+		c.stats.AddSent(len(bb.B))
+	}
+	return nil
 }
 
 func (c *tcpConn) Send(data []byte) error {

@@ -1,6 +1,8 @@
 package component
 
 import (
+	"sync"
+
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -12,7 +14,7 @@ type IApplication interface {
 	Stop() error      // 立即停止
 	GraceStop() error // 优雅停止
 
-	AddCompenent(child IComponent) error
+	AddComponent(child IComponent) error
 	HasComponent(child IComponent) bool
 	GetComponents() []IComponent
 }
@@ -20,6 +22,7 @@ type IApplication interface {
 type Application struct {
 	nodeInfo *kkapp.NodeInfo
 	compList []IComponent
+	mu       sync.RWMutex
 }
 
 var _ IApplication = (*Application)(nil)
@@ -37,7 +40,9 @@ func (slf *Application) GetNodeInfo() *kkapp.NodeInfo {
 
 func (slf *Application) Start() error {
 	nodeId := slf.nodeInfo.GetNodeId()
+	slf.mu.RLock()
 	compList := slf.compList
+	slf.mu.RUnlock()
 	for _, comp := range compList {
 		if err := comp.Start(); err != nil {
 			kklog.Errorf("[kkapp] application %s start component %s error: %v", nodeId, comp.GetID(), err)
@@ -50,7 +55,9 @@ func (slf *Application) Start() error {
 
 func (slf *Application) Stop() error {
 	nodeId := slf.nodeInfo.GetNodeId()
+	slf.mu.RLock()
 	compList := slf.compList
+	slf.mu.RUnlock()
 	for i := len(compList) - 1; i >= 0; i-- {
 		if err := compList[i].Stop(); err != nil {
 			kklog.Errorf("[kkapp] application %s stop component %s error: %v", nodeId, compList[i].GetID(), err)
@@ -64,16 +71,20 @@ func (slf *Application) GraceStop() error {
 	return slf.Stop()
 }
 
-func (slf *Application) AddCompenent(comp IComponent) error {
+func (slf *Application) AddComponent(comp IComponent) error {
 	if slf.HasComponent(comp) {
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	comp.SetApplication(slf)
+	slf.mu.Lock()
 	slf.compList = append(slf.compList, comp)
+	slf.mu.Unlock()
 	return nil
 }
 
 func (slf *Application) HasComponent(comp IComponent) bool {
+	slf.mu.RLock()
+	defer slf.mu.RUnlock()
 	for _, c := range slf.compList {
 		if IsEqual(c, comp) {
 			return true
@@ -83,5 +94,7 @@ func (slf *Application) HasComponent(comp IComponent) bool {
 }
 
 func (slf *Application) GetComponents() []IComponent {
+	slf.mu.RLock()
+	defer slf.mu.RUnlock()
 	return slf.compList
 }

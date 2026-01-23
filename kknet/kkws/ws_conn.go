@@ -2,7 +2,6 @@ package kkws
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
@@ -51,8 +50,7 @@ func (c *wsConn) RemoteAddr() string {
 }
 
 func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
-	// todo:
-	return errors.New("not implemented")
+	return c.Send(buffer.B)
 }
 
 func (c *wsConn) Send(data []byte) error {

@@ -2,7 +2,6 @@ package kkudp
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -50,8 +49,7 @@ func (c *udpConn) RemoteAddr() string {
 }
 
 func (c *udpConn) SendBuffer(buffer buffers.IBuffer) error {
-	// todo:
-	return errors.New("not implemented")
+	return c.Send(buffer.B)
 }
 
 func (c *udpConn) Send(data []byte) error {

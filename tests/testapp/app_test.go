@@ -37,7 +37,7 @@ func TestAppIntegration(t *testing.T) {
 	if err := gameComp.Init(); err != nil {
 		t.Fatalf("game init: %v", err)
 	}
-	if err := app.AddCompenent(gameComp); err != nil {
+	if err := app.AddComponent(gameComp); err != nil {
 		t.Fatalf("add game: %v", err)
 	}
 
@@ -50,7 +50,7 @@ func TestAppIntegration(t *testing.T) {
 	if err := gateComp.Init(); err != nil {
 		t.Fatalf("gate init: %v", err)
 	}
-	if err := app.AddCompenent(gateComp); err != nil {
+	if err := app.AddComponent(gateComp); err != nil {
 		t.Fatalf("add gate: %v", err)
 	}
 
@@ -59,7 +59,7 @@ func TestAppIntegration(t *testing.T) {
 	// if err := discoveryComp.Init(); err != nil {
 	// 	t.Fatalf("discovery init: %v", err)
 	// }
-	// if err := app.AddCompenent(discoveryComp); err != nil {
+	// if err := app.AddComponent(discoveryComp); err != nil {
 	// 	t.Fatalf("add discovery: %v", err)
 	// }
 
@@ -110,7 +110,7 @@ func TestAppWebSocket(t *testing.T) {
 	if err := gameComp.Init(); err != nil {
 		t.Fatalf("game init: %v", err)
 	}
-	if err := app.AddCompenent(gameComp); err != nil {
+	if err := app.AddComponent(gameComp); err != nil {
 		t.Fatalf("add game: %v", err)
 	}
 
@@ -123,7 +123,7 @@ func TestAppWebSocket(t *testing.T) {
 	if err := gateComp.Init(); err != nil {
 		t.Fatalf("gate init: %v", err)
 	}
-	if err := app.AddCompenent(gateComp); err != nil {
+	if err := app.AddComponent(gateComp); err != nil {
 		t.Fatalf("add gate: %v", err)
 	}
 
@@ -176,7 +176,7 @@ func TestAppMultipleClients(t *testing.T) {
 	if err := gameComp.Init(); err != nil {
 		t.Fatalf("game init: %v", err)
 	}
-	if err := app.AddCompenent(gameComp); err != nil {
+	if err := app.AddComponent(gameComp); err != nil {
 		t.Fatalf("add game: %v", err)
 	}
 
@@ -188,7 +188,7 @@ func TestAppMultipleClients(t *testing.T) {
 	if err := gateComp.Init(); err != nil {
 		t.Fatalf("gate init: %v", err)
 	}
-	if err := app.AddCompenent(gateComp); err != nil {
+	if err := app.AddComponent(gateComp); err != nil {
 		t.Fatalf("add gate: %v", err)
 	}
 
