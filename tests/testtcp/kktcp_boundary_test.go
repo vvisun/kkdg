@@ -38,12 +38,16 @@ func TestKKTCPLargeMessage(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	// Test 1MB message
-	payload := make([]byte, 1024*1024)
+	payload := make([]byte, kkpacket.DefaultMaxMessageSize()-4)
 	for i := range payload {
 		payload[i] = byte(i % 256)
 	}
 
-	if err := client.Send(payload); err != nil {
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+	if err != nil {
+		t.Fatalf("pack failed: %v", err)
+	}
+	if err := client.SendBuffer(bb); err != nil {
 		t.Fatalf("client send: %v", err)
 	}
 
@@ -227,7 +231,11 @@ func TestKKTCPRapidMessages(t *testing.T) {
 	const numMessages = 1000
 	for i := 0; i < numMessages; i++ {
 		payload := []byte{byte(i), byte(i >> 8), byte(i >> 16), byte(i >> 24)}
-		if err := client.Send(payload); err != nil {
+		bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+		if err != nil {
+			t.Fatalf("pack failed: %v", err)
+		}
+		if err := client.SendBuffer(bb); err != nil {
 			t.Fatalf("client send %d: %v", i, err)
 		}
 	}
