@@ -74,11 +74,11 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
-	if len(bb.B) > kkpacket.DefaultMaxMessageSize() {
+	if err := kkpacket.DefaultStreamPacket().CheckPacket(bb.B); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		return kkerrors.ErrMaxMessageSize
+		return err
 	}
 	if len(bb.B) > c.sendLimit {
 		if c.stats != nil {
@@ -120,11 +120,11 @@ func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
 }
 
 func (c *clientConn) Send(data []byte) error {
-	if len(data) > kkpacket.DefaultMaxMessageSize() {
+	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		return kkerrors.ErrMaxMessageSize
+		return err
 	}
 	bb := kkbuffer.GetWithCapacity(len(data))
 	bb.B = bb.B[:len(data)]
@@ -212,7 +212,7 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 		if err := readFull(c.conn, header); err != nil {
 			return err
 		}
-		size, err := kkpacket.DefaultStreamPacket().ReadHeadSize(header)
+		size, err := kkpacket.DefaultStreamPacket().GetBodySize(header)
 		if err != nil {
 			return err
 		}

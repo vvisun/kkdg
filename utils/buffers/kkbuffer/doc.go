@@ -20,8 +20,7 @@ const (
 	steps      = 16 // 16个步长 = 2^6 * 2^16 = 65536 = 64KB
 
 	minItemSize = 1 << minBitSize               // 64
-	maxItemSize = 1 << (minBitSize + steps - 1) // 64 * 2^19 = 524288 = 512KB
-
+	maxItemSize = 1 << (minBitSize + steps - 1) // 2^6 * 2^16 = 65536 = 64KB
 )
 
 var calibrateCallsThreshold uint64 = 500 // 多少次调用后进行校准

@@ -53,12 +53,12 @@ func ParseHeadMidSeq(data []byte, endian binary.ByteOrder) HeadMidSeq {
 }
 
 type MsgInfo struct {
-	Id   MSGID
-	Data []byte
-	Err  error
+	MsgId MSGID
+	Data  []byte
+	Err   error
 }
 
-// 解析消息信息。二进制流解析为 消息ID 和 消息体
+// 解析消息信息。二进制流--->[消息ID, 消息体]
 func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 {
@@ -71,20 +71,19 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	msgId := uint32(0)
 	body := data[headSize:]
 
-	endian := GetByteOrder()
 	switch pkType.headType {
 	case HeadTypeMid:
-		head := ParseHeadMid(data[:headSize], endian)
+		head := ParseHeadMid(data[:headSize], GetByteOrder())
 		msgId = head.mid
 	case HeadTypeMidSeq:
-		head := ParseHeadMidSeq(data[:headSize], endian)
+		head := ParseHeadMidSeq(data[:headSize], GetByteOrder())
 		msgId = head.mid
 	}
 	return msgId, body, nil
 }
 
 /*
-解码包。二进制流解码为消息对象
+解码包。二进制流--->消息对象
 注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
 
 	@param data []byte 包数据
@@ -118,7 +117,7 @@ func DecodePacket(data []byte, pkType *PacketCodec) (any, error) {
 }
 
 /*
-编码包
+编码包。消息对象--->二进制流
 
 	@param v *T 消息类型
 	@param pkType *packer 包类型
@@ -138,7 +137,7 @@ func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
 }
 
 /*
-编码包。
+编码包。消息对象--->二进制流
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
 	@param v *T 消息类型

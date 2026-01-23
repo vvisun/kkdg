@@ -7,6 +7,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -28,6 +29,7 @@ type clientSender interface {
 	Connect() error
 	Close() error
 	Send(data []byte) error
+	SendBuffer(buffer buffers.IBuffer) error
 }
 
 func (slf *ClientComponent) GetID() string {
@@ -74,10 +76,7 @@ func (slf *ClientComponent) Start() error {
 		return err
 	}
 
-	payload := slf.opt.Payload
-	if len(payload) == 0 {
-		payload = nil
-	}
+	payload := []byte("hello from ccclient")
 	if len(payload) > 0 {
 		go slf.sendLoop(payload)
 	} else {
@@ -105,20 +104,19 @@ func (slf *ClientComponent) Stop() error {
 func (slf *ClientComponent) sendLoop(payload []byte) {
 	defer close(slf.doneCh)
 
-	interval := slf.opt.SendInterval
-	if interval <= 0 {
-		interval = 0
-	}
-	count := slf.opt.SendCount
-	if count == 0 {
-		count = 1
-	}
+	interval := 5
+	count := 20
 
 	sendOnce := func() bool {
 		if slf.client == nil {
 			return false
 		}
-		if err := slf.client.Send(payload); err != nil {
+		bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+		if err != nil {
+			kklog.Errorf("[ccclient] pack error: %v", err)
+			return false
+		}
+		if err := slf.client.SendBuffer(bb); err != nil {
 			kklog.Errorf("[ccclient] send error: %v", err)
 			return false
 		}
@@ -139,7 +137,7 @@ func (slf *ClientComponent) sendLoop(payload []byte) {
 		return
 	}
 
-	ticker := time.NewTicker(interval)
+	ticker := time.NewTicker(time.Duration(interval) * time.Millisecond)
 	defer ticker.Stop()
 	for sent := 0; count < 0 || sent < count; sent++ {
 		select {

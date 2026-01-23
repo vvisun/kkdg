@@ -141,3 +141,16 @@ func Benchmark_AA(b *testing.B) {
 		Put(bb)
 	}
 }
+
+func Benchmark_BB(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+	data := []byte("test data")
+	for i := 0; i < b.N; i++ {
+		bb := GetWithCapacity(len(data) + 4)
+		bb.B = bb.B[:len(data)+4]
+		binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))
+		copy(bb.B[4:], data)
+		Put(bb)
+	}
+}

@@ -37,7 +37,10 @@ type IStreamPacket interface {
 	LengthFieldByteCount() int
 
 	// read head size from header.
-	ReadHeadSize(header []byte) (int, error)
+	GetBodySize(header []byte) (int, error)
+
+	// check packet is valid.
+	CheckPacket(packet []byte) error
 }
 
 // LengthFieldStreamPacket packs and unpacks 4-byte length-prefixed frames.
@@ -59,7 +62,7 @@ func (slf *LengthFieldStreamPacket) LengthFieldByteCount() int {
 }
 
 // read head size from header.
-func (slf *LengthFieldStreamPacket) ReadHeadSize(header []byte) (int, error) {
+func (slf *LengthFieldStreamPacket) GetBodySize(header []byte) (int, error) {
 	if len(header) < slf.lengthFieldByteCount {
 		return 0, kkerrors.ErrDataTooShortToDecode
 	}
@@ -80,6 +83,23 @@ func (slf *LengthFieldStreamPacket) writeHeadSize(data []byte, size int) {
 	case 2:
 		GetByteOrder().PutUint16(data[:2], uint16(size))
 	}
+}
+
+// CheckPacket checks if the packet is valid.
+// input: [length,data].
+// output: error
+func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
+	if len(packet) > DefaultMaxMessageSize() {
+		return kkerrors.ErrMaxMessageSize
+	}
+	size, err := slf.GetBodySize(packet)
+	if err != nil {
+		return err
+	}
+	if len(packet) != size+slf.lengthFieldByteCount {
+		return kkerrors.ErrInvalidPacket
+	}
+	return nil
 }
 
 // pack message to stream.
@@ -118,7 +138,7 @@ func (slf *LengthFieldStreamPacket) Unpack(r IStreamReader) ([]byte, bool, error
 		}
 		return nil, false, err
 	}
-	size, err := slf.ReadHeadSize(header)
+	size, err := slf.GetBodySize(header)
 	if err != nil {
 		return nil, false, err
 	}

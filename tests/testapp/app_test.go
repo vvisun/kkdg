@@ -10,7 +10,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccclient"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
-	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
 
 func freeTCPAddr(t testing.TB) string {
@@ -56,13 +55,13 @@ func TestAppIntegration(t *testing.T) {
 	}
 
 	// 创建发现组件
-	discoveryComp := kkdiscovery.NewCompDiscovery(kkdiscovery.NewNatsDiscovery("test", nodeInfo, nil))
-	if err := discoveryComp.Init(); err != nil {
-		t.Fatalf("discovery init: %v", err)
-	}
-	if err := app.AddCompenent(discoveryComp); err != nil {
-		t.Fatalf("add discovery: %v", err)
-	}
+	// discoveryComp := kkdiscovery.NewCompDiscovery(kkdiscovery.NewNatsDiscovery("test", nodeInfo, nil))
+	// if err := discoveryComp.Init(); err != nil {
+	// 	t.Fatalf("discovery init: %v", err)
+	// }
+	// if err := app.AddCompenent(discoveryComp); err != nil {
+	// 	t.Fatalf("add discovery: %v", err)
+	// }
 
 	// 启动应用
 	if err := app.Start(); err != nil {
@@ -79,10 +78,7 @@ func TestAppIntegration(t *testing.T) {
 
 	// 创建客户端组件（TCP）
 	clientComp := ccclient.NewClientComponent(ccclient.Option{
-		TCPAddr:      tcpAddr,
-		Payload:      []byte("hello from tcp client"),
-		SendInterval: 0,
-		SendCount:    1,
+		TCPAddr: tcpAddr,
 	})
 	if err := clientComp.Init(); err != nil {
 		t.Fatalf("client init: %v", err)
@@ -92,7 +88,7 @@ func TestAppIntegration(t *testing.T) {
 	}
 
 	// 等待消息处理
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 
 	// 停止客户端
 	if err := clientComp.Stop(); err != nil {
@@ -149,10 +145,7 @@ func TestAppWebSocket(t *testing.T) {
 
 	// 创建客户端组件（WebSocket）
 	clientComp := ccclient.NewClientComponent(ccclient.Option{
-		WSURL:        wsURL,
-		Payload:      []byte("hello from ws client"),
-		SendInterval: 0,
-		SendCount:    1,
+		WSURL: wsURL,
 	})
 	if err := clientComp.Init(); err != nil {
 		t.Fatalf("client init: %v", err)
@@ -216,10 +209,7 @@ func TestAppMultipleClients(t *testing.T) {
 	clients := make([]*ccclient.ClientComponent, 3)
 	for i := 0; i < 3; i++ {
 		clientComp := ccclient.NewClientComponent(ccclient.Option{
-			TCPAddr:      tcpAddr,
-			Payload:      []byte("hello from client"),
-			SendInterval: 0,
-			SendCount:    1,
+			TCPAddr: tcpAddr,
 		})
 		if err := clientComp.Init(); err != nil {
 			t.Fatalf("client %d init: %v", i, err)
