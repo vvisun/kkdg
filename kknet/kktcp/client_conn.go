@@ -285,14 +285,17 @@ func (c *clientConn) writeLoop() error {
 			continue
 		}
 		bb := c.sendQueue.Pop()
-		c.spaceSem.Release(int64(len(bb.B)))
 		c.sendMu.Unlock()
 
 		err := writeFull(c.conn, bb.B)
 		kkbuffer.Put(bb)
 		if err != nil {
+			if c.stats != nil {
+				c.stats.AddError()
+			}
 			return err
 		}
+		c.spaceSem.Release(int64(len(bb.B)))
 		if c.stats != nil {
 			c.stats.AddSent(len(bb.B))
 		}

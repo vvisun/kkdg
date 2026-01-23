@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 )
 
@@ -89,7 +90,11 @@ func TestKKTCPEmptyMessage(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	payload := []byte{}
-	if err := client.Send(payload); err != nil {
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+	if err != nil {
+		t.Fatalf("pack failed: %v", err)
+	}
+	if err := client.SendBuffer(bb); err != nil {
 		t.Fatalf("client send: %v", err)
 	}
 
