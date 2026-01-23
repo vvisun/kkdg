@@ -27,6 +27,8 @@ type Client struct {
 	stats kknet.Stats
 }
 
+var _ kknet.IClient = (*Client)(nil)
+
 // NewClient creates a new WebSocket client.
 func NewClient(url string, handler kknet.IHandler, opts ...kknet.Option) *Client {
 	return &Client{
@@ -152,4 +154,8 @@ func (c *Client) SetContext(ctx context.Context) {
 	if conn != nil {
 		conn.SetContext(ctx)
 	}
+}
+
+func (c *Client) Addr() string {
+	return c.url
 }

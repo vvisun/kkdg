@@ -1,6 +1,7 @@
 package kktcp
 
 import (
+	"context"
 	"crypto/tls"
 	"net"
 	"sync"
@@ -23,6 +24,8 @@ type Client struct {
 
 	stats kknet.Stats
 }
+
+var _ kknet.IClient = (*Client)(nil)
 
 // NewClient creates a new TCP client.
 func NewClient(addr string, handler kknet.IHandler, opts ...kknet.Option) *Client {
@@ -130,4 +133,12 @@ func (c *Client) Conn() kknet.IConn {
 // Stats returns a snapshot of client statistics.
 func (c *Client) Stats() kknet.StatsSnapshot {
 	return c.stats.Snapshot()
+}
+
+func (c *Client) SetContext(ctx context.Context) {
+
+}
+
+func (c *Client) Addr() string {
+	return c.addr
 }

@@ -66,4 +66,5 @@ type IClient interface {
 	Close() error
 	Addr() string
 	Stats() StatsSnapshot
+	SetContext(ctx context.Context)
 }

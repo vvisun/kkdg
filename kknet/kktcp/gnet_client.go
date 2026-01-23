@@ -168,6 +168,10 @@ func (c *GnetClient) Stats() kknet.StatsSnapshot {
 	return c.stats.Snapshot()
 }
 
+func (c *GnetClient) SetContext(ctx context.Context) {
+
+}
+
 func (c *GnetClient) startReconnect() {
 	if c.reconnecting.Swap(true) {
 		return
