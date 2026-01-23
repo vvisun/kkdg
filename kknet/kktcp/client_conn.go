@@ -31,6 +31,7 @@ type clientConn struct {
 	spaceSem    *semaphore.Weighted
 	spaceCtx    context.Context
 	spaceCancel context.CancelFunc
+	spaceStrict bool //是否严格容量控制
 	closeOnce   sync.Once
 
 	ctxMu sync.RWMutex
@@ -287,6 +288,9 @@ func (c *clientConn) writeLoop() error {
 		bb := c.sendQueue.Pop()
 		c.sendMu.Unlock()
 
+		if !c.spaceStrict {
+			c.spaceSem.Release(int64(len(bb.B)))
+		}
 		err := writeFull(c.conn, bb.B)
 		kkbuffer.Put(bb)
 		if err != nil {
@@ -295,7 +299,9 @@ func (c *clientConn) writeLoop() error {
 			}
 			return err
 		}
-		c.spaceSem.Release(int64(len(bb.B)))
+		if c.spaceStrict {
+			c.spaceSem.Release(int64(len(bb.B)))
+		}
 		if c.stats != nil {
 			c.stats.AddSent(len(bb.B))
 		}

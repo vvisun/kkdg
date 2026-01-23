@@ -23,7 +23,7 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 	}
 	defer func() { _ = server.Stop() }()
 
-	msgCh := make(chan []byte, 1)
+	msgCh := make(chan []byte, 1024)
 	clientHandler := &testHandler{
 		onMessage: func(c kknet.IConn, data []byte) {
 			msgCh <- data
