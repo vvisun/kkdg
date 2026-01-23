@@ -8,8 +8,6 @@ import (
 )
 
 // Router is a router for the gate.
-// 客户端 -> 网关 -> 业务服
-// 业务服 -> 网关 -> 客户端
 type Router struct {
 	mu       sync.RWMutex
 	connMgrs []kknet.IConnManager           // connection managers (for multiple servers)

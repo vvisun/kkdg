@@ -10,14 +10,6 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// IBusinessHandler 业务处理器接口，用于处理来自客户端的业务请求
-type IBusinessHandler interface {
-	// HandleRequest 处理客户端请求
-	HandleRequest(connID kknet.CONN_ID, data []byte)
-	// SetResponder 设置响应回调，用于向客户端发送响应
-	SetResponder(responder func(connID kknet.CONN_ID, data []byte))
-}
-
 // 网关服
 type gateComponent struct {
 	component.Component
