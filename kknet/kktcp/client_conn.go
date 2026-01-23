@@ -12,7 +12,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -184,7 +183,9 @@ func (c *clientConn) Close() error {
 					flushCb(c, flushTimeout)
 				}
 				_ = c.conn.Close()
-				kklog.Warnf("tcp client flush timeout: %v", flushTimeout)
+				if c.opts.Logger != nil {
+					c.opts.Logger.Warnf("tcp client flush timeout: %v", flushTimeout)
+				}
 				return
 			}
 			c.sendMu.Unlock()

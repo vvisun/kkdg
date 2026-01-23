@@ -63,7 +63,7 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	}
 
 	for {
-		data, ok, err := kkpacket.DefaultStreamPacket().Unpack(c, kkpacket.DefaultMaxMessageSize())
+		data, ok, err := kkpacket.DefaultStreamPacket().Unpack(c)
 		if err != nil {
 			h.server.stats.AddError()
 			return gnet.Close

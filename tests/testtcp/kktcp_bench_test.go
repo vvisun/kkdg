@@ -29,20 +29,20 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 			msgCh <- data
 		},
 	}
-	client := kktcp.NewClient(addr, clientHandler)
+	client := kktcp.NewGnetClient(addr, clientHandler)
 	if err := client.Connect(); err != nil {
 		b.Fatalf("client connect: %v", err)
 	}
 	defer func() { _ = client.Close() }()
 
 	payload := []byte("ping")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 	if err != nil {
 		b.Fatalf("pack failed: %v", err)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bb, _ = kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+		bb, _ = kkpacket.DefaultStreamPacket().Pack(payload)
 		if err := client.SendBuffer(bb); err != nil {
 			b.Fatalf("client send: %v", err)
 		}

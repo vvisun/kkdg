@@ -43,7 +43,7 @@ func TestKKTCPLargeMessage(t *testing.T) {
 		payload[i] = byte(i % 256)
 	}
 
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 	if err != nil {
 		t.Fatalf("pack failed: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestKKTCPEmptyMessage(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	payload := []byte{}
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 	if err != nil {
 		t.Fatalf("pack failed: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestKKTCPRapidMessages(t *testing.T) {
 	const numMessages = 1000
 	for i := 0; i < numMessages; i++ {
 		payload := []byte{byte(i), byte(i >> 8), byte(i >> 16), byte(i >> 24)}
-		bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+		bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 		if err != nil {
 			t.Fatalf("pack failed: %v", err)
 		}

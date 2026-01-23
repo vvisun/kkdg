@@ -36,7 +36,7 @@ func TestKKNetTCP(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	payload := []byte("ping")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 	if err != nil {
 		t.Fatalf("client pack: %v", err)
 	}

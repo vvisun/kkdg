@@ -23,7 +23,7 @@ func BenchmarkLengthFieldPacker_Pack(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				buf, err := packer.Pack(data, 65536)
+				buf, err := packer.Pack(data)
 				if err != nil {
 					b.Fatalf("Pack returned error: %v", err)
 				}
@@ -42,7 +42,7 @@ func BenchmarkLengthFieldPacker_Pack_Small(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data, 1024)
+		buf, err := packer.Pack(data)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -61,7 +61,7 @@ func BenchmarkLengthFieldPacker_Pack_Medium(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data, 65536)
+		buf, err := packer.Pack(data)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -80,7 +80,7 @@ func BenchmarkLengthFieldPacker_Pack_Large(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data, 1048576)
+		buf, err := packer.Pack(data)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -96,7 +96,7 @@ func BenchmarkLengthFieldPacker_Pack_Empty(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data, 1024)
+		buf, err := packer.Pack(data)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -115,7 +115,7 @@ func BenchmarkLengthFieldPacker_Pack_WithoutPut(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data, 65536)
+		buf, err := packer.Pack(data)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -135,7 +135,7 @@ func BenchmarkLengthFieldPacker_Pack_MaxSize(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		buf, err := packer.Pack(data, maxSize)
+		buf, err := packer.Pack(data)
 		if err != nil {
 			b.Fatalf("Pack returned error: %v", err)
 		}
@@ -158,7 +158,7 @@ func BenchmarkLengthFieldPacker_Pack_VariousSizes(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				buf, err := packer.Pack(data, size)
+				buf, err := packer.Pack(data)
 				if err != nil {
 					b.Fatalf("Pack returned error: %v", err)
 				}

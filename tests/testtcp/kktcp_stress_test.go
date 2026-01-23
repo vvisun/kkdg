@@ -79,7 +79,7 @@ func TestKKTCPHighConcurrency(t *testing.T) {
 				defer func() { _ = client.Close() }()
 
 				payload := []byte{byte(id), byte(id >> 8)}
-				bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+				bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 				if err != nil {
 					atomic.AddInt64(&errorCount, 1)
 					return
@@ -185,7 +185,7 @@ func TestKKTCPLongRunning(t *testing.T) {
 					}
 
 					payload := []byte("test")
-					bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+					bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 					if err != nil {
 						_ = client.Close()
 						continue
@@ -272,7 +272,7 @@ func TestKKTCPHighThroughput(t *testing.T) {
 
 			for j := 0; j < messagesPerClient; j++ {
 				payload := []byte{byte(j), byte(j >> 8)}
-				bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+				bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 				if err != nil {
 					return
 				}
@@ -354,7 +354,7 @@ func TestKKTCPMemoryLeak(t *testing.T) {
 				}
 
 				payload := []byte("test")
-				bb, err := kkpacket.DefaultStreamPacket().Pack(payload, kkpacket.DefaultMaxMessageSize())
+				bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 				if err != nil {
 					_ = client.Close()
 					return

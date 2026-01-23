@@ -20,9 +20,9 @@ type IStreamReader interface {
 type IStreamPacket interface {
 	// pack message to stream
 	// 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
-	Pack(data []byte, maxSize int) (buffers.IBuffer, error)
+	Pack(data []byte) (buffers.IBuffer, error)
 	// unpack message from stream
-	Unpack(r IStreamReader, maxSize int) (data []byte, ok bool, err error)
+	Unpack(r IStreamReader) (data []byte, ok bool, err error)
 }
 
 // LengthFieldStreamPacket packs and unpacks 4-byte length-prefixed frames.
@@ -39,8 +39,8 @@ func NewLengthFieldStreamPacket(msgPacket *PacketCodec) *LengthFieldStreamPacket
 
 // Pack implements IStreamPacket.
 // 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
-func (slf *LengthFieldStreamPacket) Pack(data []byte, maxSize int) (buffers.IBuffer, error) {
-	if len(data) > maxSize {
+func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
+	if len(data) > DefaultMaxMessageSize() {
 		return nil, kkerrors.ErrMaxMessageSize
 	}
 
@@ -54,7 +54,7 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte, maxSize int) (buffers.IBuf
 }
 
 // Unpack implements IStreamPacket.
-func (slf *LengthFieldStreamPacket) Unpack(r IStreamReader, maxSize int) ([]byte, bool, error) {
+func (slf *LengthFieldStreamPacket) Unpack(r IStreamReader) ([]byte, bool, error) {
 	if r.InboundBuffered() < 4 {
 		return nil, false, nil
 	}
@@ -66,7 +66,7 @@ func (slf *LengthFieldStreamPacket) Unpack(r IStreamReader, maxSize int) ([]byte
 		return nil, false, err
 	}
 	size := int(GetByteOrder().Uint32(header))
-	if size < 0 || size > maxSize {
+	if size < 0 || size > DefaultMaxMessageSize() {
 		return nil, false, kkerrors.ErrMaxMessageSize
 	}
 	if r.InboundBuffered() < 4+size {

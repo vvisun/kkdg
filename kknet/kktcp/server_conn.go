@@ -56,7 +56,7 @@ func (c *tcpConn) Send(data []byte) error {
 		return kkerrors.ErrMaxMessageSize
 	}
 
-	bb, err1 := kkpacket.DefaultStreamPacket().Pack(data, kkpacket.DefaultMaxMessageSize())
+	bb, err1 := kkpacket.DefaultStreamPacket().Pack(data)
 	if err1 != nil {
 		kkbuffer.Put(bb)
 		if c.stats != nil {
