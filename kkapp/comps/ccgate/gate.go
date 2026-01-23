@@ -4,7 +4,6 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -122,7 +121,6 @@ func (slf *gateComponent) startTCPServer() error {
 		slf.opt.TCPAddr,
 		slf.handler,
 		kknet.WithLogger(kklog.Stdout()),
-		kknet.WithStreamPacket(kkpacket.NewLengthFieldStreamPacket(nil)),
 	)
 
 	if err := server.Start(); err != nil {

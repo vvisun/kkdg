@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkudp"
 )
 
@@ -18,7 +19,7 @@ func TestKKUDPLargeMessage(t *testing.T) {
 			_ = c.Send(data)
 		},
 	}
-	server := kkudp.NewServer(addr, serverHandler, kknet.WithMaxMessageSize(64*1024))
+	server := kkudp.NewServer(addr, serverHandler)
 	if err := server.Start(); err != nil {
 		t.Fatalf("server start: %v", err)
 	}
@@ -30,14 +31,14 @@ func TestKKUDPLargeMessage(t *testing.T) {
 			msgCh <- data
 		},
 	}
-	client := kkudp.NewClient(addr, clientHandler, kknet.WithMaxMessageSize(64*1024))
+	client := kkudp.NewClient(addr, clientHandler)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client connect: %v", err)
 	}
 	defer func() { _ = client.Close() }()
 
-	// Test 32KB message (common UDP limit)
-	payload := make([]byte, 32*1024)
+	// Test 16KB message (common UDP limit)
+	payload := make([]byte, kkpacket.DefaultMaxMessageSize())
 	for i := range payload {
 		payload[i] = byte(i % 256)
 	}
@@ -174,15 +175,15 @@ func TestKKUDPMaxMessageSize(t *testing.T) {
 			_ = c.Send(data)
 		},
 	}
-	maxSize := 1024
-	server := kkudp.NewServer(addr, serverHandler, kknet.WithMaxMessageSize(maxSize))
+	maxSize := kkpacket.DefaultMaxMessageSize()
+	server := kkudp.NewServer(addr, serverHandler)
 	if err := server.Start(); err != nil {
 		t.Fatalf("server start: %v", err)
 	}
 	defer func() { _ = server.Stop() }()
 
 	clientHandler := &testHandler{}
-	client := kkudp.NewClient(addr, clientHandler, kknet.WithMaxMessageSize(maxSize))
+	client := kkudp.NewClient(addr, clientHandler)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client connect: %v", err)
 	}

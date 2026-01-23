@@ -7,7 +7,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -65,7 +64,6 @@ func (slf *ClientComponent) Start() error {
 			slf.opt.TCPAddr,
 			handler,
 			kknet.WithLogger(kklog.Stdout()),
-			kknet.WithStreamPacket(kkpacket.NewLengthFieldStreamPacket(nil)),
 		)
 	} else {
 		return errors.New("ccclient: TCPAddr or WSURL must be set")

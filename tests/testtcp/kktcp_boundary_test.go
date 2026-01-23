@@ -19,7 +19,7 @@ func TestKKTCPLargeMessage(t *testing.T) {
 			_ = c.Send(data)
 		},
 	}
-	server := kktcp.NewServer(addr, serverHandler, kknet.WithMaxMessageSize(10*1024*1024))
+	server := kktcp.NewServer(addr, serverHandler)
 	if err := server.Start(); err != nil {
 		t.Fatalf("server start: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestKKTCPLargeMessage(t *testing.T) {
 			msgCh <- data
 		},
 	}
-	client := kktcp.NewClient(addr, clientHandler, kknet.WithMaxMessageSize(10*1024*1024))
+	client := kktcp.NewClient(addr, clientHandler)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client connect: %v", err)
 	}
@@ -300,22 +300,22 @@ func TestKKTCPMaxMessageSize(t *testing.T) {
 			_ = c.Send(data)
 		},
 	}
-	maxSize := 1024
-	server := kktcp.NewServer(addr, serverHandler, kknet.WithMaxMessageSize(maxSize))
+	maxSize := 1024 * 1024
+	server := kktcp.NewServer(addr, serverHandler)
 	if err := server.Start(); err != nil {
 		t.Fatalf("server start: %v", err)
 	}
 	defer func() { _ = server.Stop() }()
 
 	clientHandler := &testHandler{}
-	client := kktcp.NewClient(addr, clientHandler, kknet.WithMaxMessageSize(maxSize))
+	client := kktcp.NewClient(addr, clientHandler)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client connect: %v", err)
 	}
 	defer func() { _ = client.Close() }()
 
 	// Test message at max size (should succeed)
-	payload := make([]byte, maxSize)
+	payload := make([]byte, kkpacket.DefaultMaxMessageSize())
 	if err := client.Send(payload); err != nil {
 		t.Fatalf("max size message should succeed: %v", err)
 	}

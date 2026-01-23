@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkws"
 )
 
@@ -18,7 +19,7 @@ func TestKKWSLargeMessage(t *testing.T) {
 			_ = c.Send(data)
 		},
 	}
-	server := kkws.NewServer(addr, serverHandler, kknet.WithMaxMessageSize(10*1024*1024))
+	server := kkws.NewServer(addr, serverHandler)
 	server.SetPath("/ws")
 
 	errCh := make(chan error, 1)
@@ -28,7 +29,7 @@ func TestKKWSLargeMessage(t *testing.T) {
 	defer func() { _ = server.Stop() }()
 
 	clientHandler := &testHandler{}
-	client := kkws.NewClient("ws://"+addr+"/ws", clientHandler, kknet.WithMaxMessageSize(10*1024*1024))
+	client := kkws.NewClient("ws://"+addr+"/ws", clientHandler)
 
 	deadline := time.Now().Add(2 * time.Second)
 	for {
@@ -44,7 +45,7 @@ func TestKKWSLargeMessage(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	// Test 1MB message
-	payload := make([]byte, 1024*1024)
+	payload := make([]byte, kkpacket.DefaultMaxMessageSize())
 	for i := range payload {
 		payload[i] = byte(i % 256)
 	}
@@ -256,8 +257,8 @@ func TestKKWSMaxMessageSize(t *testing.T) {
 			_ = c.Send(data)
 		},
 	}
-	maxSize := 1024
-	server := kkws.NewServer(addr, serverHandler, kknet.WithMaxMessageSize(maxSize))
+	maxSize := kkpacket.DefaultMaxMessageSize()
+	server := kkws.NewServer(addr, serverHandler)
 	server.SetPath("/ws")
 
 	errCh := make(chan error, 1)
@@ -267,7 +268,7 @@ func TestKKWSMaxMessageSize(t *testing.T) {
 	defer func() { _ = server.Stop() }()
 
 	clientHandler := &testHandler{}
-	client := kkws.NewClient("ws://"+addr+"/ws", clientHandler, kknet.WithMaxMessageSize(maxSize))
+	client := kkws.NewClient("ws://"+addr+"/ws", clientHandler)
 
 	deadline := time.Now().Add(2 * time.Second)
 	for {

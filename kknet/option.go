@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xos"
 )
@@ -29,7 +28,6 @@ type Options struct {
 	UDPConnIdleTimeout time.Duration // UDP连接空闲超时时间（为0时，不启用空闲清理）
 	UDPCleanupInterval time.Duration // UDP清理间隔时间（为0时，不启用清理）
 
-	StreamPacket                  kkpacket.IStreamPacket                  // 流处理器, used for tcp
 	TcpClientNeedFlushOver        bool                                    //tcp客户端关闭时是否需要等待 flush 完成
 	TcpTimeoutFlushOver           time.Duration                           //tcp客户端关闭时等待 flush 完成的超时时间
 	TcpClientFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
@@ -72,7 +70,6 @@ func DefaultOptions() Options {
 		UDPCleanupInterval:     defaultUDPCleanupInterval,
 		WsReadTimeout:          defaultReadTimeout,
 		WsWriteTimeout:         defaultWriteTimeout,
-		StreamPacket:           kkpacket.NewLengthFieldStreamPacket(nil),
 		TcpClientSendQueueSize: 64,
 	}
 }
@@ -93,15 +90,6 @@ func WithLogger(l kklog.ILogger) Option {
 	return func(o *Options) {
 		if l != nil {
 			o.Logger = l
-		}
-	}
-}
-
-// WithStreamPacket sets stream packet.
-func WithStreamPacket(streamPacket kkpacket.IStreamPacket) Option {
-	return func(o *Options) {
-		if streamPacket != nil {
-			o.StreamPacket = streamPacket
 		}
 	}
 }
