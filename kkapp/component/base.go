@@ -2,6 +2,7 @@ package component
 
 import (
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
 type IComponentLifecycle interface {
@@ -30,6 +31,10 @@ type IComponent interface {
 
 func IsEqual(a, b IComponent) bool {
 	return a == b || a.GetID() == b.GetID()
+}
+
+func GetComponentName(comp IComponent) string {
+	return xreflect.GetStructName(comp) + "_" + comp.GetID()
 }
 
 type ComponentState = int64

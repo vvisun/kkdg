@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+// each application is a node. each node is a process.
 type IApplication interface {
 	GetNodeInfo() *kkapp.NodeInfo
 	Start() error
@@ -40,6 +41,7 @@ func (slf *Application) GetNodeInfo() *kkapp.NodeInfo {
 
 func (slf *Application) Start() error {
 	nodeId := slf.nodeInfo.GetNodeId()
+	kklog.Infof("[kkapp] application [%s,%s] start", nodeId, slf.nodeInfo.GetNodeType())
 	slf.mu.RLock()
 	compList := slf.compList
 	slf.mu.RUnlock()

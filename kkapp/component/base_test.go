@@ -1,6 +1,7 @@
 package component
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -15,7 +16,11 @@ func (slf *testComponent) GetID() string {
 }
 
 func newComponent(id string) *testComponent {
-	return &testComponent{}
+	return &testComponent{
+		Component: Component{
+			id: id,
+		},
+	}
 }
 
 func TestAddChildSuccess(t *testing.T) {
@@ -75,4 +80,8 @@ func TestGetRoot(t *testing.T) {
 	if err := level1.AddComponent(level2); err != nil {
 		t.Fatalf("AddChild level2 error: %v", err)
 	}
+
+	fmt.Println(GetComponentName(root))
+	fmt.Println(GetComponentName(level1))
+	fmt.Println(GetComponentName(level2))
 }

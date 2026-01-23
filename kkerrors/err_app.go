@@ -3,6 +3,10 @@ package kkerrors
 import "errors"
 
 var (
+	// 无效的节点ID
+	ErrInvalidNodeID = errors.New("invalid node id")
+	// 无效的节点类型
+	ErrInvalidNodeType = errors.New("invalid node type")
 	// 应用未初始化
 	ErrAppNotInitialized = errors.New("app is not initialized")
 	// 应用已初始化

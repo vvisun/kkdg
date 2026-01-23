@@ -1,5 +1,10 @@
 package kkapp
 
+import (
+	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/kklog"
+)
+
 const (
 	// 节点ID最大长度
 	MaxNodeIDLength int = 24
@@ -7,14 +12,38 @@ const (
 	MaxNodeTypeLength int = 24
 )
 
-// INodeIdentity 节点身份接口
+// INodeIdentity 节点身份接口。
 type INodeIdentity interface {
-	GetNodeId() string   // 获取节点ID
-	GetNodeType() string // 获取节点类型
+	GetNodeId() string   // 获取节点ID。世界唯一。用于标识一个节点。
+	GetNodeType() string // 获取节点类型。eg: gate、game、login等。用于标识一个节点的类型。
+}
+
+// CheckNodeID 检查节点ID是否有效
+func CheckNodeID(nodeId string) error {
+	if len(nodeId) < 1 {
+		kklog.Errorf("invalid node id: %s", nodeId)
+		return kkerrors.ErrInvalidNodeID
+	}
+	return nil
+}
+
+// CheckNodeType 检查节点类型是否有效
+func CheckNodeType(nodeType string) error {
+	if len(nodeType) < 1 {
+		kklog.Errorf("invalid node type: %s", nodeType)
+		return kkerrors.ErrInvalidNodeType
+	}
+	return nil
 }
 
 // NewNodeInfo 创建节点信息
 func NewNodeInfo(nodeId, nodeType, address, rpcAddress string, settings map[string]string) *NodeInfo {
+	if CheckNodeID(nodeId) != nil {
+		panic("invalid node id")
+	}
+	if CheckNodeType(nodeType) != nil {
+		panic("invalid node type")
+	}
 	return &NodeInfo{
 		nodeId:     nodeId,
 		nodeType:   nodeType,
