@@ -14,27 +14,30 @@ type OriginCheckFunc func(r *http.Request) bool
 
 // Options are common network settings.
 type Options struct {
-	Logger                        kklog.ILogger                           // 日志记录器
-	MaxMessageSize                int                                     // 最大消息大小
-	PoolSize                      int                                     // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
-	ReadBufferSize                int                                     // 读缓冲区大小
-	WriteBufferSize               int                                     // 写缓冲区大小
-	TLSConfig                     *tls.Config                             // TLS配置
-	OriginChecker                 OriginCheckFunc                         // websocket原始检查器
-	ShutdownTimeout               time.Duration                           // 服务关闭超时时间
-	UDPConnIdleTimeout            time.Duration                           // UDP连接空闲超时时间（为0时，不启用空闲清理）
-	UDPCleanupInterval            time.Duration                           // UDP清理间隔时间（为0时，不启用清理）
-	ReadTimeout                   time.Duration                           // WebSocket读超时时间（为0时，不启用读超时）
-	WriteTimeout                  time.Duration                           // WebSocket写超时时间（为0时，不启用写超时）
-	Middlewares                   []Middleware                            // 中间件列表
-	StreamPacket                  kkpacket.IStreamPacket                  //流处理器, used for tcp
+	Logger          kklog.ILogger // 日志记录器
+	PoolSize        int           // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
+	ReadBufferSize  int           // 读缓冲区大小
+	WriteBufferSize int           // 写缓冲区大小
+	TLSConfig       *tls.Config   // TLS配置
+	ShutdownTimeout time.Duration // 服务关闭超时时间
+	Middlewares     []Middleware  // 中间件列表
+
+	WsOriginChecker OriginCheckFunc // websocket原始检查器
+	WsReadTimeout   time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
+	WsWriteTimeout  time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
+
+	UDPConnIdleTimeout time.Duration // UDP连接空闲超时时间（为0时，不启用空闲清理）
+	UDPCleanupInterval time.Duration // UDP清理间隔时间（为0时，不启用清理）
+
+	StreamPacket                  kkpacket.IStreamPacket                  // 流处理器, used for tcp
 	TcpClientNeedFlushOver        bool                                    //tcp客户端关闭时是否需要等待 flush 完成
-	TimeoutTcpFlushOver           time.Duration                           //tcp客户端关闭时等待 flush 完成的超时时间
+	TcpTimeoutFlushOver           time.Duration                           //tcp客户端关闭时等待 flush 完成的超时时间
 	TcpClientFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
 	TcpClientSendQueueSize        int                                     //tcp客户端发送队列初始容量
 	TcpClientNeedReconnect        bool                                    //tcp客户端是否需要重连
 	TcpClientReconnectInterval    time.Duration                           //tcp客户端重连间隔
 	TcpClientReconnectMaxRetries  int                                     //tcp客户端重连最大次数(<=0为无限)
+	TcpClientReconnectCallback    func(attempt int, err error)            //tcp客户端重连回调(成功时 err 为 nil)
 }
 
 const (
@@ -59,17 +62,16 @@ type Option func(*Options)
 func DefaultOptions() Options {
 	return Options{
 		Logger:                 kklog.Nop(),
-		MaxMessageSize:         defaultMaxMessageSize,
 		PoolSize:               xos.NumCPU(),
 		ReadBufferSize:         defaultBufferSize,
 		WriteBufferSize:        defaultBufferSize,
 		TLSConfig:              nil,
-		OriginChecker:          defaultOriginChecker,
+		WsOriginChecker:        defaultOriginChecker,
 		ShutdownTimeout:        defaultShutdownTimeout,
 		UDPConnIdleTimeout:     defaultUDPConnIdleTimeout,
 		UDPCleanupInterval:     defaultUDPCleanupInterval,
-		ReadTimeout:            defaultReadTimeout,
-		WriteTimeout:           defaultWriteTimeout,
+		WsReadTimeout:          defaultReadTimeout,
+		WsWriteTimeout:         defaultWriteTimeout,
 		StreamPacket:           kkpacket.NewLengthFieldStreamPacket(nil),
 		TcpClientSendQueueSize: 64,
 	}
@@ -91,19 +93,6 @@ func WithLogger(l kklog.ILogger) Option {
 	return func(o *Options) {
 		if l != nil {
 			o.Logger = l
-		}
-	}
-}
-
-// WithMaxMessageSize sets maximum allowed message size.
-func WithMaxMessageSize(size int) Option {
-	return func(o *Options) {
-		if size > message_size_limit {
-			size = message_size_limit
-			kklog.Errorf("MaxMessageSize is too large, set to %d", message_size_limit)
-		}
-		if size > 0 {
-			o.MaxMessageSize = size
 		}
 	}
 }
@@ -142,7 +131,7 @@ func WithBufferSizes(readSize, writeSize int) Option {
 func WithOriginChecker(checker OriginCheckFunc) Option {
 	return func(o *Options) {
 		if checker != nil {
-			o.OriginChecker = checker
+			o.WsOriginChecker = checker
 		}
 	}
 }
@@ -184,7 +173,7 @@ func WithUDPCleanupInterval(interval time.Duration) Option {
 func WithReadTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
-			o.ReadTimeout = timeout
+			o.WsReadTimeout = timeout
 		}
 	}
 }
@@ -194,7 +183,7 @@ func WithReadTimeout(timeout time.Duration) Option {
 func WithWriteTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
-			o.WriteTimeout = timeout
+			o.WsWriteTimeout = timeout
 		}
 	}
 }
@@ -224,7 +213,7 @@ func WithTcpClientNeedFlushOver(needFlushOver bool) Option {
 func WithTimeoutTcpFlushOver(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout > 0 {
-			o.TimeoutTcpFlushOver = timeout
+			o.TcpTimeoutFlushOver = timeout
 		}
 	}
 }
@@ -253,5 +242,12 @@ func WithTcpClientReconnect(enable bool, interval time.Duration, maxRetries int)
 			o.TcpClientReconnectInterval = interval
 		}
 		o.TcpClientReconnectMaxRetries = maxRetries
+	}
+}
+
+// WithTcpClientReconnectCallback sets reconnect callback.
+func WithTcpClientReconnectCallback(cb func(attempt int, err error)) Option {
+	return func(o *Options) {
+		o.TcpClientReconnectCallback = cb
 	}
 }

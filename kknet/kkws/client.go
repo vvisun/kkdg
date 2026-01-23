@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -53,17 +54,17 @@ func (c *Client) Connect() error {
 		c.stats.AddError()
 		return err
 	}
-	conn.SetReadLimit(int64(c.opts.MaxMessageSize))
+	conn.SetReadLimit(int64(kkpacket.DefaultMaxMessageSize()))
 
 	// Set read/write timeouts if configured
-	if c.opts.ReadTimeout > 0 {
-		if err := conn.SetReadDeadline(time.Now().Add(c.opts.ReadTimeout)); err != nil {
+	if c.opts.WsReadTimeout > 0 {
+		if err := conn.SetReadDeadline(time.Now().Add(c.opts.WsReadTimeout)); err != nil {
 			c.stats.AddError()
 			c.opts.Logger.Warnf("kkws client set read deadline error: %v", err)
 		}
 	}
-	if c.opts.WriteTimeout > 0 {
-		if err := conn.SetWriteDeadline(time.Now().Add(c.opts.WriteTimeout)); err != nil {
+	if c.opts.WsWriteTimeout > 0 {
+		if err := conn.SetWriteDeadline(time.Now().Add(c.opts.WsWriteTimeout)); err != nil {
 			c.stats.AddError()
 			c.opts.Logger.Warnf("kkws client set write deadline error: %v", err)
 		}

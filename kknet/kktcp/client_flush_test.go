@@ -18,7 +18,6 @@ func TestClientFlushTimeoutCallback(t *testing.T) {
 	callbackCh := make(chan struct{}, 1)
 
 	opts := kknet.ApplyOptions(
-		kknet.WithMaxMessageSize(256*1024),
 		kknet.WithBufferSizes(0, 1024*1024),
 		kknet.WithTcpClientNeedFlushOver(true),
 		kknet.WithTimeoutTcpFlushOver(timeout),

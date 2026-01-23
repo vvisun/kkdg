@@ -8,6 +8,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -51,7 +52,7 @@ func (c *clientConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *clientConn) Send(data []byte) error {
-	if len(data) > c.opts.MaxMessageSize {
+	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
@@ -89,7 +90,7 @@ func (c *clientConn) SetContext(ctx context.Context) {
 }
 
 func (c *clientConn) readLoop(handler kknet.IHandler) error {
-	buf := make([]byte, c.opts.MaxMessageSize)
+	buf := make([]byte, kkpacket.DefaultMaxMessageSize())
 	for {
 		n, err := c.conn.Read(buf)
 		if err != nil {

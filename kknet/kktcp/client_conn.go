@@ -41,8 +41,8 @@ var _ kknet.IConn = (*clientConn)(nil)
 
 func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clientConn {
 	queueLimit := opts.WriteBufferSize
-	if queueLimit < opts.MaxMessageSize {
-		queueLimit = opts.MaxMessageSize
+	if queueLimit < kkpacket.DefaultMaxMessageSize() {
+		queueLimit = kkpacket.DefaultMaxMessageSize()
 	}
 	spaceCtx, spaceCancel := context.WithCancel(context.Background())
 	queueSize := opts.TcpClientSendQueueSize
@@ -74,7 +74,7 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
-	if len(bb.B) > c.opts.MaxMessageSize {
+	if len(bb.B) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
@@ -120,7 +120,7 @@ func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
 }
 
 func (c *clientConn) Send(data []byte) error {
-	if len(data) > c.opts.MaxMessageSize {
+	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
@@ -138,7 +138,7 @@ func (c *clientConn) Close() error {
 	c.sendMu.Lock()
 	c.sendClosed = true
 	c.sendDrain = c.opts.TcpClientNeedFlushOver
-	flushTimeout := c.opts.TimeoutTcpFlushOver
+	flushTimeout := c.opts.TcpTimeoutFlushOver
 	flushCb := c.opts.TcpClientFlushTimeoutCallback
 	if !c.sendDrain {
 		drained, drainedBytes = c.drainSendQueueLocked()
@@ -211,7 +211,7 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 			return err
 		}
 		size := int(kkpacket.GetByteOrder().Uint32(header))
-		if size < 0 || size > c.opts.MaxMessageSize {
+		if size < 0 || size > kkpacket.DefaultMaxMessageSize() {
 			return kkerrors.ErrMaxMessageSize
 		}
 		payload := kkbuffer.GetWithCapacity(size)

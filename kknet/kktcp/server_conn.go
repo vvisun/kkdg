@@ -8,6 +8,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -48,14 +49,14 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *tcpConn) Send(data []byte) error {
-	if len(data) > c.opts.MaxMessageSize {
+	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
 		return kkerrors.ErrMaxMessageSize
 	}
 
-	bb, err1 := c.opts.StreamPacket.Pack(data, c.opts.MaxMessageSize)
+	bb, err1 := c.opts.StreamPacket.Pack(data, kkpacket.DefaultMaxMessageSize())
 	if err1 != nil {
 		kkbuffer.Put(bb)
 		if c.stats != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -55,7 +56,7 @@ func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *wsConn) Send(data []byte) error {
-	if len(data) > c.opts.MaxMessageSize {
+	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
@@ -65,8 +66,8 @@ func (c *wsConn) Send(data []byte) error {
 	defer c.writeMu.Unlock()
 
 	// Update write deadline if timeout is configured
-	if c.opts.WriteTimeout > 0 {
-		if err := c.conn.SetWriteDeadline(time.Now().Add(c.opts.WriteTimeout)); err != nil {
+	if c.opts.WsWriteTimeout > 0 {
+		if err := c.conn.SetWriteDeadline(time.Now().Add(c.opts.WsWriteTimeout)); err != nil {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
@@ -106,8 +107,8 @@ func (c *wsConn) SetContext(ctx context.Context) {
 func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 	for {
 		// Update read deadline if timeout is configured
-		if c.opts.ReadTimeout > 0 {
-			if err := c.conn.SetReadDeadline(time.Now().Add(c.opts.ReadTimeout)); err != nil {
+		if c.opts.WsReadTimeout > 0 {
+			if err := c.conn.SetReadDeadline(time.Now().Add(c.opts.WsReadTimeout)); err != nil {
 				return err
 			}
 		}

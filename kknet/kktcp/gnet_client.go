@@ -10,6 +10,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -27,11 +28,11 @@ type GnetClient struct {
 	conn   *gnetClientConn
 	openCh chan struct{}
 
-	connected atomic.Bool
-	started   atomic.Bool
+	connected    atomic.Bool
+	started      atomic.Bool
 	reconnecting atomic.Bool
-	closing     atomic.Bool
-	stopCh      chan struct{}
+	closing      atomic.Bool
+	stopCh       chan struct{}
 
 	stats kknet.Stats
 }
@@ -180,6 +181,7 @@ func (c *GnetClient) reconnectLoop() {
 		interval = 500 * time.Millisecond
 	}
 	maxRetries := c.opts.TcpClientReconnectMaxRetries
+	cb := c.opts.TcpClientReconnectCallback
 	attempts := 0
 	for {
 		if c.closing.Load() {
@@ -187,10 +189,15 @@ func (c *GnetClient) reconnectLoop() {
 			return
 		}
 		if maxRetries > 0 && attempts >= maxRetries {
+			if cb != nil {
+				cb(attempts, errors.New("reconnect attempts exceeded"))
+			}
+			c.opts.Logger.Warnf("gnetclient reconnect exceeded after %d attempts", attempts)
 			c.reconnecting.Store(false)
 			return
 		}
 		attempts++
+		c.opts.Logger.Debugf("gnetclient reconnect attempt %d", attempts)
 
 		openCh := make(chan struct{})
 		c.connMu.Lock()
@@ -208,12 +215,21 @@ func (c *GnetClient) reconnectLoop() {
 		if _, err := cli.Dial("tcp", c.addr); err == nil {
 			select {
 			case <-openCh:
+				if cb != nil {
+					cb(attempts, nil)
+				}
+				c.opts.Logger.Infof("gnetclient reconnected after %d attempts", attempts)
 				c.reconnecting.Store(false)
 				return
 			case <-c.stopCh:
 				c.reconnecting.Store(false)
 				return
 			}
+		} else {
+			if cb != nil {
+				cb(attempts, err)
+			}
+			c.opts.Logger.Warnf("gnetclient reconnect attempt %d failed: %v", attempts, err)
 		}
 
 		select {
@@ -280,7 +296,7 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		return gnet.Close
 	}
 	for {
-		data, ok, err := h.client.opts.StreamPacket.Unpack(c, h.client.opts.MaxMessageSize)
+		data, ok, err := h.client.opts.StreamPacket.Unpack(c, kkpacket.DefaultMaxMessageSize())
 		if err != nil {
 			h.client.stats.AddError()
 			return gnet.Close
@@ -331,7 +347,7 @@ func (c *gnetClientConn) RemoteAddr() string {
 }
 
 func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
-	if len(buffer.B) > c.opts.MaxMessageSize {
+	if len(buffer.B) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
@@ -363,7 +379,7 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *gnetClientConn) Send(data []byte) error {
-	if len(data) > c.opts.MaxMessageSize {
+	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}

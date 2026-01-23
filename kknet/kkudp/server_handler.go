@@ -3,6 +3,7 @@ package kkudp
 import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -24,7 +25,7 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	if size <= 0 {
 		return gnet.None
 	}
-	if size > h.server.opts.MaxMessageSize {
+	if size > kkpacket.DefaultMaxMessageSize() {
 		h.server.stats.AddError()
 		h.server.opts.Logger.Errorf("kkudp message too large: %d", size)
 		return gnet.None

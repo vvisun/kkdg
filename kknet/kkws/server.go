@@ -13,6 +13,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -86,7 +87,7 @@ func (s *Server) Start() error {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  s.opts.ReadBufferSize,
 		WriteBufferSize: s.opts.WriteBufferSize,
-		CheckOrigin:     s.opts.OriginChecker,
+		CheckOrigin:     s.opts.WsOriginChecker,
 	}
 
 	mux := http.NewServeMux()
@@ -99,17 +100,17 @@ func (s *Server) Start() error {
 		}
 
 		wsConn := newWSConn(conn, s.opts, &s.stats)
-		wsConn.conn.SetReadLimit(int64(s.opts.MaxMessageSize))
+		wsConn.conn.SetReadLimit(int64(kkpacket.DefaultMaxMessageSize()))
 
 		// Set read/write timeouts if configured
-		if s.opts.ReadTimeout > 0 {
-			if err := conn.SetReadDeadline(time.Now().Add(s.opts.ReadTimeout)); err != nil {
+		if s.opts.WsReadTimeout > 0 {
+			if err := conn.SetReadDeadline(time.Now().Add(s.opts.WsReadTimeout)); err != nil {
 				s.stats.AddError()
 				s.opts.Logger.Warnf("kkws set read deadline error: %v", err)
 			}
 		}
-		if s.opts.WriteTimeout > 0 {
-			if err := conn.SetWriteDeadline(time.Now().Add(s.opts.WriteTimeout)); err != nil {
+		if s.opts.WsWriteTimeout > 0 {
+			if err := conn.SetWriteDeadline(time.Now().Add(s.opts.WsWriteTimeout)); err != nil {
 				s.stats.AddError()
 				s.opts.Logger.Warnf("kkws set write deadline error: %v", err)
 			}

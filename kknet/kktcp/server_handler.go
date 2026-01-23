@@ -3,6 +3,7 @@ package kktcp
 import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -62,7 +63,7 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	}
 
 	for {
-		data, ok, err := h.server.opts.StreamPacket.Unpack(c, h.server.opts.MaxMessageSize)
+		data, ok, err := h.server.opts.StreamPacket.Unpack(c, kkpacket.DefaultMaxMessageSize())
 		if err != nil {
 			h.server.stats.AddError()
 			return gnet.Close

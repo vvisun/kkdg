@@ -10,6 +10,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 )
 
@@ -57,7 +58,7 @@ func (c *udpConn) Send(data []byte) error {
 	if !c.active.Load() {
 		return kkerrors.ErrConnectionClosed
 	}
-	if len(data) > c.opts.MaxMessageSize {
+	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
