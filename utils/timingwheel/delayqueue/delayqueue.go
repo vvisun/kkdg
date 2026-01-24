@@ -1,4 +1,4 @@
-package kktimewheel
+package delayqueue
 
 import (
 	"container/heap"
@@ -9,6 +9,7 @@ import (
 
 // The start of PriorityQueue implementation.
 // Borrowed from https://github.com/nsqio/nsq/blob/master/internal/pqueue/pqueue.go
+
 type item struct {
 	Value    interface{}
 	Priority int64
@@ -46,9 +47,9 @@ func (pq *priorityQueue) Push(x interface{}) {
 		*pq = npq
 	}
 	*pq = (*pq)[0 : n+1]
-	value := x.(*item)
-	value.Index = n
-	(*pq)[n] = value
+	item := x.(*item)
+	item.Index = n
+	(*pq)[n] = item
 }
 
 func (pq *priorityQueue) Pop() interface{} {
@@ -59,25 +60,24 @@ func (pq *priorityQueue) Pop() interface{} {
 		copy(npq, *pq)
 		*pq = npq
 	}
-	value := (*pq)[n-1]
-	value.Index = -1
+	item := (*pq)[n-1]
+	item.Index = -1
 	*pq = (*pq)[0 : n-1]
-
-	return value
+	return item
 }
 
-func (pq *priorityQueue) PeekAndShift(maxValue int64) (*item, int64) {
+func (pq *priorityQueue) PeekAndShift(max int64) (*item, int64) {
 	if pq.Len() == 0 {
 		return nil, 0
 	}
 
-	value := (*pq)[0]
-	if value.Priority > maxValue {
-		return nil, value.Priority - maxValue
+	item := (*pq)[0]
+	if item.Priority > max {
+		return nil, item.Priority - max
 	}
 	heap.Remove(pq, 0)
 
-	return value, 0
+	return item, 0
 }
 
 // The end of PriorityQueue implementation.
@@ -86,15 +86,18 @@ func (pq *priorityQueue) PeekAndShift(maxValue int64) (*item, int64) {
 // an element can only be taken when its delay has expired. The head of the
 // queue is the *Delayed* element whose delay expired furthest in the past.
 type DelayQueue struct {
-	C        chan interface{}
-	mu       sync.Mutex
-	pq       priorityQueue
-	sleeping int32 // Similar to the sleeping state of runtime.timers.
+	C chan interface{}
+
+	mu sync.Mutex
+	pq priorityQueue
+
+	// Similar to the sleeping state of runtime.timers.
+	sleeping int32
 	wakeupC  chan struct{}
 }
 
-// NewDelayQueue creates an instance of delayQueue with the specified size.
-func NewDelayQueue(size int) *DelayQueue {
+// New creates an instance of delayQueue with the specified size.
+func New(size int) *DelayQueue {
 	return &DelayQueue{
 		C:       make(chan interface{}),
 		pq:      newPriorityQueue(size),
@@ -104,11 +107,11 @@ func NewDelayQueue(size int) *DelayQueue {
 
 // Offer inserts the element into the current queue.
 func (dq *DelayQueue) Offer(elem interface{}, expiration int64) {
-	value := &item{Value: elem, Priority: expiration}
+	item := &item{Value: elem, Priority: expiration}
 
 	dq.mu.Lock()
-	heap.Push(&dq.pq, value)
-	index := value.Index
+	heap.Push(&dq.pq, item)
+	index := item.Index
 	dq.mu.Unlock()
 
 	if index == 0 {
@@ -126,8 +129,8 @@ func (dq *DelayQueue) Poll(exitC chan struct{}, nowF func() int64) {
 		now := nowF()
 
 		dq.mu.Lock()
-		value, delta := dq.pq.PeekAndShift(now)
-		if value == nil {
+		item, delta := dq.pq.PeekAndShift(now)
+		if item == nil {
 			// No items left or at least one item is pending.
 
 			// We must ensure the atomicity of the whole operation, which is
@@ -137,7 +140,7 @@ func (dq *DelayQueue) Poll(exitC chan struct{}, nowF func() int64) {
 		}
 		dq.mu.Unlock()
 
-		if value == nil {
+		if item == nil {
 			if delta == 0 {
 				// No items left.
 				select {
@@ -170,7 +173,7 @@ func (dq *DelayQueue) Poll(exitC chan struct{}, nowF func() int64) {
 		}
 
 		select {
-		case dq.C <- value.Value:
+		case dq.C <- item.Value:
 			// The expired element has been sent out successfully.
 		case <-exitC:
 			goto exit

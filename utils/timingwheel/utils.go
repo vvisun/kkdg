@@ -1,8 +1,7 @@
-package kktimewheel
+package timingwheel
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -15,15 +14,15 @@ func truncate(x, m int64) int64 {
 	return x - x%m
 }
 
-// TimeToMS returns an integer number, which represents t in milliseconds.
-func TimeToMS(t time.Time) int64 {
+// timeToMs returns an integer number, which represents t in milliseconds.
+func timeToMs(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
 }
 
-// MSToTime returns the UTC time corresponding to the given Unix time,
+// msToTime returns the UTC time corresponding to the given Unix time,
 // t milliseconds since January 1, 1970 UTC.
-func MSToTime(t int64) time.Time {
-	return time.Unix(0, t*int64(time.Millisecond))
+func msToTime(t int64) time.Time {
+	return time.Unix(0, t*int64(time.Millisecond)).UTC()
 }
 
 type waitGroupWrapper struct {
@@ -36,10 +35,4 @@ func (w *waitGroupWrapper) Wrap(cb func()) {
 		cb()
 		w.Done()
 	}()
-}
-
-var _nextID uint64
-
-func NextID() uint64 {
-	return atomic.AddUint64(&_nextID, 1)
 }

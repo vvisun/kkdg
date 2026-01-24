@@ -1,10 +1,10 @@
-package kktimewheel_test
+package timingwheel_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/vvisun/kkdg/utils/kktimewheel"
+	"github.com/RussellLuo/timingwheel"
 )
 
 func genD(i int) time.Duration {
@@ -12,7 +12,7 @@ func genD(i int) time.Duration {
 }
 
 func BenchmarkTimingWheel_StartStop(b *testing.B) {
-	tw := kktimewheel.NewTimeWheel(time.Millisecond, 20)
+	tw := timingwheel.NewTimingWheel(time.Millisecond, 20)
 	tw.Start()
 	defer tw.Stop()
 
@@ -26,14 +26,14 @@ func BenchmarkTimingWheel_StartStop(b *testing.B) {
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
-			base := make([]*kktimewheel.Timer, c.N)
+			base := make([]*timingwheel.Timer, c.N)
 			for i := 0; i < len(base); i++ {
-				base[i] = tw.AfterFunc(kktimewheel.NextID(), genD(i), func() {})
+				base[i] = tw.AfterFunc(genD(i), func() {})
 			}
 			b.ResetTimer()
 
 			for i := 0; i < b.N; i++ {
-				tw.AfterFunc(kktimewheel.NextID(), time.Second, func() {}).Stop()
+				tw.AfterFunc(time.Second, func() {}).Stop()
 			}
 
 			b.StopTimer()
