@@ -8,18 +8,18 @@ import (
 
 type serverConnMgr struct {
 	mu    sync.RWMutex
-	conns map[int64]*wsConn
+	conns map[int64]kknet.IConn
 }
 
 func newServerConnMgr() *serverConnMgr {
 	return &serverConnMgr{
-		conns: make(map[int64]*wsConn),
+		conns: make(map[int64]kknet.IConn),
 	}
 }
 
 var _ kknet.IConnManager = (*serverConnMgr)(nil)
 
-func (m *serverConnMgr) addConn(c *wsConn) {
+func (m *serverConnMgr) addConn(c kknet.IConn) {
 	if c == nil {
 		return
 	}
