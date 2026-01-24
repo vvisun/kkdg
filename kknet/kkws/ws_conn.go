@@ -118,12 +118,12 @@ func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 		if c.stats != nil {
 			c.stats.AddRecv(len(data))
 		}
-		payload := kkbuffer.Get()
-		payload.SetBytes(data)
+
 		if dispatch != nil {
+			payload := kkbuffer.GetWithCapacity(len(data))
+			payload.B = payload.B[:len(data)]
+			copy(payload.B, data)
 			dispatch(c, payload)
-		} else {
-			kkbuffer.Put(payload)
 		}
 	}
 }

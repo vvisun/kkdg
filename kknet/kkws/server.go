@@ -24,7 +24,6 @@ type Server struct {
 	path    string
 	handler kknet.IHandler
 	opts    kknet.Options
-	connMgr *kknet.ConnManager
 
 	httpServer *http.Server
 	pool       *ants.Pool
@@ -35,8 +34,7 @@ type Server struct {
 	stats kknet.Stats
 
 	// Connection tracking for graceful shutdown
-	connsMu sync.RWMutex
-	conns   map[int64]*wsConn
+	connMgr *serverConnMgr
 	connWg  sync.WaitGroup
 }
 
@@ -49,8 +47,7 @@ func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Serve
 		path:    "/ws",
 		handler: handler,
 		opts:    kknet.ApplyOptions(opts...),
-		conns:   make(map[int64]*wsConn),
-		connMgr: kknet.NewConnManager(),
+		connMgr: newServerConnMgr(),
 	}
 }
 
@@ -117,10 +114,7 @@ func (s *Server) Start() error {
 		}
 
 		// Track connection
-		s.connsMu.Lock()
-		s.conns[wsConn.id] = wsConn
-		s.connsMu.Unlock()
-		s.connMgr.AddConn(wsConn)
+		s.connMgr.addConn(wsConn)
 		s.connWg.Add(1)
 
 		s.stats.OnConnect()
@@ -135,10 +129,7 @@ func (s *Server) Start() error {
 			err := wsConn.readLoop(s.dispatch)
 			wsConn.closeWithError(s.handler, err)
 			// Remove from tracking
-			s.connsMu.Lock()
-			delete(s.conns, wsConn.id)
-			s.connsMu.Unlock()
-			s.connMgr.RemoveConn(wsConn.id)
+			s.connMgr.removeConn(wsConn.id)
 		}()
 	})
 
@@ -235,12 +226,12 @@ func (s *Server) Stop() error {
 
 // closeAllConnections closes all active connections with context timeout.
 func (s *Server) closeAllConnections(ctx context.Context) {
-	s.connsMu.Lock()
-	conns := make([]*wsConn, 0, len(s.conns))
-	for _, conn := range s.conns {
+	s.connMgr.mu.Lock()
+	conns := make([]*wsConn, 0, len(s.connMgr.conns))
+	for _, conn := range s.connMgr.conns {
 		conns = append(conns, conn)
 	}
-	s.connsMu.Unlock()
+	s.connMgr.mu.Unlock()
 
 	// Close all connections
 	for _, conn := range conns {

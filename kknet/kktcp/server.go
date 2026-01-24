@@ -16,7 +16,7 @@ type Server struct {
 	addr    string
 	handler kknet.IHandler
 	opts    kknet.Options
-	connMgr *kknet.ConnManager
+	connMgr *serverConnMgr
 
 	engine  gnet.Engine
 	pool    *ants.Pool
@@ -36,7 +36,7 @@ func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Serve
 		addr:    addr,
 		handler: handler,
 		opts:    cfg,
-		connMgr: kknet.NewConnManager(),
+		connMgr: newServerConnMgr(),
 	}
 }
 
