@@ -181,7 +181,7 @@ func (c *GnetClient) startReconnect() {
 
 func (c *GnetClient) reconnectLoop() {
 	interval := c.opts.TcpClientReconnectInterval
-	if interval <= 0 {
+	if interval <= 500*time.Millisecond { // 最小间隔，防止频繁重连
 		interval = 500 * time.Millisecond
 	}
 	maxRetries := c.opts.TcpClientReconnectMaxRetries

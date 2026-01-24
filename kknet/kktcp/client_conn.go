@@ -147,6 +147,9 @@ func (c *clientConn) Close() error {
 	c.sendDrain = c.opts.TcpClientNeedFlushOver
 	flushTimeout := c.opts.TcpTimeoutFlushOver
 	flushCb := c.opts.TcpClientFlushTimeoutCallback
+	if flushTimeout < 200*time.Millisecond { // 最小超时时间
+		flushTimeout = 200 * time.Millisecond
+	}
 	if !c.sendDrain {
 		drained, drainedBytes = c.drainSendQueueLocked()
 	}

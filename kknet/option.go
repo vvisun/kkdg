@@ -40,7 +40,7 @@ type Options struct {
 
 const (
 	defaultBufferSize         = 64 * 1024        //默认缓冲区大小为64KB
-	defaultShutdownTimeout    = 30 * time.Second //默认关闭超时时间为30秒
+	defaultShutdownTimeout    = 10 * time.Second //默认关闭超时时间为10秒
 	defaultUDPConnIdleTimeout = 5 * time.Minute  //默认UDP连接空闲超时时间为5分钟
 	defaultUDPCleanupInterval = 1 * time.Minute  //默认UDP清理间隔时间为1分钟
 	defaultReadTimeout        = 0                //默认WebSocket读超时为0（不超时）
@@ -134,6 +134,9 @@ func WithShutdownTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout > 0 {
 			o.ShutdownTimeout = timeout
+			if o.ShutdownTimeout < 50*time.Millisecond { // 最小关闭超时时间，防止压根没效果
+				o.ShutdownTimeout = 50 * time.Millisecond
+			}
 		}
 	}
 }
@@ -160,6 +163,9 @@ func WithReadTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
 			o.WsReadTimeout = timeout
+			if o.WsReadTimeout < 50*time.Millisecond { // 最小读超时时间，防止压根没效果
+				o.WsReadTimeout = 50 * time.Millisecond
+			}
 		}
 	}
 }
@@ -170,6 +176,9 @@ func WithWriteTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
 			o.WsWriteTimeout = timeout
+			if o.WsWriteTimeout < 50*time.Millisecond { // 最小写超时时间，防止压根没效果
+				o.WsWriteTimeout = 50 * time.Millisecond
+			}
 		}
 	}
 }
@@ -200,6 +209,9 @@ func WithTimeoutTcpFlushOver(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout > 0 {
 			o.TcpTimeoutFlushOver = timeout
+			if o.TcpTimeoutFlushOver < 50*time.Millisecond { // 最小超时时间，防止压根没效果
+				o.TcpTimeoutFlushOver = 50 * time.Millisecond
+			}
 		}
 	}
 }
@@ -226,6 +238,9 @@ func WithTcpClientReconnect(enable bool, interval time.Duration, maxRetries int)
 		o.TcpClientNeedReconnect = enable
 		if interval > 0 {
 			o.TcpClientReconnectInterval = interval
+			if interval < 500*time.Millisecond { // 最小间隔，防止频繁重连
+				o.TcpClientReconnectInterval = 500 * time.Millisecond
+			}
 		}
 		o.TcpClientReconnectMaxRetries = maxRetries
 	}
