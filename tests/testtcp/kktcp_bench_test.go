@@ -14,7 +14,11 @@ func BenchmarkKKNet_TCP_Roundtrip(b *testing.B) {
 
 	serverHandler := &testHandler{
 		onMessage: func(c kknet.IConn, data []byte) {
-			_ = c.Send(data)
+			packet, err := kkpacket.DefaultStreamPacket().Pack(data)
+			if err != nil {
+				b.Fatalf("pack failed: %v", err)
+			}
+			_ = c.SendBuffer(packet)
 		},
 	}
 	server := kktcp.NewServer(addr, serverHandler)

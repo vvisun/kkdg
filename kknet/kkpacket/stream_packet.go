@@ -89,14 +89,15 @@ func (slf *LengthFieldStreamPacket) writeHeadSize(data []byte, size int) {
 // input: [length,data].
 // output: error
 func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
-	if len(packet) > DefaultMaxMessageSize() {
+	lenPacket := len(packet)
+	if lenPacket > DefaultMaxMessageSize() || lenPacket < slf.lengthFieldByteCount {
 		return kkerrors.ErrMaxMessageSize
 	}
 	size, err := slf.GetBodySize(packet)
 	if err != nil {
 		return err
 	}
-	if len(packet) != size+slf.lengthFieldByteCount {
+	if lenPacket != size+slf.lengthFieldByteCount {
 		return kkerrors.ErrInvalidPacket
 	}
 	return nil
@@ -108,7 +109,7 @@ func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
 // @ return [length,data], err
 // 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
-	if len(data) > DefaultMaxMessageSize() {
+	if len(data) > DefaultMaxMessageSize()-slf.lengthFieldByteCount {
 		return nil, kkerrors.ErrMaxMessageSize
 	}
 

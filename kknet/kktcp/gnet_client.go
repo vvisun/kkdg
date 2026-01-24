@@ -351,11 +351,11 @@ func (c *gnetClientConn) RemoteAddr() string {
 }
 
 func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
-	if len(buffer.B) > kkpacket.DefaultMaxMessageSize() {
+	if err := kkpacket.DefaultStreamPacket().CheckPacket(buffer.B); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		return kkerrors.ErrMaxMessageSize
+		return err
 	}
 	old := buffer
 	bb := kkbuffer.GetWithCapacity(len(old.B))
@@ -383,11 +383,11 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *gnetClientConn) Send(data []byte) error {
-	if len(data) > kkpacket.DefaultMaxMessageSize() {
+	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		return kkerrors.ErrMaxMessageSize
+		return err
 	}
 	bb := kkbuffer.GetWithCapacity(len(data))
 	bb.B = bb.B[:len(data)]

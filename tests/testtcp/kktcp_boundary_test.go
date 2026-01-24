@@ -16,7 +16,11 @@ func TestKKTCPLargeMessage(t *testing.T) {
 
 	serverHandler := &testHandler{
 		onMessage: func(c kknet.IConn, data []byte) {
-			_ = c.Send(data)
+			packet, err := kkpacket.DefaultStreamPacket().Pack(data)
+			if err != nil {
+				t.Fatalf("pack failed: %v", err)
+			}
+			_ = c.SendBuffer(packet)
 		},
 	}
 	server := kktcp.NewServer(addr, serverHandler)

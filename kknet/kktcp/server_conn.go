@@ -52,8 +52,13 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 
 	bb := buffer
 
-	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, _ error) error {
+	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
 		kkbuffer.Put(bb)
+		if err != nil {
+			if c.stats != nil {
+				c.stats.AddError()
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -70,37 +75,10 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *tcpConn) Send(data []byte) error {
-	if len(data) > kkpacket.DefaultMaxMessageSize() {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return kkerrors.ErrMaxMessageSize
-	}
-
-	bb, err1 := kkpacket.DefaultStreamPacket().Pack(data)
-	if err1 != nil {
-		kkbuffer.Put(bb)
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err1
-	}
-
-	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, _ error) error {
-		kkbuffer.Put(bb)
-		return nil
-	})
-	if err != nil {
-		kkbuffer.Put(bb)
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
-	if c.stats != nil {
-		c.stats.AddSent(len(data))
-	}
-	return nil
+	bb := kkbuffer.GetWithCapacity(len(data))
+	bb.B = bb.B[:len(data)]
+	copy(bb.B, data)
+	return c.SendBuffer(bb)
 }
 
 func (c *tcpConn) Close() error {
