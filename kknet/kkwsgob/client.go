@@ -441,7 +441,7 @@ func (c *Client) connectTLS() error {
 
 func (c *Client) handleTLSClose(cc *netWSConn, err error) {
 	c.stats.OnClose()
-	if err != nil && !isEOF(err) {
+	if err != nil && !isExpectedCloseErr(err) {
 		c.stats.AddError()
 	}
 	if c.handler != nil {
@@ -504,7 +504,7 @@ func (h *wsClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Acti
 
 	if ok && cc != nil && cc.upgraded {
 		h.client.stats.OnClose()
-		if err != nil {
+		if err != nil && !isExpectedCloseErr(err) {
 			h.client.stats.AddError()
 		}
 	}

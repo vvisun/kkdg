@@ -288,7 +288,7 @@ func (s *Server) closeTLSConn(wc *netWSConn, err error) {
 	if err == nil {
 		err = wc.getCloseErr()
 	}
-	if err != nil && !isEOF(err) {
+	if err != nil && !isExpectedCloseErr(err) {
 		s.stats.AddError()
 	}
 	s.connMgr.removeConn(wc.id)

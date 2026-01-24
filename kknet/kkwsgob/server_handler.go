@@ -51,7 +51,7 @@ func (h *wsEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 	if err == nil {
 		err = wc.getCloseErr()
 	}
-	if err != nil {
+	if err != nil && !isExpectedCloseErr(err) {
 		h.server.stats.AddError()
 	}
 	h.server.connMgr.removeConn(wc.id)
