@@ -113,8 +113,11 @@ func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
 		}
 		return kkerrors.ErrConnectionClosed
 	}
+	wasEmpty := c.sendQueue.Len() == 0
 	c.sendQueue.Push(bb)
-	c.sendData.Signal()
+	if wasEmpty {
+		c.sendData.Signal()
+	}
 	c.sendMu.Unlock()
 	return nil
 }
