@@ -63,6 +63,7 @@ func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clien
 		spaceCtx:    spaceCtx,
 		spaceCancel: spaceCancel,
 		ctx:         context.Background(),
+		spaceStrict: true,
 	}
 	cc.sendData = sync.NewCond(&cc.sendMu)
 	return cc
@@ -301,8 +302,9 @@ func (c *clientConn) writeLoop() error {
 
 		for i := range batch {
 			bb := batch[i]
+			bbLen := int64(len(bb.B)) // 必须在 Put(bb) 前取 len，否则 bb 入池复用后 len(bb.B) 可能错误，导致 Release 不足、spaceSem 泄漏，最终 Acquire 永久阻塞
 			if !c.spaceStrict {
-				c.spaceSem.Release(int64(len(bb.B)))
+				c.spaceSem.Release(bbLen)
 			}
 			err := writeFull(c.conn, bb.B)
 			kkbuffer.Put(bb)
@@ -310,11 +312,12 @@ func (c *clientConn) writeLoop() error {
 				// 失败时：当前 bb 已 Put。spaceStrict 下当前 bb 尚未 Release，需补上；
 				// batch 中尚未处理的需 Put+Release（已出队，drain 拿不到，否则 spaceSem 泄漏）
 				if c.spaceStrict {
-					c.spaceSem.Release(int64(len(bb.B)))
+					c.spaceSem.Release(bbLen)
 				}
 				for _, b := range batch[i+1:] {
+					bn := int64(len(b.B))
 					kkbuffer.Put(b)
-					c.spaceSem.Release(int64(len(b.B)))
+					c.spaceSem.Release(bn)
 				}
 				if c.stats != nil {
 					c.stats.AddError()
@@ -322,10 +325,10 @@ func (c *clientConn) writeLoop() error {
 				return err
 			}
 			if c.spaceStrict {
-				c.spaceSem.Release(int64(len(bb.B)))
+				c.spaceSem.Release(bbLen)
 			}
 			if c.stats != nil {
-				c.stats.AddSent(len(bb.B))
+				c.stats.AddSent(int(bbLen))
 			}
 		}
 	}
