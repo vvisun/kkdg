@@ -12,6 +12,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -25,7 +26,7 @@ type clientConn struct {
 
 	sendMu      sync.Mutex
 	sendData    *sync.Cond
-	sendQueue   sendQueue
+	sendQueue   bbqueue.BBQueue
 	batchBuffer [writeBatchSize]*kkbuffer.ByteBuffer
 	sendLimit   int
 	sendClosed  bool
@@ -58,7 +59,7 @@ func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clien
 		opts:        opts,
 		stats:       stats,
 		sendLimit:   queueLimit,
-		sendQueue:   newSendQueue(queueSize),
+		sendQueue:   bbqueue.NewBBQueue(queueSize),
 		spaceSem:    semaphore.NewWeighted(int64(queueLimit)),
 		spaceCtx:    spaceCtx,
 		spaceCancel: spaceCancel,

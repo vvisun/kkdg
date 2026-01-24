@@ -9,7 +9,52 @@ import (
 	"github.com/vvisun/kkdg/kknet/kktcp"
 )
 
-func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
+func BenchmarkKKNet_TCP_Roundtrip(b *testing.B) {
+	addr := freeTCPAddr(b)
+
+	serverHandler := &testHandler{
+		onMessage: func(c kknet.IConn, data []byte) {
+			_ = c.Send(data)
+		},
+	}
+	server := kktcp.NewServer(addr, serverHandler)
+	if err := server.Start(); err != nil {
+		b.Fatalf("server start: %v", err)
+	}
+	defer func() { _ = server.Stop() }()
+
+	msgCh := make(chan []byte, 2048)
+	clientHandler := &testHandler{
+		onMessage: func(c kknet.IConn, data []byte) {
+			msgCh <- data
+		},
+	}
+	client := kktcp.NewClient(addr, clientHandler)
+	if err := client.Connect(); err != nil {
+		b.Fatalf("client connect: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	payload := []byte("ping")
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	if err != nil {
+		b.Fatalf("pack failed: %v", err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bb, _ = kkpacket.DefaultStreamPacket().Pack(payload)
+		if err := client.SendBuffer(bb); err != nil {
+			b.Fatalf("client send: %v", err)
+		}
+		select {
+		case <-msgCh:
+		case <-time.After(1 * time.Second):
+			b.Fatal("tcp reply timeout")
+		}
+	}
+}
+
+func BenchmarkKKNet_Gnet_TCP_Roundtrip(b *testing.B) {
 	addr := freeTCPAddr(b)
 
 	serverHandler := &testHandler{
@@ -50,6 +95,45 @@ func BenchmarkKKNetTCPRoundtrip(b *testing.B) {
 		case <-msgCh:
 		case <-time.After(1 * time.Second):
 			b.Fatal("tcp reply timeout")
+		}
+	}
+}
+
+func BenchmarkKKNet_TCP_Roundtrip_No1(b *testing.B) {
+	addr := freeTCPAddr(b)
+
+	serverHandler := &testHandler{
+		onMessage: func(c kknet.IConn, data []byte) {
+			_ = c.Send(data)
+		},
+	}
+	server := kktcp.NewServer(addr, serverHandler)
+	if err := server.Start(); err != nil {
+		b.Fatalf("server start: %v", err)
+	}
+	defer func() { _ = server.Stop() }()
+
+	clientHandler := &testHandler{
+		onMessage: func(c kknet.IConn, data []byte) {
+			// print the server stats
+		},
+	}
+	client := kktcp.NewClient(addr, clientHandler)
+	if err := client.Connect(); err != nil {
+		b.Fatalf("client connect: %v", err)
+	}
+	defer func() { _ = client.Close() }()
+
+	payload := []byte("ping")
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	if err != nil {
+		b.Fatalf("pack failed: %v", err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bb, _ = kkpacket.DefaultStreamPacket().Pack(payload)
+		if err := client.SendBuffer(bb); err != nil {
+			b.Fatalf("client send: %v", err)
 		}
 	}
 }
