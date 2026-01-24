@@ -15,6 +15,8 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+const writeBatchSize = 16 // 每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
+
 type clientConn struct {
 	id    kknet.CONN_ID
 	conn  net.Conn
@@ -24,6 +26,7 @@ type clientConn struct {
 	sendMu      sync.Mutex
 	sendData    *sync.Cond
 	sendQueue   sendQueue
+	batchBuffer [writeBatchSize]*kkbuffer.ByteBuffer
 	sendLimit   int
 	sendClosed  bool
 	sendDrain   bool
@@ -289,27 +292,42 @@ func (c *clientConn) writeLoop() error {
 			c.sendMu.Unlock()
 			continue
 		}
-		bb := c.sendQueue.Pop()
+		// 批量 Pop，降低 Lock 竞争
+		batch := c.batchBuffer[:0]
+		for n := 0; n < writeBatchSize && c.sendQueue.Len() > 0; n++ {
+			batch = append(batch, c.sendQueue.Pop())
+		}
 		c.sendMu.Unlock()
 
-		if !c.spaceStrict {
-			c.spaceSem.Release(int64(len(bb.B)))
-		}
-		err := writeFull(c.conn, bb.B)
-		kkbuffer.Put(bb)
-		if err != nil {
-			if c.stats != nil {
-				c.stats.AddError()
+		for i := range batch {
+			bb := batch[i]
+			if !c.spaceStrict {
+				c.spaceSem.Release(int64(len(bb.B)))
 			}
-			return err
+			err := writeFull(c.conn, bb.B)
+			kkbuffer.Put(bb)
+			if err != nil {
+				// 失败时：当前 bb 已 Put。spaceStrict 下当前 bb 尚未 Release，需补上；
+				// batch 中尚未处理的需 Put+Release（已出队，drain 拿不到，否则 spaceSem 泄漏）
+				if c.spaceStrict {
+					c.spaceSem.Release(int64(len(bb.B)))
+				}
+				for _, b := range batch[i+1:] {
+					kkbuffer.Put(b)
+					c.spaceSem.Release(int64(len(b.B)))
+				}
+				if c.stats != nil {
+					c.stats.AddError()
+				}
+				return err
+			}
+			if c.spaceStrict {
+				c.spaceSem.Release(int64(len(bb.B)))
+			}
+			if c.stats != nil {
+				c.stats.AddSent(len(bb.B))
+			}
 		}
-		if c.spaceStrict {
-			c.spaceSem.Release(int64(len(bb.B)))
-		}
-		if c.stats != nil {
-			c.stats.AddSent(len(bb.B))
-		}
-
 	}
 }
 
