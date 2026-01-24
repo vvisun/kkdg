@@ -68,7 +68,7 @@ func DefaultOptions() Options {
 		UDPCleanupInterval:     defaultUDPCleanupInterval,
 		WsReadTimeout:          defaultReadTimeout,
 		WsWriteTimeout:         defaultWriteTimeout,
-		TcpClientSendQueueSize: 64,
+		TcpClientSendQueueSize: 256,
 	}
 }
 

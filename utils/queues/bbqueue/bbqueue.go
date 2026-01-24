@@ -1,28 +1,28 @@
-package kktcp
+package bbqueue
 
 import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-type sendQueue struct {
+type BBQueue struct {
 	buf   []*kkbuffer.ByteBuffer
 	head  int
 	tail  int
 	count int
 }
 
-func newSendQueue(size int) sendQueue {
+func NewBBQueue(size int) BBQueue {
 	if size <= 0 {
 		size = 64
 	}
-	return sendQueue{buf: make([]*kkbuffer.ByteBuffer, size)}
+	return BBQueue{buf: make([]*kkbuffer.ByteBuffer, size)}
 }
 
-func (q *sendQueue) Len() int {
+func (q *BBQueue) Len() int {
 	return q.count
 }
 
-func (q *sendQueue) Push(bb *kkbuffer.ByteBuffer) {
+func (q *BBQueue) Push(bb *kkbuffer.ByteBuffer) {
 	if q.count == len(q.buf) {
 		q.grow()
 	}
@@ -31,7 +31,7 @@ func (q *sendQueue) Push(bb *kkbuffer.ByteBuffer) {
 	q.count++
 }
 
-func (q *sendQueue) Pop() *kkbuffer.ByteBuffer {
+func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {
 	if q.count == 0 {
 		return nil
 	}
@@ -46,7 +46,7 @@ func (q *sendQueue) Pop() *kkbuffer.ByteBuffer {
 	return bb
 }
 
-func (q *sendQueue) grow() {
+func (q *BBQueue) grow() {
 	newSize := len(q.buf) * 2
 	if newSize == 0 {
 		newSize = 64
