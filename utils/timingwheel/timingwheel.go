@@ -6,7 +6,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/RussellLuo/timingwheel/delayqueue"
+	"github.com/vvisun/kkdg/utils/timingwheel/delayqueue"
 )
 
 // TimingWheel is an implementation of Hierarchical Timing Wheels.

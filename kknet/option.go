@@ -36,6 +36,7 @@ type Options struct {
 	TcpClientReconnectInterval    time.Duration                           //tcp客户端重连间隔
 	TcpClientReconnectMaxRetries  int                                     //tcp客户端重连最大次数(<=0为无限)
 	TcpClientReconnectCallback    func(attempt int, err error)            //tcp客户端重连回调(成功时 err 为 nil)
+	WakeupThreshold               time.Duration                           //tcp客户端唤醒阈值
 }
 
 const (

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vvisun/kkdg/kkerrors"
@@ -12,7 +13,9 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
+	"github.com/vvisun/kkdg/utils/timingwheel"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -35,6 +38,7 @@ type clientConn struct {
 	spaceCtx    context.Context
 	spaceCancel context.CancelFunc
 	spaceStrict bool //是否严格容量控制
+	pending     int32
 	closeOnce   sync.Once
 
 	ctxMu sync.RWMutex
@@ -65,6 +69,7 @@ func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clien
 		spaceCancel: spaceCancel,
 		ctx:         context.Background(),
 		spaceStrict: true,
+		pending:     0,
 	}
 	cc.sendData = sync.NewCond(&cc.sendMu)
 	return cc
@@ -120,8 +125,20 @@ func (c *clientConn) SendBuffer(bb buffers.IBuffer) error {
 	}
 	wasEmpty := c.sendQueue.Len() == 0
 	c.sendQueue.Push(bb)
+	// 队列空转有时，才需要唤醒。本来就有说明已经是唤醒状态，不需要唤醒。
 	if wasEmpty {
-		c.sendData.Signal()
+		//加入一个时间限制，防止频繁唤醒。
+		if c.opts.WakeupThreshold > 0 && atomic.CompareAndSwapInt32(&c.pending, 0, 1) {
+			kklog.Debugf("tcp client conn %d pending wakeup", c.id)
+			// 没到时间，则延迟唤醒。
+			timingwheel.GetGlobalTimingWheel().AfterFunc(c.opts.WakeupThreshold, func() {
+				atomic.StoreInt32(&c.pending, 0)
+				c.sendData.Signal() // 唤醒写协程
+			})
+		} else {
+			// 时间到了，直接唤醒。
+			c.sendData.Signal()
+		}
 	}
 	c.sendMu.Unlock()
 	return nil
