@@ -84,8 +84,14 @@ func (c *wsConn) Send(data []byte) error {
 }
 
 func (c *wsConn) Close() error {
-	c.setCloseErr(kkerrors.ErrConnectionClosed)
-	return c.conn.Close()
+	c.closeOnce.Do(func() {
+		c.setCloseErr(kkerrors.ErrConnectionClosed)
+		payload := ws.NewCloseFrameBody(ws.StatusNormalClosure, "")
+		if err := c.writeCloseFrame(payload); err != nil {
+			_ = c.conn.Close()
+		}
+	})
+	return nil
 }
 
 func (c *wsConn) Context() context.Context {
@@ -185,6 +191,48 @@ func (c *wsConn) writeFrameWithHeader(hdr ws.Header, payload []byte) error {
 
 func (c *wsConn) writeControl(op ws.OpCode, payload []byte) {
 	_ = c.writeFrame(op, payload)
+}
+
+func (c *wsConn) writeCloseFrame(payload []byte) error {
+	hdr := ws.Header{
+		Fin:    true,
+		OpCode: ws.OpClose,
+		Masked: c.state.ClientSide(),
+		Length: int64(len(payload)),
+	}
+	if hdr.Masked {
+		hdr.Mask = ws.NewMask()
+	}
+	headerSize := ws.HeaderSize(hdr)
+	if headerSize < 0 {
+		return ws.ErrHeaderLengthUnexpected
+	}
+
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	bb := kkbuffer.GetWithCapacity(headerSize + len(payload))
+	bb.B = bb.B[:headerSize+len(payload)]
+
+	writer := sliceWriter{b: bb.B}
+	if err := ws.WriteHeader(&writer, hdr); err != nil {
+		kkbuffer.Put(bb)
+		return err
+	}
+	copy(bb.B[writer.n:], payload)
+	if hdr.Masked {
+		ws.Cipher(bb.B[writer.n:], hdr.Mask, 0)
+	}
+
+	if err := c.conn.AsyncWrite(bb.B, func(conn gnet.Conn, err error) error {
+		kkbuffer.Put(bb)
+		_ = conn.Close()
+		return nil
+	}); err != nil {
+		kkbuffer.Put(bb)
+		return err
+	}
+	return nil
 }
 
 func (c *wsConn) nextFrame() (ws.Header, []byte, bool, error) {

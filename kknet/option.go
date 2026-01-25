@@ -24,6 +24,7 @@ type Options struct {
 	WsOriginChecker OriginCheckFunc // websocket原始检查器
 	WsReadTimeout   time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
 	WsWriteTimeout  time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
+	WsSendQueueSize int             // WebSocket异步发送队列大小
 
 	UDPConnIdleTimeout time.Duration // UDP连接空闲超时时间（为0时，不启用空闲清理）
 	UDPCleanupInterval time.Duration // UDP清理间隔时间（为0时，不启用清理）
@@ -39,15 +40,6 @@ type Options struct {
 	WakeupThreshold               time.Duration                           //tcp客户端唤醒阈值
 }
 
-const (
-	defaultBufferSize         = 64 * 1024        //默认缓冲区大小为64KB
-	defaultShutdownTimeout    = 10 * time.Second //默认关闭超时时间为10秒
-	defaultUDPConnIdleTimeout = 5 * time.Minute  //默认UDP连接空闲超时时间为5分钟
-	defaultUDPCleanupInterval = 1 * time.Minute  //默认UDP清理间隔时间为1分钟
-	defaultReadTimeout        = 0                //默认WebSocket读超时为0（不超时）
-	defaultWriteTimeout       = 0                //默认WebSocket写超时为0（不超时）
-)
-
 func defaultOriginChecker(r *http.Request) bool {
 	return true
 }
@@ -58,18 +50,23 @@ type Option func(*Options)
 // DefaultOptions returns default settings.
 func DefaultOptions() Options {
 	return Options{
-		Logger:                 kklog.Nop(),
-		PoolSize:               xos.NumCPU(),
-		ReadBufferSize:         defaultBufferSize,
-		WriteBufferSize:        defaultBufferSize,
-		TLSConfig:              nil,
-		WsOriginChecker:        defaultOriginChecker,
-		ShutdownTimeout:        defaultShutdownTimeout,
-		UDPConnIdleTimeout:     defaultUDPConnIdleTimeout,
-		UDPCleanupInterval:     defaultUDPCleanupInterval,
-		WsReadTimeout:          defaultReadTimeout,
-		WsWriteTimeout:         defaultWriteTimeout,
-		TcpClientSendQueueSize: 256,
+		Logger:          kklog.Nop(),
+		PoolSize:        xos.NumCPU(), // 默认使用CPU核心数
+		ReadBufferSize:  64 * 1024,    // 64KB
+		WriteBufferSize: 64 * 1024,    // 64KB
+		TLSConfig:       nil,
+		ShutdownTimeout: 10 * time.Second, // 10秒
+		Middlewares:     nil,
+
+		WsOriginChecker: defaultOriginChecker,
+		WsReadTimeout:   0,   // 0秒, 不超时
+		WsWriteTimeout:  0,   // 0秒, 不超时
+		WsSendQueueSize: 256, // 256
+
+		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
+		UDPCleanupInterval: 1 * time.Minute, // 1分钟
+
+		TcpClientSendQueueSize: 256, // 256
 	}
 }
 
@@ -158,9 +155,9 @@ func WithUDPCleanupInterval(interval time.Duration) Option {
 	}
 }
 
-// WithReadTimeout sets the read timeout for WebSocket connections.
+// WithWsReadTimeout sets the read timeout for WebSocket connections.
 // Set to 0 to disable read timeout.
-func WithReadTimeout(timeout time.Duration) Option {
+func WithWsReadTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
 			o.WsReadTimeout = timeout
@@ -171,15 +168,24 @@ func WithReadTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithWriteTimeout sets the write timeout for WebSocket connections.
+// WithWsWriteTimeout sets the write timeout for WebSocket connections.
 // Set to 0 to disable write timeout.
-func WithWriteTimeout(timeout time.Duration) Option {
+func WithWsWriteTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
 			o.WsWriteTimeout = timeout
 			if o.WsWriteTimeout < 50*time.Millisecond { // 最小写超时时间，防止压根没效果
 				o.WsWriteTimeout = 50 * time.Millisecond
 			}
+		}
+	}
+}
+
+// WithWsSendQueueSize sets the send queue size for WebSocket connections.
+func WithWsSendQueueSize(size int) Option {
+	return func(o *Options) {
+		if size > 0 {
+			o.WsSendQueueSize = size
 		}
 	}
 }

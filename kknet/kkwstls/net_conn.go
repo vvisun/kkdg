@@ -99,8 +99,8 @@ func (c *netWSConn) Send(data []byte) error {
 func (c *netWSConn) Close() error {
 	c.setCloseErr(kkerrors.ErrConnectionClosed)
 	c.closeOnce.Do(func() {
+		_ = c.enqueueCloseFrame()
 		close(c.writeCh)
-		_ = c.conn.Close()
 	})
 	<-c.writeDone
 	return nil
@@ -325,12 +325,17 @@ func (c *netWSConn) writeLoop() {
 			c.stats.AddSent(task.payloadLen)
 		}
 		kkbuffer.Put(bb)
+		if task.closeAfter {
+			_ = c.conn.Close()
+			return
+		}
 	}
 }
 
 type writeTask struct {
 	bb         *kkbuffer.ByteBuffer
 	payloadLen int
+	closeAfter bool
 }
 
 type sliceWriter struct {
@@ -345,4 +350,40 @@ func (w *sliceWriter) Write(p []byte) (int, error) {
 	copy(w.b[w.n:], p)
 	w.n += len(p)
 	return len(p), nil
+}
+
+func (c *netWSConn) enqueueCloseFrame() error {
+	payload := ws.NewCloseFrameBody(ws.StatusNormalClosure, "")
+	hdr := ws.Header{
+		Fin:    true,
+		OpCode: ws.OpClose,
+		Masked: c.state.ClientSide(),
+		Length: int64(len(payload)),
+	}
+	if hdr.Masked {
+		hdr.Mask = ws.NewMask()
+	}
+	headerSize := ws.HeaderSize(hdr)
+	if headerSize < 0 {
+		return ws.ErrHeaderLengthUnexpected
+	}
+	bb := kkbuffer.GetWithCapacity(headerSize + len(payload))
+	bb.B = bb.B[:headerSize+len(payload)]
+	writer := sliceWriter{b: bb.B}
+	if err := ws.WriteHeader(&writer, hdr); err != nil {
+		kkbuffer.Put(bb)
+		return err
+	}
+	copy(bb.B[writer.n:], payload)
+	if hdr.Masked {
+		ws.Cipher(bb.B[writer.n:], hdr.Mask, 0)
+	}
+	task := &writeTask{bb: bb, payloadLen: len(payload), closeAfter: true}
+	select {
+	case c.writeCh <- task:
+		return nil
+	case <-c.writeDone:
+		kkbuffer.Put(bb)
+		return kkerrors.ErrConnectionClosed
+	}
 }
