@@ -167,7 +167,12 @@ func TestKKTCPConcurrentConnections(t *testing.T) {
 			defer func() { _ = client.Close() }()
 
 			payload := []byte{byte(id)}
-			if err := client.Send(payload); err != nil {
+			packet, err := kkpacket.DefaultStreamPacket().Pack(payload)
+			if err != nil {
+				errors <- err
+				return
+			}
+			if err := client.SendBuffer(packet); err != nil {
 				errors <- err
 				return
 			}
@@ -309,10 +314,14 @@ func TestKKTCPMaxMessageSize(t *testing.T) {
 
 	serverHandler := &testHandler{
 		onMessage: func(c kknet.IConn, data []byte) {
-			_ = c.Send(data)
+			packet, err := kkpacket.DefaultStreamPacket().Pack(data)
+			if err != nil {
+				t.Fatal("err")
+			}
+			_ = c.SendBuffer(packet)
 		},
 	}
-	maxSize := 1024 * 1024
+
 	server := kktcp.NewServer(addr, serverHandler)
 	if err := server.Start(); err != nil {
 		t.Fatalf("server start: %v", err)
@@ -327,14 +336,19 @@ func TestKKTCPMaxMessageSize(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	// Test message at max size (should succeed)
-	payload := make([]byte, kkpacket.DefaultMaxMessageSize())
-	if err := client.Send(payload); err != nil {
+	payload := make([]byte, kkpacket.DefaultMaxMessageSize()-kkpacket.DefaultStreamPacket().LengthFieldByteCount())
+	packet, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	if err != nil {
+		t.Fatal("err")
+	}
+	if err := client.SendBuffer(packet); err != nil {
 		t.Fatalf("max size message should succeed: %v", err)
 	}
 
 	// Test message exceeding max size (should fail)
-	oversized := make([]byte, maxSize+1)
-	if err := client.Send(oversized); err == nil {
+	oversized := make([]byte, kkpacket.DefaultMaxMessageSize()-kkpacket.DefaultStreamPacket().LengthFieldByteCount()+1)
+	overpacker, err := kkpacket.DefaultStreamPacket().Pack(oversized)
+	if err := client.SendBuffer(overpacker); err == nil {
 		t.Fatal("oversized message should fail")
 	}
 }

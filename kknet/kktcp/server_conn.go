@@ -43,6 +43,9 @@ func (c *tcpConn) RemoteAddr() string {
 }
 
 func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
+	if buffer == nil {
+		return kkerrors.ErrInvalidPacket
+	}
 	if len(buffer.B) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -79,6 +82,9 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *tcpConn) Send(data []byte) error {
+	if len(data) == 0 {
+		return kkerrors.ErrInvalidPacket
+	}
 	bb := kkbuffer.GetWithCapacity(len(data))
 	bb.B = bb.B[:len(data)]
 	copy(bb.B, data)

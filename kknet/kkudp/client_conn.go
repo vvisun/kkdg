@@ -46,10 +46,16 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) SendBuffer(buffer buffers.IBuffer) error {
+	if buffer == nil {
+		return kkerrors.ErrInvalidPacket
+	}
 	return c.Send(buffer.B)
 }
 
 func (c *clientConn) Send(data []byte) error {
+	if len(data) == 0 {
+		return kkerrors.ErrInvalidPacket
+	}
 	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()

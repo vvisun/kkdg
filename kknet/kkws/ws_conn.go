@@ -50,10 +50,16 @@ func (c *wsConn) RemoteAddr() string {
 }
 
 func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
+	if buffer == nil {
+		return kkerrors.ErrInvalidPacket
+	}
 	return c.Send(buffer.B)
 }
 
 func (c *wsConn) Send(data []byte) error {
+	if len(data) == 0 {
+		return kkerrors.ErrInvalidPacket
+	}
 	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()

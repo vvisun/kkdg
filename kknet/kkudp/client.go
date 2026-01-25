@@ -73,6 +73,9 @@ func (c *Client) Connect() error {
 
 // Send sends a datagram to the server.
 func (c *Client) Send(data []byte) error {
+	if len(data) == 0 {
+		return kkerrors.ErrInvalidPacket
+	}
 	c.connMu.Lock()
 	conn := c.conn
 	c.connMu.Unlock()
@@ -83,6 +86,9 @@ func (c *Client) Send(data []byte) error {
 }
 
 func (c *Client) SendBuffer(buffer buffers.IBuffer) error {
+	if buffer == nil {
+		return kkerrors.ErrInvalidPacket
+	}
 	c.connMu.Lock()
 	conn := c.conn
 	c.connMu.Unlock()

@@ -87,6 +87,9 @@ func (c *netWSConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *netWSConn) Send(data []byte) error {
+	if len(data) == 0 {
+		return kkerrors.ErrInvalidPacket
+	}
 	if len(data) > kkpacket.DefaultMaxMessageSize() {
 		if c.stats != nil {
 			c.stats.AddError()

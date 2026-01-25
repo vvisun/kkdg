@@ -102,6 +102,9 @@ func (c *Client) Connect() error {
 
 // Send sends a message to the server.
 func (c *Client) Send(data []byte) error {
+	if len(data) == 0 {
+		return kkerrors.ErrInvalidPacket
+	}
 	c.connMu.Lock()
 	conn := c.conn
 	c.connMu.Unlock()
@@ -113,6 +116,9 @@ func (c *Client) Send(data []byte) error {
 
 // SendBuffer sends a buffer to the server.
 func (c *Client) SendBuffer(buffer buffers.IBuffer) error {
+	if buffer == nil {
+		return kkerrors.ErrInvalidPacket
+	}
 	c.connMu.Lock()
 	conn := c.conn
 	c.connMu.Unlock()
