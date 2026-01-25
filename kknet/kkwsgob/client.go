@@ -303,7 +303,6 @@ func (c *Client) reconnectLoop() {
 	}
 }
 
-
 type wsClientEventHandler struct {
 	*gnet.BuiltinEventEngine
 	client *Client
@@ -586,13 +585,20 @@ func asyncWriteBytes(c gnet.Conn, payload []byte) error {
 	bb := kkbuffer.GetWithCapacity(len(payload))
 	bb.B = bb.B[:len(payload)]
 	copy(bb.B, payload)
+	// TODO: 发送失败应该入队，下次优先从队列中取数据发送。
 	if err := c.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
 		kkbuffer.Put(bb)
+		if err != nil {
+			// 发送失败
+			return nil
+		}
 		return nil
 	}); err != nil {
+		// 入队失败
 		kkbuffer.Put(bb)
 		return err
 	}
+	// 入队成功立即返回，注意这里只是入队，并非真正的发送数据
 	return nil
 }
 

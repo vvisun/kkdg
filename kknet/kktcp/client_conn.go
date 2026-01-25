@@ -53,8 +53,10 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 	bb.B, old.B = old.B, bb.B
 	kkbuffer.Put(old)
 
+	// TODO: 发送失败应该入队，下次优先从队列中取数据发送。
 	if err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
 		if err != nil {
+			// 发送失败
 			if c.stats != nil {
 				c.stats.AddError()
 			}
@@ -64,12 +66,14 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 		kkbuffer.Put(bb)
 		return nil
 	}); err != nil {
+		// 入队失败
 		kkbuffer.Put(bb)
 		if c.stats != nil {
 			c.stats.AddError()
 		}
 		return err
 	}
+	// 入队成功立即返回，注意这里只是入队，并非真正的发送数据
 	return nil
 }
 

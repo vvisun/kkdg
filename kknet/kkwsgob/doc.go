@@ -11,4 +11,6 @@ gobwas/ws: 是一个高性能的websocket库。
 
 TLS/WSS: 请使用 kkwstls 包。
 
+todo: 当前实现存在丢包风险。详见AsyncWrite调用处
+
 */

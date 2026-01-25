@@ -278,13 +278,16 @@ func (w *gnetWriteAdapter) Write(p []byte) (int, error) {
 	bb := kkbuffer.GetWithCapacity(len(p))
 	bb.B = bb.B[:len(p)]
 	copy(bb.B, p)
+	// TODO: 发送失败应该入队，下次优先从队列中取数据发送。
 	if err := w.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
 		kkbuffer.Put(bb)
 		return nil
 	}); err != nil {
+		// 入队失败
 		kkbuffer.Put(bb)
 		return 0, err
 	}
+	// 入队成功立即返回，注意这里只是入队，并非真正的发送数据
 	return len(p), nil
 }
 
@@ -300,4 +303,3 @@ func (rw *upgradeReadWriter) Read(p []byte) (int, error) {
 func (rw *upgradeReadWriter) Write(p []byte) (int, error) {
 	return rw.w.Write(p)
 }
-
