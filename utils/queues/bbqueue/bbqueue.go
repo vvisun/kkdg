@@ -5,30 +5,43 @@ import (
 )
 
 type BBQueue struct {
-	buf   []*kkbuffer.ByteBuffer
-	head  int
-	tail  int
-	count int
+	buf      []*kkbuffer.ByteBuffer
+	head     int
+	tail     int
+	count    int
+	isStrict bool //是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
 }
 
-func NewBBQueue(size int) BBQueue {
+func NewBBQueue(size int, isStrict bool) BBQueue {
 	if size <= 0 {
 		size = 64
 	}
-	return BBQueue{buf: make([]*kkbuffer.ByteBuffer, size)}
+	return BBQueue{buf: make([]*kkbuffer.ByteBuffer, size), isStrict: isStrict}
 }
 
 func (q *BBQueue) Len() int {
 	return q.count
 }
 
-func (q *BBQueue) Push(bb *kkbuffer.ByteBuffer) {
+func (q *BBQueue) IsFull() bool {
+	return q.count == len(q.buf)
+}
+
+func (q *BBQueue) IsEmpty() bool {
+	return q.count == 0
+}
+
+func (q *BBQueue) Push(bb *kkbuffer.ByteBuffer) bool {
 	if q.count == len(q.buf) {
+		if q.isStrict {
+			return false
+		}
 		q.grow()
 	}
 	q.buf[q.tail] = bb
 	q.tail = (q.tail + 1) % len(q.buf)
 	q.count++
+	return true
 }
 
 func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {

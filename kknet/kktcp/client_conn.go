@@ -63,7 +63,7 @@ func newClientConn(conn net.Conn, opts kknet.Options, stats *kknet.Stats) *clien
 		opts:        opts,
 		stats:       stats,
 		sendLimit:   queueLimit,
-		sendQueue:   bbqueue.NewBBQueue(queueSize),
+		sendQueue:   bbqueue.NewBBQueue(queueSize, false),
 		spaceSem:    semaphore.NewWeighted(int64(queueLimit)),
 		spaceCtx:    spaceCtx,
 		spaceCancel: spaceCancel,

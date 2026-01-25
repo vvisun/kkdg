@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/asynkron/protoactor-go v0.0.0-20260118094027-288962e52f3f
 	github.com/bytedance/sonic v1.14.2
+	github.com/gobwas/ws v1.4.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/nats-io/nats.go v1.48.0
 	github.com/shamaton/msgpack/v2 v2.4.0
@@ -23,7 +24,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/grafana/regexp v0.0.0-20250905093917-f7b3be9d1853 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/lithammer/shortuuid/v4 v4.2.0 // indirect

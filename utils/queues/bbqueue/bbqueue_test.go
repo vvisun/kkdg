@@ -14,7 +14,7 @@ func makeBuf(s string) *kkbuffer.ByteBuffer {
 }
 
 func TestBBQueue_New(t *testing.T) {
-	q := NewBBQueue(10)
+	q := NewBBQueue(10, true)
 	if q.Len() != 0 {
 		t.Errorf("New queue Len() = %d, want 0", q.Len())
 	}
@@ -23,7 +23,7 @@ func TestBBQueue_New(t *testing.T) {
 func TestBBQueue_NewZeroOrNegative(t *testing.T) {
 	// size <= 0 时使用默认 64
 	for _, size := range []int{0, -1} {
-		q := NewBBQueue(size)
+		q := NewBBQueue(size, false)
 		if q.Len() != 0 {
 			t.Errorf("NewBBQueue(%d) queue Len() = %d, want 0", size, q.Len())
 		}
@@ -41,7 +41,7 @@ func TestBBQueue_NewZeroOrNegative(t *testing.T) {
 }
 
 func TestBBQueue_PushPop(t *testing.T) {
-	q := NewBBQueue(4)
+	q := NewBBQueue(4, false)
 
 	b := makeBuf("hello")
 	q.Push(b)
@@ -64,7 +64,7 @@ func TestBBQueue_PushPop(t *testing.T) {
 }
 
 func TestBBQueue_PushPopMultiple(t *testing.T) {
-	q := NewBBQueue(4)
+	q := NewBBQueue(4, false)
 
 	for i := 0; i < 10; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
@@ -90,7 +90,7 @@ func TestBBQueue_PushPopMultiple(t *testing.T) {
 }
 
 func TestBBQueue_PopEmpty(t *testing.T) {
-	q := NewBBQueue(4)
+	q := NewBBQueue(4, false)
 	bb := q.Pop()
 	if bb != nil {
 		t.Errorf("Pop() on empty queue = %v, want nil", bb)
@@ -98,7 +98,7 @@ func TestBBQueue_PopEmpty(t *testing.T) {
 }
 
 func TestBBQueue_Grow(t *testing.T) {
-	q := NewBBQueue(4)
+	q := NewBBQueue(4, false)
 	// 超过初始容量以触发 grow
 	for i := 0; i < 20; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
@@ -122,7 +122,7 @@ func TestBBQueue_Grow(t *testing.T) {
 }
 
 func TestBBQueue_HeadTailReset(t *testing.T) {
-	q := NewBBQueue(4)
+	q := NewBBQueue(4, false)
 	// 先填满再弹空，触发 head/tail 回零
 	for i := 0; i < 6; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
@@ -155,7 +155,7 @@ func TestBBQueue_HeadTailReset(t *testing.T) {
 
 func TestBBQueue_ConcurrentPush(t *testing.T) {
 	// BBQueue 非并发安全，本测试仅验证并发 Push 不 panic；最终 Len 可能因竞态小于 1000
-	q := NewBBQueue(100)
+	q := NewBBQueue(100, false)
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func(id int) {
@@ -178,7 +178,7 @@ func TestBBQueue_ConcurrentPush(t *testing.T) {
 }
 
 func TestBBQueue_LenConsistency(t *testing.T) {
-	q := NewBBQueue(4)
+	q := NewBBQueue(4, false)
 	for i := 0; i < 20; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
 		if q.Len() != i+1 {

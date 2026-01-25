@@ -17,9 +17,10 @@ type Options struct {
 	PoolSize        int           // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
 	ReadBufferSize  int           // 读缓冲区大小
 	WriteBufferSize int           // 写缓冲区大小
-	TLSConfig       *tls.Config   // TLS配置
 	ShutdownTimeout time.Duration // 服务关闭超时时间
 	Middlewares     []Middleware  // 中间件列表
+
+	TLSConfig *tls.Config // TLS配置。use for wss or tcp with tls
 
 	WsOriginChecker OriginCheckFunc // websocket原始检查器
 	WsReadTimeout   time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
@@ -40,7 +41,7 @@ type Options struct {
 	WakeupThreshold               time.Duration                           //tcp客户端唤醒阈值
 }
 
-func defaultOriginChecker(r *http.Request) bool {
+func defaultWSOriginChecker(r *http.Request) bool {
 	return true
 }
 
@@ -58,7 +59,7 @@ func DefaultOptions() Options {
 		ShutdownTimeout: 10 * time.Second, // 10秒
 		Middlewares:     nil,
 
-		WsOriginChecker: defaultOriginChecker,
+		WsOriginChecker: defaultWSOriginChecker,
 		WsReadTimeout:   0,   // 0秒, 不超时
 		WsWriteTimeout:  0,   // 0秒, 不超时
 		WsSendQueueSize: 256, // 256
