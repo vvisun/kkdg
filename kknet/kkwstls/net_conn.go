@@ -1,13 +1,11 @@
-package kkwsgob
+package kkwstls
 
 import (
 	"bufio"
 	"context"
-	"errors"
 	"io"
 	"net"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -19,12 +17,12 @@ import (
 )
 
 type netWSConn struct {
-	id    kknet.CONN_ID
-	conn  net.Conn
+	id     kknet.CONN_ID
+	conn   net.Conn
 	reader *bufio.Reader
-	opts  kknet.Options
-	stats *kknet.Stats
-	state ws.State
+	opts   kknet.Options
+	stats  *kknet.Stats
+	state  ws.State
 
 	upgraded bool
 
@@ -289,10 +287,6 @@ func (c *netWSConn) readLoop(handleMessage func(buffers.IBuffer)) error {
 	}
 }
 
-func isEOF(err error) bool {
-	return errors.Is(err, io.EOF)
-}
-
 func (c *netWSConn) enqueueWrite(bb *kkbuffer.ByteBuffer, payloadLen int) bool {
 	task := &writeTask{bb: bb, payloadLen: payloadLen}
 	select {
@@ -339,18 +333,16 @@ type writeTask struct {
 	payloadLen int
 }
 
-// isExpectedCloseErr returns true for errors that commonly indicate an expected
-// connection close (peer closed, connection reset, etc.) and should not be
-// counted as AddError in stats.
-func isExpectedCloseErr(err error) bool {
-	if err == nil {
-		return true
+type sliceWriter struct {
+	b []byte
+	n int
+}
+
+func (w *sliceWriter) Write(p []byte) (int, error) {
+	if len(w.b)-w.n < len(p) {
+		return 0, io.ErrShortBuffer
 	}
-	if errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
-		return true
-	}
-	if errors.Is(err, syscall.ECONNRESET) {
-		return true
-	}
-	return false
+	copy(w.b[w.n:], p)
+	w.n += len(p)
+	return len(p), nil
 }

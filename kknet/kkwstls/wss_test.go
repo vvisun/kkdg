@@ -1,4 +1,4 @@
-package kkwsgob
+package kkwstls
 
 import (
 	"bytes"
@@ -96,6 +96,48 @@ func TestWSSConnectAndEcho(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatalf("echo timeout")
+	}
+}
+
+func TestWSSRequiresTLSConfig(t *testing.T) {
+	server := NewServer("127.0.0.1:0", &echoHandler{})
+	server.SetPath("/ws")
+	if err := server.Start(); err == nil {
+		t.Fatalf("expected error for missing TLSConfig")
+	}
+
+	client := NewClient("ws://127.0.0.1:8443/ws", &clientCaptureHandler{
+		connectCh: make(chan struct{}, 1),
+		msgCh:     make(chan []byte, 1),
+		closeCh:   make(chan error, 1),
+	})
+	if err := client.Connect(); err == nil {
+		t.Fatalf("expected error for non-wss without TLSConfig")
+	}
+}
+
+func TestWSSWrongCA(t *testing.T) {
+	serverCert, _ := generateSelfSignedCert(t)
+	_, wrongPool := generateSelfSignedCert(t)
+	server := NewServer("127.0.0.1:0", &echoHandler{}, kknet.WithTLSConfig(&tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+	}))
+	server.SetPath("/ws")
+	if err := server.Start(); err != nil {
+		t.Fatalf("start server: %v", err)
+	}
+	t.Cleanup(func() { _ = server.Stop() })
+
+	addr := server.tlsListener.Addr().String()
+	client := NewClient("wss://"+addr+"/ws", &clientCaptureHandler{
+		connectCh: make(chan struct{}, 1),
+		msgCh:     make(chan []byte, 1),
+		closeCh:   make(chan error, 1),
+	}, kknet.WithTLSConfig(&tls.Config{
+		RootCAs: wrongPool,
+	}))
+	if err := client.Connect(); err == nil {
+		t.Fatalf("expected error for wrong CA")
 	}
 }
 

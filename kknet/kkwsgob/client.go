@@ -6,11 +6,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha1"
-	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -51,7 +49,6 @@ type Client struct {
 	parsedURL *url.URL
 	addr      string
 	path      string
-	useTLS    bool
 
 	stats kknet.Stats
 }
@@ -89,14 +86,13 @@ func (c *Client) Connect() error {
 		c.connected.Store(false)
 		return errors.New("invalid websocket url")
 	}
-	c.useTLS = u.Scheme == "wss" || c.opts.TLSConfig != nil
+	if u.Scheme == "wss" || c.opts.TLSConfig != nil {
+		c.connected.Store(false)
+		return errors.New("kkwsgob does not support TLS, use kkwstls")
+	}
 	addr := u.Host
 	if !strings.Contains(addr, ":") {
-		if c.useTLS {
-			addr = addr + ":443"
-		} else {
-			addr = addr + ":80"
-		}
+		addr = addr + ":80"
 	}
 	path := u.RequestURI()
 	if path == "" {
@@ -105,14 +101,6 @@ func (c *Client) Connect() error {
 	c.parsedURL = u
 	c.addr = addr
 	c.path = path
-
-	if c.useTLS {
-		if err := c.connectTLS(); err != nil {
-			c.connected.Store(false)
-			return err
-		}
-		return nil
-	}
 
 	if !c.started.Swap(true) {
 		ev := &wsClientEventHandler{client: c}
@@ -237,10 +225,6 @@ func (c *Client) startReconnect() {
 	if c.reconnecting.Swap(true) {
 		return
 	}
-	if c.useTLS {
-		go c.reconnectLoopTLS()
-		return
-	}
 	go c.reconnectLoop()
 }
 
@@ -319,156 +303,6 @@ func (c *Client) reconnectLoop() {
 	}
 }
 
-func (c *Client) reconnectLoopTLS() {
-	interval := c.opts.TcpClientReconnectInterval
-	if interval <= 500*time.Millisecond {
-		interval = 500 * time.Millisecond
-	}
-	maxRetries := c.opts.TcpClientReconnectMaxRetries
-	cb := c.opts.TcpClientReconnectCallback
-	attempts := 0
-	for {
-		if c.closing.Load() {
-			c.reconnecting.Store(false)
-			return
-		}
-		if maxRetries > 0 && attempts >= maxRetries {
-			if cb != nil {
-				cb(attempts, errors.New("reconnect attempts exceeded"))
-			}
-			c.opts.Logger.Warnf("kkwsgob client reconnect exceeded after %d attempts", attempts)
-			c.reconnecting.Store(false)
-			return
-		}
-		attempts++
-		c.opts.Logger.Debugf("kkwsgob client reconnect attempt %d", attempts)
-
-		if err := c.connectTLS(); err == nil {
-			if cb != nil {
-				cb(attempts, nil)
-			}
-			c.opts.Logger.Infof("kkwsgob client reconnected after %d attempts", attempts)
-			c.reconnecting.Store(false)
-			return
-		} else if cb != nil {
-			cb(attempts, err)
-		}
-
-		select {
-		case <-time.After(interval):
-		case <-c.stopCh:
-			c.reconnecting.Store(false)
-			return
-		}
-	}
-}
-
-func (c *Client) connectTLS() error {
-	tlsConn, err := dialTLS(c.addr, c.opts.TLSConfig, c.parsedURL.Hostname())
-	if err != nil {
-		return err
-	}
-
-	req, expectedAccept, err := buildHandshakeRequest(c.parsedURL, c.path)
-	if err != nil {
-		_ = tlsConn.Close()
-		return err
-	}
-
-	if c.opts.WsWriteTimeout > 0 {
-		_ = tlsConn.SetWriteDeadline(time.Now().Add(c.opts.WsWriteTimeout))
-	}
-	if _, err := tlsConn.Write(req); err != nil {
-		_ = tlsConn.Close()
-		return err
-	}
-
-	reader := bufio.NewReader(tlsConn)
-	resp, err := http.ReadResponse(reader, &http.Request{Method: http.MethodGet})
-	if err != nil {
-		_ = tlsConn.Close()
-		return err
-	}
-	if resp.Body != nil {
-		_ = resp.Body.Close()
-	}
-	if resp.StatusCode != http.StatusSwitchingProtocols {
-		_ = tlsConn.Close()
-		return ws.ErrHandshakeBadStatus
-	}
-	if !strings.EqualFold(resp.Header.Get("Upgrade"), "websocket") {
-		_ = tlsConn.Close()
-		return ws.ErrHandshakeBadUpgrade
-	}
-	if !hasToken(resp.Header.Get("Connection"), "upgrade") {
-		_ = tlsConn.Close()
-		return ws.ErrHandshakeBadConnection
-	}
-	if accept := resp.Header.Get("Sec-WebSocket-Accept"); accept != expectedAccept {
-		_ = tlsConn.Close()
-		return ws.ErrHandshakeBadSecAccept
-	}
-
-	cc := newNetWSConn(tlsConn, reader, c.opts, &c.stats, ws.StateClientSide)
-	cc.upgraded = true
-
-	c.connMu.Lock()
-	c.conn = cc
-	c.connMu.Unlock()
-
-	c.stats.OnConnect()
-	if c.handler != nil {
-		kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "kkwsgob client OnConnect", func() {
-			c.handler.OnConnect(cc)
-		})
-	}
-
-	go func() {
-		err := cc.readLoop(func(msg buffers.IBuffer) {
-			if c.handler != nil {
-				kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "kkwsgob client OnMessage", func() {
-					c.handler.OnMessage(cc, msg)
-				})
-			}
-			kkbuffer.Put(msg)
-		})
-		cc.setCloseErr(err)
-		c.handleTLSClose(cc, err)
-	}()
-
-	return nil
-}
-
-func (c *Client) handleTLSClose(cc *netWSConn, err error) {
-	c.stats.OnClose()
-	if err != nil && !isExpectedCloseErr(err) {
-		c.stats.AddError()
-	}
-	if c.handler != nil {
-		kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "kkwsgob client OnClose", func() {
-			c.handler.OnClose(cc, errOrDefault(err, cc.getCloseErr()))
-		})
-	}
-	c.connMu.Lock()
-	c.conn = nil
-	c.connMu.Unlock()
-	c.connected.Store(false)
-	if !c.closing.Load() && c.opts.TcpClientNeedReconnect {
-		c.startReconnect()
-	}
-}
-
-func dialTLS(addr string, cfg *tls.Config, host string) (net.Conn, error) {
-	if cfg == nil {
-		cfg = &tls.Config{}
-	}
-	if cfg.ServerName == "" && host != "" {
-		cfg = cfg.Clone()
-		cfg.ServerName = host
-	}
-	dialer := &tls.Dialer{Config: cfg}
-	return dialer.DialContext(context.Background(), "tcp", addr)
-}
 
 type wsClientEventHandler struct {
 	*gnet.BuiltinEventEngine
