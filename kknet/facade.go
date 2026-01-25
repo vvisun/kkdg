@@ -67,4 +67,7 @@ type IClient interface {
 	Addr() string
 	Stats() StatsSnapshot
 	SetContext(ctx context.Context)
+
+	Send(data []byte) error                  //send data
+	SendBuffer(buffer buffers.IBuffer) error //send buffer。调用该方法后，buffer 不能被其他地方使用。因为该方法会回收buffer
 }

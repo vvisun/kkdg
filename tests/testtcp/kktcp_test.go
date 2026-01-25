@@ -40,7 +40,7 @@ func TestKKNetTCP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client pack: %v", err)
 	}
-	if err := client.Conn().SendBuffer(bb); err != nil {
+	if err := client.SendBuffer(bb); err != nil {
 		t.Fatalf("client send: %v", err)
 	}
 

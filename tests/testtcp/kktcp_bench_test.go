@@ -78,7 +78,7 @@ func BenchmarkKKNet_Gnet_TCP_Roundtrip(b *testing.B) {
 			msgCh <- data
 		},
 	}
-	client := kktcp.NewGnetClient(addr, clientHandler)
+	client := kktcp.NewClient(addr, clientHandler)
 	if err := client.Connect(); err != nil {
 		b.Fatalf("client connect: %v", err)
 	}

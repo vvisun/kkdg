@@ -38,7 +38,7 @@ type Options struct {
 	TcpClientReconnectInterval    time.Duration                           //tcp客户端重连间隔
 	TcpClientReconnectMaxRetries  int                                     //tcp客户端重连最大次数(<=0为无限)
 	TcpClientReconnectCallback    func(attempt int, err error)            //tcp客户端重连回调(成功时 err 为 nil)
-	WakeupThreshold               time.Duration                           //tcp客户端唤醒阈值
+	TcpClientWakeupThreshold      time.Duration                           //tcp客户端唤醒阈值。用于防止频繁唤醒。为0时不会启用频率限制。
 }
 
 func defaultWSOriginChecker(r *http.Request) bool {
@@ -258,5 +258,14 @@ func WithTcpClientReconnect(enable bool, interval time.Duration, maxRetries int)
 func WithTcpClientReconnectCallback(cb func(attempt int, err error)) Option {
 	return func(o *Options) {
 		o.TcpClientReconnectCallback = cb
+	}
+}
+
+// WithTcpClientWakeupThreshold sets tcp client wakeup threshold.
+func WithTcpClientWakeupThreshold(threshold time.Duration) Option {
+	return func(o *Options) {
+		if threshold > 0 {
+			o.TcpClientWakeupThreshold = threshold
+		}
 	}
 }
