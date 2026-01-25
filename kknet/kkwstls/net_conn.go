@@ -165,8 +165,8 @@ func (c *netWSConn) writeFrameWithHeader(hdr ws.Header, payload []byte) error {
 	bb := kkbuffer.GetWithCapacity(headerSize + len(payload))
 	bb.B = bb.B[:headerSize+len(payload)]
 
-	writer := &sliceWriter{b: bb.B}
-	if err := ws.WriteHeader(writer, hdr); err != nil {
+	writer := sliceWriter{b: bb.B}
+	if err := ws.WriteHeader(&writer, hdr); err != nil {
 		kkbuffer.Put(bb)
 		return err
 	}
