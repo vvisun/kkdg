@@ -29,6 +29,8 @@ type netWSConn struct {
 	writeCh   chan *writeTask
 	writeDone chan struct{}
 	closeOnce sync.Once
+	closeMu   sync.Mutex
+	closed    bool
 
 	closeErrMu sync.Mutex
 	closeErr   error
@@ -102,8 +104,11 @@ func (c *netWSConn) Send(data []byte) error {
 func (c *netWSConn) Close() error {
 	c.setCloseErr(kkerrors.ErrConnectionClosed)
 	c.closeOnce.Do(func() {
+		c.closeMu.Lock()
 		_ = c.enqueueCloseFrame()
+		c.closed = true
 		close(c.writeCh)
+		c.closeMu.Unlock()
 	})
 	<-c.writeDone
 	return nil
@@ -292,12 +297,14 @@ func (c *netWSConn) readLoop(handleMessage func(buffers.IBuffer)) error {
 
 func (c *netWSConn) enqueueWrite(bb *kkbuffer.ByteBuffer, payloadLen int) bool {
 	task := &writeTask{bb: bb, payloadLen: payloadLen}
-	select {
-	case c.writeCh <- task:
-		return true
-	case <-c.writeDone:
+	c.closeMu.Lock()
+	if c.closed {
+		c.closeMu.Unlock()
 		return false
 	}
+	c.writeCh <- task
+	c.closeMu.Unlock()
+	return true
 }
 
 func (c *netWSConn) writeLoop() {
