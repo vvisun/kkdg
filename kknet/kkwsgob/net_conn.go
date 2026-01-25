@@ -28,7 +28,9 @@ type netWSConn struct {
 
 	upgraded bool
 
-	writeMu sync.Mutex
+	writeCh   chan *writeTask
+	writeDone chan struct{}
+	closeOnce sync.Once
 
 	closeErrMu sync.Mutex
 	closeErr   error
@@ -46,7 +48,7 @@ func newNetWSConn(conn net.Conn, reader *bufio.Reader, opts kknet.Options, stats
 	if reader == nil {
 		reader = bufio.NewReader(conn)
 	}
-	return &netWSConn{
+	c := &netWSConn{
 		id:     kknet.NextConnID(),
 		conn:   conn,
 		reader: reader,
@@ -55,6 +57,14 @@ func newNetWSConn(conn net.Conn, reader *bufio.Reader, opts kknet.Options, stats
 		state:  state,
 		ctx:    context.Background(),
 	}
+	queueSize := opts.TcpClientSendQueueSize
+	if queueSize <= 0 {
+		queueSize = 256
+	}
+	c.writeCh = make(chan *writeTask, queueSize)
+	c.writeDone = make(chan struct{})
+	go c.writeLoop()
+	return c
 }
 
 func (c *netWSConn) ID() kknet.CONN_ID {
@@ -90,7 +100,12 @@ func (c *netWSConn) Send(data []byte) error {
 
 func (c *netWSConn) Close() error {
 	c.setCloseErr(kkerrors.ErrConnectionClosed)
-	return c.conn.Close()
+	c.closeOnce.Do(func() {
+		close(c.writeCh)
+		_ = c.conn.Close()
+	})
+	<-c.writeDone
+	return nil
 }
 
 func (c *netWSConn) Context() context.Context {
@@ -149,13 +164,6 @@ func (c *netWSConn) writeFrameWithHeader(hdr ws.Header, payload []byte) error {
 		return ws.ErrHeaderLengthUnexpected
 	}
 
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-
-	if c.opts.WsWriteTimeout > 0 {
-		_ = c.conn.SetWriteDeadline(time.Now().Add(c.opts.WsWriteTimeout))
-	}
-
 	bb := kkbuffer.GetWithCapacity(headerSize + len(payload))
 	bb.B = bb.B[:headerSize+len(payload)]
 
@@ -169,22 +177,9 @@ func (c *netWSConn) writeFrameWithHeader(hdr ws.Header, payload []byte) error {
 		ws.Cipher(bb.B[writer.n:], hdr.Mask, 0)
 	}
 
-	n, err := c.conn.Write(bb.B)
-	kkbuffer.Put(bb)
-	if err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
-	if n != headerSize+len(payload) {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return io.ErrShortWrite
-	}
-	if c.stats != nil {
-		c.stats.AddSent(len(payload))
+	if !c.enqueueWrite(bb, len(payload)) {
+		kkbuffer.Put(bb)
+		return kkerrors.ErrConnectionClosed
 	}
 	return nil
 }
@@ -296,6 +291,52 @@ func (c *netWSConn) readLoop(handleMessage func(buffers.IBuffer)) error {
 
 func isEOF(err error) bool {
 	return errors.Is(err, io.EOF)
+}
+
+func (c *netWSConn) enqueueWrite(bb *kkbuffer.ByteBuffer, payloadLen int) bool {
+	task := &writeTask{bb: bb, payloadLen: payloadLen}
+	select {
+	case c.writeCh <- task:
+		return true
+	case <-c.writeDone:
+		return false
+	}
+}
+
+func (c *netWSConn) writeLoop() {
+	defer close(c.writeDone)
+	for task := range c.writeCh {
+		bb := task.bb
+		if c.opts.WsWriteTimeout > 0 {
+			_ = c.conn.SetWriteDeadline(time.Now().Add(c.opts.WsWriteTimeout))
+		}
+		n, err := c.conn.Write(bb.B)
+		if err != nil {
+			c.setCloseErr(err)
+			if c.stats != nil {
+				c.stats.AddError()
+			}
+			kkbuffer.Put(bb)
+			continue
+		}
+		if n != len(bb.B) {
+			c.setCloseErr(io.ErrShortWrite)
+			if c.stats != nil {
+				c.stats.AddError()
+			}
+			kkbuffer.Put(bb)
+			continue
+		}
+		if c.stats != nil {
+			c.stats.AddSent(task.payloadLen)
+		}
+		kkbuffer.Put(bb)
+	}
+}
+
+type writeTask struct {
+	bb         *kkbuffer.ByteBuffer
+	payloadLen int
 }
 
 // isExpectedCloseErr returns true for errors that commonly indicate an expected
