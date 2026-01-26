@@ -1,4 +1,4 @@
-package kkdiscovery
+package dnats
 
 import (
 	"time"
