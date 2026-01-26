@@ -1,4 +1,4 @@
-package kkcluster
+package cnats
 
 import (
 	"encoding/json"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet/kkcluster"
 	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -22,7 +23,7 @@ type NatsCluster struct {
 
 	// 请求响应处理
 	requestSub *nats.Subscription
-	requestMap map[string]chan *ClusterResponse
+	requestMap map[string]chan *kkcluster.ClusterResponse
 	requestMu  sync.RWMutex
 	requestSeq uint64
 
@@ -33,23 +34,23 @@ type NatsCluster struct {
 	typePublishSub *nats.Subscription
 
 	// 发布消息处理器
-	publishHandler func(nodeID string, packet *ClusterPacket)
+	publishHandler func(nodeID string, packet *kkcluster.ClusterPacket)
 
 	// 请求处理器
-	requestHandler func(req *ClusterRequest) (*ClusterResponse, error)
+	requestHandler func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error)
 
 	// 订阅管理（用于重连时重新订阅）
 	subMu sync.Mutex
 
 	// 统计信息
-	stats ClusterStats
+	stats kkcluster.ClusterStats
 
 	stopCh chan struct{}
 
 	options []nats.Option
 }
 
-var _ ICluster = (*NatsCluster)(nil)
+var _ kkcluster.ICluster = (*NatsCluster)(nil)
 
 // NewNatsCluster 创建新的NATS集群
 func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options ...nats.Option) *NatsCluster {
@@ -57,7 +58,7 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 		nodeID:     nodeID,
 		nodeType:   nodeType,
 		discovery:  discovery,
-		requestMap: make(map[string]chan *ClusterResponse),
+		requestMap: make(map[string]chan *kkcluster.ClusterResponse),
 		stopCh:     make(chan struct{}),
 		options:    options,
 	}
@@ -168,7 +169,7 @@ func (c *NatsCluster) resubscribe() error {
 }
 
 // PublishRemote 发布消息到指定节点
-func (c *NatsCluster) PublishRemote(nodeID string, packet *ClusterPacket) error {
+func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPacket) error {
 	if packet == nil {
 		return kkerrors.ErrInvalidPacket
 	}
@@ -206,7 +207,7 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *ClusterPacket) error 
 // 优化：只需发布一次到类型主题，所有订阅了该类型主题的节点都会收到消息
 // 注意：节点在 Init() 时会订阅自己类型的主题，使用普通 Subscribe（不是 QueueSubscribe）
 // 如果需要负载均衡（消息只被一个节点接收），应使用 QueueSubscribe
-func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) error {
+func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.ClusterPacket) error {
 	if packet == nil {
 		return kkerrors.ErrInvalidPacket
 	}
@@ -242,15 +243,15 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *ClusterPacket) 
 }
 
 // RequestRemote 请求消息（带响应）
-func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, ClusterErrorCode) {
+func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPacket, timeout ...time.Duration) ([]byte, kkcluster.ClusterErrorCode) {
 	if packet == nil {
-		return nil, ClusterErrorCodeInvalidRequest
+		return nil, kkcluster.ClusterErrorCodeInvalidRequest
 	}
 
 	// 检查目标节点是否存在
 	_, found := c.discovery.GetMember(nodeID)
 	if !found {
-		return nil, ClusterErrorCodeMemberNotFound
+		return nil, kkcluster.ClusterErrorCodeMemberNotFound
 	}
 
 	// 设置超时
@@ -264,7 +265,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	requestID := c.generateRequestID()
 
 	// 创建响应通道
-	responseCh := make(chan *ClusterResponse, 1)
+	responseCh := make(chan *kkcluster.ClusterResponse, 1)
 	var closeOnce sync.Once
 	c.requestMu.Lock()
 	c.requestMap[requestID] = responseCh
@@ -282,7 +283,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	}()
 
 	// 创建请求消息
-	reqMsg := &ClusterRequest{
+	reqMsg := &kkcluster.ClusterRequest{
 		RequestID:    requestID,
 		SourceNodeID: c.nodeID,
 		Packet:       packet,
@@ -292,13 +293,13 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	data, err := json.Marshal(reqMsg)
 	if err != nil {
 		c.stats.AddError()
-		return nil, ClusterErrorCodeMarshalFailed
+		return nil, kkcluster.ClusterErrorCodeMarshalFailed
 	}
 
 	// 订阅响应主题
 	responseSubject := c.getResponseSubject(requestID)
 	responseSub, err := c.conn.Subscribe(responseSubject, func(msg *nats.Msg) {
-		var resp ClusterResponse
+		var resp kkcluster.ClusterResponse
 		if err := json.Unmarshal(msg.Data, &resp); err != nil {
 			kklog.Errorf("NatsCluster unmarshal response failed: %v", err)
 			return
@@ -310,7 +311,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 		}
 	})
 	if err != nil {
-		return nil, ClusterErrorCodeSubscribeFailed
+		return nil, kkcluster.ClusterErrorCodeSubscribeFailed
 	}
 	defer func() {
 		_ = responseSub.Unsubscribe()
@@ -320,7 +321,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	requestSubject := c.getRequestSubjectForNode(nodeID)
 	if err := c.conn.Publish(requestSubject, data); err != nil {
 		c.stats.AddError()
-		return nil, ClusterErrorCodePublishFailed
+		return nil, kkcluster.ClusterErrorCodePublishFailed
 	}
 
 	// 记录发送请求统计
@@ -331,10 +332,10 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *ClusterPacket, timeou
 	case resp := <-responseCh:
 		// 记录接收响应统计
 		c.stats.AddResponseReceived(len(resp.Data))
-		return resp.Data, ClusterErrorCode(resp.Code)
+		return resp.Data, kkcluster.ClusterErrorCode(resp.Code)
 	case <-time.After(reqTimeout):
 		c.stats.AddError()
-		return nil, ClusterErrorCodeTimeout
+		return nil, kkcluster.ClusterErrorCodeTimeout
 	}
 }
 
@@ -366,16 +367,16 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 	// 记录接收请求统计
 	c.stats.AddRequestReceived(len(msg.Data))
 
-	var req ClusterRequest
+	var req kkcluster.ClusterRequest
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
 		kklog.Errorf("NatsCluster unmarshal request failed: %v", err)
 		c.stats.AddError()
 		return
 	}
 
-	response := &ClusterResponse{
+	response := &kkcluster.ClusterResponse{
 		RequestID: req.RequestID,
-		Code:      int32(ClusterErrorCodeFail),
+		Code:      int32(kkcluster.ClusterErrorCodeFail),
 		Data:      nil,
 	}
 	// 调用用户注册的处理器来处理请求
@@ -417,7 +418,7 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 }
 
 // SetRequestHandler 设置请求处理器
-func (c *NatsCluster) SetRequestHandler(handler FunRequestHandler) {
+func (c *NatsCluster) SetRequestHandler(handler kkcluster.FunRequestHandler) {
 	c.requestHandler = handler
 }
 
@@ -426,7 +427,7 @@ func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 	// 记录接收发布消息统计
 	c.stats.AddPublishReceived(len(msg.Data))
 
-	var packet ClusterPacket
+	var packet kkcluster.ClusterPacket
 	if err := json.Unmarshal(msg.Data, &packet); err != nil {
 		kklog.Errorf("NatsCluster unmarshal publish packet failed: %v", err)
 		c.stats.AddError()
@@ -452,7 +453,7 @@ func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 	// 记录接收发布消息统计
 	c.stats.AddPublishReceived(len(msg.Data))
 
-	var packet ClusterPacket
+	var packet kkcluster.ClusterPacket
 	if err := json.Unmarshal(msg.Data, &packet); err != nil {
 		kklog.Errorf("NatsCluster unmarshal type publish packet failed: %v", err)
 		c.stats.AddError()
@@ -474,12 +475,12 @@ func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 }
 
 // SetPublishHandler 设置发布消息处理器
-func (c *NatsCluster) SetPublishHandler(handler FunPublishHandler) {
+func (c *NatsCluster) SetPublishHandler(handler kkcluster.FunPublishHandler) {
 	c.publishHandler = handler
 }
 
 // Stats 获取统计信息快照
-func (c *NatsCluster) Stats() ClusterStatsSnapshot {
+func (c *NatsCluster) Stats() kkcluster.ClusterStatsSnapshot {
 	isConnected := c.conn != nil && c.conn.IsConnected()
 	return c.stats.Snapshot(isConnected)
 }

@@ -1,4 +1,4 @@
-package kkcluster
+package cnats
 
 import (
 	"sync"

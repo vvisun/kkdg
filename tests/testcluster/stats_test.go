@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kknet/kkcluster"
+	"github.com/vvisun/kkdg/kknet/kkcluster/cnats"
 	"github.com/vvisun/kkdg/kknet/kkdiscovery/dnats"
 )
 
@@ -24,7 +24,7 @@ func TestStats(t *testing.T) {
 	defer discovery.Stop()
 
 	// 创建集群
-	cluster := kkcluster.NewNatsCluster("node1", "type1", discovery)
+	cluster := cnats.NewNatsCluster("node1", "type1", discovery)
 	if err := cluster.Init(); err != nil {
 		fmt.Printf("Failed to init cluster: %v\n", err)
 		return
