@@ -2,39 +2,39 @@ package kkcluster
 
 import "github.com/vvisun/kkdg/kkapp/component"
 
-type CompNatsCluster struct {
+type compCluster struct {
 	component.Component
 	cluster ICluster
 }
 
-var _ component.IComponent = (*CompNatsCluster)(nil)
+var _ component.IComponent = (*compCluster)(nil)
 
-func NewCompNatsCluster(cluster ICluster) *CompNatsCluster {
-	return &CompNatsCluster{
+func NewCompNatsCluster(cluster ICluster) *compCluster {
+	return &compCluster{
 		cluster: cluster,
 	}
 }
 
-func (slf *CompNatsCluster) GetID() string {
-	return "natscluster"
+func (slf *compCluster) GetID() string {
+	return "cluster_" + slf.GetApplication().GetNodeInfo().GetNodeId()
 }
 
-var _ component.IComponent = (*CompNatsCluster)(nil)
+var _ component.IComponent = (*compCluster)(nil)
 
-func (slf *CompNatsCluster) Init() error {
+func (slf *compCluster) Init() error {
 	return slf.cluster.Init()
 }
 
-func (slf *CompNatsCluster) Start() error {
+func (slf *compCluster) Start() error {
 	return nil
 }
 
-func (slf *CompNatsCluster) Stop() error {
+func (slf *compCluster) Stop() error {
 	slf.cluster.Stop()
 	return nil
 }
 
-func (slf *CompNatsCluster) GraceStop() error {
+func (slf *compCluster) GraceStop() error {
 	slf.cluster.Stop()
 	return nil
 }
