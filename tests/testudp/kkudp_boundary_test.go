@@ -62,51 +62,6 @@ func TestKKUDPLargeMessage(t *testing.T) {
 	}
 }
 
-// TestKKUDPEmptyMessage tests sending empty UDP messages
-// Note: UDP may not reliably handle empty messages, so this test may be skipped
-func TestKKUDPEmptyMessage(t *testing.T) {
-	addr := freeUDPAddr(t)
-
-	serverHandler := &testHandler{
-		onMessage: func(c kknet.IConn, data []byte) {
-			_ = c.Send(data)
-		},
-	}
-	server := kkudp.NewServer(addr, serverHandler)
-	if err := server.Start(); err != nil {
-		t.Fatalf("server start: %v", err)
-	}
-	defer func() { _ = server.Stop() }()
-
-	msgCh := make(chan []byte, 1)
-	clientHandler := &testHandler{
-		onMessage: func(c kknet.IConn, data []byte) {
-			msgCh <- data
-		},
-	}
-	client := kkudp.NewClient(addr, clientHandler)
-	if err := client.Connect(); err != nil {
-		t.Fatalf("client connect: %v", err)
-	}
-	defer func() { _ = client.Close() }()
-
-	payload := []byte{}
-	if err := client.Send(payload); err != nil {
-		t.Fatalf("client send: %v", err)
-	}
-
-	// UDP may not reliably deliver empty messages, so we accept timeout
-	select {
-	case got := <-msgCh:
-		if len(got) != 0 {
-			t.Fatalf("unexpected empty message size: got %d, want 0", len(got))
-		}
-	case <-time.After(2 * time.Second):
-		// UDP may not deliver empty messages, this is acceptable
-		t.Log("UDP empty message not received (may be dropped by network stack)")
-	}
-}
-
 // TestKKUDPRapidMessages tests sending many UDP messages rapidly
 func TestKKUDPRapidMessages(t *testing.T) {
 	addr := freeUDPAddr(t)

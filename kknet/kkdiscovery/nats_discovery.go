@@ -135,8 +135,8 @@ func (d *NatsDiscovery) GetMember(nodeID string) (IMember, bool) {
 	return member, found
 }
 
-// AddMember 添加成员
-func (d *NatsDiscovery) AddMember(member IMember) {
+// addMember 添加成员
+func (d *NatsDiscovery) addMember(member IMember) {
 	if member == nil {
 		return
 	}
@@ -153,8 +153,8 @@ func (d *NatsDiscovery) AddMember(member IMember) {
 	}
 }
 
-// RemoveMember 移除成员
-func (d *NatsDiscovery) RemoveMember(nodeID string) {
+// removeMember 移除成员
+func (d *NatsDiscovery) removeMember(nodeID string) {
 	d.membersMu.Lock()
 	member, existed := d.members[nodeID]
 	if existed {
@@ -352,7 +352,7 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 	d.membersMu.Lock()
 	if _, existed := d.members[memberInfo.NodeID]; !existed {
 		d.membersMu.Unlock()
-		d.AddMember(member)
+		d.addMember(member)
 	} else {
 		// 只更新时间，不触发通知
 		d.memberTimes[memberInfo.NodeID] = time.Now()
@@ -483,7 +483,7 @@ func (d *NatsDiscovery) checkMemberTimeout() {
 
 			for _, nodeID := range toRemove {
 				kklog.Warnf("NatsDiscovery member %s timeout, removing", nodeID)
-				d.RemoveMember(nodeID)
+				d.removeMember(nodeID)
 			}
 		}
 	}
