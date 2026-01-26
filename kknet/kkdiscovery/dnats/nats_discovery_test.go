@@ -1,10 +1,11 @@
-package kkdiscovery
+package dnats
 
 import (
 	"testing"
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kknet/kkdiscovery"
 )
 
 // TestNatsDiscovery_New 测试创建NatsDiscovery
@@ -109,9 +110,9 @@ func TestNatsDiscovery_ListByType(t *testing.T) {
 	discovery := NewNatsDiscovery("test", nodeInfo, nil, WithUrl(natsURL))
 
 	// 手动添加成员
-	member1 := NewMember("node2", "type1", "127.0.0.1:8081", nil)
-	member2 := NewMember("node3", "type2", "127.0.0.1:8082", nil)
-	member3 := NewMember("node4", "type1", "127.0.0.1:8083", nil)
+	member1 := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member2 := kkdiscovery.NewMember("node3", "type2", "127.0.0.1:8082", nil)
+	member3 := kkdiscovery.NewMember("node4", "type1", "127.0.0.1:8083", nil)
 
 	discovery.addMember(member1)
 	discovery.addMember(member2)
@@ -153,7 +154,7 @@ func TestNatsDiscovery_Random(t *testing.T) {
 	}
 
 	// 添加成员
-	member1 := NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member1 := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.addMember(member1)
 
 	member, found = discovery.Random("type1")
@@ -173,7 +174,7 @@ func TestNatsDiscovery_GetType(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
 	discovery := NewNatsDiscovery("test", nodeInfo, nil)
 
-	member := NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.addMember(member)
 
 	nodeType, err := discovery.GetType("node2")
@@ -196,7 +197,7 @@ func TestNatsDiscovery_AddRemoveMember(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
 	discovery := NewNatsDiscovery("test", nodeInfo, nil)
 
-	member := NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.addMember(member)
 
 	if len(discovery.Map()) != 1 {
@@ -218,21 +219,21 @@ func TestNatsDiscovery_Listeners(t *testing.T) {
 	addCalled := false
 	removeCalled := false
 
-	discovery.OnAddMember(func(member IMember) {
+	discovery.OnAddMember(func(member kkdiscovery.IMember) {
 		addCalled = true
 		if member.GetNodeID() != "node2" {
 			t.Errorf("OnAddMember received node ID = %s, want node2", member.GetNodeID())
 		}
 	})
 
-	discovery.OnRemoveMember(func(member IMember) {
+	discovery.OnRemoveMember(func(member kkdiscovery.IMember) {
 		removeCalled = true
 		if member.GetNodeID() != "node2" {
 			t.Errorf("OnRemoveMember received node ID = %s, want node2", member.GetNodeID())
 		}
 	})
 
-	member := NewMember("node2", "type1", "127.0.0.1:8081", nil)
+	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.addMember(member)
 
 	if !addCalled {
@@ -296,7 +297,7 @@ func startTestNatsServer() (interface{}, string, error) {
 }
 
 // waitForMembers 等待成员出现
-func waitForMembers(d IDiscovery, count int, timeout time.Duration) bool {
+func waitForMembers(d kkdiscovery.IDiscovery, count int, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		members := d.Map()

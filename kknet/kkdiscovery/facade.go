@@ -13,8 +13,6 @@ type (
 		GetMember(nodeID string) (member IMember, found bool)         // 获取成员
 		OnAddMember(listener MemberListener)                          // watcher 添加成员监听函数
 		OnRemoveMember(listener MemberListener)                       // watcher 移除成员监听函数
-		addMember(member IMember)                                     // 添加成员
-		removeMember(nodeID string)                                   // 移除成员
 	}
 
 	// IMember 成员接口
