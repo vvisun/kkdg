@@ -12,6 +12,7 @@ import (
 type IModule interface {
 	GetModuleId() uint32
 	GetModuleName() string
+	FullName() string
 
 	AddModule(module IModule) (uint32, error)
 	ReleaseModule(moduleId uint32)
@@ -110,6 +111,16 @@ func (m *Module) GetModuleName() string {
 	return m.moduleName
 }
 
+func (m *Module) FullName() string {
+	name := m.moduleName
+	parent := m.parent
+	for parent != nil {
+		name = parent.GetModuleName() + "." + name
+		parent = parent.GetParent()
+	}
+	return name
+}
+
 func (m *Module) GetAncestor() IModule {
 	return m.ancestor
 }
@@ -122,10 +133,6 @@ func (m *Module) GetModule(moduleId uint32) IModule {
 	return iModule
 }
 
-func (m *Module) getBaseModule() IModule {
-	return m
-}
-
 func (m *Module) GetParent() IModule {
 	return m.parent
 }
@@ -135,4 +142,8 @@ func (m *Module) OnInit() error {
 }
 
 func (m *Module) OnRelease() {
+}
+
+func (m *Module) getBaseModule() IModule {
+	return m
 }

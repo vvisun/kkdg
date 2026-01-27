@@ -41,6 +41,18 @@ func TestModule_GetModuleName(t *testing.T) {
 	}
 }
 
+func TestModule_FullName(t *testing.T) {
+	m := NewTestModule()
+	child := NewTestModule()
+	_, err := m.AddModule(child)
+	if err != nil {
+		t.Fatalf("AddModule() error = %v", err)
+	}
+	if child.FullName() != ".TestModule" {
+		t.Errorf("FullName() = %s, want .TestModule", child.FullName())
+	}
+}
+
 // TestModule_AddModule 测试添加模块
 func TestModule_AddModule(t *testing.T) {
 	root := NewTestModule()
