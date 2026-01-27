@@ -8,9 +8,9 @@ import (
 // TestModule 用于测试的模块实现
 type TestModule struct {
 	Module
-	initCalled   bool
+	initCalled    bool
 	releaseCalled bool
-	initError    error
+	initError     error
 }
 
 func NewTestModule() *TestModule {
@@ -31,31 +31,10 @@ func (m *TestModule) OnRelease() {
 	m.releaseCalled = true
 }
 
-// TestModule_SetModuleId 测试设置模块ID
-func TestModule_SetModuleId(t *testing.T) {
-	m := NewTestModule()
-
-	// 测试设置ID
-	if !m.SetModuleId(100) {
-		t.Error("SetModuleId(100) should return true")
-	}
-	if m.GetModuleId() != 100 {
-		t.Errorf("GetModuleId() = %d, want 100", m.GetModuleId())
-	}
-
-	// 测试重复设置应该失败
-	if m.SetModuleId(200) {
-		t.Error("SetModuleId(200) should return false when ID already set")
-	}
-	if m.GetModuleId() != 100 {
-		t.Errorf("GetModuleId() = %d, want 100 after failed SetModuleId", m.GetModuleId())
-	}
-}
-
 // TestModule_GetModuleName 测试获取模块名称
 func TestModule_GetModuleName(t *testing.T) {
 	m := NewTestModule()
-	
+
 	// 初始名称应该为空
 	if m.GetModuleName() != "" {
 		t.Errorf("GetModuleName() = %s, want empty string", m.GetModuleName())
@@ -65,7 +44,6 @@ func TestModule_GetModuleName(t *testing.T) {
 // TestModule_AddModule 测试添加模块
 func TestModule_AddModule(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	child := NewTestModule()
 	moduleId, err := root.AddModule(child)
@@ -100,32 +78,21 @@ func TestModule_AddModule(t *testing.T) {
 // TestModule_AddModule_WithExistingId 测试添加已有ID的模块
 func TestModule_AddModule_WithExistingId(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	child1 := NewTestModule()
-	child1.SetModuleId(100)
 	_, err := root.AddModule(child1)
 	if err != nil {
 		t.Fatalf("AddModule(child1) error = %v", err)
-	}
-
-	// 尝试添加相同ID的模块应该失败
-	child2 := NewTestModule()
-	child2.SetModuleId(100)
-	_, err = root.AddModule(child2)
-	if err == nil {
-		t.Error("AddModule() with existing ID should return error")
 	}
 }
 
 // TestModule_AddModule_OnInitError 测试OnInit失败的情况
 func TestModule_AddModule_OnInitError(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	child := NewTestModule()
 	child.initError = errors.New("init failed")
-	
+
 	moduleId, err := root.AddModule(child)
 	if err == nil {
 		t.Error("AddModule() should return error when OnInit fails")
@@ -144,7 +111,6 @@ func TestModule_AddModule_OnInitError(t *testing.T) {
 // TestModule_ReleaseModule 测试释放模块
 func TestModule_ReleaseModule(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	child := NewTestModule()
 	moduleId, err := root.AddModule(child)
@@ -170,7 +136,6 @@ func TestModule_ReleaseModule(t *testing.T) {
 // TestModule_ReleaseModule_WithChildren 测试释放有子模块的模块
 func TestModule_ReleaseModule_WithChildren(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	parent := NewTestModule()
 	parentId, err := root.AddModule(parent)
@@ -219,7 +184,6 @@ func TestModule_ReleaseModule_WithChildren(t *testing.T) {
 // TestModule_GetModule 测试查找模块
 func TestModule_GetModule(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	// 查找不存在的模块
 	found := root.GetModule(999)
@@ -249,7 +213,6 @@ func TestModule_GetModule(t *testing.T) {
 // TestModule_GetAncestor 测试获取祖先模块
 func TestModule_GetAncestor(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	child := NewTestModule()
 	_, err := root.AddModule(child)
@@ -269,7 +232,6 @@ func TestModule_GetAncestor(t *testing.T) {
 // TestModule_GetParent 测试获取父模块
 func TestModule_GetParent(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	child := NewTestModule()
 	_, err := root.AddModule(child)
@@ -289,7 +251,7 @@ func TestModule_GetParent(t *testing.T) {
 // TestModule_OnInit 测试初始化
 func TestModule_OnInit(t *testing.T) {
 	m := NewTestModule()
-	
+
 	err := m.OnInit()
 	if err != nil {
 		t.Errorf("OnInit() error = %v, want nil", err)
@@ -299,7 +261,7 @@ func TestModule_OnInit(t *testing.T) {
 // TestModule_OnRelease 测试释放
 func TestModule_OnRelease(t *testing.T) {
 	m := NewTestModule()
-	
+
 	m.OnRelease()
 	// OnRelease 是空实现，不会出错
 }
@@ -307,7 +269,6 @@ func TestModule_OnRelease(t *testing.T) {
 // TestModule_MultipleLevels 测试多层级模块结构
 func TestModule_MultipleLevels(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	// 第一层
 	level1 := NewTestModule()
@@ -380,7 +341,6 @@ func TestModule_MultipleLevels(t *testing.T) {
 // TestModule_NewModuleId 测试模块ID生成
 func TestModule_NewModuleId(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	// 添加多个模块，验证ID递增
 	child1 := NewTestModule()
@@ -413,7 +373,6 @@ func TestModule_NewModuleId(t *testing.T) {
 // TestModule_ReleaseModule_NonExistent 测试释放不存在的模块
 func TestModule_ReleaseModule_NonExistent(t *testing.T) {
 	root := NewTestModule()
-	root.SetModuleId(1)
 
 	// 释放不存在的模块会导致panic（当前实现的行为）
 	// 使用recover来捕获panic
@@ -430,7 +389,7 @@ func TestModule_ReleaseModule_NonExistent(t *testing.T) {
 // TestModule_GetBaseModule 测试获取基础模块
 func TestModule_GetBaseModule(t *testing.T) {
 	m := NewTestModule()
-	
+
 	base := m.getBaseModule()
 	// getBaseModule 返回 IModule 接口，需要转换为具体类型进行比较
 	if baseModule, ok := base.(*Module); ok {

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"sync/atomic"
 
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type IModule interface {
-	SetModuleId(moduleId uint32) bool
 	GetModuleId() uint32
 	GetModuleName() string
 
@@ -24,19 +24,23 @@ type IModule interface {
 	OnRelease()
 
 	getBaseModule() IModule
-	newModuleId() uint32
+}
+
+var moduleIdCounter uint32 = 0
+
+func autoModuleId() uint32 {
+	return atomic.AddUint32(&moduleIdCounter, 1)
 }
 
 type Module struct {
 	moduleId   uint32 //模块Id
 	moduleName string //模块名称
 
-	parent       IModule            //父亲
-	self         IModule            //自己
-	childs       []IModule          //孩子们
-	ancestor     IModule            //始祖
-	seedModuleId uint32             //模块id种子
-	descendants  map[uint32]IModule //始祖的后裔们
+	parent      IModule            //父亲
+	self        IModule            //自己
+	childs      []IModule          //孩子们
+	ancestor    IModule            //始祖
+	descendants map[uint32]IModule //始祖的后裔们
 }
 
 var _ IModule = (*Module)(nil)
@@ -44,12 +48,15 @@ var _ IModule = (*Module)(nil)
 func (m *Module) AddModule(module IModule) (uint32, error) {
 	pAddModule := module.getBaseModule().(*Module)
 	if pAddModule.GetModuleId() == 0 {
-		pAddModule.moduleId = m.newModuleId()
+		pAddModule.moduleId = autoModuleId()
 	}
 
+	if module.GetModuleId() == m.GetModuleId() {
+		return 0, fmt.Errorf("module id %d already exists", module.GetModuleId())
+	}
 	_, ok := m.ancestor.getBaseModule().(*Module).descendants[module.GetModuleId()]
 	if ok {
-		return 0, fmt.Errorf("exists module id %d", module.GetModuleId())
+		return 0, fmt.Errorf("module id %d already exists", module.GetModuleId())
 	}
 
 	pAddModule.self = module
@@ -95,30 +102,12 @@ func (m *Module) ReleaseModule(moduleId uint32) {
 	pModule.descendants = nil
 }
 
-func (m *Module) SetModuleId(moduleId uint32) bool {
-	if m.moduleId > 0 {
-		return false
-	}
-
-	m.moduleId = moduleId
-	return true
-}
-
 func (m *Module) GetModuleId() uint32 {
 	return m.moduleId
 }
 
 func (m *Module) GetModuleName() string {
 	return m.moduleName
-}
-
-func (m *Module) OnInit() error {
-	return nil
-}
-
-func (m *Module) newModuleId() uint32 {
-	m.ancestor.getBaseModule().(*Module).seedModuleId += 1
-	return m.ancestor.getBaseModule().(*Module).seedModuleId
 }
 
 func (m *Module) GetAncestor() IModule {
@@ -139,6 +128,10 @@ func (m *Module) getBaseModule() IModule {
 
 func (m *Module) GetParent() IModule {
 	return m.parent
+}
+
+func (m *Module) OnInit() error {
+	return nil
 }
 
 func (m *Module) OnRelease() {
