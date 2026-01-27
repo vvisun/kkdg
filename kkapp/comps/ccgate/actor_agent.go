@@ -3,7 +3,6 @@ package ccgate
 import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkactor"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -15,7 +14,7 @@ type ActorAgent struct {
 	businessHandler IBusinessHandler
 }
 
-var _ kkactor.Actor = (*ActorAgent)(nil)
+var _ actor.Actor = (*ActorAgent)(nil)
 
 // NewActorAgent creates a new actor agent.
 func NewActorAgent(connID kknet.CONN_ID, conn kknet.IConn, router *Router, businessHandler IBusinessHandler) *ActorAgent {

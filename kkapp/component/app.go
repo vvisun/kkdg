@@ -12,8 +12,7 @@ import (
 type IApplication interface {
 	GetNodeInfo() *kkapp.NodeInfo
 	Start() error
-	Stop() error      // 立即停止
-	GraceStop() error // 优雅停止
+	Stop() error
 
 	AddComponent(child IComponent) error
 	HasComponent(child IComponent) bool
@@ -67,10 +66,6 @@ func (slf *Application) Stop() error {
 		kklog.Infof("[kkapp] application %s stop component %s success", nodeId, compList[i].GetID())
 	}
 	return nil
-}
-
-func (slf *Application) GraceStop() error {
-	return slf.Stop()
 }
 
 func (slf *Application) AddComponent(comp IComponent) error {

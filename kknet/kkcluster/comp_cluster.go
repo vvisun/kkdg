@@ -33,8 +33,3 @@ func (slf *compCluster) Stop() error {
 	slf.cluster.Stop()
 	return nil
 }
-
-func (slf *compCluster) GraceStop() error {
-	slf.cluster.Stop()
-	return nil
-}

@@ -30,7 +30,3 @@ func (slf *CompDiscovery) Start() error {
 func (slf *CompDiscovery) Stop() error {
 	return slf.discovery.Stop()
 }
-
-func (slf *CompDiscovery) GraceStop() error {
-	return slf.Stop()
-}

@@ -2,8 +2,11 @@ package ccgate
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkdiscovery"
+	"github.com/vvisun/kkdg/kknet/kkdiscovery/dnats"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -20,6 +23,7 @@ type gateComponent struct {
 	tcpServer       kknet.IServer
 	wsServer        kknet.IServer
 	handler         *gateHandler
+	discovery       kkdiscovery.IDiscovery
 }
 
 func (slf *gateComponent) GetID() string {
@@ -45,6 +49,10 @@ func (slf *gateComponent) Init() error {
 	// 初始化 router（稍后在服务器启动后添加 connMgr）
 	slf.router = NewRouter()
 
+	// 初始化 discovery
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "", nil)
+	slf.discovery = dnats.NewNatsDiscovery("gate.node1", nodeInfo1, nil)
+
 	return nil
 }
 
@@ -69,10 +77,22 @@ func (slf *gateComponent) Start() error {
 		slf.businessHandler.SetResponder(slf.sendToClient)
 	}
 
+	// 启动 discovery
+	if err := slf.discovery.Start(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (slf *gateComponent) Stop() error {
+	// 停止 discovery
+	if slf.discovery != nil {
+		if err := slf.discovery.Stop(); err != nil {
+			kklog.Errorf("[ccgate] stop discovery error: %v", err)
+		}
+	}
+
 	// 停止 TCP 服务器
 	if slf.tcpServer != nil {
 		if err := slf.tcpServer.Stop(); err != nil {
