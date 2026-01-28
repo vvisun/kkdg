@@ -1,4 +1,4 @@
-package ccclient
+package appclient
 
 // Option configures the client component.
 type Option struct {

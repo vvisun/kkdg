@@ -1,4 +1,4 @@
-package ccclient
+package appclient
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ import (
 )
 
 // 客户端。模拟用，测试用
-type ClientComponent struct {
+type AppClient struct {
 	component.Component
 	opt Option
 
@@ -32,26 +32,24 @@ type clientSender interface {
 	SendBuffer(buffer buffers.IBuffer) error
 }
 
-func (slf *ClientComponent) GetID() string {
+func (slf *AppClient) GetID() string {
 	return "client"
 }
 
-// NewClientComponent creates a new client component.
-func NewClientComponent(opt Option) *ClientComponent {
-	return &ClientComponent{
+// NewAppClient creates a new client component.
+func NewAppClient(opt Option) *AppClient {
+	return &AppClient{
 		opt: opt,
 	}
 }
 
-var _ component.IComponent = (*ClientComponent)(nil)
-
-func (slf *ClientComponent) Init() error {
+func (slf *AppClient) Init() error {
 	slf.stopCh = make(chan struct{})
 	slf.doneCh = make(chan struct{})
 	return nil
 }
 
-func (slf *ClientComponent) Start() error {
+func (slf *AppClient) Start() error {
 	handler := &clientHandler{client: slf}
 
 	var client clientSender
@@ -86,7 +84,7 @@ func (slf *ClientComponent) Start() error {
 	return nil
 }
 
-func (slf *ClientComponent) Stop() error {
+func (slf *AppClient) Stop() error {
 	slf.stopOnce.Do(func() {
 		close(slf.stopCh)
 	})
@@ -101,7 +99,7 @@ func (slf *ClientComponent) Stop() error {
 	return nil
 }
 
-func (slf *ClientComponent) sendLoop(payload []byte) {
+func (slf *AppClient) sendLoop(payload []byte) {
 	defer close(slf.doneCh)
 
 	interval := 5
@@ -152,7 +150,7 @@ func (slf *ClientComponent) sendLoop(payload []byte) {
 }
 
 type clientHandler struct {
-	client *ClientComponent
+	client *AppClient
 }
 
 func (h *clientHandler) OnConnect(c kknet.IConn) {
