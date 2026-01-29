@@ -28,38 +28,20 @@ func (codec) Marshal(v any) ([]byte, error) {
 }
 
 // MarshalAppend 编码
-// func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
-// 	msg, ok := v.(proto.Message)
-// 	if !ok {
-// 		return nil, errors.New("can't marshal a value that not implements proto.Buffer interface")
-// 	}
-// 	size := proto.Size(msg) + offset + 64
-// 	bb := kkbuffer.GetWithCapacity(size)
-// 	bb.B = bb.B[:size]
-// 	bytes, err := proto.MarshalOptions{}.MarshalAppend(bb.B[offset:], msg)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	realLen := len(bytes) + offset
-// 	bb.B = bb.B[:realLen]
-// 	return bb, nil
-// }
-
-// MarshalAppend 编码
 func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 	msg, ok := v.(proto.Message)
 	if !ok {
 		return nil, errors.New("can't marshal a value that not implements proto.Buffer interface")
 	}
-	bytes, err := proto.Marshal(msg)
+	size := proto.Size(msg) + offset + 64 // 64 bytes more for sure enough capacity
+	bb := kkbuffer.GetWithCapacity(size)
+	bb.B = bb.B[:offset]
+	bytes, err := proto.MarshalOptions{}.MarshalAppend(bb.B[:offset], msg)
 	if err != nil {
 		return nil, err
 	}
-	bb := kkbuffer.GetWithCapacity(len(bytes) + offset)
-	bb.B = bb.B[:len(bytes)+offset]
-	copy(bb.B[offset:], bytes)
-	realLen := len(bytes) + offset
-	bb.B = bb.B[:realLen]
+	// bytes is the full result [reserved(offset) + marshaled], so length is offset + marshaled size
+	bb.B = bb.B[:len(bytes)]
 	return bb, nil
 }
 
