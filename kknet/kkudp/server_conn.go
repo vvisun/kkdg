@@ -55,16 +55,7 @@ func (c *udpConn) SendBuffer(buffer buffers.IBuffer) error {
 		}
 		return err
 	}
-	return c.Send(buffer.B)
-}
-
-func (c *udpConn) Send(data []byte) error {
-	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
+	data := buffer.B
 	if !c.active.Load() {
 		return kkerrors.ErrConnectionClosed
 	}

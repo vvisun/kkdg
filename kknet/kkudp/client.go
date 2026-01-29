@@ -71,20 +71,6 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-// Send sends a datagram to the server.
-func (c *Client) Send(data []byte) error {
-	if len(data) == 0 {
-		return kkerrors.ErrInvalidPacket
-	}
-	c.connMu.Lock()
-	conn := c.conn
-	c.connMu.Unlock()
-	if conn == nil {
-		return kkerrors.ErrClientNotConnected
-	}
-	return conn.Send(data)
-}
-
 func (c *Client) SendBuffer(buffer buffers.IBuffer) error {
 	if buffer == nil {
 		return kkerrors.ErrInvalidPacket

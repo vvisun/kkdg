@@ -77,19 +77,6 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 	return nil
 }
 
-func (c *gnetClientConn) Send(data []byte) error {
-	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
-	bb := kkbuffer.GetWithCapacity(len(data))
-	bb.B = bb.B[:len(data)]
-	copy(bb.B, data)
-	return c.SendBuffer(bb)
-}
-
 func (c *gnetClientConn) Close() error {
 	return c.conn.Close()
 }

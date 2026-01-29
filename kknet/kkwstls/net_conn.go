@@ -79,26 +79,16 @@ func (c *netWSConn) RemoteAddr() string {
 }
 
 func (c *netWSConn) SendBuffer(buffer buffers.IBuffer) error {
-	if buffer == nil {
-		return kkerrors.ErrInvalidMessage
-	}
-	payload := buffer.B
-	err := c.Send(payload)
-	kkbuffer.Put(buffer)
-	return err
-}
-
-func (c *netWSConn) Send(data []byte) error {
-	if len(data) == 0 {
-		return kkerrors.ErrInvalidPacket
-	}
-	if len(data) > kkpacket.DefaultMaxMessageSize() {
+	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		return kkerrors.ErrMaxMessageSize
+		return err
 	}
-	return c.writeFrame(ws.OpBinary, data)
+	payload := buffer.B
+	err := c.writeFrame(ws.OpBinary, payload)
+	kkbuffer.Put(buffer)
+	return err
 }
 
 func (c *netWSConn) Close() error {

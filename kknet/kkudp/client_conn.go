@@ -51,16 +51,7 @@ func (c *clientConn) SendBuffer(buffer buffers.IBuffer) error {
 		}
 		return err
 	}
-	return c.Send(buffer.B)
-}
-
-func (c *clientConn) Send(data []byte) error {
-	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
+	data := buffer.B
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 	_, err := c.conn.Write(data)

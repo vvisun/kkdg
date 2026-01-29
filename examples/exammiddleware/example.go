@@ -18,7 +18,7 @@ func (h *EchoHandler) OnConnect(c kknet.IConn) {
 
 func (h *EchoHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	// Echo the message back
-	if err := c.Send(data.B); err != nil {
+	if err := c.SendBuffer(data); err != nil {
 		fmt.Printf("Echo: Failed to send: %v\n", err)
 	}
 }

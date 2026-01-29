@@ -28,7 +28,6 @@ type AppClient struct {
 type clientSender interface {
 	Connect() error
 	Close() error
-	Send(data []byte) error
 	SendBuffer(buffer buffers.IBuffer) error
 }
 
