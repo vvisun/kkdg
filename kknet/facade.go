@@ -43,6 +43,13 @@ type IHandler interface {
 	OnClose(c IConn, err error)
 }
 
+// IConnManager manages server connections.
+type IConnManager interface {
+	GetAllConns() map[int64]IConn //获取所有连接
+	GetConn(id int64) IConn       //获取指定连接
+	KickConn(id int64)            //踢出指定连接
+}
+
 // IServer represents a server.
 type IServer interface {
 	Start() error
@@ -52,13 +59,6 @@ type IServer interface {
 	GetConnManager() IConnManager
 }
 
-// IConnManager manages server connections.
-type IConnManager interface {
-	GetAllConns() map[int64]IConn //获取所有连接
-	GetConn(id int64) IConn       //获取指定连接
-	KickConn(id int64)            //踢出指定连接
-}
-
 // IClient represents a client.
 type IClient interface {
 	Connect() error
@@ -66,5 +66,6 @@ type IClient interface {
 	Addr() string
 	Stats() StatsSnapshot
 	SetContext(ctx context.Context)
-	SendBuffer(buffer buffers.IBuffer) error //send buffer。调用该方法后，buffer 不能被其他地方使用。因为该方法会回收buffer
+	//SendBuffer 发送数据。调用该方法后，buffer 不能被其他地方使用。因为该方法会回收buffer
+	SendBuffer(buffer buffers.IBuffer) error
 }
