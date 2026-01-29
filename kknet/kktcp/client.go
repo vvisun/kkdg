@@ -302,8 +302,9 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		}
 		h.client.stats.AddRecv(len(data))
 		if h.client.handler != nil {
-			payload := kkbuffer.Get()
-			payload.SetBytes(data)
+			payload := kkbuffer.GetWithCapacity(len(data))
+			payload.B = payload.B[:len(data)]
+			copy(payload.B, data)
 			kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnMessage", func() {
 				h.client.handler.OnMessage(cc, payload)
 			})

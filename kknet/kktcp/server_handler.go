@@ -73,8 +73,9 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		}
 		h.server.stats.AddRecv(len(data))
 		if h.server.handler != nil {
-			payload := kkbuffer.Get()
-			payload.SetBytes(data)
+			payload := kkbuffer.GetWithCapacity(len(data))
+			payload.B = payload.B[:len(data)]
+			copy(payload.B, data)
 			h.dispatch(tc, payload)
 		}
 	}

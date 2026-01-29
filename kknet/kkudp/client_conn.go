@@ -49,12 +49,14 @@ func (c *clientConn) SendBuffer(buffer buffers.IBuffer) error {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
+		kkbuffer.Put(buffer)
 		return err
 	}
 	data := buffer.B
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 	_, err := c.conn.Write(data)
+	kkbuffer.Put(buffer)
 	if err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
