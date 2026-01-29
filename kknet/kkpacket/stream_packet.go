@@ -27,11 +27,18 @@ type IStreamPacket interface {
 	// @ return [length,data], err
 	// 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 	Pack(data []byte) (buffers.IBuffer, error)
+
 	// unpack message from stream.
 	// input: [length,data].
 	// output: [data].
 	// @ return [data], ok, err
-	Unpack(r IStreamReader) ([]byte, bool, error)
+	Unpack(data []byte) ([]byte, error)
+
+	// unpack message from stream.
+	// input: [length,data].
+	// output: [data].
+	// @ return [data], ok, err
+	UnpackFromSR(r IStreamReader) ([]byte, bool, error)
 
 	// get length field byte count. [length].
 	LengthFieldByteCount() int
@@ -40,16 +47,6 @@ type IStreamPacket interface {
 	// input: header [length].
 	// output: size, error
 	GetBodySize(header []byte) (int, error)
-
-	// get body bytes from buffer.
-	// input: buffer [length,data].
-	// output: body bytes.
-	BodyBytesFromBuffer(buffer buffers.IBuffer) []byte
-
-	// get body bytes from reader.
-	// input: reader [length,data].
-	// output: body bytes.
-	BodyBytesFromBytes(data []byte) []byte
 
 	// check packet is valid.
 	// input: [length,data].
@@ -155,6 +152,26 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 	return bb, nil
 }
 
+// unpack message from stream.
+// input: [length,data].
+// output: [data].
+// @ return [data], ok, err
+func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
+	lengthFieldByteCount := slf.lengthFieldByteCount
+	if len(data) < lengthFieldByteCount {
+		return nil, kkerrors.ErrDataTooShortToDecode
+	}
+	size, err := slf.GetBodySize(data)
+	if err != nil {
+		return nil, err
+	}
+	lastIndex := lengthFieldByteCount + size
+	if len(data) < lastIndex {
+		return nil, kkerrors.ErrDataTooShortToDecode
+	}
+	return data[lengthFieldByteCount:lastIndex], nil
+}
+
 // get body bytes from buffer.
 // input: buffer [length,data].
 // output: body bytes.
@@ -173,7 +190,7 @@ func (slf *LengthFieldStreamPacket) BodyBytesFromBytes(data []byte) []byte {
 // input: [length,data].
 // output: [data].
 // @ return [data], ok, err
-func (slf *LengthFieldStreamPacket) Unpack(r IStreamReader) ([]byte, bool, error) {
+func (slf *LengthFieldStreamPacket) UnpackFromSR(r IStreamReader) ([]byte, bool, error) {
 	lengthFieldByteCount := slf.lengthFieldByteCount
 	if r.InboundBuffered() < lengthFieldByteCount {
 		return nil, false, nil

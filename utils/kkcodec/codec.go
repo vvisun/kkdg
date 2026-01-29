@@ -1,6 +1,7 @@
 package kkcodec
 
 import (
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec/json"
 	"github.com/vvisun/kkdg/utils/kkcodec/msgpack"
 	"github.com/vvisun/kkdg/utils/kkcodec/proto"
@@ -14,6 +15,8 @@ type ICodec interface {
 	Marshal(v any) ([]byte, error)
 	// Unmarshal 解码
 	Unmarshal(data []byte, v any) error
+	// MarshalAppend 编码
+	MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error)
 }
 
 const (

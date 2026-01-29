@@ -3,6 +3,7 @@ package proto
 import (
 	"errors"
 
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -23,8 +24,25 @@ func (codec) Marshal(v any) ([]byte, error) {
 	if !ok {
 		return nil, errors.New("can't marshal a value that not implements proto.Buffer interface")
 	}
-
 	return proto.Marshal(msg)
+}
+
+// MarshalAppend 编码
+func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
+	msg, ok := v.(proto.Message)
+	if !ok {
+		return nil, errors.New("can't marshal a value that not implements proto.Buffer interface")
+	}
+	size := proto.Size(msg) + offset
+
+	bb := kkbuffer.GetWithCapacity(size + 64)
+	bytes, err := proto.MarshalOptions{}.MarshalAppend(bb.B[offset:], msg)
+	if err != nil {
+		return nil, err
+	}
+	realLen := len(bytes) + offset
+	bb.B = bb.B[:realLen]
+	return bb, nil
 }
 
 // Unmarshal 解码
@@ -33,7 +51,6 @@ func (codec) Unmarshal(data []byte, v any) error {
 	if !ok {
 		return errors.New("can't unmarshal to a value that not implements proto.Buffer")
 	}
-
 	return proto.Unmarshal(data, msg)
 }
 
@@ -45,4 +62,9 @@ func Marshal(v any) ([]byte, error) {
 // Unmarshal 解码
 func Unmarshal(data []byte, v any) error {
 	return DefaultCodec.Unmarshal(data, v)
+}
+
+// MarshalAppend 编码
+func MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
+	return DefaultCodec.MarshalAppend(v, offset)
 }
