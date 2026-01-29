@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkcodec/msgpack"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -48,7 +47,11 @@ func (codec) Marshal(v any) ([]byte, error) {
 
 // MarshalAppend 编码
 func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
-	bytes, err := msgpack.Marshal(v)
+	msg, ok := v.(proto.Message)
+	if !ok {
+		return nil, errors.New("can't marshal a value that not implements proto.Buffer interface")
+	}
+	bytes, err := proto.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
