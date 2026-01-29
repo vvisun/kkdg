@@ -38,22 +38,26 @@ func TestKKUDPLargeMessage(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	// Test 16KB message (common UDP limit)
-	payload := make([]byte, kkpacket.DefaultMaxMessageSize())
+	payload := make([]byte, kkpacket.DefaultMaxMessageSize()-kkpacket.DefaultStreamPacket().LengthFieldByteCount())
 	for i := range payload {
 		payload[i] = byte(i % 256)
 	}
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	if err != nil {
+		t.Fatalf("client send buffer: %v", err)
+	}
 
-	if err := client.Send(payload); err != nil {
+	if err := client.SendBuffer(bb); err != nil {
 		t.Fatalf("client send: %v", err)
 	}
 
 	select {
 	case got := <-msgCh:
-		if len(got) != len(payload) {
+		if len(kkpacket.DefaultStreamPacket().BodyBytesFromBytes(got)) != len(payload) {
 			t.Fatalf("unexpected message size: got %d, want %d", len(got), len(payload))
 		}
-		for i := range payload {
-			if got[i] != payload[i] {
+		for i := range kkpacket.DefaultStreamPacket().BodyBytesFromBytes(got) {
+			if kkpacket.DefaultStreamPacket().BodyBytesFromBytes(got)[i] != payload[i] {
 				t.Fatalf("message mismatch at index %d", i)
 			}
 		}

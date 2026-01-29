@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkudp"
 )
 
@@ -35,14 +36,18 @@ func TestKKNetUDP(t *testing.T) {
 	defer func() { _ = client.Close() }()
 
 	payload := []byte("ping")
-	if err := client.Send(payload); err != nil {
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	if err != nil {
+		t.Fatalf("client send buffer: %v", err)
+	}
+	if err := client.SendBuffer(bb); err != nil {
 		t.Fatalf("client send: %v", err)
 	}
 
 	select {
 	case got := <-msgCh:
-		if string(got) != string(payload) {
-			t.Fatalf("unexpected udp reply: %s", got)
+		if string(kkpacket.DefaultStreamPacket().BodyBytesFromBytes(got)) != "ping" {
+			t.Fatalf("unexpected udp reply: %s, expected: %s", string(kkpacket.DefaultStreamPacket().BodyBytesFromBytes(got)), "ping")
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("udp reply timeout")

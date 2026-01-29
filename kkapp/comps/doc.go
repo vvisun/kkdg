@@ -6,8 +6,8 @@ package comps
 
 业务服设计:
 	a. 利用protoactor-go。
-	b. 业务服actor粒度: 模块actor。eg: 玩家管理模块actor、背包模块actor、战斗模块actor等。
-	优势: 可以利用protoactor-go实现模块分布在任意业务服节点上。利用nats实现模块之间的通信。
+	b. 业务服actor粒度: 管理器粒度的模块actor。eg: 玩家管理模块actor、背包管理模块actor、战斗管理模块actor等。
+	优势: 可以利用protoactor-go实现模块分布在任意业务服节点上。
 	缺点: 业务服节点之间需要通过网络通信，影响性能。可以通过合理分配节点上的模块，将高频交互的模块分配到同一个节点上，降低网络通信成本。
 
 */

@@ -3,6 +3,7 @@ package component
 import (
 	"sync"
 
+	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -11,8 +12,11 @@ import (
 // each application is a node. each node is a process.
 type IApplication interface {
 	GetNodeInfo() *kkapp.NodeInfo
+	GetNodeId() string
+	GetNodeType() string
 	Start() error
 	Stop() error
+	GetActorSystem() *actor.ActorSystem
 
 	AddComponent(child IComponent) error
 	HasComponent(child IComponent) bool
@@ -21,6 +25,7 @@ type IApplication interface {
 
 type Application struct {
 	nodeInfo *kkapp.NodeInfo
+	actorSys *actor.ActorSystem
 	compList []IComponent
 	mu       sync.RWMutex
 }
@@ -30,12 +35,25 @@ var _ IApplication = (*Application)(nil)
 func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
 	return &Application{
 		nodeInfo: nodeInfo,
+		actorSys: actor.NewActorSystem(),
 		compList: make([]IComponent, 0),
 	}
 }
 
 func (slf *Application) GetNodeInfo() *kkapp.NodeInfo {
 	return slf.nodeInfo
+}
+
+func (slf *Application) GetNodeId() string {
+	return slf.nodeInfo.GetNodeId()
+}
+
+func (slf *Application) GetNodeType() string {
+	return slf.nodeInfo.GetNodeType()
+}
+
+func (slf *Application) GetActorSystem() *actor.ActorSystem {
+	return slf.actorSys
 }
 
 func (slf *Application) Start() error {

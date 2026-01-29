@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/panjf2000/gnet/v2"
-	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -43,10 +42,7 @@ func (c *gnetClientConn) RemoteAddr() string {
 }
 
 func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
-	if buffer == nil {
-		return kkerrors.ErrInvalidPacket
-	}
-	if err := kkpacket.DefaultStreamPacket().CheckPacket(buffer.B); err != nil {
+	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
@@ -82,9 +78,6 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 func (c *gnetClientConn) Send(data []byte) error {
-	if len(data) == 0 {
-		return kkerrors.ErrInvalidPacket
-	}
 	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()

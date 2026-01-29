@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -50,21 +49,21 @@ func (c *wsConn) RemoteAddr() string {
 }
 
 func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
-	if buffer == nil {
-		return kkerrors.ErrInvalidPacket
+	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
 	}
 	return c.Send(buffer.B)
 }
 
 func (c *wsConn) Send(data []byte) error {
-	if len(data) == 0 {
-		return kkerrors.ErrInvalidPacket
-	}
-	if len(data) > kkpacket.DefaultMaxMessageSize() {
+	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		return kkerrors.ErrMaxMessageSize
+		return err
 	}
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()

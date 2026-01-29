@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkws"
 )
 
@@ -47,13 +48,17 @@ func TestKKWSRoundtrip(t *testing.T) {
 	}
 
 	payload := []byte("ping")
-	if err := client.Send(payload); err != nil {
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	if err != nil {
+		t.Fatalf("client send buffer: %v", err)
+	}
+	if err := client.SendBuffer(bb); err != nil {
 		t.Fatalf("client send: %v", err)
 	}
 
 	select {
 	case got := <-replyCh:
-		if string(got) != string(payload) {
+		if string(kkpacket.DefaultStreamPacket().BodyBytesFromBytes(got)) != "ping" {
 			t.Fatalf("unexpected ws reply: %s", got)
 		}
 	case <-time.After(2 * time.Second):

@@ -5,7 +5,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -46,21 +45,21 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) SendBuffer(buffer buffers.IBuffer) error {
-	if buffer == nil {
-		return kkerrors.ErrInvalidPacket
+	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
 	}
 	return c.Send(buffer.B)
 }
 
 func (c *clientConn) Send(data []byte) error {
-	if len(data) == 0 {
-		return kkerrors.ErrInvalidPacket
-	}
-	if len(data) > kkpacket.DefaultMaxMessageSize() {
+	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		return kkerrors.ErrMaxMessageSize
+		return err
 	}
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()

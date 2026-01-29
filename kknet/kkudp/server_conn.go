@@ -49,15 +49,21 @@ func (c *udpConn) RemoteAddr() string {
 }
 
 func (c *udpConn) SendBuffer(buffer buffers.IBuffer) error {
-	if buffer == nil {
-		return kkerrors.ErrInvalidPacket
+	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
 	}
 	return c.Send(buffer.B)
 }
 
 func (c *udpConn) Send(data []byte) error {
-	if len(data) == 0 {
-		return kkerrors.ErrInvalidPacket
+	if err := kkpacket.DefaultStreamPacket().CheckPacket(data); err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
 	}
 	if !c.active.Load() {
 		return kkerrors.ErrConnectionClosed

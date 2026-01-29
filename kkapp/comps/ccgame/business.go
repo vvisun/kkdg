@@ -16,7 +16,6 @@ func NewGameComponent() *gameComponent {
 // 业务服：游戏服
 type gameComponent struct {
 	component.Component
-	actorSys    *actor.ActorSystem
 	pid         *actor.PID
 	responderMu sync.RWMutex
 	responder   func(connID kknet.CONN_ID, data []byte)
@@ -29,7 +28,6 @@ func (slf *gameComponent) GetID() string {
 var _ component.IComponent = (*gameComponent)(nil)
 
 func (slf *gameComponent) Init() error {
-	slf.actorSys = actor.NewActorSystem()
 	return nil
 }
 
@@ -37,14 +35,14 @@ func (slf *gameComponent) Start() error {
 	props := actor.PropsFromProducer(func() actor.Actor {
 		return &gameActor{game: slf}
 	})
-	slf.pid = slf.actorSys.Root.Spawn(props)
+	slf.pid = slf.GetApplication().GetActorSystem().Root.Spawn(props)
 	kklog.Infof("[ccgame] game actor started")
 	return nil
 }
 
 func (slf *gameComponent) Stop() error {
 	if slf.pid != nil {
-		slf.actorSys.Root.Stop(slf.pid)
+		slf.GetApplication().GetActorSystem().Root.Stop(slf.pid)
 		slf.pid = nil
 	}
 	return nil
@@ -55,7 +53,7 @@ func (slf *gameComponent) HandleRequest(connID kknet.CONN_ID, data []byte) {
 	if slf.pid == nil {
 		return
 	}
-	slf.actorSys.Root.Send(slf.pid, &GameRequest{
+	slf.GetApplication().GetActorSystem().Root.Send(slf.pid, &GameRequest{
 		ConnID: connID,
 		Data:   data,
 	})
