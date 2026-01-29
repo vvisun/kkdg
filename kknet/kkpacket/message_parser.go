@@ -191,3 +191,66 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 
 	return buf, nil
 }
+
+/*
+编码包。消息对象--->二进制流
+注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
+
+	@param v *T 消息类型
+	@param pkType *packer 包类型
+	@return buffers.IBuffer 包数据
+	@return error 错误
+*/
+func EncodeStream[T any](v *T, stream IStreamPacket) (buffers.IBuffer, error) {
+	pkType := stream.GetMessagePacket()
+	codec := kkcodec.GetCodec(pkType.codecType)
+	if codec == nil {
+		return nil, kkerrors.ErrInvalidCodec
+	}
+
+	headSize := GetHeadSize(pkType.headType)
+	if headSize < 0 {
+		return nil, kkerrors.ErrInvalidMsgHeadType
+	}
+
+	msgID := GetMsgID(v)
+	if msgID == 0 {
+		return nil, kkerrors.ErrMsgTypeNotRegistered
+	}
+
+	lfbCount := stream.LengthFieldByteCount()
+
+	buf, err := codec.MarshalAppend(v, headSize+lfbCount)
+	if err != nil {
+		return nil, kkerrors.ErrEncodeFailed
+	}
+
+	bodyLen := len(buf.B) - headSize - lfbCount
+	if bodyLen < 0 {
+		return nil, kkerrors.ErrInvalidMsgHeadType
+	}
+
+	stream.writeBodySize(buf.B[:lfbCount], bodyLen)
+
+	endian := GetByteOrder()
+	switch pkType.headType {
+	case HeadTypeMid:
+		endian.PutUint32(buf.B[lfbCount:lfbCount+4], msgID)
+	case HeadTypeMidSeq:
+		seq := uint32(0)
+		endian.PutUint32(buf.B[lfbCount:lfbCount+4], msgID)
+		endian.PutUint32(buf.B[lfbCount+4:lfbCount+8], seq)
+	default:
+		kkbuffer.Put(buf)
+		return nil, kkerrors.ErrInvalidMsgHeadType
+	}
+
+	return buf, nil
+}
+
+func DecodeStream(data []byte, stream IStreamPacket) (any, error) {
+	payload := data[stream.LengthFieldByteCount():]
+	cpy := make([]byte, len(payload))
+	copy(cpy, payload)
+	return DecodePacket(cpy, stream.GetMessagePacket())
+}

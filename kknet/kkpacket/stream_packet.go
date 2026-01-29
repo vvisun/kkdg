@@ -48,6 +48,11 @@ type IStreamPacket interface {
 	// output: size, error
 	GetBodySize(header []byte) (int, error)
 
+	// write body size to header.
+	// input: header [length], size.
+	// output: none
+	writeBodySize(data []byte, size int)
+
 	// check packet is valid.
 	// input: [length,data].
 	// output: error
@@ -57,6 +62,9 @@ type IStreamPacket interface {
 	// input: [length,data].
 	// output: error
 	CheckPacketBuffer(buffer buffers.IBuffer) error
+
+	// get message packet.
+	GetMessagePacket() *PacketCodec
 }
 
 // LengthFieldStreamPacket packs and unpacks 4-byte length-prefixed frames.
@@ -70,6 +78,11 @@ var _ IStreamPacket = (*LengthFieldStreamPacket)(nil)
 // NewLengthFieldStreamPacket creates a length-field stream packet.
 func NewLengthFieldStreamPacket(msgPacket *PacketCodec) *LengthFieldStreamPacket {
 	return &LengthFieldStreamPacket{lengthFieldByteCount: 4, msgPacket: msgPacket}
+}
+
+// get message packet.
+func (slf *LengthFieldStreamPacket) GetMessagePacket() *PacketCodec {
+	return slf.msgPacket
 }
 
 // get length field byte count.
@@ -92,7 +105,7 @@ func (slf *LengthFieldStreamPacket) GetBodySize(header []byte) (int, error) {
 	}
 }
 
-func (slf *LengthFieldStreamPacket) writeHeadSize(data []byte, size int) {
+func (slf *LengthFieldStreamPacket) writeBodySize(data []byte, size int) {
 	switch slf.lengthFieldByteCount {
 	case 4:
 		GetByteOrder().PutUint32(data[:4], uint32(size))
@@ -146,7 +159,7 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 	dataLen := len(data)
 	bb := kkbuffer.GetWithCapacity(lengthFieldByteCount + dataLen)
 	bb.B = bb.B[:lengthFieldByteCount+dataLen]
-	slf.writeHeadSize(bb.B[:lengthFieldByteCount], dataLen)
+	slf.writeBodySize(bb.B[:lengthFieldByteCount], dataLen)
 	copy(bb.B[lengthFieldByteCount:], data)
 
 	return bb, nil
@@ -170,20 +183,6 @@ func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
 		return nil, kkerrors.ErrDataTooShortToDecode
 	}
 	return data[lengthFieldByteCount:lastIndex], nil
-}
-
-// get body bytes from buffer.
-// input: buffer [length,data].
-// output: body bytes.
-func (slf *LengthFieldStreamPacket) BodyBytesFromBuffer(buffer buffers.IBuffer) []byte {
-	return buffer.B[slf.lengthFieldByteCount:]
-}
-
-// get body bytes from bytes.
-// input: bytes [length,data].
-// output: body bytes.
-func (slf *LengthFieldStreamPacket) BodyBytesFromBytes(data []byte) []byte {
-	return data[slf.lengthFieldByteCount:]
 }
 
 // unpack message from stream.

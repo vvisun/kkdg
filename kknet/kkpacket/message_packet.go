@@ -25,6 +25,8 @@ func init() {
 			initPacker(i, j)
 		}
 	}
+
+	defaultStreamPacket = NewLengthFieldStreamPacket(NewPacker(HeadTypeMid, kkcodec.CodecTypeProtoBuf))
 }
 
 func initPacker(headType uint8, codecType uint8) {

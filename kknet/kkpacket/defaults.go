@@ -1,6 +1,6 @@
 package kkpacket
 
-var defaultStreamPacket = NewLengthFieldStreamPacket(nil)
+var defaultStreamPacket *LengthFieldStreamPacket
 
 const defaultMaxMessageSize = 8 * 1024 //默认MaxMessageSize
 

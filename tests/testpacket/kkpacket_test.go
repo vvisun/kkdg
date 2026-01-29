@@ -140,3 +140,29 @@ func TestKK_packet_Decode_InvalidPacket(t *testing.T) {
 		t.Fatalf("decode invalid packet should failed")
 	}
 }
+
+func TestKK_packet_EncodeDecode_Stream(t *testing.T) {
+	initTestEnv(t)
+	msg1 := &pbmsg.UserInfo{
+		UserId: 1,
+		Nick:   "test",
+	}
+	packet, err := kkpacket.EncodeStream(msg1, kkpacket.DefaultStreamPacket())
+	if err != nil {
+		t.Fatalf("encode packet: %v", err)
+	}
+
+	msg22, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
+	if err != nil {
+		t.Fatalf("decode packet: %v", err)
+	}
+	msg2, ok := msg22.(*pbmsg.UserInfo)
+	if !ok {
+		t.Fatalf("decode packet: %v", err)
+	}
+	t.Logf("msg2: %v", msg2)
+
+	if msg1.UserId != msg2.UserId || msg1.Nick != msg2.Nick {
+		t.Fatalf("msg1 != msg2")
+	}
+}
