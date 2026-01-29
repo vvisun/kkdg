@@ -83,11 +83,11 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 }
 
 /*
-解码包。二进制流--->消息对象
+解码包。二进制流[body]--->消息对象
 注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
 
-	@param data []byte 包数据
-	@param pkType *packer 包类型
+	@param data []byte 包数据[body]
+	@param pkType *PacketCodec 包类型
 	@return any 消息对象
 	@return error 错误
 */
@@ -117,11 +117,11 @@ func DecodePacket(data []byte, pkType *PacketCodec) (any, error) {
 }
 
 /*
-编码包。消息对象--->二进制流
+编码包。消息对象--->二进制流[body]
 
 	@param v *T 消息类型
-	@param pkType *packer 包类型
-	@return []byte 包数据
+	@param pkType *PacketCodec 包类型
+	@return []byte 包数据[body]
 	@return error 错误
 */
 func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
@@ -137,12 +137,12 @@ func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
 }
 
 /*
-编码包。消息对象--->二进制流
+编码包。消息对象--->二进制流[body]
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
 	@param v *T 消息类型
-	@param pkType *packer 包类型
-	@return buffers.IBuffer 包数据
+	@param pkType *PacketCodec 包类型
+	@return buffers.IBuffer 包数据[body]
 	@return error 错误
 */
 func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
@@ -193,12 +193,12 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 }
 
 /*
-编码包。消息对象--->二进制流
+编码包。消息对象--->二进制流[length,body]
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
 	@param v *T 消息类型
-	@param pkType *packer 包类型
-	@return buffers.IBuffer 包数据
+	@param stream IStreamPacket 流包类型
+	@return buffers.IBuffer 包数据[length,body]
 	@return error 错误
 */
 func EncodeStream[T any](v *T, stream IStreamPacket) (buffers.IBuffer, error) {
@@ -248,9 +248,15 @@ func EncodeStream[T any](v *T, stream IStreamPacket) (buffers.IBuffer, error) {
 	return buf, nil
 }
 
+/*
+*
+解码包。二进制流[length,body]--->消息对象
+
+	@param data []byte 包数据[length,body]
+	@param stream IStreamPacket 流包类型
+	@return any 消息对象
+	@return error 错误
+*/
 func DecodeStream(data []byte, stream IStreamPacket) (any, error) {
-	payload := data[stream.LengthFieldByteCount():]
-	cpy := make([]byte, len(payload))
-	copy(cpy, payload)
-	return DecodePacket(cpy, stream.GetMessagePacket())
+	return DecodePacket(data[stream.LengthFieldByteCount():], stream.GetMessagePacket())
 }
