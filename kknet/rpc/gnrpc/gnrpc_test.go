@@ -201,3 +201,50 @@ func TestGNRPC_ResponseHeaderTrailer(t *testing.T) {
 	}
 }
 
+func TestGNRPC_ServiceRegistration(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	const svc = "pbbase.StringService"
+
+	svr := NewServer(addr)
+	svr.RegisterProtoService(ProtoServiceDesc{
+		ServiceName: svc,
+		Methods: []UnaryProtoMethodDesc{
+			{
+				MethodName: "Echo",
+				NewRequest: func() proto.Message { return &pbbase.String{} },
+				Handler: func(ctx context.Context, req proto.Message) (proto.Message, error) {
+					_ = ctx
+					in := req.(*pbbase.String)
+					return &pbbase.String{Value: "svc:" + in.Value}, nil
+				},
+			},
+		},
+	})
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var out pbbase.String
+	if err := cli.InvokeProtoService(ctx, svc, "Echo", &pbbase.String{Value: "X"}, &out); err != nil {
+		t.Fatalf("invoke: %v", err)
+	}
+	if out.Value != "svc:X" {
+		t.Fatalf("unexpected resp: %q", out.Value)
+	}
+}
+
