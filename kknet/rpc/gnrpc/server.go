@@ -35,7 +35,7 @@ type Server struct {
 	onewayPolicy       OnewayDropPolicy
 	onewayBlockTimeout time.Duration
 
-	onewayMethods sync.Map // method(string) -> *methodOnewayState
+	methodStates sync.Map // method(string) -> *methodOnewayState
 }
 
 // NewServer creates a new RPC server.
@@ -67,29 +67,30 @@ func (s *Server) OnewayStats() OnewayStats {
 	}
 }
 
-// SetOnewayMethodConfig sets per-method rate limit / breaker / in-flight limit.
-func (s *Server) SetOnewayMethodConfig(method string, cfg OnewayMethodConfig) {
+// SetMethodConfig sets per-method rate limit / breaker / in-flight limit.
+// It applies to both request and oneway.
+func (s *Server) SetMethodConfig(method string, cfg MethodConfig) {
 	if method == "" {
 		return
 	}
-	v, _ := s.onewayMethods.LoadOrStore(method, &methodOnewayState{})
+	v, _ := s.methodStates.LoadOrStore(method, &methodOnewayState{})
 	st := v.(*methodOnewayState)
 	st.setConfig(cfg)
 }
 
-// GetOnewayMethodStats returns stats for a single method.
-func (s *Server) GetOnewayMethodStats(method string) (OnewayMethodStats, bool) {
-	v, ok := s.onewayMethods.Load(method)
+// GetMethodStats returns stats for a single method.
+func (s *Server) GetMethodStats(method string) (MethodStats, bool) {
+	v, ok := s.methodStates.Load(method)
 	if !ok {
-		return OnewayMethodStats{}, false
+		return MethodStats{}, false
 	}
 	return v.(*methodOnewayState).snapshot(method), true
 }
 
-// GetAllOnewayMethodStats returns stats for all configured methods (and any methods seen).
-func (s *Server) GetAllOnewayMethodStats() map[string]OnewayMethodStats {
-	out := make(map[string]OnewayMethodStats)
-	s.onewayMethods.Range(func(k, v any) bool {
+// GetAllMethodStats returns stats for all configured methods (and any methods seen).
+func (s *Server) GetAllMethodStats() map[string]MethodStats {
+	out := make(map[string]MethodStats)
+	s.methodStates.Range(func(k, v any) bool {
 		method := k.(string)
 		out[method] = v.(*methodOnewayState).snapshot(method)
 		return true
@@ -236,10 +237,10 @@ func (h *serverHandler) getMethodState(method string) *methodOnewayState {
 	if method == "" {
 		return nil
 	}
-	if v, ok := h.svr.onewayMethods.Load(method); ok {
+	if v, ok := h.svr.methodStates.Load(method); ok {
 		return v.(*methodOnewayState)
 	}
-	v, _ := h.svr.onewayMethods.LoadOrStore(method, &methodOnewayState{})
+	v, _ := h.svr.methodStates.LoadOrStore(method, &methodOnewayState{})
 	return v.(*methodOnewayState)
 }
 

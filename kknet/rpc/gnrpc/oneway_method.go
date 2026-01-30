@@ -6,8 +6,12 @@ import (
 	"time"
 )
 
-// OnewayMethodConfig configures per-method controls for FrameTypeOneway.
-type OnewayMethodConfig struct {
+// MethodConfig configures per-method controls.
+//
+// It applies to both:
+// - FrameTypeOneway (fire-and-forget)
+// - FrameTypeRequest (regular request/response)
+type MethodConfig struct {
 	// MaxInFlight limits total outstanding tasks (queued + running) for this method.
 	// <=0 means unlimited.
 	MaxInFlight int64
@@ -27,7 +31,7 @@ type OnewayMethodConfig struct {
 	BreakerCooldown time.Duration
 }
 
-type OnewayMethodStats struct {
+type MethodStats struct {
 	Method    string
 	Enqueued  int64
 	Dropped   int64
@@ -40,7 +44,7 @@ type OnewayMethodStats struct {
 }
 
 type methodOnewayState struct {
-	cfg atomic.Value // stores OnewayMethodConfig
+	cfg atomic.Value // stores MethodConfig
 
 	inFlight atomic.Int64
 
@@ -57,7 +61,7 @@ type methodOnewayState struct {
 	mux sync.Mutex // protects tb/cb init/update
 }
 
-func (s *methodOnewayState) setConfig(cfg OnewayMethodConfig) {
+func (s *methodOnewayState) setConfig(cfg MethodConfig) {
 	s.cfg.Store(cfg)
 	s.mux.Lock()
 	// (re)create token bucket / breaker as needed
@@ -94,12 +98,12 @@ func (s *methodOnewayState) setConfig(cfg OnewayMethodConfig) {
 	s.mux.Unlock()
 }
 
-func (s *methodOnewayState) getConfig() OnewayMethodConfig {
+func (s *methodOnewayState) getConfig() MethodConfig {
 	v := s.cfg.Load()
 	if v == nil {
-		return OnewayMethodConfig{}
+		return MethodConfig{}
 	}
-	return v.(OnewayMethodConfig)
+	return v.(MethodConfig)
 }
 
 func (s *methodOnewayState) tryAcquire() (ok bool, reason string) {
@@ -175,9 +179,9 @@ func (s *methodOnewayState) onProcessed(err error) {
 	s.inFlight.Add(-1)
 }
 
-func (s *methodOnewayState) snapshot(method string) OnewayMethodStats {
+func (s *methodOnewayState) snapshot(method string) MethodStats {
 	cfg := s.getConfig()
-	st := OnewayMethodStats{
+	st := MethodStats{
 		Method:      method,
 		Enqueued:    s.enq.Load(),
 		Dropped:     s.drop.Load(),

@@ -438,7 +438,7 @@ func TestGNRPC_OnewayMethodRateLimit(t *testing.T) {
 	addr := "127.0.0.1:" + strconv.Itoa(port)
 
 	svr := NewServer(addr)
-	svr.SetOnewayMethodConfig("rl", OnewayMethodConfig{
+	svr.SetMethodConfig("rl", MethodConfig{
 		TokenBucketRate:  1, // 1 req/s
 		TokenBucketBurst: 1,
 	})
@@ -467,13 +467,13 @@ func TestGNRPC_OnewayMethodRateLimit(t *testing.T) {
 	// wait for server to see some drops
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		st, ok := svr.GetOnewayMethodStats("rl")
+		st, ok := svr.GetMethodStats("rl")
 		if ok && st.RateLimited > 0 {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	st, _ := svr.GetOnewayMethodStats("rl")
+	st, _ := svr.GetMethodStats("rl")
 	t.Fatalf("expected rate limited > 0, got %+v", st)
 }
 
@@ -485,7 +485,7 @@ func TestGNRPC_OnewayMethodBreaker(t *testing.T) {
 	addr := "127.0.0.1:" + strconv.Itoa(port)
 
 	svr := NewServer(addr)
-	svr.SetOnewayMethodConfig("brk", OnewayMethodConfig{
+	svr.SetMethodConfig("brk", MethodConfig{
 		BreakerEnabled:      true,
 		BreakerTripFailures: 1,
 		BreakerCooldown:     5 * time.Second,
@@ -515,7 +515,7 @@ func TestGNRPC_OnewayMethodBreaker(t *testing.T) {
 	// wait until server processed/failure is observed, so breaker state is definitely updated
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		st, ok := svr.GetOnewayMethodStats("brk")
+		st, ok := svr.GetMethodStats("brk")
 		if ok && st.Failed >= 1 {
 			break
 		}
@@ -529,13 +529,13 @@ func TestGNRPC_OnewayMethodBreaker(t *testing.T) {
 
 	deadline2 := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline2) {
-		st, ok := svr.GetOnewayMethodStats("brk")
+		st, ok := svr.GetMethodStats("brk")
 		if ok && st.BreakerOpen > 0 {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	st, _ := svr.GetOnewayMethodStats("brk")
+	st, _ := svr.GetMethodStats("brk")
 	t.Fatalf("expected breaker open > 0, got %+v", st)
 }
 
@@ -547,7 +547,7 @@ func TestGNRPC_RequestMethodRateLimit_Status(t *testing.T) {
 	addr := "127.0.0.1:" + strconv.Itoa(port)
 
 	svr := NewServer(addr)
-	svr.SetOnewayMethodConfig("req_rl", OnewayMethodConfig{
+	svr.SetMethodConfig("req_rl", MethodConfig{
 		TokenBucketRate:  1,
 		TokenBucketBurst: 1,
 	})
@@ -594,7 +594,7 @@ func TestGNRPC_RequestMethodBreaker_Status(t *testing.T) {
 	addr := "127.0.0.1:" + strconv.Itoa(port)
 
 	svr := NewServer(addr)
-	svr.SetOnewayMethodConfig("req_brk", OnewayMethodConfig{
+	svr.SetMethodConfig("req_brk", MethodConfig{
 		BreakerEnabled:      true,
 		BreakerTripFailures: 1,
 		BreakerCooldown:     5 * time.Second,
