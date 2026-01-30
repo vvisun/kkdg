@@ -26,6 +26,9 @@ type Frame struct {
 	DL int64     `json:"dl,omitempty" msgpack:"dl"`// deadline unix ms (0 means no deadline)
 	P  []byte    `json:"p,omitempty" msgpack:"p"`  // payload
 
+	// H is request headers (metadata). Optional.
+	H map[string]string `json:"h,omitempty" msgpack:"h"`
+
 	Code int32  `json:"c,omitempty" msgpack:"c"` // status code (0 ok)
 	Err  string `json:"e,omitempty" msgpack:"e"` // error message
 }

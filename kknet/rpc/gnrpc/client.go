@@ -90,7 +90,7 @@ func (c *Client) Close() error {
 
 // Invoke performs a unary RPC call.
 // req is raw payload bytes; resp is raw payload bytes.
-func (c *Client) Invoke(ctx context.Context, method string, req []byte) ([]byte, error) {
+func (c *Client) Invoke(ctx context.Context, method string, req []byte, opts ...CallOption) ([]byte, error) {
 	if method == "" {
 		return nil, ErrInvalidFrame
 	}
@@ -98,11 +98,18 @@ func (c *Client) Invoke(ctx context.Context, method string, req []byte) ([]byte,
 		ctx = context.Background()
 	}
 
-	inv := chainClientInterceptors(c.clientInterceptors, c.invokeRaw)
+	cfg := applyCallOptions(opts)
+	var cancel context.CancelFunc
+	ctx, cancel = maybeApplyTimeout(ctx, cfg.timeout)
+	defer cancel()
+
+	inv := chainClientInterceptors(c.clientInterceptors, func(ctx context.Context, method string, req []byte) ([]byte, error) {
+		return c.invokeRaw(ctx, method, req, cfg)
+	})
 	return inv(ctx, method, req)
 }
 
-func (c *Client) invokeRaw(ctx context.Context, method string, req []byte) ([]byte, error) {
+func (c *Client) invokeRaw(ctx context.Context, method string, req []byte, cfg callConfig) ([]byte, error) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -130,6 +137,7 @@ func (c *Client) invokeRaw(ctx context.Context, method string, req []byte) ([]by
 		M:  method,
 		DL: ctxDeadlineUnixMs(ctx),
 		P:  req,
+		H:  cfg.headers,
 	}
 	b, err := c.codec.Marshal(&fr)
 	if err != nil {

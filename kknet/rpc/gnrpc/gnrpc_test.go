@@ -108,3 +108,45 @@ func TestGNRPC_InterceptorAndProto(t *testing.T) {
 	}
 }
 
+func TestGNRPC_MetadataHeader(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	svr.RegisterProto("pbbase.String/headers", func() proto.Message { return &pbbase.String{} }, func(ctx context.Context, req proto.Message) (proto.Message, error) {
+		_ = req
+		md, ok := FromIncomingContext(ctx)
+		if !ok {
+			return nil, Status(CodeInvalidArgument, "missing metadata")
+		}
+		if md["x-test"] != "123" {
+			return nil, Status(CodeInvalidArgument, "bad header")
+		}
+		return &pbbase.String{Value: "ok"}, nil
+	})
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var out pbbase.String
+	if err := cli.InvokeProtoWithOptions(ctx, "pbbase.String/headers", &pbbase.String{Value: "x"}, &out, WithHeader("x-test", "123")); err != nil {
+		t.Fatalf("invoke: %v", err)
+	}
+	if out.Value != "ok" {
+		t.Fatalf("unexpected resp: %q", out.Value)
+	}
+}
+

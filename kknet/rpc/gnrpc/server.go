@@ -98,6 +98,10 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 
 	ctx, cancel := deadlineCtx(fr.DL)
 	defer cancel()
+	// Attach incoming metadata (headers) to context.
+	if fr.H != nil {
+		ctx = NewIncomingContext(ctx, MD(fr.H))
+	}
 	// Apply server interceptor chain.
 	base := func(ctx context.Context, req []byte) ([]byte, error) {
 		return h.svr.router.Call(ctx, fr.M, req)

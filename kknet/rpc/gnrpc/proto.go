@@ -42,6 +42,11 @@ func (s *Server) RegisterProto(method string, newReq func() proto.Message, handl
 // InvokeProto performs a protobuf unary call and decodes the response into resp.
 // If resp is nil, it just executes the call.
 func (c *Client) InvokeProto(ctx context.Context, method string, req proto.Message, resp proto.Message) error {
+	return c.InvokeProtoWithOptions(ctx, method, req, resp)
+}
+
+// InvokeProtoWithOptions is like InvokeProto but allows CallOption (timeout/headers).
+func (c *Client) InvokeProtoWithOptions(ctx context.Context, method string, req proto.Message, resp proto.Message, opts ...CallOption) error {
 	var reqBytes []byte
 	if req != nil {
 		b, err := proto.Marshal(req)
@@ -50,7 +55,7 @@ func (c *Client) InvokeProto(ctx context.Context, method string, req proto.Messa
 		}
 		reqBytes = b
 	}
-	out, err := c.Invoke(ctx, method, reqBytes)
+	out, err := c.Invoke(ctx, method, reqBytes, opts...)
 	if err != nil {
 		return err
 	}
