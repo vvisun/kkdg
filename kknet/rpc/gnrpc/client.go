@@ -30,6 +30,8 @@ type Client struct {
 	mu      sync.Mutex
 	pending map[uint64]chan Frame
 	closed  bool
+
+	clientInterceptors []UnaryClientInterceptor
 }
 
 // NewClient creates a new RPC client.
@@ -55,6 +57,15 @@ func (c *Client) SetFrameCodec(codecType uint8) error {
 	}
 	c.codec = cc
 	return nil
+}
+
+// UseInterceptor adds client-side unary interceptors.
+func (c *Client) UseInterceptor(interceptors ...UnaryClientInterceptor) {
+	for _, it := range interceptors {
+		if it != nil {
+			c.clientInterceptors = append(c.clientInterceptors, it)
+		}
+	}
 }
 
 func (c *Client) Connect() error {
@@ -87,6 +98,11 @@ func (c *Client) Invoke(ctx context.Context, method string, req []byte) ([]byte,
 		ctx = context.Background()
 	}
 
+	inv := chainClientInterceptors(c.clientInterceptors, c.invokeRaw)
+	return inv(ctx, method, req)
+}
+
+func (c *Client) invokeRaw(ctx context.Context, method string, req []byte) ([]byte, error) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -144,10 +160,7 @@ func (c *Client) Invoke(ctx context.Context, method string, req []byte) ([]byte,
 			return nil, ErrInvalidFrame
 		}
 		if resp.Code != 0 {
-			if resp.Err != "" {
-				return nil, errors.New(resp.Err)
-			}
-			return nil, errors.New("gnrpc: remote error")
+			return nil, Status(Code(resp.Code), resp.Err)
 		}
 		return resp.P, nil
 	case <-ctx.Done():

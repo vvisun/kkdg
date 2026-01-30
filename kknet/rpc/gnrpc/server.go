@@ -19,6 +19,8 @@ type Server struct {
 	codec  *codec
 	router *router
 	tcp    *kktcp.Server
+
+	serverInterceptors []UnaryServerInterceptor
 }
 
 // NewServer creates a new RPC server.
@@ -44,6 +46,15 @@ func (s *Server) SetFrameCodec(codecType uint8) error {
 	}
 	s.codec = c
 	return nil
+}
+
+// UseInterceptor adds server-side unary interceptors.
+func (s *Server) UseInterceptor(interceptors ...UnaryServerInterceptor) {
+	for _, it := range interceptors {
+		if it != nil {
+			s.serverInterceptors = append(s.serverInterceptors, it)
+		}
+	}
 }
 
 // Register registers a unary handler for method.
@@ -87,9 +98,12 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 
 	ctx, cancel := deadlineCtx(fr.DL)
 	defer cancel()
-	// If request has a deadline, respect it and also allow handler to observe cancel.
-	// No extra metadata yet; can be extended later.
-	respPayload, callErr := h.svr.router.Call(ctx, fr.M, fr.P)
+	// Apply server interceptor chain.
+	base := func(ctx context.Context, req []byte) ([]byte, error) {
+		return h.svr.router.Call(ctx, fr.M, req)
+	}
+	chained := chainServerInterceptors(h.svr.serverInterceptors, base, fr.M)
+	respPayload, callErr := chained(ctx, fr.P)
 
 	resp := Frame{
 		T:  FrameTypeResponse,
@@ -97,8 +111,8 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 		P:  respPayload,
 	}
 	if callErr != nil {
-		resp.Code = 1
-		resp.Err = callErr.Error()
+		resp.Code = int32(CodeOf(callErr))
+		resp.Err = MsgOf(callErr)
 	}
 
 	b, err := h.svr.codec.Marshal(&resp)

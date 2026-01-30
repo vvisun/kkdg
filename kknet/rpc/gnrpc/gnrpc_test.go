@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/proto/pbbase"
 	"github.com/vvisun/kkdg/utils/xnet"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestGNRPC_UnaryEcho(t *testing.T) {
@@ -44,6 +46,65 @@ func TestGNRPC_UnaryEcho(t *testing.T) {
 	}
 	if string(resp) != "pong123" {
 		t.Fatalf("unexpected resp: %q", string(resp))
+	}
+}
+
+func TestGNRPC_InterceptorAndProto(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	var serverInterceptorCalled bool
+	svr.UseInterceptor(func(ctx context.Context, method string, req []byte, handler Handler) ([]byte, error) {
+		serverInterceptorCalled = true
+		_ = req
+		if method == "" {
+			t.Fatalf("empty method")
+		}
+		return handler(ctx, req) // do not mutate bytes for proto payload
+	})
+	svr.RegisterProto("pbbase.String/echo", func() proto.Message { return &pbbase.String{} }, func(ctx context.Context, req proto.Message) (proto.Message, error) {
+		_ = ctx
+		in := req.(*pbbase.String)
+		return &pbbase.String{Value: "ok:" + in.Value}, nil
+	})
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	var clientInterceptorCalled bool
+	cli.UseInterceptor(func(ctx context.Context, method string, req []byte, invoker Invoker) ([]byte, error) {
+		clientInterceptorCalled = true
+		if method == "" {
+			t.Fatalf("empty method")
+		}
+		return invoker(ctx, method, req) // do not mutate bytes for proto payload
+	})
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var out pbbase.String
+	if err := cli.InvokeProto(ctx, "pbbase.String/echo", &pbbase.String{Value: "X"}, &out); err != nil {
+		t.Fatalf("invoke proto: %v", err)
+	}
+	if out.Value != "ok:X" {
+		t.Fatalf("unexpected proto resp: %q", out.Value)
+	}
+	if !serverInterceptorCalled {
+		t.Fatalf("server interceptor not called")
+	}
+	if !clientInterceptorCalled {
+		t.Fatalf("client interceptor not called")
 	}
 }
 
