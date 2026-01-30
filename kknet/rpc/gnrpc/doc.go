@@ -2,6 +2,8 @@ package gnrpc
 
 /**
 基于gnet实现的grpc网络库。仿grpc
+目标是建立点对点的rpc调用：网关<->逻辑服、网关<->网关、逻辑服<->逻辑服。
+不配服务发现，集群式的调用直接用nats即可。
 
 gnet: 是一个高性能的网络库，支持TCP和UDP协议。
 地址: https://github.com/panjf2000/gnet
