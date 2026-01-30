@@ -85,3 +85,13 @@ func (c *Client) InvokeProtoService(ctx context.Context, service, method string,
 	return c.InvokeProtoWithOptions(ctx, FullMethodName(service, method), req, resp, opts...)
 }
 
+// InvokeServiceNoResponse calls "/service/method" without waiting for response.
+func (c *Client) InvokeServiceNoResponse(ctx context.Context, service, method string, req []byte, opts ...CallOption) error {
+	return c.InvokeNoResponse(ctx, FullMethodName(service, method), req, opts...)
+}
+
+// InvokeProtoServiceNoResponse calls "/service/method" without waiting for response.
+func (c *Client) InvokeProtoServiceNoResponse(ctx context.Context, service, method string, req proto.Message, opts ...CallOption) error {
+	return c.InvokeProtoNoResponse(ctx, FullMethodName(service, method), req, opts...)
+}
+

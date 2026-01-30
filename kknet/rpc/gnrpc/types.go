@@ -13,6 +13,8 @@ const (
 	FrameTypeUnknown  FrameType = 0
 	FrameTypeRequest  FrameType = 1
 	FrameTypeResponse FrameType = 2
+	// FrameTypeOneway is a fire-and-forget request which expects no response.
+	FrameTypeOneway FrameType = 3
 )
 
 // Frame is the wire message inside the stream packet body.

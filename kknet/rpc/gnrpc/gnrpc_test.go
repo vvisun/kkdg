@@ -248,3 +248,45 @@ func TestGNRPC_ServiceRegistration(t *testing.T) {
 	}
 }
 
+func TestGNRPC_InvokeNoResponse(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	done := make(chan string, 1)
+	svr := NewServer(addr)
+	svr.Register("oneway", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		done <- string(req)
+		return []byte("should-not-send"), nil
+	}))
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if err := cli.InvokeNoResponse(ctx, "oneway", []byte("ping")); err != nil {
+		t.Fatalf("InvokeNoResponse: %v", err)
+	}
+
+	select {
+	case v := <-done:
+		if v != "ping" {
+			t.Fatalf("unexpected payload: %q", v)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting for oneway handler")
+	}
+}
+

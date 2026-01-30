@@ -92,7 +92,10 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	if err := h.svr.codec.Unmarshal(msgBytes, &fr); err != nil {
 		return
 	}
-	if fr.T != FrameTypeRequest || fr.ID == 0 || fr.M == "" {
+	if (fr.T != FrameTypeRequest && fr.T != FrameTypeOneway) || fr.M == "" {
+		return
+	}
+	if fr.T == FrameTypeRequest && fr.ID == 0 {
 		return
 	}
 
@@ -110,6 +113,13 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	}
 	chained := chainServerInterceptors(h.svr.serverInterceptors, base, fr.M)
 	respPayload, callErr := chained(ctx, fr.P)
+	if fr.T == FrameTypeOneway {
+		// fire-and-forget: no response frame is sent.
+		if callErr != nil {
+			h.svr.opts.Logger.Errorf("gnrpc oneway %s error: %v", fr.M, callErr)
+		}
+		return
+	}
 
 	resp := Frame{
 		T:  FrameTypeResponse,

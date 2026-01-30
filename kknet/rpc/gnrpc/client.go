@@ -68,6 +68,28 @@ func (c *Client) UseInterceptor(interceptors ...UnaryClientInterceptor) {
 	}
 }
 
+// InvokeNoResponse performs a unary RPC call without waiting for response.
+// It is a fire-and-forget oneway request.
+func (c *Client) InvokeNoResponse(ctx context.Context, method string, req []byte, opts ...CallOption) error {
+	if method == "" {
+		return ErrInvalidFrame
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	cfg := applyCallOptions(opts)
+	var cancel context.CancelFunc
+	ctx, cancel = maybeApplyTimeout(ctx, cfg.timeout)
+	defer cancel()
+
+	inv := chainClientInterceptors(c.clientInterceptors, func(ctx context.Context, method string, req []byte) ([]byte, error) {
+		return nil, c.invokeOneway(ctx, method, req, cfg)
+	})
+	_, err := inv(ctx, method, req)
+	return err
+}
+
 func (c *Client) Connect() error {
 	return c.cli.Connect()
 }
@@ -210,6 +232,40 @@ func (c *Client) delPending(id uint64) {
 	delete(c.pending, id)
 	c.mu.Unlock()
 	_ = ch
+}
+
+func (c *Client) invokeOneway(ctx context.Context, method string, req []byte, cfg callConfig) error {
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return ErrClientClosed
+	}
+	c.mu.Unlock()
+
+	fr := Frame{
+		T:  FrameTypeOneway,
+		ID: 0,
+		M:  method,
+		DL: ctxDeadlineUnixMs(ctx),
+		P:  req,
+		H:  cfg.headers,
+	}
+	b, err := c.codec.Marshal(&fr)
+	if err != nil {
+		return err
+	}
+	bb, err := kkpacket.DefaultStreamPacket().Pack(b)
+	if err != nil {
+		return err
+	}
+	if err := c.cli.SendBuffer(bb); err != nil {
+		kkbuffer.Put(bb)
+		if errors.Is(err, kkerrors.ErrClientNotConnected) {
+			return ErrClientNotConnected
+		}
+		return err
+	}
+	return nil
 }
 
 type clientHandler struct {

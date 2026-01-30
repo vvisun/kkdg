@@ -71,3 +71,16 @@ func (c *Client) InvokeProtoWithOptions(ctx context.Context, method string, req 
 	return nil
 }
 
+// InvokeProtoNoResponse performs a protobuf unary call without waiting for response.
+func (c *Client) InvokeProtoNoResponse(ctx context.Context, method string, req proto.Message, opts ...CallOption) error {
+	var reqBytes []byte
+	if req != nil {
+		b, err := proto.Marshal(req)
+		if err != nil {
+			return err
+		}
+		reqBytes = b
+	}
+	return c.InvokeNoResponse(ctx, method, reqBytes, opts...)
+}
+
