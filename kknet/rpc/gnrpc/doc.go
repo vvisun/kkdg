@@ -9,5 +9,10 @@ gnet: 是一个高性能的网络库，支持TCP和UDP协议。
 grpc: 是一个高性能的rpc库。
 地址: https://github.com/grpc/grpc-go
 
+stub 生成器（生成类似 protoc-gen-go-grpc 的 Go 代码风格）：
+
+	# 从 spec.json 生成 stub
+	go run ./cmd/gnrpcstubgen -in ./kknet/rpc/gnrpc/stubgen/example_string_service.json -out ./proto/pbbase/string_service_gnrpc.pb.go
+
 
 */

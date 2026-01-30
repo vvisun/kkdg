@@ -1,0 +1,14 @@
+{
+  "package": "pbbase",
+  "outputFile": "string_service_gnrpc.pb.go",
+  "serviceName": "pbbase.StringService",
+  "goServiceName": "StringService",
+  "methods": [
+    {
+      "name": "Echo",
+      "request": "github.com/vvisun/kkdg/proto/pbbase.String",
+      "response": "github.com/vvisun/kkdg/proto/pbbase.String"
+    }
+  ]
+}
+
