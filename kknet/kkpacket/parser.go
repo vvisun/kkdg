@@ -10,10 +10,6 @@ import (
 	"github.com/vvisun/kkdg/utils/kkpool"
 )
 
-// message = head + body
-// head = msgID + seq + ...(optional)
-// body = object data
-
 const (
 	HeadTypeMid uint8 = iota
 	HeadTypeMidSeq
@@ -58,7 +54,15 @@ type MsgInfo struct {
 	Err   error
 }
 
-// 解析消息信息。二进制流--->[消息ID, 消息体]
+/*
+* 解析消息信息。
+
+	@param data []byte 包数据[message]
+	@param pkType *PacketCodec 包类型
+	@return MSGID 消息ID
+	@return []byte 消息体（object的二进制数据）
+	@return error 错误
+*/
 func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	headSize := GetHeadSize(pkType.headType)
 	if headSize < 0 {
@@ -83,12 +87,12 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 }
 
 /*
-解码包。二进制流[body]--->消息对象
+解码包。
 注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
 
-	@param data []byte 包数据[body]
+	@param data []byte 包数据[message]
 	@param pkType *PacketCodec 包类型
-	@return any 消息对象
+	@return any 消息对象（object）
 	@return error 错误
 */
 func DecodePacket(data []byte, pkType *PacketCodec) (any, error) {
@@ -117,11 +121,11 @@ func DecodePacket(data []byte, pkType *PacketCodec) (any, error) {
 }
 
 /*
-编码包。消息对象--->二进制流[body]
+编码包。
 
 	@param v *T 消息类型
 	@param pkType *PacketCodec 包类型
-	@return []byte 包数据[body]
+	@return []byte 包数据[message]
 	@return error 错误
 */
 func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
@@ -137,12 +141,12 @@ func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
 }
 
 /*
-编码包。消息对象--->二进制流[body]
+编码包。
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
-	@param v *T 消息类型
+	@param v *T 消息对象（object）
 	@param pkType *PacketCodec 包类型
-	@return buffers.IBuffer 包数据[body]
+	@return buffers.IBuffer 包数据[message]
 	@return error 错误
 */
 func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
@@ -193,12 +197,12 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 }
 
 /*
-编码包。消息对象--->二进制流[length,body]
+编码包。
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
-	@param v *T 消息类型
+	@param v *T 消息对象（object）
 	@param stream IStreamPacket 流包类型
-	@return buffers.IBuffer 包数据[length,body]
+	@return buffers.IBuffer 包数据[length,message]
 	@return error 错误
 */
 func EncodeStream[T any](v *T, stream IStreamPacket) (buffers.IBuffer, error) {
@@ -250,11 +254,11 @@ func EncodeStream[T any](v *T, stream IStreamPacket) (buffers.IBuffer, error) {
 
 /*
 *
-解码包。二进制流[length,body]--->消息对象
+解码包。
 
-	@param data []byte 包数据[length,body]
+	@param data []byte 包数据[length,message]
 	@param stream IStreamPacket 流包类型
-	@return any 消息对象
+	@return any 消息对象（object）
 	@return error 错误
 */
 func DecodeStream(data []byte, stream IStreamPacket) (any, error) {

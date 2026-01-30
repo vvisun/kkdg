@@ -17,54 +17,47 @@ type IStreamReader interface {
 	Next(n int) (buf []byte, err error)
 }
 
-// 消息结构：[length,data]。
-// length表示data的长度，占4个字节。
-// data是消息对象的二进制数据，可以通过message_parser解析为消息对象。
+// 消息结构：[length,message]。
+// length表示message的长度，占4个字节。
+// message是消息对象的二进制数据，可以通过message_parser解析为消息对象。
 type IStreamPacket interface {
-	// pack message to stream.
-	// input: [data].
-	// output: [length,data].
-	// @ return [length,data], err
-	// 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
-	Pack(data []byte) (buffers.IBuffer, error)
-
-	// unpack message from stream.
-	// input: [length,data].
-	// output: [data].
-	// @ return [data], ok, err
-	Unpack(data []byte) ([]byte, error)
-
-	// unpack message from stream.
-	// input: [length,data].
-	// output: [data].
-	// @ return [data], ok, err
-	UnpackFromSR(r IStreamReader) ([]byte, bool, error)
-
 	// get length field byte count. [length].
 	LengthFieldByteCount() int
 
-	// read head size from header.
-	// input: header [length].
-	// output: size, error
-	GetBodySize(header []byte) (int, error)
+	// get message packet.
+	GetMessagePacket() *PacketCodec
 
-	// write body size to header.
-	// input: header [length], size.
-	// output: none
+	// get byte count of message.
+	GetBodySize(data []byte) (int, error)
+
+	// write byte count of message to data.
 	writeBodySize(data []byte, size int)
 
 	// check packet is valid.
-	// input: [length,data].
+	// input: [length,message].
 	// output: error
 	CheckPacket(packet []byte) error
 
 	// check packet is valid.
-	// input: [length,data].
+	// input: [length,message].
 	// output: error
 	CheckPacketBuffer(buffer buffers.IBuffer) error
 
-	// get message packet.
-	GetMessagePacket() *PacketCodec
+	// pack message to stream.
+	// input: [message].
+	// output: [length,message].
+	// @ return [length,message], err
+	// 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
+	Pack(data []byte) (buffers.IBuffer, error)
+
+	// unpack message from stream.
+	// input: [length,message].
+	// output: [message].
+	// @ return [message], ok, err
+	Unpack(data []byte) ([]byte, error)
+
+	// 粘包拆包。return [length,message], ok, err
+	UnpackFromSR(r IStreamReader) ([]byte, bool, error)
 }
 
 // LengthFieldStreamPacket packs and unpacks 4-byte length-prefixed frames.
@@ -90,16 +83,16 @@ func (slf *LengthFieldStreamPacket) LengthFieldByteCount() int {
 	return slf.lengthFieldByteCount
 }
 
-// read head size from header.
-func (slf *LengthFieldStreamPacket) GetBodySize(header []byte) (int, error) {
-	if len(header) < slf.lengthFieldByteCount {
+// byte count of message.
+func (slf *LengthFieldStreamPacket) GetBodySize(data []byte) (int, error) {
+	if len(data) < slf.lengthFieldByteCount {
 		return 0, kkerrors.ErrDataTooShortToDecode
 	}
 	switch slf.lengthFieldByteCount {
 	case 4:
-		return int(GetByteOrder().Uint32(header)), nil
+		return int(GetByteOrder().Uint32(data)), nil
 	case 2:
-		return int(GetByteOrder().Uint16(header)), nil
+		return int(GetByteOrder().Uint16(data)), nil
 	default:
 		return 0, kkerrors.ErrInvalidLengthFieldByteCount
 	}
@@ -146,9 +139,9 @@ func (slf *LengthFieldStreamPacket) CheckPacketBuffer(buffer buffers.IBuffer) er
 }
 
 // pack message to stream.
-// input: [data].
-// output: [length,data].
-// @ return [length,data], err
+// input: [message].
+// output: [length,message].
+// @ return [length,message], err
 // 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 	if len(data) > DefaultMaxMessageSize()-slf.lengthFieldByteCount {
@@ -157,8 +150,9 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 
 	lengthFieldByteCount := slf.lengthFieldByteCount
 	dataLen := len(data)
-	bb := kkbuffer.GetWithCapacity(lengthFieldByteCount + dataLen)
-	bb.B = bb.B[:lengthFieldByteCount+dataLen]
+	totalLen := lengthFieldByteCount + dataLen
+	bb := kkbuffer.GetWithCapacity(totalLen)
+	bb.B = bb.B[:totalLen]
 	slf.writeBodySize(bb.B[:lengthFieldByteCount], dataLen)
 	copy(bb.B[lengthFieldByteCount:], data)
 
@@ -166,9 +160,9 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 }
 
 // unpack message from stream.
-// input: [length,data].
-// output: [data].
-// @ return [data], ok, err
+// input: [length,message].
+// output: [message].
+// @ return [message], ok, err
 func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
 	lengthFieldByteCount := slf.lengthFieldByteCount
 	if len(data) < lengthFieldByteCount {
@@ -185,10 +179,8 @@ func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
 	return data[lengthFieldByteCount:totalLen], nil
 }
 
-// unpack message from stream.
-// input: [length,data].
-// output: [data].
-// @ return [data], ok, err
+// 粘包拆包。
+// return [length,message], ok, err
 func (slf *LengthFieldStreamPacket) UnpackFromSR(r IStreamReader) ([]byte, bool, error) {
 	lengthFieldByteCount := slf.lengthFieldByteCount
 	if r.InboundBuffered() < lengthFieldByteCount {
