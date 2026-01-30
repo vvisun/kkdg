@@ -37,3 +37,25 @@ func TestGenerate_Basic(t *testing.T) {
 	}
 }
 
+func TestDefaultOutputFilename(t *testing.T) {
+	spec := Spec{
+		Package:      "pbbase",
+		ServiceName:  "pbbase.StringService",
+		GoServiceName: "StringService",
+		Methods: []MethodSpec{
+			{Name: "Echo", Request: "github.com/vvisun/kkdg/proto/pbbase.String", Response: "github.com/vvisun/kkdg/proto/pbbase.String"},
+		},
+	}
+	if got := DefaultOutputFilename(spec); got != "StringService_gnrpc.pb.go" {
+		t.Fatalf("got %q", got)
+	}
+	spec.GoServiceName = ""
+	if got := DefaultOutputFilename(spec); got != "StringService_gnrpc.pb.go" {
+		t.Fatalf("got %q", got)
+	}
+	spec.OutputFile = "custom.go"
+	if got := DefaultOutputFilename(spec); got != "custom.go" {
+		t.Fatalf("got %q", got)
+	}
+}
+
