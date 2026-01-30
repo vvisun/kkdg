@@ -59,3 +59,16 @@ func TestDefaultOutputFilename(t *testing.T) {
 	}
 }
 
+func TestDefaultOutputFilename_FromServiceName(t *testing.T) {
+	spec := Spec{
+		Package:     "x",
+		ServiceName: "a.b.CoolService",
+		Methods: []MethodSpec{
+			{Name: "Echo", Request: "github.com/vvisun/kkdg/proto/pbbase.String", Response: "github.com/vvisun/kkdg/proto/pbbase.String"},
+		},
+	}
+	if got := DefaultOutputFilename(spec); got != "CoolService_gnrpc.pb.go" {
+		t.Fatalf("got %q", got)
+	}
+}
+
