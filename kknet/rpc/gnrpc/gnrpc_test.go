@@ -2,6 +2,7 @@ package gnrpc
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"testing"
 	"time"
@@ -427,5 +428,211 @@ func TestGNRPC_OnewayPolicyDropOldest(t *testing.T) {
 		}
 	}
 	_ = got
+}
+
+func TestGNRPC_OnewayMethodRateLimit(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	svr.SetOnewayMethodConfig("rl", OnewayMethodConfig{
+		TokenBucketRate:  1, // 1 req/s
+		TokenBucketBurst: 1,
+	})
+	svr.Register("rl", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		_ = req
+		return nil, nil
+	}))
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	for i := 0; i < 50; i++ {
+		_ = cli.InvokeNoResponse(ctx, "rl", []byte("x"))
+	}
+
+	// wait for server to see some drops
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		st, ok := svr.GetOnewayMethodStats("rl")
+		if ok && st.RateLimited > 0 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	st, _ := svr.GetOnewayMethodStats("rl")
+	t.Fatalf("expected rate limited > 0, got %+v", st)
+}
+
+func TestGNRPC_OnewayMethodBreaker(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	svr.SetOnewayMethodConfig("brk", OnewayMethodConfig{
+		BreakerEnabled:      true,
+		BreakerTripFailures: 1,
+		BreakerCooldown:     5 * time.Second,
+	})
+	svr.Register("brk", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		_ = req
+		return nil, Status(CodeInternal, "fail")
+	}))
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// 1) Trigger at least one failure (breaker opens after first failure).
+	_ = cli.InvokeNoResponse(ctx, "brk", []byte("1"))
+
+	// wait until server processed/failure is observed, so breaker state is definitely updated
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		st, ok := svr.GetOnewayMethodStats("brk")
+		if ok && st.Failed >= 1 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// 2) Flood more calls; after breaker opens, some should be rejected.
+	for i := 0; i < 50; i++ {
+		_ = cli.InvokeNoResponse(ctx, "brk", []byte("x"))
+	}
+
+	deadline2 := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline2) {
+		st, ok := svr.GetOnewayMethodStats("brk")
+		if ok && st.BreakerOpen > 0 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	st, _ := svr.GetOnewayMethodStats("brk")
+	t.Fatalf("expected breaker open > 0, got %+v", st)
+}
+
+func TestGNRPC_RequestMethodRateLimit_Status(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	svr.SetOnewayMethodConfig("req_rl", OnewayMethodConfig{
+		TokenBucketRate:  1,
+		TokenBucketBurst: 1,
+	})
+	svr.Register("req_rl", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		return req, nil
+	}))
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err = cli.Invoke(ctx, "req_rl", []byte("a"))
+	if err != nil {
+		t.Fatalf("first invoke err: %v", err)
+	}
+	_, err = cli.Invoke(ctx, "req_rl", []byte("b"))
+	if err == nil {
+		t.Fatalf("expected rate limited error")
+	}
+	var se StatusError
+	if !errors.As(err, &se) {
+		t.Fatalf("expected StatusError, got %T", err)
+	}
+	if se.Code != CodeResourceExhausted {
+		t.Fatalf("expected CodeResourceExhausted, got %v", se.Code)
+	}
+}
+
+func TestGNRPC_RequestMethodBreaker_Status(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	svr.SetOnewayMethodConfig("req_brk", OnewayMethodConfig{
+		BreakerEnabled:      true,
+		BreakerTripFailures: 1,
+		BreakerCooldown:     5 * time.Second,
+	})
+	svr.Register("req_brk", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		_ = req
+		return nil, Status(CodeInternal, "boom")
+	}))
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err = cli.Invoke(ctx, "req_brk", []byte("a"))
+	if err == nil {
+		t.Fatalf("expected internal error")
+	}
+	// second should be rejected with unavailable
+	_, err = cli.Invoke(ctx, "req_brk", []byte("b"))
+	if err == nil {
+		t.Fatalf("expected breaker open error")
+	}
+	var se StatusError
+	if !errors.As(err, &se) {
+		t.Fatalf("expected StatusError, got %T", err)
+	}
+	if se.Code != CodeUnavailable {
+		t.Fatalf("expected CodeUnavailable, got %v", se.Code)
+	}
 }
 

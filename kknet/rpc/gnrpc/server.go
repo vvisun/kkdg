@@ -2,6 +2,7 @@ package gnrpc
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -33,6 +34,8 @@ type Server struct {
 
 	onewayPolicy       OnewayDropPolicy
 	onewayBlockTimeout time.Duration
+
+	onewayMethods sync.Map // method(string) -> *methodOnewayState
 }
 
 // NewServer creates a new RPC server.
@@ -62,6 +65,36 @@ func (s *Server) OnewayStats() OnewayStats {
 		Dropped:   s.onewayDrop.Load(),
 		Processed: s.onewayProc.Load(),
 	}
+}
+
+// SetOnewayMethodConfig sets per-method rate limit / breaker / in-flight limit.
+func (s *Server) SetOnewayMethodConfig(method string, cfg OnewayMethodConfig) {
+	if method == "" {
+		return
+	}
+	v, _ := s.onewayMethods.LoadOrStore(method, &methodOnewayState{})
+	st := v.(*methodOnewayState)
+	st.setConfig(cfg)
+}
+
+// GetOnewayMethodStats returns stats for a single method.
+func (s *Server) GetOnewayMethodStats(method string) (OnewayMethodStats, bool) {
+	v, ok := s.onewayMethods.Load(method)
+	if !ok {
+		return OnewayMethodStats{}, false
+	}
+	return v.(*methodOnewayState).snapshot(method), true
+}
+
+// GetAllOnewayMethodStats returns stats for all configured methods (and any methods seen).
+func (s *Server) GetAllOnewayMethodStats() map[string]OnewayMethodStats {
+	out := make(map[string]OnewayMethodStats)
+	s.onewayMethods.Range(func(k, v any) bool {
+		method := k.(string)
+		out[method] = v.(*methodOnewayState).snapshot(method)
+		return true
+	})
+	return out
 }
 
 // OnewayDropPolicy defines behavior when async oneway queue is full.
@@ -188,6 +221,28 @@ type serverHandler struct {
 
 func (h *serverHandler) OnConnect(_ kknet.IConn) {}
 
+func rejectReasonToStatus(reason string) error {
+	switch reason {
+	case "rate", "inflight":
+		return Status(CodeResourceExhausted, reason)
+	case "breaker":
+		return Status(CodeUnavailable, reason)
+	default:
+		return Status(CodeUnavailable, "rejected")
+	}
+}
+
+func (h *serverHandler) getMethodState(method string) *methodOnewayState {
+	if method == "" {
+		return nil
+	}
+	if v, ok := h.svr.onewayMethods.Load(method); ok {
+		return v.(*methodOnewayState)
+	}
+	v, _ := h.svr.onewayMethods.LoadOrStore(method, &methodOnewayState{})
+	return v.(*methodOnewayState)
+}
+
 func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	if data == nil || len(data.Bytes()) == 0 {
 		return
@@ -217,40 +272,87 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	}
 	// Prepare response metadata container.
 	ctx, meta := withServerMeta(ctx)
+	// NOTE: for any early-return after this point (incl. limiter rejects),
+	// we must ensure method inFlight is released via ms.onProcessed/onDropped.
 	// Apply server interceptor chain.
 	base := func(ctx context.Context, req []byte) ([]byte, error) {
 		return h.svr.router.Call(ctx, fr.M, req)
 	}
 	chained := chainServerInterceptors(h.svr.serverInterceptors, base, fr.M)
+
+	// method-level control (applies to both request & oneway)
+	ms := h.getMethodState(fr.M)
+	acquired := false
+	if ms != nil {
+		if ok, reason := ms.tryAcquire(); !ok {
+			// tryAcquire only increments inFlight on success.
+			if fr.T == FrameTypeOneway {
+				h.svr.onewayDrop.Add(1)
+				if reason != "" {
+					h.svr.opts.Logger.Warnf("gnrpc oneway rejected (%s): %s", reason, fr.M)
+				}
+				return
+			}
+			callErr := rejectReasonToStatus(reason)
+			resp := Frame{
+				T:    FrameTypeResponse,
+				ID:   fr.ID,
+				RH:   meta.headers,
+				RT:   meta.trailers,
+				Code: int32(CodeOf(callErr)),
+				Err:  MsgOf(callErr),
+			}
+			b, err := h.svr.codec.Marshal(&resp)
+			if err != nil {
+				return
+			}
+			bb, err := kkpacket.DefaultStreamPacket().Pack(b)
+			if err != nil {
+				return
+			}
+			if err := c.SendBuffer(bb); err != nil {
+				kkbuffer.Put(bb)
+			}
+			return
+		}
+		acquired = true
+	}
 	if fr.T == FrameTypeOneway {
 		// fire-and-forget: no response frame is sent.
-		run := func() {
+		run := func() error {
 			_, callErr := chained(ctx, fr.P)
 			if callErr != nil {
 				h.svr.opts.Logger.Errorf("gnrpc oneway %s error: %v", fr.M, callErr)
 			}
+			return callErr
 		}
 
 		// async mode if enabled
 		if q := h.svr.onewayQueue; q != nil {
-			task := onewayTask{fn: run}
+			task := onewayTask{method: fr.M, state: ms, fn: run}
 			switch h.svr.onewayPolicy {
 			case OnewayDropOldest:
 				// try enqueue; if full, drop one queued then retry once.
 				select {
 				case q <- task:
 					h.svr.onewayEnq.Add(1)
+					ms.onEnqueued()
 				default:
 					select {
-					case <-q:
+					case old := <-q:
 						h.svr.onewayDrop.Add(1)
+						if old.state != nil {
+							old.state.onDropped()
+						}
 					default:
 					}
 					select {
 					case q <- task:
 						h.svr.onewayEnq.Add(1)
+						ms.onEnqueued()
 					default:
 						h.svr.onewayDrop.Add(1)
+						ms.onDropped()
 						h.svr.opts.Logger.Warnf("gnrpc oneway dropped (queue full): %s", fr.M)
 					}
 				}
@@ -279,8 +381,10 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 				select {
 				case q <- task:
 					h.svr.onewayEnq.Add(1)
+					ms.onEnqueued()
 				case <-timer.C:
 					h.svr.onewayDrop.Add(1)
+					ms.onDropped()
 					h.svr.opts.Logger.Warnf("gnrpc oneway dropped (block timeout): %s", fr.M)
 				}
 				return
@@ -288,8 +392,10 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 				select {
 				case q <- task:
 					h.svr.onewayEnq.Add(1)
+					ms.onEnqueued()
 				default:
 					h.svr.onewayDrop.Add(1)
+					ms.onDropped()
 					h.svr.opts.Logger.Warnf("gnrpc oneway dropped (queue full): %s", fr.M)
 				}
 				return
@@ -297,10 +403,18 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 		}
 
 		// inline mode
-		run()
+		callErr := run()
+		if acquired && ms != nil {
+			ms.onProcessed(callErr)
+		}
+		h.svr.onewayProc.Add(1)
 		return
 	}
+
 	respPayload, callErr := chained(ctx, fr.P)
+	if acquired && ms != nil {
+		ms.onProcessed(callErr)
+	}
 
 	resp := Frame{
 		T:  FrameTypeResponse,
@@ -335,12 +449,18 @@ func UnaryHandler(fn func(ctx context.Context, req []byte) ([]byte, error)) Hand
 }
 
 type onewayTask struct {
-	fn func()
+	method string
+	state  *methodOnewayState
+	fn     func() error
 }
 
 func (t onewayTask) run() {
+	var err error
 	if t.fn != nil {
-		t.fn()
+		err = t.fn()
+	}
+	if t.state != nil {
+		t.state.onProcessed(err)
 	}
 }
 
