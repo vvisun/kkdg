@@ -290,3 +290,57 @@ func TestGNRPC_InvokeNoResponse(t *testing.T) {
 	}
 }
 
+func TestGNRPC_OnewayAsyncQueueDrop(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	block := make(chan struct{})
+	svr := NewServer(addr)
+	svr.EnableOnewayAsync(1, 1) // 1 worker, queue size 1
+	svr.Register("oneway_slow", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		_ = req
+		<-block // block worker
+		return nil, nil
+	}))
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer func() {
+		close(block)
+		_ = svr.Stop()
+	}()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// flood to increase chance of queue full before worker drains
+	for i := 0; i < 200; i++ {
+		_ = cli.InvokeNoResponse(ctx, "oneway_slow", []byte("x"))
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		st := svr.OnewayStats()
+		if st.Enqueued > 0 || st.Dropped > 0 {
+			if st.Dropped == 0 {
+				// keep waiting for drops to appear
+				time.Sleep(20 * time.Millisecond)
+				continue
+			}
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected dropped > 0, got %+v", svr.OnewayStats())
+}
+
