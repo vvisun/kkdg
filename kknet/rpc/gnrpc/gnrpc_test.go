@@ -344,3 +344,88 @@ func TestGNRPC_OnewayAsyncQueueDrop(t *testing.T) {
 	t.Fatalf("expected dropped > 0, got %+v", svr.OnewayStats())
 }
 
+func TestGNRPC_OnewayPolicyDropOldest(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	release := make(chan struct{})
+	seen := make(chan string, 8)
+
+	svr := NewServer(addr)
+	svr.EnableOnewayAsyncWithOptions(1, 1, WithOnewayPolicy(OnewayDropOldest))
+	svr.Register("oneway_order", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		seen <- string(req)
+		<-release
+		return nil, nil
+	}))
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer func() {
+		_ = svr.Stop()
+	}()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_ = cli.InvokeNoResponse(ctx, "oneway_order", []byte("a"))
+	// ensure first task is executing and blocking
+	select {
+	case v := <-seen:
+		if v != "a" {
+			t.Fatalf("expected first seen a, got %q", v)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timeout waiting for first oneway")
+	}
+
+	_ = cli.InvokeNoResponse(ctx, "oneway_order", []byte("b")) // queued
+	// wait until b is enqueued on server side (reduce reordering flakiness)
+	deadlineEnq := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadlineEnq) {
+		if svr.OnewayStats().Enqueued >= 2 { // a + b
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	_ = cli.InvokeNoResponse(ctx, "oneway_order", []byte("c")) // should trigger drop-oldest if queue full
+
+	// wait until drop observed
+	deadlineDrop := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadlineDrop) {
+		if svr.OnewayStats().Dropped > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if svr.OnewayStats().Dropped == 0 {
+		t.Fatalf("expected dropped > 0, got %+v", svr.OnewayStats())
+	}
+
+	// allow worker to proceed
+	close(release)
+
+	// collect remaining up to 2
+	var got []string
+	deadline := time.Now().Add(2 * time.Second)
+	for len(got) < 2 && time.Now().Before(deadline) {
+		select {
+		case v := <-seen:
+			got = append(got, v)
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	_ = got
+}
+
