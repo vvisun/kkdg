@@ -167,6 +167,29 @@ func (c *Client) invokeRaw(ctx context.Context, method string, req []byte, cfg c
 		if resp.T != FrameTypeResponse || resp.ID != id {
 			return nil, ErrInvalidFrame
 		}
+		// capture response metadata if requested
+		if cfg.respHeaders != nil {
+			if resp.RH == nil {
+				*cfg.respHeaders = nil
+			} else {
+				md := make(MD, len(resp.RH))
+				for k, v := range resp.RH {
+					md[k] = v
+				}
+				*cfg.respHeaders = md
+			}
+		}
+		if cfg.respTrailers != nil {
+			if resp.RT == nil {
+				*cfg.respTrailers = nil
+			} else {
+				md := make(MD, len(resp.RT))
+				for k, v := range resp.RT {
+					md[k] = v
+				}
+				*cfg.respTrailers = md
+			}
+		}
 		if resp.Code != 0 {
 			return nil, Status(Code(resp.Code), resp.Err)
 		}

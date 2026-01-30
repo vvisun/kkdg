@@ -150,3 +150,54 @@ func TestGNRPC_MetadataHeader(t *testing.T) {
 	}
 }
 
+func TestGNRPC_ResponseHeaderTrailer(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	svr.RegisterProto("pbbase.String/meta", func() proto.Message { return &pbbase.String{} }, func(ctx context.Context, req proto.Message) (proto.Message, error) {
+		_ = req
+		SetHeader(ctx, "x-h", "hv")
+		SetTrailer(ctx, "x-t", "tv")
+		return &pbbase.String{Value: "ok"}, nil
+	})
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	var rh, rt MD
+	var out pbbase.String
+	if err := cli.InvokeProtoWithOptions(
+		ctx,
+		"pbbase.String/meta",
+		&pbbase.String{Value: "x"},
+		&out,
+		WithResponseHeaders(&rh),
+		WithResponseTrailers(&rt),
+	); err != nil {
+		t.Fatalf("invoke: %v", err)
+	}
+	if out.Value != "ok" {
+		t.Fatalf("unexpected resp: %q", out.Value)
+	}
+	if rh["x-h"] != "hv" {
+		t.Fatalf("bad resp header: %#v", rh)
+	}
+	if rt["x-t"] != "tv" {
+		t.Fatalf("bad resp trailer: %#v", rt)
+	}
+}
+

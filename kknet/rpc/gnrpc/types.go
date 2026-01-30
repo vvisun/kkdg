@@ -29,6 +29,10 @@ type Frame struct {
 	// H is request headers (metadata). Optional.
 	H map[string]string `json:"h,omitempty" msgpack:"h"`
 
+	// RH/RT are response headers/trailers (metadata). Optional.
+	RH map[string]string `json:"rh,omitempty" msgpack:"rh"`
+	RT map[string]string `json:"rt,omitempty" msgpack:"rt"`
+
 	Code int32  `json:"c,omitempty" msgpack:"c"` // status code (0 ok)
 	Err  string `json:"e,omitempty" msgpack:"e"` // error message
 }

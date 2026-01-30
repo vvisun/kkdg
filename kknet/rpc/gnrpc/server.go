@@ -102,6 +102,8 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	if fr.H != nil {
 		ctx = NewIncomingContext(ctx, MD(fr.H))
 	}
+	// Prepare response metadata container.
+	ctx, meta := withServerMeta(ctx)
 	// Apply server interceptor chain.
 	base := func(ctx context.Context, req []byte) ([]byte, error) {
 		return h.svr.router.Call(ctx, fr.M, req)
@@ -113,6 +115,8 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 		T:  FrameTypeResponse,
 		ID: fr.ID,
 		P:  respPayload,
+		RH: meta.headers,
+		RT: meta.trailers,
 	}
 	if callErr != nil {
 		resp.Code = int32(CodeOf(callErr))
