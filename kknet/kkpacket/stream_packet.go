@@ -53,7 +53,7 @@ type IStreamPacket interface {
 	// unpack message from stream.
 	// input: [length,message].
 	// output: [message].
-	// @ return [message], ok, err
+	// @ return [message], err
 	Unpack(data []byte) ([]byte, error)
 
 	// 粘包拆包。return [length,message], ok, err
@@ -162,7 +162,7 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 // unpack message from stream.
 // input: [length,message].
 // output: [message].
-// @ return [message], ok, err
+// @ return [message], err
 func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
 	lengthFieldByteCount := slf.lengthFieldByteCount
 	if len(data) < lengthFieldByteCount {

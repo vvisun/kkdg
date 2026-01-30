@@ -41,12 +41,28 @@ func startTestWSServer(t *testing.T) (wsURL string, recv <-chan []byte, closeFn 
 				if mt != websocket.BinaryMessage {
 					continue
 				}
-				cp := make([]byte, len(data))
-				copy(cp, data)
-				select {
-				case recvCh <- cp:
-				default:
-					// avoid blocking server read loop
+				// One ws message may contain multiple stream packets: [len,msg][len,msg]...
+				pos := 0
+				for pos < len(data) {
+					if len(data)-pos < kkpacket.DefaultStreamPacket().LengthFieldByteCount() {
+						break
+					}
+					size, err := kkpacket.DefaultStreamPacket().GetBodySize(data[pos:])
+					if err != nil {
+						break
+					}
+					totalLen := kkpacket.DefaultStreamPacket().LengthFieldByteCount() + size
+					if len(data)-pos < totalLen {
+						break
+					}
+					cp := make([]byte, totalLen)
+					copy(cp, data[pos:pos+totalLen])
+					select {
+					case recvCh <- cp:
+					default:
+						// avoid blocking server read loop
+					}
+					pos += totalLen
 				}
 			}
 		}()
@@ -230,11 +246,21 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 			defer func() { _ = conn.Close() }()
 			_, data, err := conn.ReadMessage()
 			if err == nil {
-				cp := make([]byte, len(data))
-				copy(cp, data)
-				select {
-				case recvCh <- cp:
-				default:
+				// Split packets in first ws message and forward the first packet (if any).
+				pos := 0
+				if len(data) >= kkpacket.DefaultStreamPacket().LengthFieldByteCount() {
+					size, e := kkpacket.DefaultStreamPacket().GetBodySize(data[pos:])
+					if e == nil {
+						totalLen := kkpacket.DefaultStreamPacket().LengthFieldByteCount() + size
+						if len(data) >= totalLen {
+							cp := make([]byte, totalLen)
+							copy(cp, data[:totalLen])
+							select {
+							case recvCh <- cp:
+							default:
+							}
+						}
+					}
 				}
 			}
 			// close immediately

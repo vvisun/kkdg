@@ -181,15 +181,42 @@ func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 		if err != nil {
 			return err
 		}
+
+		dataLen := len(data)
 		if c.stats != nil {
-			c.stats.AddRecv(len(data))
+			c.stats.AddRecv(dataLen)
 		}
 
 		if dispatch != nil {
-			dataCpy := kkbuffer.GetWithCapacity(len(data))
-			dataCpy.B = dataCpy.B[:len(data)]
-			copy(dataCpy.B, data)
-			dispatch(c, dataCpy)
+			pos := 0
+			for {
+				if pos >= dataLen {
+					break
+				}
+				lengthFieldByteCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
+				if dataLen-pos < lengthFieldByteCount {
+					break
+				}
+				messageSize, err := kkpacket.DefaultStreamPacket().GetBodySize(data[pos:])
+				totalLen := lengthFieldByteCount + messageSize
+				if dataLen-pos < totalLen {
+					break
+				}
+				if err != nil {
+					if c.stats != nil {
+						c.stats.AddError()
+					}
+					return err
+				}
+				dataCpy := kkbuffer.GetWithCapacity(totalLen)
+				dataCpy.B = dataCpy.B[:totalLen]
+				copy(dataCpy.B, data[pos:pos+totalLen])
+				dispatch(c, dataCpy)
+				pos += totalLen
+				if pos >= dataLen {
+					break
+				}
+			}
 		}
 	}
 }
@@ -222,6 +249,8 @@ func (c *wsConn) releaseBatch(n int) {
 
 func (c *wsConn) writeLoop() {
 	defer close(c.writeDone)
+
+	batchBytes := make([]byte, 0, c.opts.WriteBufferSize)
 
 	for {
 		select {
@@ -264,31 +293,19 @@ func (c *wsConn) writeLoop() {
 				}
 			}
 
-			var writeErr error
+			batchBytes = batchBytes[:0]
 			for i := 0; i < n; i++ {
 				bb := c.batchBuffer[i]
 				c.batchBuffer[i] = nil
 				if bb == nil {
 					continue
 				}
-
-				if err := c.conn.WriteMessage(websocket.BinaryMessage, bb.B); err != nil {
-					writeErr = err
-					kkbuffer.Put(bb)
-					// i 后面已经 Pop 出来的 bb 也必须回收
-					for j := i + 1; j < n; j++ {
-						bbj := c.batchBuffer[j]
-						c.batchBuffer[j] = nil
-						if bbj != nil {
-							kkbuffer.Put(bbj)
-						}
-					}
-					break
-				}
-				if c.stats != nil {
-					c.stats.AddSent(len(bb.B))
-				}
+				batchBytes = append(batchBytes, bb.B...)
 				kkbuffer.Put(bb)
+			}
+			var writeErr error
+			if err := c.conn.WriteMessage(websocket.BinaryMessage, batchBytes); err != nil {
+				writeErr = err
 			}
 			c.writeMu.Unlock()
 
@@ -300,6 +317,8 @@ func (c *wsConn) writeLoop() {
 				c.drainSendQueueRelease()
 				_ = c.conn.Close()
 				return
+			} else if c.stats != nil {
+				c.stats.AddSent(len(batchBytes))
 			}
 		}
 	}
