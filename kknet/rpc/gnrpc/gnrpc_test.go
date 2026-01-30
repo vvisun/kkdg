@@ -79,7 +79,7 @@ func TestGNRPC_InterceptorAndProto(t *testing.T) {
 
 	cli := NewClient(addr)
 	var clientInterceptorCalled bool
-	cli.UseInterceptor(func(ctx context.Context, method string, req []byte, invoker Invoker) ([]byte, error) {
+	cli.UseInterceptor(func(ctx context.Context, method string, req []byte, invoker UnaryInvoker) ([]byte, error) {
 		clientInterceptorCalled = true
 		if method == "" {
 			t.Fatalf("empty method")
@@ -686,6 +686,74 @@ func TestGNRPC_Bidirectional_ServerInvokeClient(t *testing.T) {
 	}
 	if string(resp) != "c:hi" {
 		t.Fatalf("unexpected resp: %q", string(resp))
+	}
+}
+
+func TestGNRPC_InvokerAdapters(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	// server handles normal client -> server invoke
+	svr := NewServer(addr)
+	svr.Register("svc.echo", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		return append([]byte("s:"), req...), nil
+	}))
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	cli.Register("client.echo", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		return append([]byte("c:"), req...), nil
+	}))
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// ClientInvoker
+	var inv Invoker = ClientInvoker{C: cli}
+	b, err := inv.Invoke(ctx, "svc.echo", []byte("hi"))
+	if err != nil {
+		t.Fatalf("clientinv Invoke: %v", err)
+	}
+	if string(b) != "s:hi" {
+		t.Fatalf("unexpected: %q", string(b))
+	}
+
+	// ConnInvoker
+	var connID int64
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		for id := range svr.GetConnManager().GetAllConns() {
+			connID = id
+			break
+		}
+		if connID != 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if connID == 0 {
+		t.Fatalf("no conn on server")
+	}
+
+	var inv2 Invoker = ConnInvoker{S: svr, ConnID: connID}
+	b, err = inv2.Invoke(ctx, "client.echo", []byte("hi"))
+	if err != nil {
+		t.Fatalf("conninv Invoke: %v", err)
+	}
+	if string(b) != "c:hi" {
+		t.Fatalf("unexpected: %q", string(b))
 	}
 }
 

@@ -7,10 +7,10 @@ import "context"
 type UnaryServerInterceptor func(ctx context.Context, method string, req []byte, handler Handler) ([]byte, error)
 
 // UnaryClientInterceptor intercepts client-side unary calls.
-type UnaryClientInterceptor func(ctx context.Context, method string, req []byte, invoker Invoker) ([]byte, error)
+type UnaryClientInterceptor func(ctx context.Context, method string, req []byte, invoker UnaryInvoker) ([]byte, error)
 
-// Invoker performs the actual RPC call on client.
-type Invoker func(ctx context.Context, method string, req []byte) ([]byte, error)
+// UnaryInvoker performs the actual unary RPC call on client.
+type UnaryInvoker func(ctx context.Context, method string, req []byte) ([]byte, error)
 
 func chainServerInterceptors(interceptors []UnaryServerInterceptor, final Handler, method string) Handler {
 	if len(interceptors) == 0 {
@@ -27,7 +27,7 @@ func chainServerInterceptors(interceptors []UnaryServerInterceptor, final Handle
 	return h
 }
 
-func chainClientInterceptors(interceptors []UnaryClientInterceptor, inv Invoker) Invoker {
+func chainClientInterceptors(interceptors []UnaryClientInterceptor, inv UnaryInvoker) UnaryInvoker {
 	if len(interceptors) == 0 {
 		return inv
 	}
