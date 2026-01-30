@@ -178,11 +178,11 @@ func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	lastIndex := lengthFieldByteCount + size
-	if len(data) < lastIndex {
-		return nil, kkerrors.ErrDataTooShortToDecode
+	totalLen := lengthFieldByteCount + size
+	if len(data) < totalLen {
+		return nil, kkerrors.ErrInvalidPacket
 	}
-	return data[lengthFieldByteCount:lastIndex], nil
+	return data[lengthFieldByteCount:totalLen], nil
 }
 
 // unpack message from stream.
@@ -205,11 +205,12 @@ func (slf *LengthFieldStreamPacket) UnpackFromSR(r IStreamReader) ([]byte, bool,
 	if err != nil {
 		return nil, false, err
 	}
-	if r.InboundBuffered() < lengthFieldByteCount+size {
+	totalLen := lengthFieldByteCount + size
+	if r.InboundBuffered() < totalLen {
 		return nil, false, nil
 	}
-	_, _ = r.Discard(lengthFieldByteCount)
-	data, err := r.Next(size)
+	// _, _ = r.Discard(lengthFieldByteCount)
+	data, err := r.Next(totalLen)
 	if err != nil {
 		return nil, false, err
 	}

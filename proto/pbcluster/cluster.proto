@@ -4,51 +4,51 @@ option go_package = ".;pbcluster";
 
 // member data
 message Member {
-	string              nodeID = 1;           // node id
-	string              nodeType = 2;         // node type
-	string              address = 3;          // rpc ip address
-	map<string, string> settings = 4;         // node settings data
-	int64               lastAt = 5;           // last check time
-	int64               heartbeatTimeout = 6; // The heartbeat timeout period (in milliseconds) for custom node configuration
+	string              NodeID = 1;           // node id
+	string              NodeType = 2;         // node type
+	string              Address = 3;          // rpc ip address
+	map<string, string> Settings = 4;         // node settings data
+	int64               LastAt = 5;           // last check time
+	int64               HeartbeatTimeout = 6; // The heartbeat timeout period (in milliseconds) for custom node configuration
 }
 
 // member list data
 message MemberList {
-	repeated Member list = 1;
+	repeated Member List = 1;
 }
 
 message DiscoveryRequest {
-	string requesterID = 1;
+	string RequesterID = 1;
 }
 
 
 
 message ClusterPacket {
-	int64  buildTime = 1; //构建时间（毫秒）
-	int64 Timeout = 2; // 函数请求超时时间(毫秒)
-	string sourcePath = 3; // 源节点路径
-	string targetPath = 4; // 目标节点路径
-	string funcName = 5; // 函数名
-	bytes argBytes = 6; // 函数参数
-	Session session = 7; // 会话(可选项，可以为空)
+	int64  BuildTime = 1; 	// 构建时间（毫秒）
+	int64 Timeout = 2; 		// 函数请求超时时间(毫秒)
+	string SourcePath = 3; 	// 源节点路径
+	string TargetPath = 4; 	// 目标节点路径
+	string FuncName = 5;	// 函数名
+	bytes Args = 6;			// 函数参数
+	Session Session = 7;	// 会话(可选项，可以为空)
 }
 
 message Session {
-	string sid = 1;                 // session unique id
-	int64 uid = 2;                  // user id
-	string agentPath = 3;           // frontend actor agent path
-	string ip = 4;                  // ip address
-	map<string, string> data = 7;   // extend data
+	string Sid = 1;				// session unique id
+	int64 Uid = 2;				// user id
+	string AgentPath = 3;		// frontend actor agent path
+	string Ip = 4;				// ip address
+	map<string, string> ExtendData = 5;   // extend data
 }
 
 message ClusterRequest {
-	string requestID = 1; // 请求id（自动生成）
-	string sourceNodeID = 2; // 源节点id
-	ClusterPacket packet = 3; // 消息包
+	string RequestID = 1;		// 请求id（自动生成）
+	string SourceNodeID = 2;	// 源节点id
+	ClusterPacket Packet = 3;	// 消息包
 }
 
 message ClusterResponse {
-	string requestID = 1; // 请求id（与请求消息的requestID相同）
-	int32 code = 2; // 错误码（ClusterErrorCode），0表示成功，其他表示失败
-	bytes data = 3; // 返回数据
+	string RequestID = 1;	// 请求id（与请求消息的requestID相同）
+	int32 Code = 2;			// 错误码（ClusterErrorCode），0表示成功，其他表示失败
+	bytes Data = 3;			// 返回数据
 }
