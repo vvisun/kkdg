@@ -6,40 +6,23 @@ option go_package = ".;pbmsg";
 
 // 用户信息
 message UserInfo {
-    int64 UserId = 1;   //用户ID
-    string Nick = 2;    //昵称
-    string HeadUrl = 3; //头像
-    int32 Sex = 4;      //性别
-    int32 Grade = 5;    //等级
-    int64 Exp = 6;      //经验
-    int64 Power = 7;    //战斗力
-    int32 Vip = 8;      //VIP等级
-    int64 Gold = 9;         //金币
-    int64 Diamond = 10;     //钻石
-    int64 Coin = 11;        //铜币
-	int64 RoomCard = 12; 	//体力
-	int32 AvatarId = 13;	//时装
-	int32 HeadFrame = 14;	//头像框
-}
-
-//玩家信息
-message SimpleUserInfo {
-    int64 UserId = 1;   //用户ID
-    string Nick = 2;    //昵称
-    string HeadUrl = 3; //头像
-    int32 Sex = 4;      //性别
-    int32 Grade = 5;    //等级
-    int64 Exp = 6;      //经验
-    int64 Power = 7;    //战斗力
-    int32 Vip = 8;      //VIP等级
-	int32 HeadFrame = 9;	//头像框
+    int64 UserId = 1;   	//用户ID
+    string Nick = 2;    	//昵称
+    string HeadUrl = 3; 	//头像
+    int32 Sex = 4;      	//性别
+    int32 Grade = 5;    	//等级
+    int64 Exp = 6;      	//经验
+    int64 Power = 7;    	//战斗力
+    int32 Vip = 8;      	//VIP等级
+	int32 AvatarId = 9;		//时装
+	int32 HeadFrame = 10;	//头像框
 }
 
 //时间信息
 message TimeInfo {
-	int64 Timestamp = 1;
-	int64 TotalMS = 2;
-	int64 RemainMS = 3;
+	int64 Timestamp = 1; //时间戳
+	int64 TotalMS = 2; //总毫秒
+	int64 RemainMS = 3; //剩余毫秒
 }
 
 //属性信息

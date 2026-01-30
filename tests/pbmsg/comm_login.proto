@@ -28,7 +28,7 @@ message MsgNotifyLogout {
 }
 
 // 客户端登录网关
-message MsgLoginReq {
+message LoginReq {
     int64 UserId = 1;
     string Token  = 2;
     int32 ShowAreaId  = 3;
@@ -38,74 +38,10 @@ message MsgLoginReq {
 	string ChannePlat = 7;		//渠道码(平台id)
 	string ChannelUUID = 8;		//玩家渠道openid或UUID
 }
-message MsgLoginRes {
+message LoginRes {
     int32 Ret = 1;  // 0 成功
     int64 UserId = 2;
     string SessionId = 3;
     int64 ServerTime = 4;
     UserInfo UserInfo = 5;  //用户信息
-}
-
-//玩家信息查询
-message PlayerInfoReq {
-	int64 Uid = 1;
-	string Name = 2;
-}
-message PlayerInfoResp {
-	bool IsOnline = 1;
-	UserInfo Data = 2;
-}
-
-// 在线玩家列表
-message OnlinePlayersReq {
-}
-message OnlinePlayersResp {
-	repeated UserInfo DataArr = 1;
-}
-
-//存取保险柜
-message SafeBoxOpReq {
-	int32 OpType = 1; 		// 1:存 2:取
-	int64 Amount = 2;		//存取数额
-}
-message SafeBoxOpResp {
-	int32 OpType = 1; 		// 1:存 2:取
-	int64 Amount = 2;		//存取数额
-	UserInfo WalletData = 3; 	//存取完后的最新钱包信息
-}
-
-//切换头像
-message ChangeHeadReq {
-	int32 HeadId = 1;
-}
-message ChangeHeadResp {
-	int64 Uid = 1; 
-	int32 HeadId = 2;
-}
-
-//切换头像框
-message ChangeHeadFrameReq {
-	int32 HeadFrame = 1;
-}
-message ChangeHeadFrameResp {
-	int64 Uid = 1;
-	int32 HeadFrame = 2;
-}
-
-//切换皮肤
-message ChangeAvatarReq {
-	int32 AvatarId = 1;
-}
-message ChangeAvatarResp {
-	int64 Uid = 1;
-	int32 AvatarId = 2;
-}
-
-//切换昵称
-message ChangeNickReq {
-	string Nick = 1;
-}
-message ChangeNickResp {
-	int64 Uid = 1;
-	string Nick = 2;
 }
