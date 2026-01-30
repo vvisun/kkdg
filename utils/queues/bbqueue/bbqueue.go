@@ -74,6 +74,60 @@ func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {
 	return bb
 }
 
+// 批量弹出
+// count: 需要弹出的数量
+// recv: 接收缓冲区
+// 返回实际弹出的数量
+func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer) int {
+	if count <= 0 {
+		return 0
+	}
+	if q.count == 0 || len(recv) == 0 {
+		return 0
+	}
+	if count > len(recv) {
+		count = len(recv)
+	}
+	if count > q.count {
+		count = q.count
+	}
+
+	written := 0
+	remain := count
+
+	for remain > 0 {
+		chunk := q.head / bbQueueChunkSize
+		pos := q.head % bbQueueChunkSize
+
+		// 本chunk剩余连续段
+		n := bbQueueChunkSize - pos
+		if t := q.capacity - q.head; t < n { // 到buffer物理结尾（避免跨越capacity边界）
+			n = t
+		}
+		if remain < n {
+			n = remain
+		}
+
+		copy(recv[written:written+n], q.buf[chunk][pos:pos+n])
+		clear(q.buf[chunk][pos : pos+n])
+
+		written += n
+		remain -= n
+		q.count -= n
+
+		q.head += n
+		if q.head == q.capacity {
+			q.head = 0
+		}
+	}
+
+	if q.count == 0 {
+		q.head = 0
+		q.tail = 0
+	}
+	return written
+}
+
 // 扩容
 func (q *BBQueue) grow() {
 	oldCap := q.capacity

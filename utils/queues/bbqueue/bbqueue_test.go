@@ -195,3 +195,107 @@ func TestBBQueue_LenConsistency(t *testing.T) {
 		}
 	}
 }
+
+func TestBBQueue_PopMany_Basic(t *testing.T) {
+	q := NewBBQueue(8, false)
+	for i := 0; i < 10; i++ {
+		q.Push(makeBuf(fmt.Sprintf("%d", i)))
+	}
+
+	recv := make([]*kkbuffer.ByteBuffer, 5)
+	n := q.PopMany(5, recv)
+	if n != 5 {
+		t.Fatalf("PopMany() = %d, want 5", n)
+	}
+	for i := 0; i < n; i++ {
+		if recv[i] == nil {
+			t.Fatalf("recv[%d] is nil", i)
+		}
+		if recv[i].String() != fmt.Sprintf("%d", i) {
+			t.Fatalf("recv[%d] = %q, want %q", i, recv[i].String(), fmt.Sprintf("%d", i))
+		}
+		kkbuffer.Put(recv[i])
+		recv[i] = nil
+	}
+	if q.Len() != 5 {
+		t.Fatalf("Len() after PopMany = %d, want 5", q.Len())
+	}
+}
+
+func TestBBQueue_PopMany_Limits(t *testing.T) {
+	q := NewBBQueue(8, false)
+	for i := 0; i < 3; i++ {
+		q.Push(makeBuf(fmt.Sprintf("%d", i)))
+	}
+
+	recv := make([]*kkbuffer.ByteBuffer, 2)
+	n := q.PopMany(10, recv) // count > len(recv) and > Len()
+	if n != 2 {
+		t.Fatalf("PopMany(10, len=2) = %d, want 2", n)
+	}
+	for i := 0; i < n; i++ {
+		if recv[i] == nil {
+			t.Fatalf("recv[%d] is nil", i)
+		}
+		if recv[i].String() != fmt.Sprintf("%d", i) {
+			t.Fatalf("recv[%d] = %q, want %q", i, recv[i].String(), fmt.Sprintf("%d", i))
+		}
+		kkbuffer.Put(recv[i])
+	}
+	if q.Len() != 1 {
+		t.Fatalf("Len() after PopMany = %d, want 1", q.Len())
+	}
+	// 清空剩余
+	if bb := q.Pop(); bb != nil {
+		kkbuffer.Put(bb)
+	}
+}
+
+func TestBBQueue_PopMany_WrapAroundOrder(t *testing.T) {
+	q := NewBBQueue(8, false)
+	// 先填满
+	for i := 0; i < 8; i++ {
+		q.Push(makeBuf(fmt.Sprintf("%d", i)))
+	}
+	// 弹出6个，留下 6,7
+	for i := 0; i < 6; i++ {
+		bb := q.Pop()
+		if bb == nil || bb.String() != fmt.Sprintf("%d", i) {
+			t.Fatalf("Pop() = %v, want %d", bb, i)
+		}
+		kkbuffer.Put(bb)
+	}
+	// 再入6个，触发 tail 回绕，但不扩容
+	for i := 8; i < 14; i++ {
+		q.Push(makeBuf(fmt.Sprintf("%d", i)))
+	}
+	if q.Len() != 8 {
+		t.Fatalf("Len() = %d, want 8", q.Len())
+	}
+
+	recv := make([]*kkbuffer.ByteBuffer, 8)
+	n := q.PopMany(8, recv)
+	if n != 8 {
+		t.Fatalf("PopMany() = %d, want 8", n)
+	}
+	for i, want := 0, 6; i < n; i, want = i+1, want+1 {
+		if recv[i] == nil {
+			t.Fatalf("recv[%d] is nil", i)
+		}
+		if recv[i].String() != fmt.Sprintf("%d", want) {
+			t.Fatalf("recv[%d] = %q, want %q", i, recv[i].String(), fmt.Sprintf("%d", want))
+		}
+		kkbuffer.Put(recv[i])
+	}
+	if q.Len() != 0 {
+		t.Fatalf("Len() after PopMany = %d, want 0", q.Len())
+	}
+
+	// 空队列后 head/tail 应复位，继续可用
+	q.Push(makeBuf("again"))
+	bb := q.Pop()
+	if bb == nil || bb.String() != "again" {
+		t.Fatalf("after reset, Pop() = %v, want 'again'", bb)
+	}
+	kkbuffer.Put(bb)
+}
