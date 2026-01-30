@@ -218,11 +218,11 @@ func (h *wsEventHandler) handleData(wc *wsConn, hdr ws.Header, payload []byte) e
 			wc.state = wc.state.Set(ws.StateFragmented)
 			return wc.appendFragment(hdr.OpCode, payload)
 		}
-		msg := kkbuffer.GetWithCapacity(len(payload))
-		msg.B = msg.B[:len(payload)]
-		copy(msg.B, payload)
+		dataCpy := kkbuffer.GetWithCapacity(len(payload))
+		dataCpy.B = dataCpy.B[:len(payload)]
+		copy(dataCpy.B, payload)
 		h.server.stats.AddRecv(len(payload))
-		h.server.dispatch(wc, msg)
+		h.server.dispatch(wc, dataCpy)
 		return nil
 	case ws.OpContinuation:
 		if wc.fragBuf == nil {
@@ -232,10 +232,10 @@ func (h *wsEventHandler) handleData(wc *wsConn, hdr ws.Header, payload []byte) e
 			return err
 		}
 		if hdr.Fin {
-			msg := wc.takeFragment()
+			dataCpy := wc.takeFragment()
 			wc.state = wc.state.Clear(ws.StateFragmented)
-			h.server.stats.AddRecv(len(msg.B))
-			h.server.dispatch(wc, msg)
+			h.server.stats.AddRecv(len(dataCpy.B))
+			h.server.dispatch(wc, dataCpy)
 		}
 		return nil
 	default:

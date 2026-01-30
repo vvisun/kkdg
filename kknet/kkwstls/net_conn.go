@@ -224,51 +224,51 @@ func (c *netWSConn) readLoop(handleMessage func(buffers.IBuffer)) error {
 			return err
 		}
 
-		payload := kkbuffer.GetWithCapacity(int(hdr.Length))
-		payload.B = payload.B[:int(hdr.Length)]
-		if _, err := io.ReadFull(c.reader, payload.B); err != nil {
-			kkbuffer.Put(payload)
+		dataCpy := kkbuffer.GetWithCapacity(int(hdr.Length))
+		dataCpy.B = dataCpy.B[:int(hdr.Length)]
+		if _, err := io.ReadFull(c.reader, dataCpy.B); err != nil {
+			kkbuffer.Put(dataCpy)
 			return err
 		}
 		if hdr.Masked {
-			ws.Cipher(payload.B, hdr.Mask, 0)
+			ws.Cipher(dataCpy.B, hdr.Mask, 0)
 		}
 
 		if hdr.OpCode.IsControl() {
 			switch hdr.OpCode {
 			case ws.OpPing:
-				c.writeControl(ws.OpPong, payload.B)
+				c.writeControl(ws.OpPong, dataCpy.B)
 			case ws.OpPong:
 			case ws.OpClose:
-				c.writeControl(ws.OpClose, payload.B)
-				kkbuffer.Put(payload)
+				c.writeControl(ws.OpClose, dataCpy.B)
+				kkbuffer.Put(dataCpy)
 				return io.EOF
 			default:
-				kkbuffer.Put(payload)
+				kkbuffer.Put(dataCpy)
 				return ws.ErrProtocolOpCodeReserved
 			}
-			kkbuffer.Put(payload)
+			kkbuffer.Put(dataCpy)
 			continue
 		}
 
 		switch hdr.OpCode {
 		case ws.OpText, ws.OpBinary:
 			if !hdr.Fin {
-				if err := c.appendFragment(hdr.OpCode, payload); err != nil {
+				if err := c.appendFragment(hdr.OpCode, dataCpy); err != nil {
 					return err
 				}
 				continue
 			}
 			if c.stats != nil {
-				c.stats.AddRecv(len(payload.B))
+				c.stats.AddRecv(len(dataCpy.B))
 			}
-			handleMessage(payload)
+			handleMessage(dataCpy)
 		case ws.OpContinuation:
 			if c.fragBuf == nil {
-				kkbuffer.Put(payload)
+				kkbuffer.Put(dataCpy)
 				return ws.ErrProtocolContinuationUnexpected
 			}
-			if err := c.appendFragment(c.fragOp, payload); err != nil {
+			if err := c.appendFragment(c.fragOp, dataCpy); err != nil {
 				return err
 			}
 			if hdr.Fin {
@@ -279,7 +279,7 @@ func (c *netWSConn) readLoop(handleMessage func(buffers.IBuffer)) error {
 				handleMessage(msg)
 			}
 		default:
-			kkbuffer.Put(payload)
+			kkbuffer.Put(dataCpy)
 			return ws.ErrProtocolOpCodeReserved
 		}
 	}

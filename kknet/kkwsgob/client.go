@@ -454,16 +454,16 @@ func (h *wsClientEventHandler) handleData(cc *wsConn, hdr ws.Header, payload []b
 			cc.state = cc.state.Set(ws.StateFragmented)
 			return cc.appendFragment(hdr.OpCode, payload)
 		}
-		msg := kkbuffer.GetWithCapacity(len(payload))
-		msg.B = msg.B[:len(payload)]
-		copy(msg.B, payload)
+		dataCpy := kkbuffer.GetWithCapacity(len(payload))
+		dataCpy.B = dataCpy.B[:len(payload)]
+		copy(dataCpy.B, payload)
 		h.client.stats.AddRecv(len(payload))
 		if h.client.handler != nil {
 			kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "kkwsgob client OnMessage", func() {
-				h.client.handler.OnMessage(cc, msg)
+				h.client.handler.OnMessage(cc, dataCpy)
 			})
 		}
-		kkbuffer.Put(msg)
+		kkbuffer.Put(dataCpy)
 		return nil
 	case ws.OpContinuation:
 		if cc.fragBuf == nil {
@@ -473,15 +473,15 @@ func (h *wsClientEventHandler) handleData(cc *wsConn, hdr ws.Header, payload []b
 			return err
 		}
 		if hdr.Fin {
-			msg := cc.takeFragment()
+			dataCpy := cc.takeFragment()
 			cc.state = cc.state.Clear(ws.StateFragmented)
-			h.client.stats.AddRecv(len(msg.B))
+			h.client.stats.AddRecv(len(dataCpy.B))
 			if h.client.handler != nil {
 				kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "kkwsgob client OnMessage", func() {
-					h.client.handler.OnMessage(cc, msg)
+					h.client.handler.OnMessage(cc, dataCpy)
 				})
 			}
-			kkbuffer.Put(msg)
+			kkbuffer.Put(dataCpy)
 		}
 		return nil
 	default:

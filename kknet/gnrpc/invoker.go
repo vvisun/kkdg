@@ -52,4 +52,3 @@ func (i ConnInvoker) InvokeNoResponse(ctx context.Context, method string, req []
 	}
 	return i.S.InvokeConnNoResponse(ctx, i.ConnID, method, req, opts...)
 }
-

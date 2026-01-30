@@ -302,13 +302,13 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		}
 		h.client.stats.AddRecv(len(data))
 		if h.client.handler != nil {
-			payload := kkbuffer.GetWithCapacity(len(data))
-			payload.B = payload.B[:len(data)]
-			copy(payload.B, data)
+			dataCpy := kkbuffer.GetWithCapacity(len(data))
+			dataCpy.B = dataCpy.B[:len(data)]
+			copy(dataCpy.B, data)
 			kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnMessage", func() {
-				h.client.handler.OnMessage(cc, payload)
+				h.client.handler.OnMessage(cc, dataCpy)
 			})
-			kkbuffer.Put(payload)
+			kkbuffer.Put(dataCpy)
 		}
 	}
 }

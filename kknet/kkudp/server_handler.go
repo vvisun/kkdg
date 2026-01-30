@@ -40,10 +40,10 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	uc := h.server.newConn(c)
 	h.server.stats.AddRecv(len(data))
 	if h.server.handler != nil {
-		payload := kkbuffer.GetWithCapacity(len(data))
-		payload.B = payload.B[:len(data)]
-		copy(payload.B, data)
-		h.dispatch(uc, payload)
+		dataCpy := kkbuffer.GetWithCapacity(len(data))
+		dataCpy.B = dataCpy.B[:len(data)]
+		copy(dataCpy.B, data)
+		h.dispatch(uc, dataCpy)
 	}
 	uc.deactivate()
 	return gnet.None
