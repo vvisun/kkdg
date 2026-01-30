@@ -26,7 +26,7 @@ func TestNatsCluster_New(t *testing.T) {
 func TestNatsCluster_Init(t *testing.T) {
 	_, natsURL, err := startTestNatsServer()
 	if err != nil {
-		t.Fatalf("Failed to start NATS server: %v", err)
+		t.Skipf("NATS not available: %v", err)
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
@@ -47,7 +47,7 @@ func TestNatsCluster_Init(t *testing.T) {
 func TestNatsCluster_PublishRemote(t *testing.T) {
 	_, natsURL, err := startTestNatsServer()
 	if err != nil {
-		t.Fatalf("Failed to start NATS server: %v", err)
+		t.Skipf("NATS not available: %v", err)
 	}
 
 	// 创建两个节点
@@ -124,7 +124,7 @@ func TestNatsCluster_PublishRemote(t *testing.T) {
 func TestNatsCluster_PublishRemoteType(t *testing.T) {
 	_, natsURL, err := startTestNatsServer()
 	if err != nil {
-		t.Fatalf("Failed to start NATS server: %v", err)
+		t.Skipf("NATS not available: %v", err)
 	}
 
 	// 创建三个节点，两个同类型
@@ -222,7 +222,7 @@ func TestNatsCluster_PublishRemoteType(t *testing.T) {
 func TestNatsCluster_RequestRemote(t *testing.T) {
 	_, natsURL, err := startTestNatsServer()
 	if err != nil {
-		t.Fatalf("Failed to start NATS server: %v", err)
+		t.Skipf("NATS not available: %v", err)
 	}
 
 	// 创建两个节点
@@ -281,7 +281,7 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 	_, natsURL, err := startTestNatsServer()
 	if err != nil {
-		t.Fatalf("Failed to start NATS server: %v", err)
+		t.Skipf("NATS not available: %v", err)
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
@@ -311,7 +311,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 	_, natsURL, err := startTestNatsServer()
 	if err != nil {
-		t.Fatalf("Failed to start NATS server: %v", err)
+		t.Skipf("NATS not available: %v", err)
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
@@ -341,7 +341,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 func TestNatsCluster_Stop(t *testing.T) {
 	_, natsURL, err := startTestNatsServer()
 	if err != nil {
-		t.Fatalf("Failed to start NATS server: %v", err)
+		t.Skipf("NATS not available: %v", err)
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)

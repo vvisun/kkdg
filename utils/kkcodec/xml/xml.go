@@ -28,10 +28,10 @@ func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 	if err != nil {
 		return nil, err
 	}
-	bb := kkbuffer.GetWithCapacity(len(bytes) + offset)
-	copy(bb.B[offset:], bytes)
 	realLen := len(bytes) + offset
+	bb := kkbuffer.GetWithCapacity(realLen)
 	bb.B = bb.B[:realLen]
+	copy(bb.B[offset:], bytes)
 	return bb, nil
 }
 

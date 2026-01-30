@@ -7,7 +7,14 @@ import (
 	net "github.com/vvisun/kkdg/utils/xnet"
 )
 
+func setTestResolvers() {
+	// Avoid relying on real network in CI / sandbox.
+	net.SetPublicIPResolver(customPublicIPResolver)
+	net.SetPrivateIPResolver(customPrivateIPResolver)
+}
+
 func TestParseAddr(t *testing.T) {
+	setTestResolvers()
 	listenAddr, exposeAddr, err := net.ParseAddr("0.0.0.0:0", true)
 	if err != nil {
 		t.Fatal(err)
@@ -17,6 +24,7 @@ func TestParseAddr(t *testing.T) {
 }
 
 func TestInternalIP(t *testing.T) {
+	setTestResolvers()
 	ip, err := net.InternalIP()
 	if err != nil {
 		t.Fatal(err)
@@ -26,7 +34,8 @@ func TestInternalIP(t *testing.T) {
 }
 
 func TestExternalIP(t *testing.T) {
-	for range 100 {
+	setTestResolvers()
+	for range 3 {
 		ip, err := net.ExternalIP()
 		if err != nil {
 			t.Fatal(err)
@@ -37,6 +46,7 @@ func TestExternalIP(t *testing.T) {
 }
 
 func TestPublicIP(t *testing.T) {
+	setTestResolvers()
 	if ip, err := net.PublicIP(); err != nil {
 		t.Fatal(err)
 	} else {
@@ -53,6 +63,7 @@ func TestPublicIP(t *testing.T) {
 }
 
 func TestPrivateIP(t *testing.T) {
+	setTestResolvers()
 	if ip, err := net.PrivateIP(); err != nil {
 		t.Fatal(err)
 	} else {

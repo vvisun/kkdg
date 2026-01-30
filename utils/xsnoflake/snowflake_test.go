@@ -2,6 +2,7 @@ package xsnoflake
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"strconv"
@@ -28,12 +29,13 @@ func TestPrintID(t *testing.T) {
 
 func TestNewNode(t *testing.T) {
 
-	_, err := NewNode(1023)
+	maxNode := int64(-1 ^ (-1 << NodeBits))
+	_, err := NewNode(maxNode)
 	if err != nil {
 		t.Fatalf("error creating NewNode, %s", err)
 	}
 
-	_, err = NewNode(5000)
+	_, err = NewNode(maxNode + 1)
 	if err == nil {
 		t.Fatalf("no error creating NewNode, %s", err)
 	}
@@ -388,19 +390,32 @@ func TestUnmarshalJSON(t *testing.T) {
 	tt := []struct {
 		json        string
 		expectedID  ID
-		expectedErr error
+		expectedErr string
 	}{
-		{`"13587"`, 13587, nil},
-		{`1`, 0, JSONSyntaxError{[]byte("1")}},
-		{`"invalid`, 0, JSONSyntaxError{[]byte("invalid")}},
+		{`"13587"`, 13587, ""},
+		{`1`, 0, `invalid snowflake ID "1"`},
+		{`"invalid`, 0, `invalid snowflake ID "\"invalid"`},
 	}
 
 	for _, tc := range tt {
 		var id ID
 		err := id.UnmarshalJSON([]byte(tc.json))
 
-		if err != tc.expectedErr {
-			t.Fatalf("Expected to get error '%s' decoding JSON, but got '%s'", tc.expectedErr, err)
+		if tc.expectedErr == "" {
+			if err != nil {
+				t.Fatalf("Expected no error decoding JSON, but got '%s'", err)
+			}
+		} else {
+			if err == nil {
+				t.Fatalf("Expected to get error '%s' decoding JSON, but got <nil>", tc.expectedErr)
+			}
+			if err.Error() != tc.expectedErr {
+				t.Fatalf("Expected to get error '%s' decoding JSON, but got '%s'", tc.expectedErr, err)
+			}
+			var se JSONSyntaxError
+			if !errors.As(err, &se) {
+				t.Fatalf("Expected JSONSyntaxError, got %T", err)
+			}
 		}
 
 		if id != tc.expectedID {

@@ -91,6 +91,14 @@ func (slf *Application) AddComponent(comp IComponent) error {
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	comp.SetApplication(slf)
+
+	// Initialize the component before adding it to the list, so a failed init
+	// won't leave a half-added component inside the application.
+	if err := comp.Init(); err != nil {
+		kklog.Errorf("[kkapp] application %s init component %s error: %v", slf.GetNodeId(), comp.GetID(), err)
+		return err
+	}
+
 	slf.mu.Lock()
 	slf.compList = append(slf.compList, comp)
 	slf.mu.Unlock()

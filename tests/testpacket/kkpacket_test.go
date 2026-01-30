@@ -166,3 +166,57 @@ func TestKK_packet_EncodeDecode_Stream(t *testing.T) {
 		t.Fatalf("msg1 != msg2")
 	}
 }
+
+func TestKK_packet_EncodeDecode_StreamJson(t *testing.T) {
+	initTestEnv(t)
+	stream := kkpacket.NewLengthFieldStreamPacket(kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	msg1 := &pbmsg.UserInfo{
+		UserId: 1,
+		Nick:   "test",
+	}
+	packet, err := kkpacket.EncodeStream(msg1, stream)
+	if err != nil {
+		t.Fatalf("encode packet: %v", err)
+	}
+
+	msg22, err := kkpacket.DecodeStream(packet.B, stream)
+	if err != nil {
+		t.Fatalf("decode packet: %v", err)
+	}
+	msg2, ok := msg22.(*pbmsg.UserInfo)
+	if !ok {
+		t.Fatalf("decode packet: %v", err)
+	}
+	t.Logf("msg2: %v", msg2)
+
+	if msg1.UserId != msg2.UserId || msg1.Nick != msg2.Nick {
+		t.Fatalf("msg1 != msg2")
+	}
+}
+
+func TestKK_packet_EncodeDecode_StreamMsgpack(t *testing.T) {
+	initTestEnv(t)
+	stream := kkpacket.NewLengthFieldStreamPacket(kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeMsgpack))
+	msg1 := &pbmsg.UserInfo{
+		UserId: 1,
+		Nick:   "test",
+	}
+	packet, err := kkpacket.EncodeStream(msg1, stream)
+	if err != nil {
+		t.Fatalf("encode packet: %v", err)
+	}
+
+	msg22, err := kkpacket.DecodeStream(packet.B, stream)
+	if err != nil {
+		t.Fatalf("decode packet: %v", err)
+	}
+	msg2, ok := msg22.(*pbmsg.UserInfo)
+	if !ok {
+		t.Fatalf("decode packet: %v", err)
+	}
+	t.Logf("msg2: %v", msg2)
+
+	if msg1.UserId != msg2.UserId || msg1.Nick != msg2.Nick {
+		t.Fatalf("msg1 != msg2")
+	}
+}

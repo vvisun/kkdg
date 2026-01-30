@@ -11,8 +11,14 @@ import (
 // 注意：假设NATS服务器已经在本地运行（默认地址：nats://127.0.0.1:4222）
 // 如果NATS服务器运行在其他地址，可以修改defaultNatsAddress或传入自定义地址
 func startTestNatsServer() (interface{}, string, error) {
-	// 使用默认地址，假设NATS服务器已经在本地运行
-	return nil, "nats://127.0.0.1:4222", nil
+	// 使用默认地址；如果本地没有运行 NATS，则返回 error（测试会 Skip）
+	url := "nats://127.0.0.1:4222"
+	nc, err := nats.Connect(url, nats.Timeout(500*time.Millisecond))
+	if err != nil {
+		return nil, url, err
+	}
+	nc.Close()
+	return nil, url, nil
 }
 
 // waitForMembers 等待成员出现
