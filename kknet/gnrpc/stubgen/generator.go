@@ -32,7 +32,7 @@ func Generate(spec Spec) ([]byte, error) {
 	// Collect imports and type refs
 	im := newImportManager()
 	im.require("context")
-	im.require("github.com/vvisun/kkdg/kknet/rpc/gnrpc")
+	im.require("github.com/vvisun/kkdg/kknet/gnrpc")
 	protoAlias := im.require("google.golang.org/protobuf/proto")
 
 	typeRefs := make([]methodTypeRef, 0, len(spec.Methods))
@@ -282,4 +282,3 @@ func deriveAlias(importPath string) string {
 	}
 	return seg
 }
-

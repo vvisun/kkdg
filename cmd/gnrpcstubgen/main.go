@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vvisun/kkdg/kknet/rpc/gnrpc/stubgen"
+	"github.com/vvisun/kkdg/kknet/gnrpc/stubgen"
 )
 
 type bundleSpec struct {
-	Package  string        `json:"package"`
-	OutputDir string       `json:"outputDir,omitempty"`
-	Services []stubgen.Spec `json:"services"`
+	Package   string         `json:"package"`
+	OutputDir string         `json:"outputDir,omitempty"`
+	Services  []stubgen.Spec `json:"services"`
 }
 
 func main() {
@@ -216,4 +216,3 @@ func listSpecFiles(root string, recursive bool) ([]string, error) {
 	}
 	return out, nil
 }
-
