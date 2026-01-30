@@ -636,3 +636,56 @@ func TestGNRPC_RequestMethodBreaker_Status(t *testing.T) {
 	}
 }
 
+func TestGNRPC_Bidirectional_ServerInvokeClient(t *testing.T) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		t.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	if err := svr.Start(); err != nil {
+		t.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	cli.Register("client.echo", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		return append([]byte("c:"), req...), nil
+	}))
+	if err := cli.Connect(); err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	// wait for server to see connection
+	var connID int64
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		conns := svr.GetConnManager().GetAllConns()
+		for id := range conns {
+			connID = id
+			break
+		}
+		if connID != 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if connID == 0 {
+		t.Fatalf("server did not observe connection")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	resp, err := svr.InvokeConn(ctx, connID, "client.echo", []byte("hi"))
+	if err != nil {
+		t.Fatalf("InvokeConn: %v", err)
+	}
+	if string(resp) != "c:hi" {
+		t.Fatalf("unexpected resp: %q", string(resp))
+	}
+}
+

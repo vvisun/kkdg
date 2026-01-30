@@ -220,7 +220,17 @@ type serverHandler struct {
 	svr *Server
 }
 
-func (h *serverHandler) OnConnect(_ kknet.IConn) {}
+func (h *serverHandler) OnConnect(c kknet.IConn) {
+	// attach per-connection peer state for server-initiated calls
+	if c == nil {
+		return
+	}
+	if ps, ok := getPeerState(c.Context()); ok && ps != nil {
+		return
+	}
+	ps := newPeerState()
+	c.SetContext(withPeerState(c.Context(), ps))
+}
 
 func rejectReasonToStatus(reason string) error {
 	switch reason {
@@ -258,6 +268,15 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	if err := h.svr.codec.Unmarshal(msgBytes, &fr); err != nil {
 		return
 	}
+	// handle response for server-initiated invoke
+	if fr.T == FrameTypeResponse && fr.ID != 0 {
+		ps, ok := getPeerState(c.Context())
+		if ok && ps != nil {
+			ps.deliver(fr)
+		}
+		return
+	}
+
 	if (fr.T != FrameTypeRequest && fr.T != FrameTypeOneway) || fr.M == "" {
 		return
 	}
@@ -442,7 +461,14 @@ func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
 	}
 }
 
-func (h *serverHandler) OnClose(_ kknet.IConn, _ error) {}
+func (h *serverHandler) OnClose(c kknet.IConn, _ error) {
+	if c == nil {
+		return
+	}
+	if ps, ok := getPeerState(c.Context()); ok && ps != nil {
+		ps.closeAll()
+	}
+}
 
 // For convenience: a helper to create context-aware handlers.
 func UnaryHandler(fn func(ctx context.Context, req []byte) ([]byte, error)) Handler {

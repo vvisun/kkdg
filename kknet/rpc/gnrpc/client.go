@@ -14,6 +14,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"google.golang.org/protobuf/proto"
 )
 
 // Client is a unary RPC client implemented on top of kktcp(gnet).
@@ -32,6 +33,8 @@ type Client struct {
 	closed  bool
 
 	clientInterceptors []UnaryClientInterceptor
+
+	router *router
 }
 
 // NewClient creates a new RPC client.
@@ -44,9 +47,43 @@ func NewClient(addr string, opts ...kknet.Option) *Client {
 		opts:    cfg,
 		codec:   c,
 		pending: make(map[uint64]chan Frame),
+		router:  newRouter(),
 	}
 	cl.cli = kktcp.NewClient(addr, &clientHandler{c: cl}, opts...)
 	return cl
+}
+
+// Register registers a unary handler for peer-initiated calls (server->client).
+func (c *Client) Register(method string, h Handler) { c.router.Register(method, h) }
+
+// RegisterProto registers a protobuf unary handler for peer-initiated calls (server->client).
+func (c *Client) RegisterProto(method string, newReq func() proto.Message, handler func(ctx context.Context, req proto.Message) (proto.Message, error)) {
+	if newReq == nil || handler == nil {
+		return
+	}
+	c.Register(method, func(ctx context.Context, reqBytes []byte) ([]byte, error) {
+		req := newReq()
+		if req == nil {
+			return nil, Status(CodeInternal, "nil request factory")
+		}
+		if len(reqBytes) > 0 {
+			if err := proto.Unmarshal(reqBytes, req); err != nil {
+				return nil, Status(CodeInvalidArgument, err.Error())
+			}
+		}
+		resp, err := handler(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		if resp == nil {
+			return nil, nil
+		}
+		b, err := proto.Marshal(resp)
+		if err != nil {
+			return nil, Status(CodeInternal, err.Error())
+		}
+		return b, nil
+	})
 }
 
 // SetFrameCodec sets the codec used for encoding/decoding internal frames.
@@ -286,19 +323,68 @@ func (h *clientHandler) OnMessage(_ kknet.IConn, data buffers.IBuffer) {
 	if err := h.c.codec.Unmarshal(msgBytes, &fr); err != nil {
 		return
 	}
-	if fr.T != FrameTypeResponse || fr.ID == 0 {
-		return
-	}
-
-	h.c.mu.Lock()
-	ch := h.c.pending[fr.ID]
-	h.c.mu.Unlock()
-	if ch == nil {
-		return
-	}
-	select {
-	case ch <- fr:
+	switch fr.T {
+	case FrameTypeResponse:
+		if fr.ID == 0 {
+			return
+		}
+		h.c.mu.Lock()
+		ch := h.c.pending[fr.ID]
+		h.c.mu.Unlock()
+		if ch == nil {
+			return
+		}
+		select {
+		case ch <- fr:
+		default:
+		}
+	case FrameTypeRequest:
+		if fr.ID == 0 || fr.M == "" {
+			return
+		}
+		// handle peer-initiated request and respond
+		ctx, cancel := deadlineCtx(fr.DL)
+		defer cancel()
+		if fr.H != nil {
+			ctx = NewIncomingContext(ctx, MD(fr.H))
+		}
+		ctx, meta := withServerMeta(ctx)
+		respPayload, callErr := h.c.router.Call(ctx, fr.M, fr.P)
+		resp := Frame{
+			T:  FrameTypeResponse,
+			ID: fr.ID,
+			P:  respPayload,
+			RH: meta.headers,
+			RT: meta.trailers,
+		}
+		if callErr != nil {
+			resp.Code = int32(CodeOf(callErr))
+			resp.Err = MsgOf(callErr)
+		}
+		b, err := h.c.codec.Marshal(&resp)
+		if err != nil {
+			return
+		}
+		bb, err := kkpacket.DefaultStreamPacket().Pack(b)
+		if err != nil {
+			return
+		}
+		// Use underlying gnet client to send back.
+		if err := h.c.cli.SendBuffer(bb); err != nil {
+			kkbuffer.Put(bb)
+		}
+	case FrameTypeOneway:
+		if fr.M == "" {
+			return
+		}
+		ctx, cancel := deadlineCtx(fr.DL)
+		defer cancel()
+		if fr.H != nil {
+			ctx = NewIncomingContext(ctx, MD(fr.H))
+		}
+		_, _ = h.c.router.Call(ctx, fr.M, fr.P)
 	default:
+		return
 	}
 }
 
