@@ -162,12 +162,12 @@ func (c *Client) startReconnect() {
 }
 
 func (c *Client) reconnectLoop() {
-	interval := c.opts.TcpClientReconnectInterval
+	interval := c.opts.ReconnectInterval
 	if interval <= 500*time.Millisecond {
 		interval = 500 * time.Millisecond
 	}
-	maxRetries := c.opts.TcpClientReconnectMaxRetries
-	cb := c.opts.TcpClientReconnectCallback
+	maxRetries := c.opts.ReconnectMaxRetries
+	cb := c.opts.ReconnectCallback
 	attempts := 0
 	for {
 		if c.closing.Load() {
@@ -295,7 +295,7 @@ func (c *Client) handleClose(cc *netWSConn, err error) {
 	c.conn = nil
 	c.connMu.Unlock()
 	c.connected.Store(false)
-	if !c.closing.Load() && c.opts.TcpClientNeedReconnect {
+	if !c.closing.Load() && c.opts.IsNeedReconnect {
 		c.startReconnect()
 	}
 }

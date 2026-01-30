@@ -13,32 +13,31 @@ type OriginCheckFunc func(r *http.Request) bool
 
 // Options are common network settings.
 type Options struct {
-	Logger          kklog.ILogger // 日志记录器
-	PoolSize        int           // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
-	ReadBufferSize  int           // 读缓冲区大小
-	WriteBufferSize int           // 写缓冲区大小
-	ShutdownTimeout time.Duration // 服务关闭超时时间
-	Middlewares     []Middleware  // 中间件列表
+	Logger              kklog.ILogger                // 日志记录器
+	PoolSize            int                          // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
+	ReadBufferSize      int                          // 读缓冲区大小
+	WriteBufferSize     int                          // 写缓冲区大小
+	ShutdownTimeout     time.Duration                // 服务关闭超时时间
+	Middlewares         []Middleware                 // 中间件列表
+	IsNeedReconnect     bool                         // 是否需要重连
+	ReconnectInterval   time.Duration                // 重连间隔
+	ReconnectMaxRetries int                          // 重连最大次数(<=0为无限)
+	ReconnectCallback   func(attempt int, err error) // 重连回调(成功时 err 为 nil)
 
 	TLSConfig *tls.Config // TLS配置。use for wss or tcp with tls
-
-	WsOriginChecker OriginCheckFunc // websocket原始检查器
-	WsReadTimeout   time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
-	WsWriteTimeout  time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
-	WsSendQueueSize int             // WebSocket异步发送队列大小
 
 	UDPConnIdleTimeout time.Duration // UDP连接空闲超时时间（为0时，不启用空闲清理）
 	UDPCleanupInterval time.Duration // UDP清理间隔时间（为0时，不启用清理）
 
-	TcpClientNeedFlushOver        bool                                    //tcp客户端关闭时是否需要等待 flush 完成
-	TcpTimeoutFlushOver           time.Duration                           //tcp客户端关闭时等待 flush 完成的超时时间
-	TcpClientFlushTimeoutCallback func(conn IConn, timeout time.Duration) //tcp客户端flush 超时回调
-	TcpClientSendQueueSize        int                                     //tcp客户端发送队列初始容量
-	TcpClientNeedReconnect        bool                                    //tcp客户端是否需要重连
-	TcpClientReconnectInterval    time.Duration                           //tcp客户端重连间隔
-	TcpClientReconnectMaxRetries  int                                     //tcp客户端重连最大次数(<=0为无限)
-	TcpClientReconnectCallback    func(attempt int, err error)            //tcp客户端重连回调(成功时 err 为 nil)
-	TcpClientWakeupThreshold      time.Duration                           //tcp客户端唤醒阈值。用于防止频繁唤醒。为0时不会启用频率限制。
+	WsOriginChecker OriginCheckFunc // websocket原始检查器
+	WsReadTimeout   time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
+	WsWriteTimeout  time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
+
+	SendQueueSize                 int                                     // 异步发送队列大小
+	SendQueueStrict               bool                                    // 异步发送队列是否严格容量控制
+	SendQueueNeedFlushOver        bool                                    //关闭时是否需要等待 flush 完成
+	SendQueueTimeoutFlushOver     time.Duration                           //关闭时等待 flush 完成的超时时间
+	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
 }
 
 func defaultWSOriginChecker(r *http.Request) bool {
@@ -62,12 +61,10 @@ func DefaultOptions() Options {
 		WsOriginChecker: defaultWSOriginChecker,
 		WsReadTimeout:   0,   // 0秒, 不超时
 		WsWriteTimeout:  0,   // 0秒, 不超时
-		WsSendQueueSize: 256, // 256
+		SendQueueSize:   256, // 256
 
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
 		UDPCleanupInterval: 1 * time.Minute, // 1分钟
-
-		TcpClientSendQueueSize: 256, // 256
 	}
 }
 
@@ -182,15 +179,6 @@ func WithWsWriteTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithWsSendQueueSize sets the send queue size for WebSocket connections.
-func WithWsSendQueueSize(size int) Option {
-	return func(o *Options) {
-		if size > 0 {
-			o.WsSendQueueSize = size
-		}
-	}
-}
-
 // WithMiddlewares sets middlewares.
 func WithMiddleware(mw Middleware) Option {
 	if mw == nil {
@@ -205,67 +193,64 @@ func WithMiddleware(mw Middleware) Option {
 	}
 }
 
-// WithTcpClientNeedFlushOver sets tcp client need flush over.
-func WithTcpClientNeedFlushOver(needFlushOver bool) Option {
-	return func(o *Options) {
-		o.TcpClientNeedFlushOver = needFlushOver
-	}
-}
-
-// WithTimeoutTcpFlushOver sets timeout tcp flush over.
-func WithTimeoutTcpFlushOver(timeout time.Duration) Option {
-	return func(o *Options) {
-		if timeout > 0 {
-			o.TcpTimeoutFlushOver = timeout
-			if o.TcpTimeoutFlushOver < 50*time.Millisecond { // 最小超时时间，防止压根没效果
-				o.TcpTimeoutFlushOver = 50 * time.Millisecond
-			}
-		}
-	}
-}
-
-// WithTcpClientFlushTimeoutCallback sets flush timeout callback.
-func WithTcpClientFlushTimeoutCallback(cb func(conn IConn, timeout time.Duration)) Option {
-	return func(o *Options) {
-		o.TcpClientFlushTimeoutCallback = cb
-	}
-}
-
-// WithTcpClientSendQueueSize sets tcp client send queue initial size.
-func WithTcpClientSendQueueSize(size int) Option {
+// WithSendQueueSize sets the send queue size for WebSocket connections.
+func WithSendQueueSize(size int) Option {
 	return func(o *Options) {
 		if size > 0 {
-			o.TcpClientSendQueueSize = size
+			o.SendQueueSize = size
 		}
 	}
 }
 
-// WithTcpClientReconnect sets tcp client reconnect settings.
-func WithTcpClientReconnect(enable bool, interval time.Duration, maxRetries int) Option {
+// WithSendQueueNeedFlushOver sets tcp client need flush over.
+func WithSendQueueNeedFlushOver(needFlushOver bool) Option {
 	return func(o *Options) {
-		o.TcpClientNeedReconnect = enable
-		if interval > 0 {
-			o.TcpClientReconnectInterval = interval
-			if interval < 500*time.Millisecond { // 最小间隔，防止频繁重连
-				o.TcpClientReconnectInterval = 500 * time.Millisecond
+		o.SendQueueNeedFlushOver = needFlushOver
+	}
+}
+
+// WithSendQueueTimeoutFlushOver sets timeout send queue flush over.
+func WithSendQueueTimeoutFlushOver(timeout time.Duration) Option {
+	return func(o *Options) {
+		if timeout > 0 {
+			o.SendQueueTimeoutFlushOver = timeout
+			if o.SendQueueTimeoutFlushOver < 50*time.Millisecond { // 最小超时时间，防止压根没效果
+				o.SendQueueTimeoutFlushOver = 50 * time.Millisecond
 			}
 		}
-		o.TcpClientReconnectMaxRetries = maxRetries
 	}
 }
 
-// WithTcpClientReconnectCallback sets reconnect callback.
-func WithTcpClientReconnectCallback(cb func(attempt int, err error)) Option {
+// WithSendQueueFlushTimeoutCallback sets flush timeout callback.
+func WithSendQueueFlushTimeoutCallback(cb func(conn IConn, timeout time.Duration)) Option {
 	return func(o *Options) {
-		o.TcpClientReconnectCallback = cb
+		o.SendQueueFlushTimeoutCallback = cb
 	}
 }
 
-// WithTcpClientWakeupThreshold sets tcp client wakeup threshold.
-func WithTcpClientWakeupThreshold(threshold time.Duration) Option {
+// WithIsNeedReconnect sets is need reconnect.
+func WithIsNeedReconnect(isNeedReconnect bool) Option {
 	return func(o *Options) {
-		if threshold > 0 {
-			o.TcpClientWakeupThreshold = threshold
+		o.IsNeedReconnect = isNeedReconnect
+	}
+}
+
+// WithReconnectInterval sets reconnect interval.
+func WithReconnectInterval(interval time.Duration, maxRetries int) Option {
+	return func(o *Options) {
+		if interval > 0 {
+			o.ReconnectInterval = interval
+			if interval < 500*time.Millisecond { // 最小间隔，防止频繁重连
+				o.ReconnectInterval = 500 * time.Millisecond
+			}
 		}
+		o.ReconnectMaxRetries = maxRetries
+	}
+}
+
+// WithReconnectCallback sets reconnect callback.
+func WithReconnectCallback(cb func(attempt int, err error)) Option {
+	return func(o *Options) {
+		o.ReconnectCallback = cb
 	}
 }

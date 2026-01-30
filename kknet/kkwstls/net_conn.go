@@ -57,7 +57,7 @@ func newNetWSConn(conn net.Conn, reader *bufio.Reader, opts kknet.Options, stats
 		state:  state,
 		ctx:    context.Background(),
 	}
-	queueSize := opts.WsSendQueueSize
+	queueSize := opts.SendQueueSize
 	if queueSize <= 0 {
 		queueSize = 256
 	}

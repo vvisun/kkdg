@@ -221,12 +221,12 @@ func (c *Client) startReconnect() {
 }
 
 func (c *Client) reconnectLoop() {
-	interval := c.opts.TcpClientReconnectInterval
+	interval := c.opts.ReconnectInterval
 	if interval <= 500*time.Millisecond {
 		interval = 500 * time.Millisecond
 	}
-	maxRetries := c.opts.TcpClientReconnectMaxRetries
-	cb := c.opts.TcpClientReconnectCallback
+	maxRetries := c.opts.ReconnectMaxRetries
+	cb := c.opts.ReconnectCallback
 	attempts := 0
 	for {
 		if c.closing.Load() {
@@ -344,7 +344,7 @@ func (h *wsClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Acti
 	h.client.connMu.Unlock()
 	h.client.connected.Store(false)
 
-	if !h.client.closing.Load() && h.client.opts.TcpClientNeedReconnect {
+	if !h.client.closing.Load() && h.client.opts.IsNeedReconnect {
 		h.client.startReconnect()
 	}
 	return gnet.None
