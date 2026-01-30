@@ -6,6 +6,8 @@ import "errors"
 var (
 	// 连接已关闭
 	ErrConnectionClosed = errors.New("connection is closed")
+	// 异步发送队列已满（严格模式下）
+	ErrSendQueueFull = errors.New("send queue is full")
 	// 服务器未启动
 	ErrServerNotStarted = errors.New("server is not started")
 	// 客户端未连接
