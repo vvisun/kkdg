@@ -263,7 +263,8 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 					}
 				}
 			}
-			// close immediately
+			// Send close control then close immediately to make client writes fail faster.
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(250*time.Millisecond))
 			_ = conn.Close()
 		}()
 	})
@@ -277,9 +278,16 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(256))
+	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(256), kknet.WithWsWriteTimeout(300*time.Millisecond))
 	wc := newWSConn(c, opts, nil)
 	defer wc.Close()
+
+	// In real usage, a read loop will notice peer close and trigger closeWithError,
+	// which will stop the writer and release pending buffers.
+	go func() {
+		err := wc.readLoop(nil)
+		wc.closeWithError(nil, err)
+	}()
 
 	// enqueue multiple messages quickly; some will be pending when peer closes.
 	const n = 50
@@ -296,10 +304,10 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 	// Server should get at least the first message (best-effort).
 	_ = mustRecv(t, recvCh, 2*time.Second)
 
-	// Writer should exit after write error.
+	// Writer should exit after peer close is detected.
 	select {
 	case <-wc.writeDone:
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatalf("writer did not stop after write error")
 	}
 

@@ -9,8 +9,10 @@ type BBQueue struct {
 	buf       [][]*kkbuffer.ByteBuffer
 	chunkSize int
 	capacity  int
-	head      int
-	tail      int
+	headChunk int
+	headPos   int
+	tailChunk int
+	tailPos   int
 	count     int
 	isStrict  bool //是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
 }
@@ -59,10 +61,23 @@ func (q *BBQueue) Push(bb *kkbuffer.ByteBuffer) bool {
 		}
 		q.grow()
 	}
-	chunk := q.tail / q.chunkSize
-	pos := q.tail % q.chunkSize
-	q.buf[chunk][pos] = bb
-	q.tail = (q.tail + 1) % q.capacity
+	// BBQueue 本身非并发安全；这里做一次取模归一化，避免并发误用时 panic。
+	l := len(q.buf)
+	tc := q.tailChunk
+	if l > 0 && tc >= l {
+		tc = tc % l
+		q.tailChunk = tc
+	}
+	q.buf[tc][q.tailPos] = bb
+	q.tailPos++
+	if q.tailPos == q.chunkSize {
+		q.tailPos = 0
+		if l > 0 {
+			q.tailChunk = (tc + 1) % l
+		} else {
+			q.tailChunk = 0
+		}
+	}
 	q.count++
 	return true
 }
@@ -72,15 +87,28 @@ func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {
 	if q.count == 0 {
 		return nil
 	}
-	chunk := q.head / q.chunkSize
-	pos := q.head % q.chunkSize
-	bb := q.buf[chunk][pos]
-	q.buf[chunk][pos] = nil
-	q.head = (q.head + 1) % q.capacity
+	// BBQueue 本身非并发安全；这里做一次取模归一化，避免并发误用时 panic。
+	l := len(q.buf)
+	hc := q.headChunk
+	if l > 0 && hc >= l {
+		hc = hc % l
+		q.headChunk = hc
+	}
+	bb := q.buf[hc][q.headPos]
+	q.buf[hc][q.headPos] = nil
+	q.headPos++
+	if q.headPos == q.chunkSize {
+		q.headPos = 0
+		if l > 0 {
+			q.headChunk = (hc + 1) % l
+		} else {
+			q.headChunk = 0
+		}
+	}
 	q.count--
 	if q.count == 0 {
-		q.head = 0
-		q.tail = 0
+		q.headChunk, q.headPos = 0, 0
+		q.tailChunk, q.tailPos = 0, 0
 	}
 	return bb
 }
@@ -106,112 +134,55 @@ func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer) int {
 	written := 0
 	remain := count
 
+	// BBQueue 本身非并发安全；这里做一次取模归一化，避免并发误用时 panic。
+	l := len(q.buf)
 	for remain > 0 {
-		chunk := q.head / q.chunkSize
-		pos := q.head % q.chunkSize
-
-		// 本chunk剩余连续段
-		n := q.chunkSize - pos
-		if t := q.capacity - q.head; t < n { // 到buffer物理结尾（避免跨越capacity边界）
-			n = t
+		hc := q.headChunk
+		if l > 0 && hc >= l {
+			hc = hc % l
+			q.headChunk = hc
 		}
+		// 本chunk剩余连续段
+		n := q.chunkSize - q.headPos
 		if remain < n {
 			n = remain
 		}
 
-		copy(recv[written:written+n], q.buf[chunk][pos:pos+n])
-		clear(q.buf[chunk][pos : pos+n])
+		copy(recv[written:written+n], q.buf[hc][q.headPos:q.headPos+n])
+		clear(q.buf[hc][q.headPos : q.headPos+n])
 
 		written += n
 		remain -= n
 		q.count -= n
 
-		q.head += n
-		if q.head == q.capacity {
-			q.head = 0
+		q.headPos += n
+		if q.headPos == q.chunkSize {
+			q.headPos = 0
+			if l > 0 {
+				q.headChunk = (hc + 1) % l
+			} else {
+				q.headChunk = 0
+			}
 		}
 	}
 
 	if q.count == 0 {
-		q.head = 0
-		q.tail = 0
+		q.headChunk, q.headPos = 0, 0
+		q.tailChunk, q.tailPos = 0, 0
 	}
 	return written
 }
 
 // 扩容
 func (q *BBQueue) grow() {
-	oldCap := q.capacity
-	// 每次扩容只增加一个 chunk，避免一次性翻倍带来的内存峰值
-	newCap := oldCap + q.chunkSize
-	if newCap <= 0 {
-		newCap = q.chunkSize
-	}
+	// 只追加一个 chunk：不搬运元素，完全避免 copy。
+	q.buf = append(q.buf, make([]*kkbuffer.ByteBuffer, q.chunkSize))
+	q.capacity += q.chunkSize
 
-	newChunkCount := (newCap + q.chunkSize - 1) / q.chunkSize
-	newBuf := make([][]*kkbuffer.ByteBuffer, newChunkCount)
-
-	// 把现有元素按队列顺序搬到新buf的前面。为了避免大规模copy：
-	// - 以chunk为单位尽量复用整块(仅复制slice header)；
-	// - 只有头尾最多两个chunk会落在非对齐位置，需要小范围copy。
-	if q.count > 0 {
-		dstIdx := 0
-		srcIdx := q.head
-		remain := q.count
-
-		for remain > 0 {
-			dstChunk := dstIdx / q.chunkSize
-			dstPos := dstIdx % q.chunkSize
-			srcChunk := srcIdx / q.chunkSize
-			srcPos := srcIdx % q.chunkSize
-
-			// 尽量复用整块chunk（要求源/目标都chunk对齐，且源chunk完全落在oldCap范围内）
-			if dstPos == 0 && srcPos == 0 && remain >= q.chunkSize && srcIdx+q.chunkSize <= oldCap {
-				newBuf[dstChunk] = q.buf[srcChunk]
-				dstIdx += q.chunkSize
-				srcIdx += q.chunkSize
-				remain -= q.chunkSize
-				if srcIdx == oldCap {
-					srcIdx = 0
-				}
-				continue
-			}
-
-			if newBuf[dstChunk] == nil {
-				newBuf[dstChunk] = make([]*kkbuffer.ByteBuffer, q.chunkSize)
-			}
-
-			n := q.chunkSize - dstPos
-			if t := q.chunkSize - srcPos; t < n {
-				n = t
-			}
-			if t := oldCap - srcIdx; t < n {
-				n = t
-			}
-			if remain < n {
-				n = remain
-			}
-
-			copy(newBuf[dstChunk][dstPos:dstPos+n], q.buf[srcChunk][srcPos:srcPos+n])
-
-			dstIdx += n
-			srcIdx += n
-			remain -= n
-			if srcIdx == oldCap {
-				srcIdx = 0
-			}
-		}
-	}
-
-	// 补齐未分配的chunk
-	for i := range newBuf {
-		if newBuf[i] == nil {
-			newBuf[i] = make([]*kkbuffer.ByteBuffer, q.chunkSize)
-		}
-	}
-
-	q.buf = newBuf
-	q.capacity = newCap
-	q.head = 0
-	q.tail = q.count
+	// 扩容后总槽位数变化，需要按新容量重算 tail，
+	// 以保证从 head 走 count 步能到 tail（否则 full 状态下 tail==head 会导致覆盖）。
+	headLinear := q.headChunk*q.chunkSize + q.headPos
+	tailLinear := (headLinear + q.count) % q.capacity
+	q.tailChunk = tailLinear / q.chunkSize
+	q.tailPos = tailLinear % q.chunkSize
 }

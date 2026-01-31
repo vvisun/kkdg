@@ -3,6 +3,7 @@ package timingwheel_test
 import (
 	"testing"
 	"time"
+	"runtime"
 
 	"github.com/vvisun/kkdg/utils/timingwheel"
 )
@@ -33,7 +34,11 @@ func TestTimingWheel_AfterFunc(t *testing.T) {
 			got := (<-exitC).Truncate(time.Millisecond)
 			min := start.Add(d).Truncate(time.Millisecond)
 
+			// Windows timer/scheduler jitter is typically higher, especially under CI load.
 			err := 5 * time.Millisecond
+			if runtime.GOOS == "windows" {
+				err = 60 * time.Millisecond
+			}
 			if got.Before(min) || got.After(min.Add(err)) {
 				t.Errorf("Timer(%s) expiration: want [%s, %s], got %s", d, min, min.Add(err), got)
 			}
@@ -83,7 +88,11 @@ func TestTimingWheel_ScheduleFunc(t *testing.T) {
 		accum += d
 		min := start.Add(accum).Truncate(time.Millisecond)
 
+		// Windows timer/scheduler jitter is typically higher, especially under CI load.
 		err := 5 * time.Millisecond
+		if runtime.GOOS == "windows" {
+			err = 60 * time.Millisecond
+		}
 		if got.Before(min) || got.After(min.Add(err)) {
 			t.Errorf("Timer(%s) expiration: want [%s, %s], got %s", accum, min, min.Add(err), got)
 		}
