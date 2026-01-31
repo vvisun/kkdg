@@ -6,6 +6,7 @@ import (
 
 const bbQueueChunkSize = 64
 
+// BBQueue is a fixed-size FIFO queue that uses a circular buffer to store elements.
 type BBQueue struct {
 	buf      [][]*kkbuffer.ByteBuffer
 	capacity int
@@ -42,6 +43,7 @@ func (q *BBQueue) IsEmpty() bool {
 	return q.count == 0
 }
 
+// 入队。严格模式下，队列满时返回false；非严格模式下，队列满时自动扩容。
 func (q *BBQueue) Push(bb *kkbuffer.ByteBuffer) bool {
 	if q.count == q.capacity {
 		if q.isStrict {
@@ -57,6 +59,7 @@ func (q *BBQueue) Push(bb *kkbuffer.ByteBuffer) bool {
 	return true
 }
 
+// 出队。队列空时返回nil。
 func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {
 	if q.count == 0 {
 		return nil
