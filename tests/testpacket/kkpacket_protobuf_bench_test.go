@@ -4,16 +4,29 @@ import (
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/tests/pbmsg"
+	"github.com/vvisun/kkdg/proto/pbcluster"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 func Benchmark_kkpacket_ProtoBuf_Encode(b *testing.B) {
 	initTestEnv(nil)
-	msg := &pbmsg.UserInfo{
-		UserId: 1,
-		Nick:   "test",
+	msg := &pbcluster.ClusterPacket{
+		BuildTime:  1,
+		Timeout:    1,
+		SourcePath: "test",
+		TargetPath: "test",
+		FuncName:   "test",
+		Args:       []byte("test"),
+		Session: &pbcluster.Session{
+			Sid:       "test",
+			Uid:       1,
+			AgentPath: "test",
+			Ip:        "127.0.0.1",
+			ExtendData: map[string]string{
+				"test": "test",
+			},
+		},
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -24,9 +37,22 @@ func Benchmark_kkpacket_ProtoBuf_Encode(b *testing.B) {
 
 func Benchmark_kkpacket_ProtoBuf_Decode(b *testing.B) {
 	initTestEnv(nil)
-	msg := &pbmsg.UserInfo{
-		UserId: 1,
-		Nick:   "test",
+	msg := &pbcluster.ClusterPacket{
+		BuildTime:  1,
+		Timeout:    1,
+		SourcePath: "test",
+		TargetPath: "test",
+		FuncName:   "test",
+		Args:       []byte("test"),
+		Session: &pbcluster.Session{
+			Sid:       "test",
+			Uid:       1,
+			AgentPath: "test",
+			Ip:        "127.0.0.1",
+			ExtendData: map[string]string{
+				"test": "test",
+			},
+		},
 	}
 	packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeProtoBuf))
 	if err != nil {
@@ -41,9 +67,22 @@ func Benchmark_kkpacket_ProtoBuf_Decode(b *testing.B) {
 
 func Benchmark_kkpacket_ProtoBuf_EncodeDecode(b *testing.B) {
 	initTestEnv(nil)
-	msg := &pbmsg.UserInfo{
-		UserId: 1,
-		Nick:   "test",
+	msg := &pbcluster.ClusterPacket{
+		BuildTime:  1,
+		Timeout:    1,
+		SourcePath: "test",
+		TargetPath: "test",
+		FuncName:   "test",
+		Args:       []byte("test"),
+		Session: &pbcluster.Session{
+			Sid:       "test",
+			Uid:       1,
+			AgentPath: "test",
+			Ip:        "127.0.0.1",
+			ExtendData: map[string]string{
+				"test": "test",
+			},
+		},
 	}
 	b.ResetTimer()
 	b.ReportAllocs()

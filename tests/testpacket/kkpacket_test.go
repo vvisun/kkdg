@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/tests/pbmsg"
+	"github.com/vvisun/kkdg/proto/pbcluster"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
@@ -38,14 +38,27 @@ type msgTest2 struct {
 func initTestEnv(_ *testing.T) {
 	kkpacket.RegisterMsg(1, &msgTest1{}, "test1")
 	kkpacket.RegisterMsg(2, &msgTest2{}, "test2")
-	kkpacket.RegisterMsg(3, &pbmsg.UserInfo{}, "test3")
+	kkpacket.RegisterMsg(3, &pbcluster.ClusterPacket{}, "test3")
 }
 
 func TestKK_packet_ProtoBuf(t *testing.T) {
 	initTestEnv(t)
-	msg := &pbmsg.UserInfo{
-		UserId: 1,
-		Nick:   "test",
+	msg := &pbcluster.ClusterPacket{
+		BuildTime:  1,
+		Timeout:    1,
+		SourcePath: "test",
+		TargetPath: "test",
+		FuncName:   "test",
+		Args:       []byte("test"),
+		Session: &pbcluster.Session{
+			Sid:       "test",
+			Uid:       1,
+			AgentPath: "test",
+			Ip:        "127.0.0.1",
+			ExtendData: map[string]string{
+				"test": "test",
+			},
+		},
 	}
 	packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeProtoBuf))
 	if err != nil {
@@ -143,9 +156,22 @@ func TestKK_packet_Decode_InvalidPacket(t *testing.T) {
 
 func TestKK_packet_EncodeDecode_Stream(t *testing.T) {
 	initTestEnv(t)
-	msg1 := &pbmsg.UserInfo{
-		UserId: 1,
-		Nick:   "test",
+	msg1 := &pbcluster.ClusterPacket{
+		BuildTime:  1,
+		Timeout:    1,
+		SourcePath: "test",
+		TargetPath: "test",
+		FuncName:   "test",
+		Args:       []byte("test"),
+		Session: &pbcluster.Session{
+			Sid:       "test",
+			Uid:       1,
+			AgentPath: "test",
+			Ip:        "127.0.0.1",
+			ExtendData: map[string]string{
+				"test": "test",
+			},
+		},
 	}
 	packet, err := kkpacket.EncodeStream(msg1, kkpacket.DefaultStreamPacket())
 	if err != nil {
@@ -156,13 +182,13 @@ func TestKK_packet_EncodeDecode_Stream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
-	msg2, ok := msg22.(*pbmsg.UserInfo)
+	msg2, ok := msg22.(*pbcluster.ClusterPacket)
 	if !ok {
 		t.Fatalf("decode packet: %v", err)
 	}
 	t.Logf("msg2: %v", msg2)
 
-	if msg1.UserId != msg2.UserId || msg1.Nick != msg2.Nick {
+	if msg1.BuildTime != msg2.BuildTime || msg1.Timeout != msg2.Timeout || msg1.SourcePath != msg2.SourcePath || msg1.TargetPath != msg2.TargetPath || msg1.FuncName != msg2.FuncName || msg1.Session.Uid != msg2.Session.Uid || msg1.Session.AgentPath != msg2.Session.AgentPath || msg1.Session.Ip != msg2.Session.Ip {
 		t.Fatalf("msg1 != msg2")
 	}
 }
@@ -170,9 +196,22 @@ func TestKK_packet_EncodeDecode_Stream(t *testing.T) {
 func TestKK_packet_EncodeDecode_StreamJson(t *testing.T) {
 	initTestEnv(t)
 	stream := kkpacket.NewLengthFieldStreamPacket(kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
-	msg1 := &pbmsg.UserInfo{
-		UserId: 1,
-		Nick:   "test",
+	msg1 := &pbcluster.ClusterPacket{
+		BuildTime:  1,
+		Timeout:    1,
+		SourcePath: "test",
+		TargetPath: "test",
+		FuncName:   "test",
+		Args:       []byte("test"),
+		Session: &pbcluster.Session{
+			Sid:       "test",
+			Uid:       1,
+			AgentPath: "test",
+			Ip:        "127.0.0.1",
+			ExtendData: map[string]string{
+				"test": "test",
+			},
+		},
 	}
 	packet, err := kkpacket.EncodeStream(msg1, stream)
 	if err != nil {
@@ -183,13 +222,13 @@ func TestKK_packet_EncodeDecode_StreamJson(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
-	msg2, ok := msg22.(*pbmsg.UserInfo)
+	msg2, ok := msg22.(*pbcluster.ClusterPacket)
 	if !ok {
 		t.Fatalf("decode packet: %v", err)
 	}
 	t.Logf("msg2: %v", msg2)
 
-	if msg1.UserId != msg2.UserId || msg1.Nick != msg2.Nick {
+	if msg1.BuildTime != msg2.BuildTime || msg1.Timeout != msg2.Timeout || msg1.SourcePath != msg2.SourcePath || msg1.TargetPath != msg2.TargetPath || msg1.FuncName != msg2.FuncName || msg1.Session.Uid != msg2.Session.Uid || msg1.Session.AgentPath != msg2.Session.AgentPath || msg1.Session.Ip != msg2.Session.Ip {
 		t.Fatalf("msg1 != msg2")
 	}
 }
@@ -197,9 +236,22 @@ func TestKK_packet_EncodeDecode_StreamJson(t *testing.T) {
 func TestKK_packet_EncodeDecode_StreamMsgpack(t *testing.T) {
 	initTestEnv(t)
 	stream := kkpacket.NewLengthFieldStreamPacket(kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeMsgpack))
-	msg1 := &pbmsg.UserInfo{
-		UserId: 1,
-		Nick:   "test",
+	msg1 := &pbcluster.ClusterPacket{
+		BuildTime:  1,
+		Timeout:    1,
+		SourcePath: "test",
+		TargetPath: "test",
+		FuncName:   "test",
+		Args:       []byte("test"),
+		Session: &pbcluster.Session{
+			Sid:       "test",
+			Uid:       1,
+			AgentPath: "test",
+			Ip:        "127.0.0.1",
+			ExtendData: map[string]string{
+				"test": "test",
+			},
+		},
 	}
 	packet, err := kkpacket.EncodeStream(msg1, stream)
 	if err != nil {
@@ -210,13 +262,13 @@ func TestKK_packet_EncodeDecode_StreamMsgpack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
-	msg2, ok := msg22.(*pbmsg.UserInfo)
+	msg2, ok := msg22.(*pbcluster.ClusterPacket)
 	if !ok {
 		t.Fatalf("decode packet: %v", err)
 	}
 	t.Logf("msg2: %v", msg2)
 
-	if msg1.UserId != msg2.UserId || msg1.Nick != msg2.Nick {
+	if msg1.BuildTime != msg2.BuildTime || msg1.Timeout != msg2.Timeout || msg1.SourcePath != msg2.SourcePath || msg1.TargetPath != msg2.TargetPath || msg1.FuncName != msg2.FuncName || msg1.Session.Uid != msg2.Session.Uid || msg1.Session.AgentPath != msg2.Session.AgentPath || msg1.Session.Ip != msg2.Session.Ip {
 		t.Fatalf("msg1 != msg2")
 	}
 }

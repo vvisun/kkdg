@@ -165,16 +165,10 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
 
-	body, err := codec.Marshal(v)
+	buf, err := codec.MarshalAppend(v, headSize)
 	if err != nil {
 		return nil, kkerrors.ErrEncodeFailed
 	}
-
-	bodyLen := len(body)
-
-	buf := kkbuffer.GetWithCapacity(headSize + bodyLen)
-	// Set the length to the total size we need
-	buf.B = buf.B[:headSize+bodyLen]
 
 	endian := GetByteOrder()
 	switch pkType.headType {
@@ -187,10 +181,6 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 	default:
 		kkbuffer.Put(buf)
 		return nil, kkerrors.ErrInvalidMsgHeadType
-	}
-
-	if bodyLen > 0 {
-		copy(buf.B[headSize:], body)
 	}
 
 	return buf, nil
