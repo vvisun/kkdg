@@ -210,7 +210,7 @@ func (c *wsConn) drainSendQueueRelease() {
 
 	for {
 		c.sendMu.Lock()
-		n := c.sendQueue.PopMany(writeBatchSize, c.batchBuffer[:])
+		n := c.sendQueue.PopMany(writeBatchSize, c.batchBuffer[:], 0)
 		c.sendMu.Unlock()
 		if n <= 0 {
 			return
@@ -233,6 +233,10 @@ func (c *wsConn) writeLoop() {
 	defer close(c.writeDone)
 
 	batchBytes := make([]byte, 0, c.opts.WriteBufferSize)
+	limitBytes := c.opts.WriteBufferSize
+	if limitBytes > 2048 { // 限制单次写入的字节数，避免写入过大导致性能下降
+		limitBytes = 2048
+	}
 
 	for {
 		select {
@@ -246,7 +250,7 @@ func (c *wsConn) writeLoop() {
 		for {
 			// pop batch
 			c.sendMu.Lock()
-			n := c.sendQueue.PopMany(writeBatchSize, c.batchBuffer[:])
+			n := c.sendQueue.PopMany(writeBatchSize, c.batchBuffer[:], limitBytes)
 			remain := c.sendQueue.Len()
 			closing := c.closing.Load()
 			c.sendMu.Unlock()

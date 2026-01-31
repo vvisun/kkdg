@@ -139,9 +139,6 @@ func TestKK_packet_Decode(t *testing.T) {
 	if !ok {
 		t.Fatalf("decode packet: %v", err)
 	}
-	if err != nil {
-		t.Fatalf("decode packet: %v", err)
-	}
 	t.Logf("msg2: %v", msg2)
 }
 

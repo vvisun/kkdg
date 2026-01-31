@@ -203,7 +203,7 @@ func TestBBQueue_PopMany_Basic(t *testing.T) {
 	}
 
 	recv := make([]*kkbuffer.ByteBuffer, 5)
-	n := q.PopMany(5, recv)
+	n := q.PopMany(5, recv, 0)
 	if n != 5 {
 		t.Fatalf("PopMany() = %d, want 5", n)
 	}
@@ -229,7 +229,7 @@ func TestBBQueue_PopMany_Limits(t *testing.T) {
 	}
 
 	recv := make([]*kkbuffer.ByteBuffer, 2)
-	n := q.PopMany(10, recv) // count > len(recv) and > Len()
+	n := q.PopMany(10, recv, 0) // count > len(recv) and > Len()
 	if n != 2 {
 		t.Fatalf("PopMany(10, len=2) = %d, want 2", n)
 	}
@@ -274,7 +274,7 @@ func TestBBQueue_PopMany_WrapAroundOrder(t *testing.T) {
 	}
 
 	recv := make([]*kkbuffer.ByteBuffer, 8)
-	n := q.PopMany(8, recv)
+	n := q.PopMany(8, recv, 0)
 	if n != 8 {
 		t.Fatalf("PopMany() = %d, want 8", n)
 	}
@@ -298,4 +298,59 @@ func TestBBQueue_PopMany_WrapAroundOrder(t *testing.T) {
 		t.Fatalf("after reset, Pop() = %v, want 'again'", bb)
 	}
 	kkbuffer.Put(bb)
+}
+
+func TestBBQueue_PopMany_LimitBytes(t *testing.T) {
+	q := NewBBQueue(8, false)
+
+	// push three buffers: 2,2,10 bytes
+	b0 := kkbuffer.GetWithCapacity(2)
+	b0.B = append(b0.B, []byte("aa")...)
+	b1 := kkbuffer.GetWithCapacity(2)
+	b1.B = append(b1.B, []byte("bb")...)
+	b2 := kkbuffer.GetWithCapacity(10)
+	b2.B = append(b2.B, []byte("cccccccccc")...)
+
+	q.Push(b0)
+	q.Push(b1)
+	q.Push(b2)
+
+	recv := make([]*kkbuffer.ByteBuffer, 10)
+
+	// limitBytes=3 should pop at least 1, and should not exceed limit for subsequent items.
+	n := q.PopMany(10, recv, 3)
+	if n != 1 {
+		t.Fatalf("PopMany(limitBytes=3) = %d, want 1", n)
+	}
+	if recv[0] == nil || string(recv[0].B) != "aa" {
+		t.Fatalf("recv[0] = %v, want 'aa'", recv[0])
+	}
+	kkbuffer.Put(recv[0])
+	recv[0] = nil
+
+	// Now queue has "bb"(2) + "cccc..."(10). limitBytes=3 should pop only "bb".
+	n = q.PopMany(10, recv, 3)
+	if n != 1 {
+		t.Fatalf("PopMany(limitBytes=3) second = %d, want 1", n)
+	}
+	if recv[0] == nil || string(recv[0].B) != "bb" {
+		t.Fatalf("recv[0] = %v, want 'bb'", recv[0])
+	}
+	kkbuffer.Put(recv[0])
+	recv[0] = nil
+
+	// Now only big one remains; limitBytes=3 still should pop 1 (even if it exceeds).
+	n = q.PopMany(10, recv, 3)
+	if n != 1 {
+		t.Fatalf("PopMany(limitBytes=3) big = %d, want 1", n)
+	}
+	if recv[0] == nil || string(recv[0].B) != "cccccccccc" {
+		t.Fatalf("recv[0] = %v, want 'cccccccccc'", recv[0])
+	}
+	kkbuffer.Put(recv[0])
+	recv[0] = nil
+
+	if q.Len() != 0 {
+		t.Fatalf("Len() = %d, want 0", q.Len())
+	}
 }

@@ -116,8 +116,9 @@ func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {
 // 批量弹出
 // count: 需要弹出的数量
 // recv: 接收缓冲区
+// limitBytes: 限制弹出的总字节数，如果limitBytes<=0，则不限制。当弹出1个就会超出limitBytes，也会弹出1个，防止limitBytes过小永远无法弹出。
 // 返回实际弹出的数量
-func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer) int {
+func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int) int {
 	if count <= 0 {
 		return 0
 	}
@@ -132,30 +133,34 @@ func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer) int {
 	}
 
 	written := 0
-	remain := count
+	totalBytes := 0
 
 	// BBQueue 本身非并发安全；这里做一次取模归一化，避免并发误用时 panic。
 	l := len(q.buf)
-	for remain > 0 {
+	for written < count && q.count > 0 {
 		hc := q.headChunk
 		if l > 0 && hc >= l {
 			hc = hc % l
 			q.headChunk = hc
 		}
-		// 本chunk剩余连续段
-		n := q.chunkSize - q.headPos
-		if remain < n {
-			n = remain
+
+		bb := q.buf[hc][q.headPos]
+		sz := 0
+		if bb != nil {
+			sz = len(bb.B)
 		}
 
-		copy(recv[written:written+n], q.buf[hc][q.headPos:q.headPos+n])
-		clear(q.buf[hc][q.headPos : q.headPos+n])
+		if limitBytes > 0 && written > 0 && totalBytes+sz > limitBytes {
+			break
+		}
 
-		written += n
-		remain -= n
-		q.count -= n
+		recv[written] = bb
+		q.buf[hc][q.headPos] = nil
+		written++
+		totalBytes += sz
+		q.count--
 
-		q.headPos += n
+		q.headPos++
 		if q.headPos == q.chunkSize {
 			q.headPos = 0
 			if l > 0 {
@@ -163,6 +168,11 @@ func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer) int {
 			} else {
 				q.headChunk = 0
 			}
+		}
+
+		// 当第一个元素就会超出 limitBytes 时，也允许弹出一个，防止 limitBytes 过小永远无法弹出。
+		if limitBytes > 0 && totalBytes >= limitBytes && written > 0 {
+			break
 		}
 	}
 
