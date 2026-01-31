@@ -4,29 +4,37 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-const bbQueueChunkSize = 64
-
 // BBQueue is a fixed-size FIFO queue that uses a circular buffer to store elements.
 type BBQueue struct {
-	buf      [][]*kkbuffer.ByteBuffer
-	capacity int
-	head     int
-	tail     int
-	count    int
-	isStrict bool //是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
+	buf       [][]*kkbuffer.ByteBuffer
+	chunkSize int
+	capacity  int
+	head      int
+	tail      int
+	count     int
+	isStrict  bool //是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
 }
 
-func NewBBQueue(size int, isStrict bool) *BBQueue {
-	if size <= 0 {
-		size = 64
+// NewBBQueue creates a queue where the `chunkSize` parameter means
+// **the number of slots in each chunk**.
+//
+// The initial capacity is 1 chunk (i.e. `chunkSize`).
+//
+// isStrict: whether to strictly control the capacity. true时，队列满时返回false，false时，队列满时自动扩容。
+func NewBBQueue(chunkSize int, isStrict bool) *BBQueue {
+	if chunkSize <= 0 {
+		chunkSize = 64
 	}
+	capacity := chunkSize
+	chunks := 1
 	q := &BBQueue{
-		buf:      make([][]*kkbuffer.ByteBuffer, (size+bbQueueChunkSize-1)/bbQueueChunkSize),
-		capacity: size,
-		isStrict: isStrict,
+		buf:       make([][]*kkbuffer.ByteBuffer, chunks),
+		chunkSize: chunkSize,
+		capacity:  capacity,
+		isStrict:  isStrict,
 	}
 	for i := range q.buf {
-		q.buf[i] = make([]*kkbuffer.ByteBuffer, bbQueueChunkSize)
+		q.buf[i] = make([]*kkbuffer.ByteBuffer, chunkSize)
 	}
 	return q
 }
@@ -51,8 +59,8 @@ func (q *BBQueue) Push(bb *kkbuffer.ByteBuffer) bool {
 		}
 		q.grow()
 	}
-	chunk := q.tail / bbQueueChunkSize
-	pos := q.tail % bbQueueChunkSize
+	chunk := q.tail / q.chunkSize
+	pos := q.tail % q.chunkSize
 	q.buf[chunk][pos] = bb
 	q.tail = (q.tail + 1) % q.capacity
 	q.count++
@@ -64,8 +72,8 @@ func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {
 	if q.count == 0 {
 		return nil
 	}
-	chunk := q.head / bbQueueChunkSize
-	pos := q.head % bbQueueChunkSize
+	chunk := q.head / q.chunkSize
+	pos := q.head % q.chunkSize
 	bb := q.buf[chunk][pos]
 	q.buf[chunk][pos] = nil
 	q.head = (q.head + 1) % q.capacity
@@ -99,11 +107,11 @@ func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer) int {
 	remain := count
 
 	for remain > 0 {
-		chunk := q.head / bbQueueChunkSize
-		pos := q.head % bbQueueChunkSize
+		chunk := q.head / q.chunkSize
+		pos := q.head % q.chunkSize
 
 		// 本chunk剩余连续段
-		n := bbQueueChunkSize - pos
+		n := q.chunkSize - pos
 		if t := q.capacity - q.head; t < n { // 到buffer物理结尾（避免跨越capacity边界）
 			n = t
 		}
@@ -134,12 +142,13 @@ func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer) int {
 // 扩容
 func (q *BBQueue) grow() {
 	oldCap := q.capacity
-	newCap := oldCap * 2
-	if newCap == 0 {
-		newCap = 64
+	// 每次扩容只增加一个 chunk，避免一次性翻倍带来的内存峰值
+	newCap := oldCap + q.chunkSize
+	if newCap <= 0 {
+		newCap = q.chunkSize
 	}
 
-	newChunkCount := (newCap + bbQueueChunkSize - 1) / bbQueueChunkSize
+	newChunkCount := (newCap + q.chunkSize - 1) / q.chunkSize
 	newBuf := make([][]*kkbuffer.ByteBuffer, newChunkCount)
 
 	// 把现有元素按队列顺序搬到新buf的前面。为了避免大规模copy：
@@ -151,17 +160,17 @@ func (q *BBQueue) grow() {
 		remain := q.count
 
 		for remain > 0 {
-			dstChunk := dstIdx / bbQueueChunkSize
-			dstPos := dstIdx % bbQueueChunkSize
-			srcChunk := srcIdx / bbQueueChunkSize
-			srcPos := srcIdx % bbQueueChunkSize
+			dstChunk := dstIdx / q.chunkSize
+			dstPos := dstIdx % q.chunkSize
+			srcChunk := srcIdx / q.chunkSize
+			srcPos := srcIdx % q.chunkSize
 
 			// 尽量复用整块chunk（要求源/目标都chunk对齐，且源chunk完全落在oldCap范围内）
-			if dstPos == 0 && srcPos == 0 && remain >= bbQueueChunkSize && srcIdx+bbQueueChunkSize <= oldCap {
+			if dstPos == 0 && srcPos == 0 && remain >= q.chunkSize && srcIdx+q.chunkSize <= oldCap {
 				newBuf[dstChunk] = q.buf[srcChunk]
-				dstIdx += bbQueueChunkSize
-				srcIdx += bbQueueChunkSize
-				remain -= bbQueueChunkSize
+				dstIdx += q.chunkSize
+				srcIdx += q.chunkSize
+				remain -= q.chunkSize
 				if srcIdx == oldCap {
 					srcIdx = 0
 				}
@@ -169,11 +178,11 @@ func (q *BBQueue) grow() {
 			}
 
 			if newBuf[dstChunk] == nil {
-				newBuf[dstChunk] = make([]*kkbuffer.ByteBuffer, bbQueueChunkSize)
+				newBuf[dstChunk] = make([]*kkbuffer.ByteBuffer, q.chunkSize)
 			}
 
-			n := bbQueueChunkSize - dstPos
-			if t := bbQueueChunkSize - srcPos; t < n {
+			n := q.chunkSize - dstPos
+			if t := q.chunkSize - srcPos; t < n {
 				n = t
 			}
 			if t := oldCap - srcIdx; t < n {
@@ -197,7 +206,7 @@ func (q *BBQueue) grow() {
 	// 补齐未分配的chunk
 	for i := range newBuf {
 		if newBuf[i] == nil {
-			newBuf[i] = make([]*kkbuffer.ByteBuffer, bbQueueChunkSize)
+			newBuf[i] = make([]*kkbuffer.ByteBuffer, q.chunkSize)
 		}
 	}
 

@@ -66,6 +66,7 @@ func (c *wsConn) initSendQueue() {
 	if size <= 0 {
 		size = kknet.DefaultOptions().SendQueueSize
 	}
+	// NOTE: bbqueue.NewBBQueue 的 size 含义为 chunkSize，初始容量也等于 chunkSize
 	c.sendQueue = bbqueue.NewBBQueue(size, c.opts.SendQueueStrict)
 
 	c.wakeCh = make(chan struct{}, 1)
