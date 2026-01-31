@@ -4,7 +4,7 @@ package kkdiscovery
 type Member struct {
 	nodeID   string
 	nodeType string
-	address  string
+	address  string //rpc server address
 	settings map[string]string
 }
 

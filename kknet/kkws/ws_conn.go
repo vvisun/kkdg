@@ -15,7 +15,7 @@ import (
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
-const writeBatchSize = 16 // 每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
+const writeBatchSize = 32 // 每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
 
 type wsConn struct {
 	id    kknet.CONN_ID

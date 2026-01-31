@@ -24,12 +24,12 @@ message DiscoveryRequest {
 
 
 message ClusterPacket {
-	int64  BuildTime = 1; 	// 构建时间（毫秒）
+	int64 BuildTime = 1; 	// 构建时间（毫秒）
 	int64 Timeout = 2; 		// 函数请求超时时间(毫秒)
 	string SourcePath = 3; 	// 源节点路径
 	string TargetPath = 4; 	// 目标节点路径
 	string FuncName = 5;	// 函数名
-	bytes Args = 6;			// 函数参数
+	bytes ArgBytes = 6;		// 函数参数
 	Session Session = 7;	// 会话(可选项，可以为空)
 }
 

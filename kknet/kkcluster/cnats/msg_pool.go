@@ -4,7 +4,10 @@ import (
 	"sync"
 
 	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
+
+var msgCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 
 var (
 	_msgPool = &sync.Pool{

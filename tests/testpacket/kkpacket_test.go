@@ -49,7 +49,7 @@ func TestKK_packet_ProtoBuf(t *testing.T) {
 		SourcePath: "test",
 		TargetPath: "test",
 		FuncName:   "test",
-		Args:       []byte("test"),
+		ArgBytes:   []byte("test"),
 		Session: &pbcluster.Session{
 			Sid:       "test",
 			Uid:       1,
@@ -159,7 +159,7 @@ func TestKK_packet_EncodeDecode_Stream(t *testing.T) {
 		SourcePath: "test",
 		TargetPath: "test",
 		FuncName:   "test",
-		Args:       []byte("test"),
+		ArgBytes:   []byte("test"),
 		Session: &pbcluster.Session{
 			Sid:       "test",
 			Uid:       1,
@@ -199,7 +199,7 @@ func TestKK_packet_EncodeDecode_StreamJson(t *testing.T) {
 		SourcePath: "test",
 		TargetPath: "test",
 		FuncName:   "test",
-		Args:       []byte("test"),
+		ArgBytes:   []byte("test"),
 		Session: &pbcluster.Session{
 			Sid:       "test",
 			Uid:       1,
@@ -239,7 +239,7 @@ func TestKK_packet_EncodeDecode_StreamMsgpack(t *testing.T) {
 		SourcePath: "test",
 		TargetPath: "test",
 		FuncName:   "test",
-		Args:       []byte("test"),
+		ArgBytes:   []byte("test"),
 		Session: &pbcluster.Session{
 			Sid:       "test",
 			Uid:       1,

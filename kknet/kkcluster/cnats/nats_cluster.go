@@ -1,7 +1,6 @@
 package cnats
 
 import (
-	"encoding/json"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -16,7 +15,7 @@ import (
 
 // NatsCluster 基于NATS的集群实现
 type NatsCluster struct {
-	nodeID    string
+	nodeID    string // 节点ID
 	nodeType  string // 节点类型（用于订阅类型主题）
 	discovery kkdiscovery.IDiscovery
 	conn      *nats.Conn
@@ -185,7 +184,8 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 	packet.TargetPath = nodeID
 
 	// 序列化消息
-	data, err := json.Marshal(packet)
+	data, err := msgCodec.Marshal(packet)
+	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return err
@@ -223,7 +223,8 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	packet.TargetPath = nodeType
 
 	// 序列化消息（只序列化一次）
-	data, err := json.Marshal(packet)
+	data, err := msgCodec.Marshal(packet)
+	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return err
@@ -290,7 +291,8 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	}
 
 	// 序列化请求
-	data, err := json.Marshal(reqMsg)
+	data, err := msgCodec.Marshal(reqMsg)
+	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return nil, kkcluster.ClusterErrorCodeMarshalFailed
@@ -300,7 +302,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	responseSubject := c.getResponseSubject(requestID)
 	responseSub, err := c.conn.Subscribe(responseSubject, func(msg *nats.Msg) {
 		var resp kkcluster.ClusterResponse
-		if err := json.Unmarshal(msg.Data, &resp); err != nil {
+		if err := msgCodec.Unmarshal(msg.Data, &resp); err != nil {
 			kklog.Errorf("NatsCluster unmarshal response failed: %v", err)
 			return
 		}
@@ -362,13 +364,29 @@ func (c *NatsCluster) Stop() {
 	}
 }
 
+// SetRequestHandler 设置请求处理器
+func (c *NatsCluster) SetRequestHandler(handler kkcluster.FunRequestHandler) {
+	c.requestHandler = handler
+}
+
+// SetPublishHandler 设置发布消息处理器
+func (c *NatsCluster) SetPublishHandler(handler kkcluster.FunPublishHandler) {
+	c.publishHandler = handler
+}
+
+// Stats 获取统计信息快照
+func (c *NatsCluster) Stats() kkcluster.ClusterStatsSnapshot {
+	isConnected := c.conn != nil && c.conn.IsConnected()
+	return c.stats.Snapshot(isConnected)
+}
+
 // handleRequest 处理请求
 func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 	// 记录接收请求统计
 	c.stats.AddRequestReceived(len(msg.Data))
 
 	var req kkcluster.ClusterRequest
-	if err := json.Unmarshal(msg.Data, &req); err != nil {
+	if err := msgCodec.Unmarshal(msg.Data, &req); err != nil {
 		kklog.Errorf("NatsCluster unmarshal request failed: %v", err)
 		c.stats.AddError()
 		return
@@ -401,7 +419,7 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 
 	// 发送响应
 	responseSubject := c.getResponseSubject(req.RequestID)
-	data, err := json.Marshal(response)
+	data, err := msgCodec.Marshal(response)
 	if err != nil {
 		kklog.Errorf("NatsCluster marshal response failed: %v", err)
 		c.stats.AddError()
@@ -417,18 +435,13 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 	}
 }
 
-// SetRequestHandler 设置请求处理器
-func (c *NatsCluster) SetRequestHandler(handler kkcluster.FunRequestHandler) {
-	c.requestHandler = handler
-}
-
 // handlePublish 处理发布消息（来自节点ID主题）
 func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 	// 记录接收发布消息统计
 	c.stats.AddPublishReceived(len(msg.Data))
 
 	var packet kkcluster.ClusterPacket
-	if err := json.Unmarshal(msg.Data, &packet); err != nil {
+	if err := msgCodec.Unmarshal(msg.Data, &packet); err != nil {
 		kklog.Errorf("NatsCluster unmarshal publish packet failed: %v", err)
 		c.stats.AddError()
 		return
@@ -448,13 +461,13 @@ func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 	}
 }
 
-// handleTypePublish 处理类型发布消息（来自类型主题，使用队列组）
+// handleTypePublish 处理类型发布消息（来自类型主题）
 func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 	// 记录接收发布消息统计
 	c.stats.AddPublishReceived(len(msg.Data))
 
 	var packet kkcluster.ClusterPacket
-	if err := json.Unmarshal(msg.Data, &packet); err != nil {
+	if err := msgCodec.Unmarshal(msg.Data, &packet); err != nil {
 		kklog.Errorf("NatsCluster unmarshal type publish packet failed: %v", err)
 		c.stats.AddError()
 		return
@@ -472,17 +485,6 @@ func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 			c.publishHandler(packet.SourcePath, &packet)
 		}()
 	}
-}
-
-// SetPublishHandler 设置发布消息处理器
-func (c *NatsCluster) SetPublishHandler(handler kkcluster.FunPublishHandler) {
-	c.publishHandler = handler
-}
-
-// Stats 获取统计信息快照
-func (c *NatsCluster) Stats() kkcluster.ClusterStatsSnapshot {
-	isConnected := c.conn != nil && c.conn.IsConnected()
-	return c.stats.Snapshot(isConnected)
 }
 
 // generateRequestID 生成请求ID

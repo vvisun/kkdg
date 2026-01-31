@@ -119,14 +119,22 @@ func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {
 // limitBytes: 限制弹出的总字节数，如果limitBytes<=0，则不限制。当弹出1个就会超出limitBytes，也会弹出1个，防止limitBytes过小永远无法弹出。
 // 返回实际弹出的数量
 func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int) int {
-	if count <= 0 {
-		return 0
+	if q.count == 0 {
+		return 0 // 队列空，直接返回0
 	}
-	if q.count == 0 || len(recv) == 0 {
-		return 0
+
+	// 参数检查
+	if count < 1 {
+		count = 1 // 至少弹出1个
 	}
-	if count > len(recv) {
-		count = len(recv)
+	recvLen := len(recv)
+	if recvLen == 0 {
+		panic("recv is empty")
+	}
+
+	// 实际最多能弹出的数量
+	if count > recvLen {
+		count = recvLen
 	}
 	if count > q.count {
 		count = q.count

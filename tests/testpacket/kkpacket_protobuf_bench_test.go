@@ -17,7 +17,7 @@ func Benchmark_kkpacket_ProtoBuf_Encode(b *testing.B) {
 		SourcePath: "test",
 		TargetPath: "test",
 		FuncName:   "test",
-		Args:       []byte("test"),
+		ArgBytes:   []byte("test"),
 		Session: &pbcluster.Session{
 			Sid:       "test",
 			Uid:       1,
@@ -43,7 +43,7 @@ func Benchmark_kkpacket_ProtoBuf_Decode(b *testing.B) {
 		SourcePath: "test",
 		TargetPath: "test",
 		FuncName:   "test",
-		Args:       []byte("test"),
+		ArgBytes:   []byte("test"),
 		Session: &pbcluster.Session{
 			Sid:       "test",
 			Uid:       1,
@@ -73,7 +73,7 @@ func Benchmark_kkpacket_ProtoBuf_EncodeDecode(b *testing.B) {
 		SourcePath: "test",
 		TargetPath: "test",
 		FuncName:   "test",
-		Args:       []byte("test"),
+		ArgBytes:   []byte("test"),
 		Session: &pbcluster.Session{
 			Sid:       "test",
 			Uid:       1,

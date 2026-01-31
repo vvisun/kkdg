@@ -1,7 +1,6 @@
 package ccgate
 
 import (
-	"errors"
 	"strconv"
 	"sync"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -136,21 +134,20 @@ func (slf *gateComponent) Stop() error {
 // ForwardToLogic implements ITransportor. It forwards the raw message bytes ([message]) to logic nodes.
 func (slf *gateComponent) ForwardToLogic(sessionID string, msgRoute string, msgBytes []byte) error {
 	if slf.cluster == nil {
-		return errors.New("ccgate: cluster not initialized")
+		return ErrClusterNotInitialized
 	}
 	if sessionID == "" {
-		return errors.New("ccgate: empty sessionID")
+		return ErrEmptySessionID
 	}
 	if len(msgBytes) == 0 {
 		return nil
 	}
 
-	pkt := &kkcluster.ClusterPacket{
-		FuncName: msgRoute,
-		ArgBytes: append([]byte(nil), msgBytes...),
-		Session: &kkcluster.Session{
-			Sid: sessionID,
-		},
+	pkt := kkcluster.NewClusterPacket()
+	pkt.FuncName = msgRoute
+	pkt.ArgBytes = append([]byte(nil), msgBytes...)
+	pkt.Session = &kkcluster.Session{
+		Sid: sessionID,
 	}
 	return slf.cluster.PublishRemoteType(slf.opt.LogicNodeType, pkt)
 }
@@ -178,7 +175,6 @@ func (slf *gateComponent) onClusterPublish(_ string, packet *kkcluster.ClusterPa
 		return
 	}
 	if err := conn.SendBuffer(bb); err != nil {
-		kkbuffer.Put(bb)
 		kklog.Errorf("[ccgate] send response error: %v", err)
 	}
 }

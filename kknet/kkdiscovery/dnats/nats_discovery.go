@@ -24,8 +24,8 @@ type NatsDiscovery struct {
 	sub        *nats.Subscription
 	requestSub *nats.Subscription
 
-	members         map[string]kkdiscovery.IMember
-	memberTimes     map[string]time.Time // 记录成员最后更新时间
+	members         map[string]kkdiscovery.IMember // key: nodeID, value: member
+	memberTimes     map[string]time.Time           // 记录成员最后更新时间。key: nodeID, value: last update time
 	membersMu       sync.RWMutex
 	addListeners    []kkdiscovery.MemberListener
 	removeListeners []kkdiscovery.MemberListener
@@ -188,6 +188,16 @@ func (d *NatsDiscovery) OnRemoveMember(listener kkdiscovery.MemberListener) {
 	d.listenersMu.Lock()
 	d.removeListeners = append(d.removeListeners, listener)
 	d.listenersMu.Unlock()
+}
+
+// Stats 获取统计信息快照
+func (d *NatsDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot {
+	d.membersMu.RLock()
+	memberCount := len(d.members)
+	d.membersMu.RUnlock()
+
+	isConnected := d.conn != nil && d.conn.IsConnected()
+	return d.stats.Snapshot(memberCount, isConnected)
 }
 
 // Stop 停止服务发现
@@ -447,16 +457,6 @@ func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 		kklog.Errorf("NatsDiscovery respond to request failed: %v", err)
 		// publishSelf内部已经记录了错误统计
 	}
-}
-
-// Stats 获取统计信息快照
-func (d *NatsDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot {
-	d.membersMu.RLock()
-	memberCount := len(d.members)
-	d.membersMu.RUnlock()
-
-	isConnected := d.conn != nil && d.conn.IsConnected()
-	return d.stats.Snapshot(memberCount, isConnected)
 }
 
 // checkMemberTimeout 检查成员超时

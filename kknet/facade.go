@@ -10,7 +10,8 @@ import (
 // CONN_ID is the type of connection ID.
 type CONN_ID = int64
 
-var connIDCounter atomic.Int64 // counter for connection ID. unique id for the connection.
+// counter for connection ID. unique id for the connection.
+var connIDCounter atomic.Int64
 
 // NextConnID returns a unique connection ID.
 func NextConnID() CONN_ID {
@@ -20,7 +21,7 @@ func NextConnID() CONN_ID {
 // IConn represents a network connection.
 type IConn interface {
 	ID() CONN_ID                             //unique connection id
-	SendBuffer(buffer buffers.IBuffer) error //send buffer。调用该方法后，buffer 不能被其他地方使用。因为该方法会回收buffer
+	SendBuffer(buffer buffers.IBuffer) error //send buffer。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
 	Close() error                            //close connection
 	RemoteAddr() string                      //remote address
 	Context() context.Context                //get context
