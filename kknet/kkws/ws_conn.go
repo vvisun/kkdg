@@ -66,8 +66,7 @@ func (c *wsConn) initSendQueue() {
 	if size <= 0 {
 		size = kknet.DefaultOptions().SendQueueSize
 	}
-	q := bbqueue.NewBBQueue(size, c.opts.SendQueueStrict)
-	c.sendQueue = &q
+	c.sendQueue = bbqueue.NewBBQueue(size, c.opts.SendQueueStrict)
 
 	c.wakeCh = make(chan struct{}, 1)
 	c.closeCh = make(chan struct{})
@@ -188,34 +187,16 @@ func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 		}
 
 		if dispatch != nil {
-			pos := 0
-			for {
-				if pos >= dataLen {
-					break
+			packets := [writeBatchSize]buffers.IBuffer{}
+			recvs, err := kkpacket.DefaultStreamPacket().Split(data, packets[:])
+			if err != nil {
+				if c.stats != nil {
+					c.stats.AddError()
 				}
-				lengthFieldByteCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
-				if dataLen-pos < lengthFieldByteCount {
-					break
-				}
-				messageSize, err := kkpacket.DefaultStreamPacket().GetBodySize(data[pos:])
-				totalLen := lengthFieldByteCount + messageSize
-				if dataLen-pos < totalLen {
-					break
-				}
-				if err != nil {
-					if c.stats != nil {
-						c.stats.AddError()
-					}
-					return err
-				}
-				dataCpy := kkbuffer.GetWithCapacity(totalLen)
-				dataCpy.B = dataCpy.B[:totalLen]
-				copy(dataCpy.B, data[pos:pos+totalLen])
-				dispatch(c, dataCpy)
-				pos += totalLen
-				if pos >= dataLen {
-					break
-				}
+				return err
+			}
+			for _, recv := range recvs {
+				dispatch(c, recv)
 			}
 		}
 	}

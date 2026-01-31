@@ -15,11 +15,11 @@ type BBQueue struct {
 	isStrict bool //是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
 }
 
-func NewBBQueue(size int, isStrict bool) BBQueue {
+func NewBBQueue(size int, isStrict bool) *BBQueue {
 	if size <= 0 {
 		size = 64
 	}
-	q := BBQueue{
+	q := &BBQueue{
 		buf:      make([][]*kkbuffer.ByteBuffer, (size+bbQueueChunkSize-1)/bbQueueChunkSize),
 		capacity: size,
 		isStrict: isStrict,

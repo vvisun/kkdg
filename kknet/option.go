@@ -59,9 +59,9 @@ func DefaultOptions() Options {
 		Middlewares:     nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
-		WsReadTimeout:   0,   // 0秒, 不超时
-		WsWriteTimeout:  0,   // 0秒, 不超时
-		SendQueueSize:   256, // 256
+		WsReadTimeout:   0, // 0秒, 不超时
+		WsWriteTimeout:  0, // 0秒, 不超时
+		SendQueueSize:   512,
 
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
 		UDPCleanupInterval: 1 * time.Minute, // 1分钟

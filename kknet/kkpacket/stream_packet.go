@@ -56,6 +56,11 @@ type IStreamPacket interface {
 	// @ return [message], err
 	Unpack(data []byte) ([]byte, error)
 
+	// 拆分数据包。
+	// input: data contains array of [length,message].
+	// output: Array of [length,message].
+	Split(data []byte, recvs []buffers.IBuffer) ([]buffers.IBuffer, error)
+
 	// 粘包拆包。return [length,message], ok, err
 	UnpackFromSR(r IStreamReader) ([]byte, bool, error)
 }
@@ -157,6 +162,47 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 	copy(bb.B[lengthFieldByteCount:], data)
 
 	return bb, nil
+}
+
+// 拆分数据包。
+// input: data contains array of [length,message].
+// output: Array of [length,message].
+func (slf *LengthFieldStreamPacket) Split(data []byte, recvs []buffers.IBuffer) ([]buffers.IBuffer, error) {
+	if recvs == nil {
+		recvs = make([]buffers.IBuffer, 0)
+	}
+	packets := recvs[:0]
+	dataLen := len(data)
+	var errRet error
+	pos := 0
+	for {
+		if pos >= dataLen {
+			break
+		}
+		lengthFieldByteCount := slf.LengthFieldByteCount()
+		if dataLen-pos < lengthFieldByteCount {
+			break
+		}
+		messageSize, err := slf.GetBodySize(data[pos:])
+		if err != nil {
+			errRet = err
+			break
+		}
+		totalLen := lengthFieldByteCount + messageSize
+		if dataLen-pos < totalLen {
+			break
+		}
+
+		dataCpy := kkbuffer.GetWithCapacity(totalLen)
+		dataCpy.B = dataCpy.B[:totalLen]
+		copy(dataCpy.B, data[pos:pos+totalLen])
+		packets = append(packets, dataCpy)
+		pos += totalLen
+		if pos >= dataLen {
+			break
+		}
+	}
+	return packets, errRet
 }
 
 // unpack message from stream.
