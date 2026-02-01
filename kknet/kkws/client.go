@@ -11,13 +11,12 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Client represents a WebSocket client.
 type Client struct {
 	url     string
-	handler kknet.IHandler
+	handler kknet.INewHandler
 	opts    kknet.Options
 
 	connMu    sync.Mutex
@@ -30,7 +29,7 @@ type Client struct {
 var _ kknet.IClient = (*Client)(nil)
 
 // NewClient creates a new WebSocket client.
-func NewClient(url string, handler kknet.IHandler, opts ...kknet.Option) *Client {
+func NewClient(url string, handler kknet.INewHandler, opts ...kknet.Option) *Client {
 	return &Client{
 		url:     url,
 		handler: handler,
@@ -86,14 +85,7 @@ func (c *Client) Connect() error {
 	}
 
 	go func() {
-		err := wsConn.readLoop(func(conn kknet.IConn, data buffers.IBuffer) {
-			if c.handler != nil {
-				kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "kkws OnMessage", func() {
-					c.handler.OnMessage(conn, data)
-				})
-			}
-			kkbuffer.Put(data)
-		})
+		err := wsConn.readLoop()
 		wsConn.closeWithError(c.handler, err)
 		c.connected.Store(false)
 	}()

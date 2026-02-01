@@ -172,15 +172,10 @@ func (slf *LengthFieldStreamPacket) Split(data []byte, recvs []buffers.IBuffer) 
 		recvs = make([]buffers.IBuffer, 0)
 	}
 
-	var packets []buffers.IBuffer
-	if recvs == nil {
-		packets = make([]buffers.IBuffer, 0, 8)
-	} else {
-		packets = recvs[:0]
-	}
+	packets := recvs[:0] // 复用recvs，避免分配新的内存
 
 	dataLen := len(data)
-	var errRet error
+	var errRet error = nil
 	pos := 0
 	for {
 		if pos >= dataLen {

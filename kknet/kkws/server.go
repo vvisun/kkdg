@@ -14,15 +14,13 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Server represents a WebSocket server.
 type Server struct {
 	addr    string
 	path    string
-	handler kknet.IHandler
+	handler kknet.INewHandler
 	opts    kknet.Options
 
 	httpServer *http.Server
@@ -41,7 +39,7 @@ type Server struct {
 var _ kknet.IServer = (*Server)(nil)
 
 // NewServer creates a new WebSocket server.
-func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
+func NewServer(addr string, handler kknet.INewHandler, opts ...kknet.Option) *Server {
 	return &Server{
 		addr:    addr,
 		path:    "/ws",
@@ -66,7 +64,7 @@ func (s *Server) Start() error {
 	}
 
 	// Apply middlewares to handler
-	s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
+	// s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
 
 	if s.opts.PoolSize > 0 {
 		poolOpts := make([]ants.Option, 0, 1)
@@ -126,7 +124,7 @@ func (s *Server) Start() error {
 
 		go func() {
 			defer s.connWg.Done()
-			err := wsConn.readLoop(s.dispatch)
+			err := wsConn.readLoop()
 			wsConn.closeWithError(s.handler, err)
 			// Remove from tracking
 			s.connMgr.removeConn(wsConn.id)
@@ -270,28 +268,4 @@ func (s *Server) Stats() kknet.StatsSnapshot {
 // GetConnManager returns the connection manager.
 func (s *Server) GetConnManager() kknet.IConnManager {
 	return s.connMgr
-}
-
-func (s *Server) dispatch(c kknet.IConn, data buffers.IBuffer) {
-	if s.handler == nil {
-		kkbuffer.Put(data)
-		return
-	}
-	if s.pool == nil {
-		defer kkbuffer.Put(data)
-		kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kkws OnMessage", func() {
-			s.handler.OnMessage(c, data)
-		})
-		return
-	}
-	if err := s.pool.Submit(func() {
-		defer kkbuffer.Put(data)
-		kknet.SafeHandlerCall(s.opts.Logger, &s.stats, "kkws OnMessage", func() {
-			s.handler.OnMessage(c, data)
-		})
-	}); err != nil {
-		kkbuffer.Put(data)
-		s.stats.AddError()
-		s.opts.Logger.Errorf("kkws submit task error: %v", err)
-	}
 }

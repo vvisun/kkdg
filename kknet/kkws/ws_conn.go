@@ -9,8 +9,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -30,7 +30,7 @@ type wsConn struct {
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp       *netprocessor.WriteProcessor
+	wp        *netprocessor.WriteProcessor
 	writeDone <-chan struct{} // 兼容测试：writer 退出信号
 }
 
@@ -127,20 +127,12 @@ func (c *wsConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
+func (c *wsConn) readLoop() error {
 	rp := netprocessor.NewReadProcessor(netprocessor.ReadOptions{
-		// NOTE: 当前 Options 没有独立的 RecvQueueSize，这里复用 SendQueueSize 的含义（chunkSize/初始容量）
-		RecvQueueSize:   c.opts.SendQueueSize,
-		RecvQueueStrict: false,
-		NeedDecode:      false,
-		RawHandler: func(_ kknet.CONN_ID, data buffers.IBuffer) {
-			// ownership: dispatch decides when to Put(data). If no dispatch, release here.
-			if dispatch != nil {
-				dispatch(c, data)
-			} else {
-				kkbuffer.Put(data)
-			}
-		},
+		RecvQueueSize:   c.opts.RecvQueueSize,
+		RecvQueueStrict: c.opts.RecvQueueStrict,
+		MsgHandler:      c.opts.MsgHandler,
+		RawHandler:      c.opts.RawHandler,
 	})
 	rp.Start(c)
 	defer rp.Stop()
@@ -213,7 +205,7 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	return nil
 }
 
-func (c *wsConn) closeWithError(handler kknet.IHandler, err error) {
+func (c *wsConn) closeWithError(handler kknet.INewHandler, err error) {
 	c.closeOnce.Do(func() {
 		c.closing.Store(true)
 		if c.wp != nil {

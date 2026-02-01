@@ -9,15 +9,15 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
+	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 type ReadOptions struct {
-	RecvQueueSize   int                                                  //接收队列大小
-	RecvQueueStrict bool                                                 //接收队列是否严格容量控制
-	NeedDecode      bool                                                 //是否需要解码
-	MsgHandler      func(c kknet.CONN_ID, msg any, msgID kkpacket.MSGID) //消费函数
-	RawHandler      func(c kknet.CONN_ID, data buffers.IBuffer)          //消费函数
-	RecvBatchSize   int                                                  //每轮消费最多 Pop 的帧数
+	RecvQueueSize   int              //接收队列大小
+	RecvQueueStrict bool             //接收队列是否严格容量控制
+	MsgHandler      kknet.MsgHandler //消费函数, msg: object, msgID: 消息ID
+	RawHandler      kknet.RawHandler //消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
+	RecvBatchSize   int              //每轮消费最多 Pop 的帧数
 }
 
 func CheckReadOptions(opts *ReadOptions) {
@@ -38,12 +38,13 @@ func CheckReadOptions(opts *ReadOptions) {
  * 接收队列中的数据可以被其他组件消费。
  */
 type ReadProcessor struct {
-	conn      kknet.IConn      //连接
-	connID    kknet.CONN_ID    //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
-	userID    int64            //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
-	recvBuf   []byte           //接收缓冲区
-	recvQueue *bbqueue.BBQueue //接收队列
-	opts      ReadOptions      //选项
+	conn      kknet.IConn              //连接
+	connID    kknet.CONN_ID            //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
+	userID    int64                    //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
+	recvBuf   []byte                   //接收缓冲区
+	recvQueue *bbqueue.BBQueue         //接收队列
+	splitBuf  [64]*kkbuffer.ByteBuffer //拆分缓冲区
+	opts      ReadOptions              //选项
 
 	mu        sync.Mutex
 	closeOnce sync.Once
@@ -89,14 +90,22 @@ func (rp *ReadProcessor) Stop() {
 
 // 收到数据时（生产者生产数据）
 func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
 	rp.mu.Lock()
 	rp.recvBuf = append(rp.recvBuf, data...)
 	// 粘包拆包
-	packets, err := kkpacket.DefaultStreamPacket().Split(rp.recvBuf, nil)
+	packets, err := kkpacket.DefaultStreamPacket().Split(rp.recvBuf, rp.splitBuf[:0])
 	if err != nil {
 		rp.mu.Unlock()
 		return err
 	}
+	if len(packets) == 0 {
+		rp.mu.Unlock()
+		return nil
+	}
+
 	rp.recvBuf = rp.recvBuf[:0]
 
 	wasEmpty := rp.recvQueue.IsEmpty()
@@ -154,15 +163,17 @@ func (rp *ReadProcessor) drainOnce() {
 			if packet == nil {
 				continue
 			}
-			if rp.opts.NeedDecode {
+			if rp.opts.MsgHandler != nil {
 				msg, msgID, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
 				kkbuffer.Put(packet)
 				if err != nil {
 					continue
 				}
 				rp.dispatchMessage(msg, msgID)
-			} else {
+			} else if rp.opts.RawHandler != nil {
 				rp.dispatchRaw(packet)
+			} else {
+				kkbuffer.Put(packet)
 			}
 		}
 	}
@@ -170,16 +181,14 @@ func (rp *ReadProcessor) drainOnce() {
 
 // 分发消息到业务逻辑层
 func (rp *ReadProcessor) dispatchMessage(msg any, msgID kkpacket.MSGID) {
-	// call handler.OnMessage
-	if rp.opts.MsgHandler != nil {
+	xcall.SafeCall(func() {
 		rp.opts.MsgHandler(rp.connID, msg, msgID)
-	}
+	})
 }
 
 // 分发原始数据到业务逻辑层
 func (rp *ReadProcessor) dispatchRaw(data buffers.IBuffer) {
-	// call handler.OnRaw
-	if rp.opts.RawHandler != nil {
+	xcall.SafeCall(func() {
 		rp.opts.RawHandler(rp.connID, data)
-	}
+	})
 }

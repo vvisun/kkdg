@@ -29,8 +29,8 @@ func catchError(catch func(errString string)) {
 	}
 }
 
-// Call 安全地调用函数
-func Call(fn func()) {
+// SafeCall 安全地调用函数
+func SafeCall(fn func()) {
 	if fn == nil {
 		return
 	}
@@ -39,9 +39,9 @@ func Call(fn func()) {
 		if err := recover(); err != nil {
 			switch err.(type) {
 			case runtime.Error:
-				kklog.Panicf("%v", err)
+				kklog.Errorf("[panic] runtime error: %v", err)
 			default:
-				kklog.Panicf("panic error: %v", err)
+				kklog.Errorf("[panic] error: %v", err)
 			}
 		}
 	}()
@@ -51,7 +51,7 @@ func Call(fn func()) {
 
 // Go 执行单个协程
 func Go(fn func()) {
-	go Call(fn)
+	go SafeCall(fn)
 }
 
 // GoWithTimeout 执行多个协程（附带超时时间）

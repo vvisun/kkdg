@@ -285,7 +285,7 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 	// In real usage, a read loop will notice peer close and trigger closeWithError,
 	// which will stop the writer and release pending buffers.
 	go func() {
-		err := wc.readLoop(nil)
+		err := wc.readLoop()
 		wc.closeWithError(nil, err)
 	}()
 
@@ -364,4 +364,3 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 		t.Fatalf("writer did not stop after Close")
 	}
 }
-

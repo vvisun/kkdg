@@ -38,6 +38,11 @@ type Options struct {
 	SendQueueNeedFlushOver        bool                                    //关闭时是否需要等待 flush 完成
 	SendQueueTimeoutFlushOver     time.Duration                           //关闭时等待 flush 完成的超时时间
 	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
+
+	RecvQueueSize   int        // 接收队列大小
+	RecvQueueStrict bool       // 接收队列是否严格容量控制
+	MsgHandler      MsgHandler //消费函数, msg: object, msgID: 消息ID
+	RawHandler      RawHandler //消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
 }
 
 func defaultWSOriginChecker(r *http.Request) bool {
@@ -254,5 +259,31 @@ func WithReconnectInterval(interval time.Duration, maxRetries int) Option {
 func WithReconnectCallback(cb func(attempt int, err error)) Option {
 	return func(o *Options) {
 		o.ReconnectCallback = cb
+	}
+}
+
+func WithMsgHandler(handler MsgHandler) Option {
+	return func(o *Options) {
+		o.MsgHandler = handler
+	}
+}
+
+func WithRawHandler(handler RawHandler) Option {
+	return func(o *Options) {
+		o.RawHandler = handler
+	}
+}
+
+func WithRecvQueueSize(size int) Option {
+	return func(o *Options) {
+		if size > 0 {
+			o.RecvQueueSize = size
+		}
+	}
+}
+
+func WithRecvQueueStrict(strict bool) Option {
+	return func(o *Options) {
+		o.RecvQueueStrict = strict
 	}
 }

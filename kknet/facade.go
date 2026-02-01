@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 )
 
@@ -33,6 +34,23 @@ type IConn interface {
 	SendBuffer(buffer buffers.IBuffer) error
 	// 同步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
 	SendBufferSync(buffer buffers.IBuffer) error
+}
+
+type (
+	//消费函数, msg: object, msgID: 消息ID
+	MsgHandler func(c CONN_ID, msg any, msgID kkpacket.MSGID)
+	//消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
+	RawHandler func(c CONN_ID, data buffers.IBuffer)
+)
+
+type INewHandler interface {
+	// OnConnect is called when the connection is established.
+	// @param c IConn 连接
+	OnConnect(c IConn)
+	// OnClose is called when the connection is closed.
+	// @param c IConn 连接
+	// @param err error 错误（关闭原因）。nil表示正常关闭，非nil表示异常关闭
+	OnClose(c IConn, err error)
 }
 
 // IHandler handles connection lifecycle and messages.

@@ -203,6 +203,9 @@ func (slf *gateComponent) startWSServer() error {
 		slf.opt.WSAddr,
 		slf.handler,
 		kknet.WithLogger(kklog.Stdout()),
+		kknet.WithRawHandler(func(connID kknet.CONN_ID, data buffers.IBuffer) {
+			slf.handler.OnRawData(connID, data)
+		}),
 	)
 
 	if err := server.Start(); err != nil {
@@ -229,6 +232,31 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 func (h *gateHandler) OnConnect(c kknet.IConn) {
 	h.gate.connMap.Store(strconv.FormatInt(c.ID(), 10), c)
 	kklog.Infof("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
+}
+
+func (h *gateHandler) OnRawData(connID kknet.CONN_ID, data buffers.IBuffer) {
+	if data == nil || len(data.Bytes()) == 0 {
+		return
+	}
+
+	// server handler gives us a frame [length,message]. unpack to [message].
+	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	if err != nil {
+		kklog.Errorf("[ccgate] unpack stream packet error: %v", err)
+		return
+	}
+
+	// Best-effort: derive route from msgID if it is registered.
+	msgID, _, err := kkpacket.ParseMsgInfo(msgBytes, kkpacket.DefaultStreamPacket().GetMessagePacket())
+	route := ""
+	if err == nil {
+		route = kkpacket.GetMsgRoute(msgID)
+	}
+
+	sessionID := strconv.FormatInt(connID, 10)
+	if err := h.gate.ForwardToLogic(sessionID, route, msgBytes); err != nil {
+		kklog.Errorf("[ccgate] forward to logic error: %v", err)
+	}
 }
 
 func (h *gateHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
