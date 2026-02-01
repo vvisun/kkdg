@@ -4,20 +4,24 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 type ReadOptions struct {
-	RecvQueueSize   int               //接收队列大小
-	RecvQueueStrict bool              //接收队列是否严格容量控制
-	MsgHandler      kknet.IMsgHandler //消费函数, msg: object, msgID: 消息ID
-	RawHandler      kknet.IRawHandler //消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
-	RecvBatchSize   int               //每轮消费最多 Pop 的帧数
+	RecvQueueSize    int               //接收队列大小
+	RecvQueueStrict  bool              //接收队列是否严格容量控制
+	MsgHandler       kknet.IMsgHandler //消费函数, msg: object, msgID: 消息ID
+	RawHandler       kknet.IRawHandler //消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
+	RecvBatchSize    int               //每轮消费最多 Pop 的帧数
+	RecvBufMaxBytes  int               //残包缓冲区最大字节数(<=0 使用默认值)
+	RecvBufShrinkCap int               //当 recvBuf cap 超过该值且当前为空时，缩容到默认值(<=0 使用默认值)
 }
 
 func CheckReadOptions(opts *ReadOptions) {
@@ -30,9 +34,17 @@ func CheckReadOptions(opts *ReadOptions) {
 	if opts.RecvBatchSize <= 0 {
 		opts.RecvBatchSize = 32
 	}
+	if opts.RecvBufMaxBytes <= 0 {
+		// 对齐 stream packet 的最大长度（包含 length 字段），防止恶意/异常残包导致缓冲区长期膨胀。
+		opts.RecvBufMaxBytes = kkpacket.DefaultMaxMessageSize()
+	}
+	if opts.RecvBufShrinkCap <= 0 {
+		// 空闲时如果 cap 过大则缩容，避免长期占用大内存。
+		opts.RecvBufShrinkCap = opts.RecvBufMaxBytes * 4
+	}
 }
 
-const defaultRecvBufSize = 4 * 1024 // 接收缓冲区大小，4KB
+const defaultRecvBufSize = 2 * 1024 // 接收缓冲区大小，2KB
 
 /**
  * 消息处理器-接收器
@@ -59,8 +71,12 @@ type ReadProcessor struct {
 
 func NewReadProcessor(opts ReadOptions) *ReadProcessor {
 	CheckReadOptions(&opts)
+	initCap := defaultRecvBufSize
+	if opts.RecvBufMaxBytes > 0 && initCap > opts.RecvBufMaxBytes {
+		initCap = opts.RecvBufMaxBytes
+	}
 	return &ReadProcessor{
-		recvBuf:   make([]byte, 0, defaultRecvBufSize),
+		recvBuf:   byteslice.Get(initCap),
 		recvQueue: bbqueue.NewBBQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
 		opts:      opts,
 		wakeCh:    make(chan struct{}, 1),
@@ -96,10 +112,32 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		return nil
 	}
 	rp.mu.Lock()
+	// Guard: avoid unbounded buffering on malicious/abnormal partial frames.
+	if rp.opts.RecvBufMaxBytes > 0 && len(data) > rp.opts.RecvBufMaxBytes {
+		rp.recvBuf = rp.recvBuf[:0]
+		if cap(rp.recvBuf) > defaultRecvBufSize {
+			rp.recvBuf = rp.recvBuf[:0]
+			byteslice.Put(rp.recvBuf)
+			rp.recvBuf = byteslice.Get(defaultRecvBufSize) //make([]byte, 0, defaultRecvBufSize)
+		}
+		rp.mu.Unlock()
+		return kkerrors.ErrMaxMessageSize
+	}
+
 	// Fast path: avoid copying `data` into recvBuf unless we have leftover bytes.
 	buf := data
 	if len(rp.recvBuf) > 0 {
 		rp.recvBuf = append(rp.recvBuf, data...)
+		if rp.opts.RecvBufMaxBytes > 0 && len(rp.recvBuf) > rp.opts.RecvBufMaxBytes {
+			rp.recvBuf = rp.recvBuf[:0]
+			if cap(rp.recvBuf) > defaultRecvBufSize {
+				rp.recvBuf = rp.recvBuf[:0]
+				byteslice.Put(rp.recvBuf)
+				rp.recvBuf = byteslice.Get(defaultRecvBufSize) //make([]byte, 0, defaultRecvBufSize)
+			}
+			rp.mu.Unlock()
+			return kkerrors.ErrMaxMessageSize
+		}
 		buf = rp.recvBuf
 	}
 	bufIsRecv := len(rp.recvBuf) > 0 && len(buf) > 0 && &buf[0] == &rp.recvBuf[0]
@@ -123,6 +161,11 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 			return err
 		}
 		total := lfb + sz
+		if total > kkpacket.DefaultMaxMessageSize() {
+			rp.recvBuf = rp.recvBuf[:0]
+			rp.mu.Unlock()
+			return kkerrors.ErrMaxMessageSize
+		}
 		if len(buf)-pos < total {
 			break
 		}
@@ -149,7 +192,9 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 			rp.recvBuf = rp.recvBuf[:len(left)]
 		} else {
 			if cap(rp.recvBuf) < len(left) {
-				rp.recvBuf = make([]byte, 0, len(left))
+				rp.recvBuf = rp.recvBuf[:0]
+				byteslice.Put(rp.recvBuf)
+				rp.recvBuf = byteslice.Get(len(left)) //make([]byte, 0, len(left))
 			}
 			rp.recvBuf = rp.recvBuf[:len(left)]
 			copy(rp.recvBuf, left)
@@ -158,7 +203,9 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		// pos == 0: no complete packet. Ensure we buffer all bytes for next time.
 		if !bufIsRecv {
 			if cap(rp.recvBuf) < len(data) {
-				rp.recvBuf = make([]byte, 0, len(data))
+				rp.recvBuf = rp.recvBuf[:0]
+				byteslice.Put(rp.recvBuf)
+				rp.recvBuf = byteslice.Get(len(data)) //make([]byte, 0, len(data))
 			}
 			rp.recvBuf = rp.recvBuf[:len(data)]
 			copy(rp.recvBuf, data)
@@ -166,6 +213,17 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	}
 
 	rp.mu.Unlock()
+
+	// shrink: if empty and cap too big, shrink to default.
+	if len(rp.recvBuf) == 0 && rp.opts.RecvBufShrinkCap > 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
+		rp.mu.Lock()
+		if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
+			rp.recvBuf = rp.recvBuf[:0]
+			byteslice.Put(rp.recvBuf)
+			rp.recvBuf = byteslice.Get(defaultRecvBufSize) //make([]byte, 0, defaultRecvBufSize)
+		}
+		rp.mu.Unlock()
+	}
 
 	// 唤醒消费携程，消费recvQueue中的数据。
 	if wasEmpty {
