@@ -312,9 +312,10 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 	}
 
 	// Queue should be drained (everything released) after writer stops.
-	wc.sendMu.Lock()
-	qlen := wc.sendQueue.Len()
-	wc.sendMu.Unlock()
+	qlen := 0
+	if wc.wp != nil {
+		qlen = wc.wp.Pending()
+	}
 	if qlen != 0 {
 		t.Fatalf("send queue not drained, Len()=%d", qlen)
 	}
