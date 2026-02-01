@@ -10,6 +10,9 @@ import (
 // CONN_ID is the type of connection ID.
 type CONN_ID = int64
 
+// USER_ID is the type of user ID.
+type USER_ID = int64
+
 // counter for connection ID. unique id for the connection.
 var connIDCounter atomic.Int64
 

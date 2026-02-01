@@ -9,11 +9,11 @@ import (
 )
 
 type ReadOptions struct {
-	RecvQueueSize   int                                                //接收队列大小
-	RecvQueueStrict bool                                               //接收队列是否严格容量控制
-	NeedDecode      bool                                               //是否需要解码
-	ConsumerMsgFunc func(c kknet.IConn, msg any, msgID kkpacket.MSGID) //消费函数
-	ConsumerRawFunc func(c kknet.IConn, data buffers.IBuffer)          //消费函数
+	RecvQueueSize   int                                                  //接收队列大小
+	RecvQueueStrict bool                                                 //接收队列是否严格容量控制
+	NeedDecode      bool                                                 //是否需要解码
+	MsgHandler      func(c kknet.CONN_ID, msg any, msgID kkpacket.MSGID) //消费函数
+	RawHandler      func(c kknet.CONN_ID, data buffers.IBuffer)          //消费函数
 }
 
 func CheckReadOptions(opts *ReadOptions) {
@@ -32,6 +32,8 @@ func CheckReadOptions(opts *ReadOptions) {
  */
 type ReadProcessor struct {
 	conn      kknet.IConn      //连接
+	connID    kknet.CONN_ID    //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
+	userID    int64            //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
 	recvBuf   []byte           //接收缓冲区
 	recvQueue *bbqueue.BBQueue //接收队列
 	opts      ReadOptions      //选项
@@ -57,6 +59,7 @@ func (rp *ReadProcessor) OnConnect(conn kknet.IConn) {
 	if conn == nil {
 		return
 	}
+	rp.connID = conn.ID()
 	go rp.consumeRecvQueue()
 }
 
@@ -93,16 +96,27 @@ func (rp *ReadProcessor) consumeRecvQueue() {
 		if packet == nil {
 			break
 		}
-		msg, msgID, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
-		kkbuffer.Put(packet)
-		if err != nil {
-			continue
+		if rp.opts.NeedDecode {
+			msg, msgID, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
+			kkbuffer.Put(packet)
+			if err != nil {
+				continue
+			}
+			rp.dispatchMessage(msg, msgID)
+		} else {
+			rp.dispatchRaw(packet)
 		}
-		rp.dispatchMessage(msg, msgID)
 	}
 }
 
 // 分发消息到业务逻辑层
 func (rp *ReadProcessor) dispatchMessage(msg any, msgID kkpacket.MSGID) {
 	// call handler.OnMessage
+	rp.opts.MsgHandler(rp.connID, msg, msgID)
+}
+
+// 分发原始数据到业务逻辑层
+func (rp *ReadProcessor) dispatchRaw(data buffers.IBuffer) {
+	// call handler.OnRaw
+	rp.opts.RawHandler(rp.connID, data)
 }
