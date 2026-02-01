@@ -47,6 +47,10 @@ func (fp *SfxPool[T]) Get() T {
 
 // Put 归还对象
 func (fp *SfxPool[T]) Put(obj T) {
+	if atomic.LoadInt64(&fp.size) > 10000 {
+		// pool size is too large, just skip it.
+		return
+	}
 	// 检查对象是否为nil（对于指针类型）
 	if xreflect.IsNil(obj) || !xreflect.IsPointer(obj) || xreflect.IsDoublePointer(obj) {
 		kklog.Errorf("obj is nil or not ptr")

@@ -2,6 +2,7 @@ package kkpool
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,13 +16,18 @@ func GetGlobalTimerPool() *timerPool {
 // timerPool provides GC-able pooling of *time.Timer's.
 // can be used by multiple goroutines concurrently.
 type timerPool struct {
-	p sync.Pool
+	p    sync.Pool
+	size int64
 }
 
 // Get returns a timer that completes after the given duration.
 func (tp *timerPool) Get(d time.Duration) *time.Timer {
 	if t, ok := tp.p.Get().(*time.Timer); ok && t != nil {
 		t.Reset(d)
+		// 原子操作减少size
+		if atomic.LoadInt64(&tp.size) > 0 {
+			atomic.AddInt64(&tp.size, -1)
+		}
 		return t
 	}
 
@@ -36,6 +42,10 @@ func (tp *timerPool) Get(d time.Duration) *time.Timer {
 // given timer already expired, Put will read the unreceived
 // value if there is one.
 func (tp *timerPool) Put(t *time.Timer) {
+	if t == nil {
+		return
+	}
+
 	if !t.Stop() {
 		select {
 		case <-t.C:
@@ -43,5 +53,11 @@ func (tp *timerPool) Put(t *time.Timer) {
 		}
 	}
 
+	if atomic.LoadInt64(&tp.size) > 10000 {
+		// pool size is too large, just skip it.
+		return
+	}
+
 	tp.p.Put(t)
+	atomic.AddInt64(&tp.size, 1)
 }

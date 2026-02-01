@@ -93,31 +93,32 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	@param data []byte 包数据[message]
 	@param pkType *PacketCodec 包类型
 	@return any 消息对象（object）
+	@return MSGID 消息ID
 	@return error 错误
 */
-func DecodePacket(data []byte, pkType *PacketCodec) (any, error) {
+func DecodePacket(data []byte, pkType *PacketCodec) (any, MSGID, error) {
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
-		return nil, kkerrors.ErrInvalidCodec
+		return nil, 0, kkerrors.ErrInvalidCodec
 	}
 
 	msgID, body, err := ParseMsgInfo(data, pkType)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	msgType := GetMsgType(msgID)
 	if msgType == nil {
-		return nil, kkerrors.ErrMsgIDNotRegistered
+		return nil, 0, kkerrors.ErrMsgIDNotRegistered
 	}
 
 	v := kkpool.GetFactoryByType(msgType).Get()
 	err = codec.Unmarshal(body, v)
 	if err != nil {
 		kkpool.GetFactoryByType(msgType).Put(v)
-		return nil, kkerrors.ErrDecodeFailed
+		return nil, 0, kkerrors.ErrDecodeFailed
 	}
-	return v, nil
+	return v, msgID, nil
 }
 
 /*
@@ -195,7 +196,7 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 	@return buffers.IBuffer 包数据[length,message]
 	@return error 错误
 */
-func EncodeStream[T any](v *T, stream IStreamPacket) (buffers.IBuffer, error) {
+func EncodeStream(v any, stream IStreamPacket) (buffers.IBuffer, error) {
 	pkType := stream.GetMessagePacket()
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
@@ -249,8 +250,9 @@ func EncodeStream[T any](v *T, stream IStreamPacket) (buffers.IBuffer, error) {
 	@param data []byte 包数据[length,message]
 	@param stream IStreamPacket 流包类型
 	@return any 消息对象（object）
+	@return MSGID 消息ID
 	@return error 错误
 */
-func DecodeStream(data []byte, stream IStreamPacket) (any, error) {
+func DecodeStream(data []byte, stream IStreamPacket) (any, MSGID, error) {
 	return DecodePacket(data[stream.LengthFieldByteCount():], stream.GetMessagePacket())
 }

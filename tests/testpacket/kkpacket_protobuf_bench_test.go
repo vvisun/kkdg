@@ -92,7 +92,7 @@ func Benchmark_kkpacket_ProtoBuf_EncodeDecode(b *testing.B) {
 			b.Fatalf("encode packet: %v", err)
 		}
 
-		_, err = kkpacket.DecodePacket(packet.B, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeProtoBuf))
+		_, _, err = kkpacket.DecodePacket(packet.B, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeProtoBuf))
 		if err != nil {
 			b.Fatalf("decode packet: %v", err)
 		}

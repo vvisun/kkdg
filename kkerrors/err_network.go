@@ -22,4 +22,6 @@ var (
 	ErrServerStopped = errors.New("server is stopped")
 	// 无效的长度字段字节数
 	ErrInvalidLengthFieldByteCount = errors.New("invalid length field byte count")
+	// 连接未设置
+	ErrConnNotSet = errors.New("connection is not set")
 )

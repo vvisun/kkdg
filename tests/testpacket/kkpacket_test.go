@@ -85,14 +85,14 @@ func TestKK_packet_Encode(t *testing.T) {
 	}
 	t.Logf("packet2: %v", packet2)
 
-	msgAA, errAA := kkpacket.DecodePacket(packet[:len(packet)-5], kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	msgAA, _, errAA := kkpacket.DecodePacket(packet[:len(packet)-5], kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if errAA == nil {
 		fmt.Printf("msgAA: %+v\n", msgAA)
 	} else {
 		fmt.Printf("errAA: %+v\n", errAA)
 	}
 
-	msg22, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	msg22, _, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestKK_packet_Decode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
-	msg22, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	msg22, _, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestKK_packet_Decode(t *testing.T) {
 func TestKK_packet_Decode_InvalidPacket(t *testing.T) {
 	initTestEnv(t)
 	packet := []byte("invalid packet")
-	_, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+	_, _, err := kkpacket.DecodePacket(packet, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 	if err == nil {
 		t.Fatalf("decode invalid packet should failed")
 	}
@@ -175,7 +175,7 @@ func TestKK_packet_EncodeDecode_Stream(t *testing.T) {
 		t.Fatalf("encode packet: %v", err)
 	}
 
-	msg22, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
+	msg22, _, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestKK_packet_EncodeDecode_StreamJson(t *testing.T) {
 		t.Fatalf("encode packet: %v", err)
 	}
 
-	msg22, err := kkpacket.DecodeStream(packet.B, stream)
+	msg22, _, err := kkpacket.DecodeStream(packet.B, stream)
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestKK_packet_EncodeDecode_StreamMsgpack(t *testing.T) {
 		t.Fatalf("encode packet: %v", err)
 	}
 
-	msg22, err := kkpacket.DecodeStream(packet.B, stream)
+	msg22, _, err := kkpacket.DecodeStream(packet.B, stream)
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}

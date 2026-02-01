@@ -22,13 +22,14 @@ type wsConn struct {
 	conn  *websocket.Conn
 	opts  kknet.Options
 	stats *kknet.Stats
+	ctxMu sync.RWMutex
+	ctx   context.Context
 
-	writeMu sync.Mutex // websocket 写必须串行
-
-	sendMu    sync.Mutex
 	closeOnce sync.Once
+	closing   atomic.Bool
 
-	closing atomic.Bool
+	sendMu  sync.Mutex
+	writeMu sync.Mutex // websocket 写必须串行
 
 	sendQueue   *bbqueue.BBQueue
 	batchBuffer [writeBatchSize]*kkbuffer.ByteBuffer
@@ -41,9 +42,6 @@ type wsConn struct {
 	drainedOnce sync.Once
 
 	writeDone chan struct{}
-
-	ctxMu sync.RWMutex
-	ctx   context.Context
 }
 
 var _ kknet.IConn = (*wsConn)(nil)
@@ -77,32 +75,6 @@ func (c *wsConn) initSendQueue() {
 	go c.writeLoop()
 }
 
-func (c *wsConn) wakeWriter() {
-	if c.wakeCh == nil {
-		return
-	}
-	select {
-	case c.wakeCh <- struct{}{}:
-	default:
-	}
-}
-
-func (c *wsConn) signalDrained() {
-	c.drainedOnce.Do(func() {
-		if c.drainedCh != nil {
-			close(c.drainedCh)
-		}
-	})
-}
-
-func (c *wsConn) stopWriter() {
-	c.closeChOnce.Do(func() {
-		if c.closeCh != nil {
-			close(c.closeCh)
-		}
-	})
-}
-
 func (c *wsConn) ID() kknet.CONN_ID {
 	return c.id
 }
@@ -115,9 +87,6 @@ func (c *wsConn) RemoteAddr() string {
 }
 
 func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
-	if buffer == nil {
-		return kkerrors.ErrInvalidPacket
-	}
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -136,6 +105,7 @@ func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
 	wasEmpty := c.sendQueue.IsEmpty()
 	ok := c.sendQueue.Push(buffer)
 	c.sendMu.Unlock()
+
 	if !ok {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -199,32 +169,6 @@ func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 			for _, recv := range recvs {
 				dispatch(c, recv)
 			}
-		}
-	}
-}
-
-func (c *wsConn) drainSendQueueRelease() {
-	if c.sendQueue == nil {
-		return
-	}
-
-	for {
-		c.sendMu.Lock()
-		n := c.sendQueue.PopMany(writeBatchSize, c.batchBuffer[:], 0)
-		c.sendMu.Unlock()
-		if n <= 0 {
-			return
-		}
-		c.releaseBatch(n)
-	}
-}
-
-func (c *wsConn) releaseBatch(n int) {
-	for i := 0; i < n; i++ {
-		bb := c.batchBuffer[i]
-		c.batchBuffer[i] = nil
-		if bb != nil {
-			kkbuffer.Put(bb)
 		}
 	}
 }
@@ -308,6 +252,58 @@ func (c *wsConn) writeLoop() {
 			}
 		}
 	}
+}
+
+func (c *wsConn) drainSendQueueRelease() {
+	if c.sendQueue == nil {
+		return
+	}
+
+	for {
+		c.sendMu.Lock()
+		n := c.sendQueue.PopMany(writeBatchSize, c.batchBuffer[:], 0)
+		c.sendMu.Unlock()
+		if n <= 0 {
+			return
+		}
+		c.releaseBatch(n)
+	}
+}
+
+func (c *wsConn) releaseBatch(n int) {
+	for i := 0; i < n; i++ {
+		bb := c.batchBuffer[i]
+		c.batchBuffer[i] = nil
+		if bb != nil {
+			kkbuffer.Put(bb)
+		}
+	}
+}
+
+func (c *wsConn) wakeWriter() {
+	if c.wakeCh == nil {
+		return
+	}
+	select {
+	case c.wakeCh <- struct{}{}:
+	default:
+	}
+}
+
+func (c *wsConn) signalDrained() {
+	c.drainedOnce.Do(func() {
+		if c.drainedCh != nil {
+			close(c.drainedCh)
+		}
+	})
+}
+
+func (c *wsConn) stopWriter() {
+	c.closeChOnce.Do(func() {
+		if c.closeCh != nil {
+			close(c.closeCh)
+		}
+	})
 }
 
 func (c *wsConn) closeWithError(handler kknet.IHandler, err error) {

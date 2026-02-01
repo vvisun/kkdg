@@ -67,7 +67,7 @@ func Benchmark_kkpacket_EncodeDecode(b *testing.B) {
 		if err != nil {
 			b.Fatalf("encode packet: %v", err)
 		}
-		_, err = kkpacket.DecodePacket(packet.B, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
+		_, _, err = kkpacket.DecodePacket(packet.B, kkpacket.NewPacker(kkpacket.HeadTypeMid, kkcodec.CodecTypeJson))
 		if err != nil {
 			b.Fatalf("decode packet: %v", err)
 		}
