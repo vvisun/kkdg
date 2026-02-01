@@ -211,30 +211,34 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		kkbuffer.Put(bb)
 		if len(batchBytes) >= writeBatchLimitBytes {
 			// 单次写入超过限制，则立即发送
-			if err := c.conn.WriteMessage(websocket.BinaryMessage, batchBytes); err != nil {
-				if c.stats != nil {
-					c.stats.AddError()
-				}
+			if err := c.sendBytes(batchBytes); err != nil {
 				return err
-			}
-			if c.stats != nil {
-				c.stats.AddSent(len(batchBytes))
 			}
 			batchBytes = batchBytes[:0]
 		}
 	}
 
 	// 发送剩余数据
-	if err := c.conn.WriteMessage(websocket.BinaryMessage, batchBytes); err != nil {
+	if len(batchBytes) > 0 {
+		if err := c.sendBytes(batchBytes); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *wsConn) sendBytes(data []byte) error {
+	err := c.conn.WriteMessage(websocket.BinaryMessage, data)
+	if err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
 		return err
 	}
 	if c.stats != nil {
-		c.stats.AddSent(len(batchBytes))
+		c.stats.AddSent(len(data))
 	}
-
 	return nil
 }
 

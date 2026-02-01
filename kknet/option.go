@@ -52,15 +52,19 @@ type Option func(*Options)
 // DefaultOptions returns default settings.
 func DefaultOptions() Options {
 	return Options{
-		Logger:          kklog.Nop(),
-		ReadBufferSize:  64 * 1024, // 64KB
-		WriteBufferSize: 64 * 1024, // 64KB
-		TLSConfig:       nil,
-		ShutdownTimeout: 10 * time.Second, // 10秒
+		Logger:              kklog.Nop(),
+		ReadBufferSize:      64 * 1024, // 64KB
+		WriteBufferSize:     64 * 1024, // 64KB
+		TLSConfig:           nil,
+		ShutdownTimeout:     10 * time.Second, // 10秒
+		IsNeedReconnect:     true,
+		ReconnectInterval:   1 * time.Second,
+		ReconnectMaxRetries: 5,
+		ReconnectCallback:   nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
-		WsReadTimeout:   0, // 0秒, 不超时
-		WsWriteTimeout:  0, // 0秒, 不超时
+		WsReadTimeout:   16 * time.Second, // 0秒, 不超时
+		WsWriteTimeout:  16 * time.Second, // 0秒, 不超时
 
 		SendQueueSize:   256,
 		SendQueueStrict: false,

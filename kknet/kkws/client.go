@@ -2,6 +2,7 @@ package kkws
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,9 +20,12 @@ type Client struct {
 	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
 
-	connMu    sync.Mutex
-	conn      *wsConn
-	connected atomic.Bool
+	connMu       sync.Mutex
+	conn         *wsConn
+	connected    atomic.Bool
+	reconnecting atomic.Bool
+	closing      atomic.Bool
+	stopCh       chan struct{}
 
 	stats kknet.Stats
 }
@@ -34,6 +38,7 @@ func NewClient(url string, handler kknet.IConnLifecycleHandler, opts ...kknet.Op
 		url:     url,
 		handler: handler,
 		opts:    kknet.ApplyOptions(opts...),
+		stopCh:  make(chan struct{}),
 	}
 }
 
@@ -42,54 +47,46 @@ func (c *Client) Connect() error {
 	if c.connected.Swap(true) {
 		return nil
 	}
-
-	dialer := websocket.Dialer{
-		ReadBufferSize:  c.opts.ReadBufferSize,
-		WriteBufferSize: c.opts.WriteBufferSize,
-		TLSClientConfig: c.opts.TLSConfig,
+	c.closing.Store(false)
+	select {
+	case <-c.stopCh:
+		c.stopCh = make(chan struct{})
+	default:
 	}
 
-	conn, _, err := dialer.Dial(c.url, nil)
+	if c.opts.IsNeedReconnect {
+		first := make(chan error, 1)
+		c.startReconnectLoop(first)
+		select {
+		case err := <-first:
+			if err != nil {
+				c.connected.Store(false)
+			}
+			return err
+		case <-c.stopCh:
+			c.connected.Store(false)
+			return kkerrors.ErrClientNotConnected
+		}
+	}
+
+	// Single attempt.
+	wc, done, err := c.dialAndStart()
 	if err != nil {
 		c.connected.Store(false)
 		c.stats.AddError()
 		return err
 	}
-	conn.SetReadLimit(int64(kkpacket.DefaultMaxMessageSize()))
 
-	// Set read/write timeouts if configured
-	if c.opts.WsReadTimeout > 0 {
-		if err := conn.SetReadDeadline(time.Now().Add(c.opts.WsReadTimeout)); err != nil {
-			c.stats.AddError()
-			c.opts.Logger.Warnf("kkws client set read deadline error: %v", err)
-		}
-	}
-	if c.opts.WsWriteTimeout > 0 {
-		if err := conn.SetWriteDeadline(time.Now().Add(c.opts.WsWriteTimeout)); err != nil {
-			c.stats.AddError()
-			c.opts.Logger.Warnf("kkws client set write deadline error: %v", err)
-		}
-	}
-
-	wsConn := newWSConn(conn, c.opts, &c.stats)
-
-	c.connMu.Lock()
-	c.conn = wsConn
-	c.connMu.Unlock()
-
-	c.stats.OnConnect()
-	if c.handler != nil {
-		kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "kkws OnConnect", func() {
-			c.handler.OnConnect(wsConn)
-		})
-	}
-
+	// Wait for disconnect in background; in non-reconnect mode we just mark disconnected.
 	go func() {
-		err := wsConn.readLoop()
-		wsConn.closeWithError(c.handler, err)
+		<-done
+		c.connMu.Lock()
+		if c.conn == wc {
+			c.conn = nil
+		}
+		c.connMu.Unlock()
 		c.connected.Store(false)
 	}()
-
 	return nil
 }
 
@@ -112,10 +109,17 @@ func (c *Client) Close() error {
 	conn := c.conn
 	c.conn = nil
 	c.connMu.Unlock()
+	c.closing.Store(true)
+	c.connected.Store(false)
+	c.reconnecting.Store(false)
+	select {
+	case <-c.stopCh:
+	default:
+		close(c.stopCh)
+	}
 	if conn == nil {
 		return kkerrors.ErrClientNotConnected
 	}
-	c.connected.Store(false)
 	return conn.Close()
 }
 
@@ -145,4 +149,135 @@ func (c *Client) SetContext(ctx context.Context) {
 
 func (c *Client) Addr() string {
 	return c.url
+}
+
+func (c *Client) dialAndStart() (*wsConn, <-chan struct{}, error) {
+	dialer := websocket.Dialer{
+		ReadBufferSize:  c.opts.ReadBufferSize,
+		WriteBufferSize: c.opts.WriteBufferSize,
+		TLSClientConfig: c.opts.TLSConfig,
+	}
+
+	conn, _, err := dialer.Dial(c.url, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	conn.SetReadLimit(int64(kkpacket.DefaultMaxMessageSize()))
+
+	wsConn := newWSConn(conn, c.opts, &c.stats)
+
+	c.connMu.Lock()
+	c.conn = wsConn
+	c.connMu.Unlock()
+
+	c.stats.OnConnect()
+	if c.handler != nil {
+		kknet.SafeHandlerCall(c.opts.Logger, &c.stats, "kkws OnConnect", func() {
+			c.handler.OnConnect(wsConn)
+		})
+	}
+
+	done := make(chan struct{})
+	go func() {
+		err := wsConn.readLoop()
+		wsConn.closeWithError(c.handler, err)
+		close(done)
+	}()
+
+	return wsConn, done, nil
+}
+
+func (c *Client) startReconnectLoop(first chan<- error) {
+	if c.reconnecting.Swap(true) {
+		// already running
+		select {
+		case first <- nil:
+		default:
+		}
+		return
+	}
+	go c.reconnectLoop(first)
+}
+
+func (c *Client) reconnectLoop(first chan<- error) {
+	defer c.reconnecting.Store(false)
+
+	interval := c.opts.ReconnectInterval
+	if interval < 500*time.Millisecond {
+		interval = 500 * time.Millisecond
+	}
+	maxRetries := c.opts.ReconnectMaxRetries
+	cb := c.opts.ReconnectCallback
+	attempts := 0
+	firstReported := false
+	reportFirst := func(err error) {
+		if firstReported || first == nil {
+			return
+		}
+		firstReported = true
+		select {
+		case first <- err:
+		default:
+		}
+	}
+
+	for {
+		if c.closing.Load() {
+			reportFirst(kkerrors.ErrClientNotConnected)
+			return
+		}
+		if maxRetries > 0 && attempts >= maxRetries {
+			err := errors.New("reconnect attempts exceeded")
+			if cb != nil {
+				cb(attempts, err)
+			}
+			reportFirst(err)
+			return
+		}
+
+		attempts++
+		wc, done, err := c.dialAndStart()
+		if err == nil {
+			if cb != nil {
+				cb(attempts, nil)
+			}
+			reportFirst(nil)
+
+			// Wait for disconnect, then loop again for reconnect.
+			select {
+			case <-done:
+			case <-c.stopCh:
+				_ = wc.Close()
+				return
+			}
+
+			// clear conn pointer if it still points to this connection
+			c.connMu.Lock()
+			if c.conn == wc {
+				c.conn = nil
+			}
+			c.connMu.Unlock()
+
+			if c.closing.Load() {
+				return
+			}
+		} else {
+			c.stats.AddError()
+			if cb != nil {
+				cb(attempts, err)
+			}
+			// only report error to Connect() if we've exhausted retries.
+			if maxRetries > 0 && attempts >= maxRetries {
+				reportFirst(err)
+				return
+			}
+		}
+
+		select {
+		case <-time.After(interval):
+		case <-c.stopCh:
+			reportFirst(kkerrors.ErrClientNotConnected)
+			return
+		}
+	}
 }
