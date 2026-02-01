@@ -128,6 +128,23 @@ func (c *wsConn) SetContext(ctx context.Context) {
 }
 
 func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
+	rp := netprocessor.NewReadProcessor(netprocessor.ReadOptions{
+		// NOTE: 当前 Options 没有独立的 RecvQueueSize，这里复用 SendQueueSize 的含义（chunkSize/初始容量）
+		RecvQueueSize:   c.opts.SendQueueSize,
+		RecvQueueStrict: false,
+		NeedDecode:      false,
+		RawHandler: func(_ kknet.CONN_ID, data buffers.IBuffer) {
+			// ownership: dispatch decides when to Put(data). If no dispatch, release here.
+			if dispatch != nil {
+				dispatch(c, data)
+			} else {
+				kkbuffer.Put(data)
+			}
+		},
+	})
+	rp.Start(c)
+	defer rp.Stop()
+
 	for {
 		// Update read deadline if timeout is configured
 		if c.opts.WsReadTimeout > 0 {
@@ -138,6 +155,8 @@ func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 
 		_, data, err := c.conn.ReadMessage()
 		if err != nil {
+			// ensure all queued packets are processed before returning
+			rp.Stop()
 			return err
 		}
 
@@ -146,18 +165,12 @@ func (c *wsConn) readLoop(dispatch func(kknet.IConn, buffers.IBuffer)) error {
 			c.stats.AddRecv(dataLen)
 		}
 
-		if dispatch != nil {
-			packets := [writeBatchSize]buffers.IBuffer{}
-			recvs, err := kkpacket.DefaultStreamPacket().Split(data, packets[:])
-			if err != nil {
-				if c.stats != nil {
-					c.stats.AddError()
-				}
-				return err
+		if err := rp.OnRecvBytes(data); err != nil {
+			if c.stats != nil {
+				c.stats.AddError()
 			}
-			for _, recv := range recvs {
-				dispatch(c, recv)
-			}
+			rp.Stop()
+			return err
 		}
 	}
 }
