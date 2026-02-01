@@ -9,11 +9,11 @@ import (
 )
 
 type ReadOptions struct {
-	RecvQueueSize   int                                                   //接收队列大小
-	RecvQueueStrict bool                                                  //接收队列是否严格容量控制
-	NeedDecode      bool                                                  //是否需要解码
-	ConsumerMsgFunc func(msg any, msgID kkpacket.MSGID, conn kknet.IConn) //消费函数
-	ConsumerRawFunc func(buffer buffers.IBuffer, conn kknet.IConn)        //消费函数
+	RecvQueueSize   int                                                //接收队列大小
+	RecvQueueStrict bool                                               //接收队列是否严格容量控制
+	NeedDecode      bool                                               //是否需要解码
+	ConsumerMsgFunc func(c kknet.IConn, msg any, msgID kkpacket.MSGID) //消费函数
+	ConsumerRawFunc func(c kknet.IConn, data buffers.IBuffer)          //消费函数
 }
 
 func CheckReadOptions(opts *ReadOptions) {

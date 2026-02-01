@@ -99,7 +99,7 @@ func (wp *WriteProcessor) writeLoop() error {
 		if buffer == nil {
 			break
 		}
-		// 这里可以优化为同步send，发送失败时重试/丢弃
+		// 这里可以调整为同步send，发送失败时重试/丢弃
 		if err := conn.SendBuffer(buffer); err != nil {
 			return err
 		}

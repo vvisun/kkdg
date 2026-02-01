@@ -29,7 +29,7 @@ type IConn interface {
 	// 异步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
 	SendBuffer(buffer buffers.IBuffer) error
 	// 同步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
-	// SendBufferSync(buffer buffers.IBuffer) error
+	SendBufferSync(buffer buffers.IBuffer) error
 }
 
 // IHandler handles connection lifecycle and messages.
