@@ -30,19 +30,21 @@ type wsConn struct {
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp        *netprocessor.WriteProcessor
-	writeDone <-chan struct{} // 兼容测试：writer 退出信号
+	wp            *netprocessor.WriteProcessor
+	writeDone     <-chan struct{} // 兼容测试：writer 退出信号
+	batchWriteBuf []byte
 }
 
 var _ kknet.IConn = (*wsConn)(nil)
 
 func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *wsConn {
 	c := &wsConn{
-		id:    kknet.NextConnID(),
-		conn:  conn,
-		opts:  opts,
-		stats: stats,
-		ctx:   context.Background(),
+		id:            kknet.NextConnID(),
+		conn:          conn,
+		opts:          opts,
+		stats:         stats,
+		ctx:           context.Background(),
+		batchWriteBuf: make([]byte, 0, opts.WriteBufferSize),
 	}
 	c.initSendQueue()
 	return c
@@ -182,7 +184,7 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		}
 	}
 
-	batchBytes := make([]byte, 0, c.opts.WriteBufferSize)
+	batchBytes := c.batchWriteBuf[:0]
 	for i := 0; i < n; i++ {
 		bb := batch[i]
 		batch[i] = nil
