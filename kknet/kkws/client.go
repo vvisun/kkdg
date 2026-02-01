@@ -123,6 +123,9 @@ func (c *Client) Close() error {
 func (c *Client) Conn() kknet.IConn {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
+	if c.conn == nil {
+		return nil
+	}
 	return c.conn
 }
 

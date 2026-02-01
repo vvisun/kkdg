@@ -16,7 +16,8 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-const writeBatchSize = 32 // 每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
+const writeBatchSize = 32         // 每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
+const writeBatchLimitBytes = 2048 // 单次批量写入的最大字节数，避免单次写入过大导致延迟大
 
 type wsConn struct {
 	id    kknet.CONN_ID
@@ -46,7 +47,7 @@ func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *ws
 		opts:          opts,
 		stats:         stats,
 		ctx:           context.Background(),
-		batchWriteBuf: make([]byte, 0, opts.WriteBufferSize),
+		batchWriteBuf: make([]byte, 0, writeBatchLimitBytes),
 	}
 	c.initSendQueue()
 	return c
@@ -208,8 +209,22 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		}
 		batchBytes = append(batchBytes, bb.B...)
 		kkbuffer.Put(bb)
+		if len(batchBytes) >= writeBatchLimitBytes {
+			// 单次写入超过限制，则立即发送
+			if err := c.conn.WriteMessage(websocket.BinaryMessage, batchBytes); err != nil {
+				if c.stats != nil {
+					c.stats.AddError()
+				}
+				return err
+			}
+			if c.stats != nil {
+				c.stats.AddSent(len(batchBytes))
+			}
+			batchBytes = batchBytes[:0]
+		}
 	}
 
+	// 发送剩余数据
 	if err := c.conn.WriteMessage(websocket.BinaryMessage, batchBytes); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -219,6 +234,7 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	if c.stats != nil {
 		c.stats.AddSent(len(batchBytes))
 	}
+
 	return nil
 }
 
