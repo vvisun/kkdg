@@ -1,6 +1,8 @@
 package netprocessor
 
 import (
+	"time"
+
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -9,7 +11,26 @@ import (
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
-const writeBatchSize = 32 // 每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
+type WriteOptions struct {
+	SendQueueSize                 int                                           //发送队列大小
+	SendQueueStrict               bool                                          //发送队列是否严格容量控制
+	SendQueueNeedFlushOver        bool                                          //关闭时是否需要等待 flush 完成
+	SendQueueTimeoutFlushOver     time.Duration                                 //关闭时等待 flush 完成的超时时间
+	SendQueueFlushTimeoutCallback func(conn kknet.IConn, timeout time.Duration) //flush 超时回调
+	WriteBatchSize                int                                           //每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
+}
+
+func CheckWriteOptions(opts *WriteOptions) {
+	if opts == nil {
+		return
+	}
+	if opts.SendQueueSize <= 0 {
+		opts.SendQueueSize = 1024
+	}
+	if opts.WriteBatchSize <= 0 {
+		opts.WriteBatchSize = 32
+	}
+}
 
 /**
  * 消息处理器-发送器
@@ -21,10 +42,11 @@ type WriteProcessor struct {
 	sendBatchBuffer []*kkbuffer.ByteBuffer //批量发送缓冲区
 }
 
-func NewWriteProcessor() *WriteProcessor {
+func NewWriteProcessor(opts WriteOptions) *WriteProcessor {
+	CheckWriteOptions(&opts)
 	return &WriteProcessor{
-		sendQueue:       bbqueue.NewBBQueue(1024, false),
-		sendBatchBuffer: make([]*kkbuffer.ByteBuffer, writeBatchSize),
+		sendQueue:       bbqueue.NewBBQueue(opts.SendQueueSize, opts.SendQueueStrict),
+		sendBatchBuffer: make([]*kkbuffer.ByteBuffer, opts.WriteBatchSize),
 	}
 }
 
