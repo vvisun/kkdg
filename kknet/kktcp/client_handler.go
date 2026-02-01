@@ -75,9 +75,11 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 			dataCpy := kkbuffer.GetWithCapacity(len(data))
 			dataCpy.B = dataCpy.B[:len(data)]
 			copy(dataCpy.B, data)
-			kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnMessage", func() {
-				h.client.handler.OnMessage(cc, dataCpy)
-			})
+			if h.client.opts.RawHandler != nil {
+				kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnMessage", func() {
+					h.client.opts.RawHandler.OnRaw(cc.id, dataCpy)
+				})
+			}
 			kkbuffer.Put(dataCpy)
 		}
 	}

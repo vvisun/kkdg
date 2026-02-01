@@ -85,7 +85,7 @@ func (c *clientConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *clientConn) readLoop(handler kknet.IHandler) error {
+func (c *clientConn) readLoop() error {
 	buf := make([]byte, kkpacket.DefaultMaxMessageSize())
 	for {
 		n, err := c.conn.Read(buf)
@@ -95,19 +95,19 @@ func (c *clientConn) readLoop(handler kknet.IHandler) error {
 		if c.stats != nil {
 			c.stats.AddRecv(n)
 		}
-		if handler != nil && n > 0 {
+		if c.opts.RawHandler != nil && n > 0 {
 			dataCpy := kkbuffer.GetWithCapacity(n)
 			dataCpy.B = dataCpy.B[:n]
 			copy(dataCpy.B, buf[:n])
 			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "udpclient OnMessage", func() {
-				handler.OnMessage(c, dataCpy)
+				c.opts.RawHandler.OnRaw(c.id, dataCpy)
 			})
 			kkbuffer.Put(dataCpy)
 		}
 	}
 }
 
-func (c *clientConn) closeWithError(handler kknet.IHandler, err error) {
+func (c *clientConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) {
 	c.closeOnce.Do(func() {
 		if c.stats != nil {
 			c.stats.OnClose()

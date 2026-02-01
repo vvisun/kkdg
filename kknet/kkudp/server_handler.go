@@ -52,7 +52,9 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 func (h *udpEventHandler) dispatch(c *udpConn, data buffers.IBuffer) {
 	// UDP connection is only valid during OnTraffic callback.
 	defer kkbuffer.Put(data)
-	kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kkudp OnMessage", func() {
-		h.server.handler.OnMessage(c, data)
-	})
+	if h.server.opts.RawHandler != nil {
+		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kkudp OnMessage", func() {
+			h.server.opts.RawHandler.OnRaw(c.id, data)
+		})
+	}
 }

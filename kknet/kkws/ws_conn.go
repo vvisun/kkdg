@@ -238,7 +238,7 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	return nil
 }
 
-func (c *wsConn) closeWithError(handler kknet.INewHandler, err error) {
+func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) {
 	c.closeOnce.Do(func() {
 		c.closing.Store(true)
 		if c.wp != nil {

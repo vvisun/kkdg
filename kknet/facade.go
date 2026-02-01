@@ -61,7 +61,8 @@ type (
 	}
 )
 
-type INewHandler interface {
+// IConnLifecycleHandler handles connection lifecycle.
+type IConnLifecycleHandler interface {
 	/* OnConnect is called when the connection is established.
 	@param c IConn 连接
 	*/
@@ -70,24 +71,6 @@ type INewHandler interface {
 	@param c IConn 连接
 	@param err error 错误（关闭原因）。nil表示正常关闭，非nil表示异常关闭
 	*/
-	OnClose(c IConn, err error)
-}
-
-// todo: deprecated, use IMsgHandler and IRawHandler instead.
-// IHandler handles connection lifecycle and messages.
-type IHandler interface {
-	// OnConnect is called when the connection is established.
-	// @param c IConn 连接
-	OnConnect(c IConn)
-	// OnMessage is called when a message is received.
-	// @param c IConn 连接
-	// @param data buffers.IBuffer 消息数据(message body)。
-	// 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
-	// 注意：外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
-	OnMessage(c IConn, data buffers.IBuffer)
-	// OnClose is called when the connection is closed.
-	// @param c IConn 连接
-	// @param err error 错误（关闭原因）。nil表示正常关闭，非nil表示异常关闭
 	OnClose(c IConn, err error)
 }
 

@@ -13,7 +13,7 @@ import (
 // Server represents a TCP server with length-prefixed messages.
 type Server struct {
 	addr    string
-	handler kknet.IHandler
+	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
 	connMgr *serverConnMgr
 
@@ -28,7 +28,7 @@ type Server struct {
 var _ kknet.IServer = (*Server)(nil)
 
 // NewServer creates a new TCP server.
-func NewServer(addr string, handler kknet.IHandler, opts ...kknet.Option) *Server {
+func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Server {
 	cfg := kknet.ApplyOptions(opts...)
 	return &Server{
 		addr:    addr,

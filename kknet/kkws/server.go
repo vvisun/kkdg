@@ -19,7 +19,7 @@ import (
 type Server struct {
 	addr    string
 	path    string
-	handler kknet.INewHandler
+	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
 
 	httpServer *http.Server
@@ -37,7 +37,7 @@ type Server struct {
 var _ kknet.IServer = (*Server)(nil)
 
 // NewServer creates a new WebSocket server.
-func NewServer(addr string, handler kknet.INewHandler, opts ...kknet.Option) *Server {
+func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Server {
 	return &Server{
 		addr:    addr,
 		path:    "/ws",

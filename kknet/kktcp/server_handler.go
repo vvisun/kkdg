@@ -82,8 +82,10 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 }
 
 func (h *tcpEventHandler) dispatch(c *tcpConn, data buffers.IBuffer) {
-	kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnMessage", func() {
-		h.server.handler.OnMessage(c, data)
-	})
+	if h.server.opts.RawHandler != nil {
+		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnMessage", func() {
+			h.server.opts.RawHandler.OnRaw(c.id, data)
+		})
+	}
 	kkbuffer.Put(data)
 }

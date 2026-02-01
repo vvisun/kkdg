@@ -16,7 +16,7 @@ import (
 // Client represents a WebSocket client.
 type Client struct {
 	url     string
-	handler kknet.INewHandler
+	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
 
 	connMu    sync.Mutex
@@ -29,7 +29,7 @@ type Client struct {
 var _ kknet.IClient = (*Client)(nil)
 
 // NewClient creates a new WebSocket client.
-func NewClient(url string, handler kknet.INewHandler, opts ...kknet.Option) *Client {
+func NewClient(url string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Client {
 	return &Client{
 		url:     url,
 		handler: handler,

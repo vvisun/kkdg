@@ -216,10 +216,12 @@ func (slf *gateComponent) startWSServer() error {
 	return nil
 }
 
-// gateHandler 实现 kknet.IHandler
 type gateHandler struct {
 	gate *gateComponent
 }
+
+var _ kknet.IConnLifecycleHandler = (*gateHandler)(nil)
+var _ kknet.IRawHandler = (*gateHandler)(nil)
 
 func newGateHandler(gate *gateComponent) *gateHandler {
 	return &gateHandler{
@@ -230,6 +232,11 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 func (h *gateHandler) OnConnect(c kknet.IConn) {
 	h.gate.connMap.Store(strconv.FormatInt(c.ID(), 10), c)
 	kklog.Infof("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
+}
+
+func (h *gateHandler) OnClose(c kknet.IConn, err error) {
+	h.gate.connMap.Delete(strconv.FormatInt(c.ID(), 10))
+	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
 
 func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data buffers.IBuffer) {
@@ -255,13 +262,4 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data buffers.IBuffer) {
 	if err := h.gate.ForwardToLogic(sessionID, route, msgBytes); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}
-}
-
-func (h *gateHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
-	h.OnRaw(c.ID(), data)
-}
-
-func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	h.gate.connMap.Delete(strconv.FormatInt(c.ID(), 10))
-	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }

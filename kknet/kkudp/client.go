@@ -14,7 +14,7 @@ import (
 // Client represents a UDP client.
 type Client struct {
 	addr    string
-	handler kknet.IHandler
+	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
 
 	connMu    sync.Mutex
@@ -27,7 +27,7 @@ type Client struct {
 var _ kknet.IClient = (*Client)(nil)
 
 // NewClient creates a new UDP client.
-func NewClient(addr string, handler kknet.IHandler, opts ...kknet.Option) *Client {
+func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Client {
 	return &Client{
 		addr:    addr,
 		handler: handler,
@@ -64,7 +64,7 @@ func (c *Client) Connect() error {
 	}
 
 	go func() {
-		err := cc.readLoop(c.handler)
+		err := cc.readLoop()
 		cc.closeWithError(c.handler, err)
 		c.connected.Store(false)
 	}()

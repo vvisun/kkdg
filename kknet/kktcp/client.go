@@ -16,7 +16,7 @@ import (
 // GnetClient represents a TCP client based on gnet.
 type GnetClient struct {
 	addr    string
-	handler kknet.IHandler
+	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
 
 	clientMu sync.Mutex
@@ -38,7 +38,7 @@ type GnetClient struct {
 var _ kknet.IClient = (*GnetClient)(nil)
 
 // NewGnetClient creates a new gnet-based TCP client.
-func NewClient(addr string, handler kknet.IHandler, opts ...kknet.Option) *GnetClient {
+func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *GnetClient {
 	return &GnetClient{
 		addr:    addr,
 		handler: handler,
