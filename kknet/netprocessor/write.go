@@ -28,12 +28,23 @@ func NewWriteProcessor() *WriteProcessor {
 	}
 }
 
-func (wp *WriteProcessor) SetConn(conn kknet.IConn) {
+// 主动关闭时
+func (wp *WriteProcessor) OnClose(conn kknet.IConn, err error) {
+
+}
+
+// 连接建立时
+func (wp *WriteProcessor) OnConnect(conn kknet.IConn) {
 	wp.conn = conn
 	if conn == nil {
 		return
 	}
 	go wp.writeLoop()
+}
+
+// 断线时
+func (wp *WriteProcessor) OnDisconnect(conn kknet.IConn) {
+
 }
 
 func (wp *WriteProcessor) SendBuffer(buffer buffers.IBuffer) error {

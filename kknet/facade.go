@@ -66,8 +66,8 @@ type IServer interface {
 
 // IClient represents a client.
 type IClient interface {
-	Connect() error
-	Close() error
+	Connect() error //like Start()
+	Close() error   //like Stop()
 	Addr() string
 	Stats() StatsSnapshot
 	SetContext(ctx context.Context)

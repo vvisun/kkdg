@@ -756,4 +756,3 @@ func TestGNRPC_InvokerAdapters(t *testing.T) {
 		t.Fatalf("unexpected: %q", string(b))
 	}
 }
-
