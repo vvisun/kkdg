@@ -45,7 +45,7 @@ func (s *Server) Start() error {
 	}
 
 	// Apply middlewares to handler
-	s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
+	// s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
 
 	s.booted = make(chan struct{})
 	s.done = make(chan error, 1)

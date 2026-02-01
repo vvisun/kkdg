@@ -16,7 +16,6 @@ type Options struct {
 	ReadBufferSize      int                          // 读缓冲区大小
 	WriteBufferSize     int                          // 写缓冲区大小
 	ShutdownTimeout     time.Duration                // 服务关闭超时时间
-	Middlewares         []Middleware                 // 中间件列表
 	IsNeedReconnect     bool                         // 是否需要重连
 	ReconnectInterval   time.Duration                // 重连间隔
 	ReconnectMaxRetries int                          // 重连最大次数(<=0为无限)
@@ -58,7 +57,6 @@ func DefaultOptions() Options {
 		WriteBufferSize: 64 * 1024, // 64KB
 		TLSConfig:       nil,
 		ShutdownTimeout: 10 * time.Second, // 10秒
-		Middlewares:     nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
 		WsReadTimeout:   0, // 0秒, 不超时
@@ -171,20 +169,6 @@ func WithWsWriteTimeout(timeout time.Duration) Option {
 				o.WsWriteTimeout = 50 * time.Millisecond
 			}
 		}
-	}
-}
-
-// WithMiddlewares sets middlewares.
-func WithMiddleware(mw Middleware) Option {
-	if mw == nil {
-		kklog.Errorf("Middleware is nil")
-		return func(o *Options) {}
-	}
-	return func(o *Options) {
-		if o.Middlewares == nil {
-			o.Middlewares = make([]Middleware, 0)
-		}
-		o.Middlewares = append(o.Middlewares, mw)
 	}
 }
 

@@ -32,6 +32,8 @@ func CheckReadOptions(opts *ReadOptions) {
 	}
 }
 
+const defaultRecvBufSize = 4 * 1024 // 接收缓冲区大小，4KB
+
 /**
  * 消息处理器-接收器
  * 负责从连接中读取数据，并将其放入接收队列中。
@@ -58,7 +60,7 @@ type ReadProcessor struct {
 func NewReadProcessor(opts ReadOptions) *ReadProcessor {
 	CheckReadOptions(&opts)
 	return &ReadProcessor{
-		recvBuf:   make([]byte, 0, 1024*1024), //1024KB
+		recvBuf:   make([]byte, 0, defaultRecvBufSize),
 		recvQueue: bbqueue.NewBBQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
 		opts:      opts,
 		wakeCh:    make(chan struct{}, 1),
