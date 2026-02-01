@@ -37,10 +37,22 @@ type IConn interface {
 }
 
 type (
+	// IMsgHandler is a handler for messages.
 	IMsgHandler interface {
+		// OnMsg is called when a message is received.
+		// @param connId CONN_ID 连接ID
+		// @param msg any 消息对象（object）
+		// @param msgID kkpacket.MSGID 消息ID
 		OnMsg(connId CONN_ID, msg any, msgID kkpacket.MSGID)
 	}
+
+	// IRawHandler is a handler for raw data.
 	IRawHandler interface {
+		// OnRaw is called when a raw data is received.
+		// @param connId CONN_ID 连接ID
+		// @param data buffers.IBuffer 消息数据(message body)。
+		// 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
+		// 注意：外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
 		OnRaw(connId CONN_ID, data buffers.IBuffer)
 	}
 )
@@ -64,6 +76,7 @@ type IHandler interface {
 	// @param c IConn 连接
 	// @param data buffers.IBuffer 消息数据(message body)。
 	// 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
+	// 注意：外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
 	OnMessage(c IConn, data buffers.IBuffer)
 	// OnClose is called when the connection is closed.
 	// @param c IConn 连接

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xos"
 )
 
 type OriginCheckFunc func(r *http.Request) bool
@@ -14,7 +13,6 @@ type OriginCheckFunc func(r *http.Request) bool
 // Options are common network settings.
 type Options struct {
 	Logger              kklog.ILogger                // 日志记录器
-	PoolSize            int                          // ants池大小（注意：为0时，不使用ants池。建议使用，以提高性能。默认为CPU核心数）
 	ReadBufferSize      int                          // 读缓冲区大小
 	WriteBufferSize     int                          // 写缓冲区大小
 	ShutdownTimeout     time.Duration                // 服务关闭超时时间
@@ -56,9 +54,8 @@ type Option func(*Options)
 func DefaultOptions() Options {
 	return Options{
 		Logger:          kklog.Nop(),
-		PoolSize:        xos.NumCPU(), // 默认使用CPU核心数
-		ReadBufferSize:  64 * 1024,    // 64KB
-		WriteBufferSize: 64 * 1024,    // 64KB
+		ReadBufferSize:  64 * 1024, // 64KB
+		WriteBufferSize: 64 * 1024, // 64KB
 		TLSConfig:       nil,
 		ShutdownTimeout: 10 * time.Second, // 10秒
 		Middlewares:     nil,
@@ -91,15 +88,6 @@ func WithLogger(l kklog.ILogger) Option {
 	return func(o *Options) {
 		if l != nil {
 			o.Logger = l
-		}
-	}
-}
-
-// WithPoolSize enables ants pool with size.
-func WithPoolSize(size int) Option {
-	return func(o *Options) {
-		if size > 0 {
-			o.PoolSize = size
 		}
 	}
 }

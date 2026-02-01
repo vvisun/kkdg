@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/panjf2000/ants/v2"
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
@@ -19,7 +18,6 @@ type Server struct {
 	connMgr *serverConnMgr
 
 	engine  gnet.Engine
-	pool    *ants.Pool
 	started atomic.Bool
 	booted  chan struct{}
 	done    chan error
@@ -49,19 +47,6 @@ func (s *Server) Start() error {
 	// Apply middlewares to handler
 	s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
 
-	if s.opts.PoolSize > 0 {
-		poolOpts := make([]ants.Option, 0, 1)
-		if logger, ok := s.opts.Logger.(ants.Logger); ok {
-			poolOpts = append(poolOpts, ants.WithLogger(logger))
-		}
-		pool, err := ants.NewPool(s.opts.PoolSize, poolOpts...)
-		if err != nil {
-			s.started.Store(false)
-			return err
-		}
-		s.pool = pool
-	}
-
 	s.booted = make(chan struct{})
 	s.done = make(chan error, 1)
 
@@ -76,10 +61,6 @@ func (s *Server) Start() error {
 		return nil
 	case err := <-s.done:
 		s.started.Store(false)
-		if s.pool != nil {
-			s.pool.Release()
-			s.pool = nil
-		}
 		return err
 	}
 }
@@ -115,10 +96,6 @@ func (s *Server) Stop() error {
 		}
 	}
 
-	if s.pool != nil {
-		s.pool.Release()
-		s.pool = nil
-	}
 	return nil
 }
 

@@ -82,20 +82,8 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 }
 
 func (h *tcpEventHandler) dispatch(c *tcpConn, data buffers.IBuffer) {
-	if h.server.pool == nil {
-		defer kkbuffer.Put(data)
-		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnMessage", func() {
-			h.server.handler.OnMessage(c, data)
-		})
-		return
-	}
-	if err := h.server.pool.Submit(func() {
-		defer kkbuffer.Put(data)
-		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnMessage", func() {
-			h.server.handler.OnMessage(c, data)
-		})
-	}); err != nil {
-		kkbuffer.Put(data)
-		h.server.opts.Logger.Errorf("kktcp submit task error: %v", err)
-	}
+	kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnMessage", func() {
+		h.server.handler.OnMessage(c, data)
+	})
+	kkbuffer.Put(data)
 }
