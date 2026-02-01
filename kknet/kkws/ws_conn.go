@@ -2,6 +2,7 @@ package kkws
 
 import (
 	"context"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,6 +34,7 @@ type wsConn struct {
 	wp            *netprocessor.WriteProcessor
 	writeDone     <-chan struct{} // 兼容测试：writer 退出信号
 	batchWriteBuf []byte
+	readBB        *kkbuffer.ByteBuffer // reused read buffer for NextReader
 }
 
 var _ kknet.IConn = (*wsConn)(nil)
@@ -144,19 +146,35 @@ func (c *wsConn) readLoop() error {
 			}
 		}
 
-		_, data, err := c.conn.ReadMessage()
+		mt, r, err := c.conn.NextReader()
 		if err != nil {
 			// ensure all queued packets are processed before returning
 			rp.Stop()
 			return err
 		}
 
-		dataLen := len(data)
+		if mt != websocket.BinaryMessage {
+			// Drain non-binary message and ignore.
+			_, _ = io.Copy(io.Discard, r)
+			continue
+		}
+
+		if c.readBB == nil {
+			// start with ReadBufferSize to reduce early grows; it will grow if needed.
+			c.readBB = kkbuffer.GetWithCapacity(c.opts.ReadBufferSize)
+		}
+		c.readBB.Reset()
+		n64, err := c.readBB.ReadFrom(r)
+		if err != nil {
+			rp.Stop()
+			return err
+		}
+		dataLen := int(n64)
 		if c.stats != nil {
 			c.stats.AddRecv(dataLen)
 		}
 
-		if err := rp.OnRecvBytes(data); err != nil {
+		if err := rp.OnRecvBytes(c.readBB.B); err != nil {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
@@ -209,6 +227,10 @@ func (c *wsConn) closeWithError(handler kknet.INewHandler, err error) {
 		c.closing.Store(true)
 		if c.wp != nil {
 			c.wp.Stop(err)
+		}
+		if c.readBB != nil {
+			kkbuffer.Put(c.readBB)
+			c.readBB = nil
 		}
 
 		if c.stats != nil {

@@ -94,6 +94,6 @@ type IClient interface {
 	Addr() string
 	Stats() StatsSnapshot
 	SetContext(ctx context.Context)
-	//SendBuffer 发送数据。调用该方法后，buffer 不能被其他地方使用。因为该方法会回收buffer
+	//SendBuffer 异步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
 	SendBuffer(buffer buffers.IBuffer) error
 }

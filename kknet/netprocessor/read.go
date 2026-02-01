@@ -94,28 +94,75 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		return nil
 	}
 	rp.mu.Lock()
-	rp.recvBuf = append(rp.recvBuf, data...)
-	// 粘包拆包
-	packets, err := kkpacket.DefaultStreamPacket().Split(rp.recvBuf, rp.splitBuf[:0])
-	if err != nil {
-		rp.mu.Unlock()
-		return err
+	// Fast path: avoid copying `data` into recvBuf unless we have leftover bytes.
+	buf := data
+	if len(rp.recvBuf) > 0 {
+		rp.recvBuf = append(rp.recvBuf, data...)
+		buf = rp.recvBuf
 	}
-	if len(packets) == 0 {
-		rp.mu.Unlock()
-		return nil
-	}
-
-	rp.recvBuf = rp.recvBuf[:0]
+	bufIsRecv := len(rp.recvBuf) > 0 && len(buf) > 0 && &buf[0] == &rp.recvBuf[0]
 
 	wasEmpty := rp.recvQueue.IsEmpty()
-	for _, packet := range packets {
-		ok := rp.recvQueue.Push(packet)
+
+	// Parse [length,message][length,message]...
+	stream := kkpacket.DefaultStreamPacket()
+	lfb := stream.LengthFieldByteCount()
+	pos := 0
+
+	for {
+		if len(buf)-pos < lfb {
+			break
+		}
+		sz, err := stream.GetBodySize(buf[pos:])
+		if err != nil {
+			// drop buffered bytes to avoid being stuck on invalid header
+			rp.recvBuf = rp.recvBuf[:0]
+			rp.mu.Unlock()
+			return err
+		}
+		total := lfb + sz
+		if len(buf)-pos < total {
+			break
+		}
+
+		pkt := kkbuffer.GetWithCapacity(total)
+		pkt.B = pkt.B[:total]
+		copy(pkt.B, buf[pos:pos+total])
+		ok := rp.recvQueue.Push(pkt)
 		if !ok {
-			// 丢弃并回收，避免泄漏
-			kkbuffer.Put(packet)
+			kkbuffer.Put(pkt)
+		}
+		pos += total
+	}
+
+	// Preserve leftover bytes (incomplete packet) for next call.
+	if pos == len(buf) {
+		if len(rp.recvBuf) > 0 {
+			rp.recvBuf = rp.recvBuf[:0]
+		}
+	} else if pos > 0 {
+		left := buf[pos:]
+		if bufIsRecv {
+			copy(rp.recvBuf, left)
+			rp.recvBuf = rp.recvBuf[:len(left)]
+		} else {
+			if cap(rp.recvBuf) < len(left) {
+				rp.recvBuf = make([]byte, 0, len(left))
+			}
+			rp.recvBuf = rp.recvBuf[:len(left)]
+			copy(rp.recvBuf, left)
+		}
+	} else {
+		// pos == 0: no complete packet. Ensure we buffer all bytes for next time.
+		if !bufIsRecv {
+			if cap(rp.recvBuf) < len(data) {
+				rp.recvBuf = make([]byte, 0, len(data))
+			}
+			rp.recvBuf = rp.recvBuf[:len(data)]
+			copy(rp.recvBuf, data)
 		}
 	}
+
 	rp.mu.Unlock()
 
 	// 唤醒消费携程，消费recvQueue中的数据。
