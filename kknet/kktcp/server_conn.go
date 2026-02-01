@@ -41,10 +41,6 @@ func (c *tcpConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
-func (c *tcpConn) SendBufferSync(buffer buffers.IBuffer) error {
-	return c.SendBuffer(buffer)
-}
-
 func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {

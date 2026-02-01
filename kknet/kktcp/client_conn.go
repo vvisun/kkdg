@@ -41,10 +41,6 @@ func (c *gnetClientConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
-func (c *gnetClientConn) SendBufferSync(buffer buffers.IBuffer) error {
-	return c.SendBuffer(buffer)
-}
-
 func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {

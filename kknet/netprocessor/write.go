@@ -210,10 +210,6 @@ func (wp *WriteProcessor) writeLoop() {
 				break
 			}
 
-			if wp.writeFn == nil {
-				wp.drainRelease(n)
-				continue
-			}
 			if err := wp.writeFn(wp.sendBatchBuffer, n); err != nil {
 				// 如果 writeFn 没有自己释放/清理，这里兜底释放，避免泄漏
 				wp.drainRelease(n)

@@ -192,10 +192,6 @@ func (m *mockConn) ID() int64 {
 	return m.id
 }
 
-func (m *mockConn) SendBufferSync(buffer buffers.IBuffer) error {
-	return nil
-}
-
 func (m *mockConn) SendBuffer(buffer buffers.IBuffer) error {
 	return nil
 }

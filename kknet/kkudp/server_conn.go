@@ -48,10 +48,6 @@ func (c *udpConn) RemoteAddr() string {
 	return c.remoteAddr
 }
 
-func (c *udpConn) SendBufferSync(buffer buffers.IBuffer) error {
-	return c.SendBuffer(buffer)
-}
-
 func (c *udpConn) SendBuffer(buffer buffers.IBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {

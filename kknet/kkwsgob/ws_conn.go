@@ -63,10 +63,6 @@ func (c *wsConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
-func (c *wsConn) SendBufferSync(buffer buffers.IBuffer) error {
-	return c.SendBuffer(buffer)
-}
-
 func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {

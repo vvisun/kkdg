@@ -78,10 +78,6 @@ func (c *netWSConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
-func (c *netWSConn) SendBufferSync(buffer buffers.IBuffer) error {
-	return c.SendBuffer(buffer)
-}
-
 func (c *netWSConn) SendBuffer(buffer buffers.IBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {

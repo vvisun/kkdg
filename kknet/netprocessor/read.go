@@ -13,11 +13,11 @@ import (
 )
 
 type ReadOptions struct {
-	RecvQueueSize   int              //接收队列大小
-	RecvQueueStrict bool             //接收队列是否严格容量控制
-	MsgHandler      kknet.MsgHandler //消费函数, msg: object, msgID: 消息ID
-	RawHandler      kknet.RawHandler //消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
-	RecvBatchSize   int              //每轮消费最多 Pop 的帧数
+	RecvQueueSize   int               //接收队列大小
+	RecvQueueStrict bool              //接收队列是否严格容量控制
+	MsgHandler      kknet.IMsgHandler //消费函数, msg: object, msgID: 消息ID
+	RawHandler      kknet.IRawHandler //消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
+	RecvBatchSize   int               //每轮消费最多 Pop 的帧数
 }
 
 func CheckReadOptions(opts *ReadOptions) {
@@ -182,13 +182,13 @@ func (rp *ReadProcessor) drainOnce() {
 // 分发消息到业务逻辑层
 func (rp *ReadProcessor) dispatchMessage(msg any, msgID kkpacket.MSGID) {
 	xcall.SafeCall(func() {
-		rp.opts.MsgHandler(rp.connID, msg, msgID)
+		rp.opts.MsgHandler.OnMsg(rp.connID, msg, msgID)
 	})
 }
 
 // 分发原始数据到业务逻辑层
 func (rp *ReadProcessor) dispatchRaw(data buffers.IBuffer) {
 	xcall.SafeCall(func() {
-		rp.opts.RawHandler(rp.connID, data)
+		rp.opts.RawHandler.OnRaw(rp.connID, data)
 	})
 }
