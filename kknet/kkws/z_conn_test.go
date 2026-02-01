@@ -1,6 +1,7 @@
 package kkws
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 func startTestWSServer(t *testing.T) (wsURL string, recv <-chan []byte, closeFn func()) {
@@ -362,5 +364,88 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 	case <-wc.writeDone:
 	case <-time.After(2 * time.Second):
 		t.Fatalf("writer did not stop after Close")
+	}
+}
+
+func TestWSConn_Context_SetContext(t *testing.T) {
+	wsURL, _, closeSrv := startTestWSServer(t)
+	defer closeSrv()
+
+	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial error: %v", err)
+	}
+	opts := kknet.ApplyOptions()
+	wc := newWSConn(c, opts, nil)
+	defer wc.Close()
+
+	if wc.Context() == nil {
+		t.Fatal("Context() returned nil")
+	}
+	ctx := context.Background()
+	wc.SetContext(ctx)
+	if wc.Context() != ctx {
+		t.Error("Context() after SetContext does not match")
+	}
+}
+
+func TestWSConn_RemoteAddr(t *testing.T) {
+	wsURL, _, closeSrv := startTestWSServer(t)
+	defer closeSrv()
+
+	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial error: %v", err)
+	}
+	opts := kknet.ApplyOptions()
+	wc := newWSConn(c, opts, nil)
+	defer wc.Close()
+
+	addr := wc.RemoteAddr()
+	if addr == "" {
+		t.Error("RemoteAddr() is empty")
+	}
+}
+
+func TestWSConn_SendBuffer_AfterClose(t *testing.T) {
+	wsURL, _, closeSrv := startTestWSServer(t)
+	defer closeSrv()
+
+	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial error: %v", err)
+	}
+	opts := kknet.ApplyOptions()
+	wc := newWSConn(c, opts, nil)
+	_ = wc.Close()
+
+	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("after close"))
+	if err != nil {
+		t.Fatalf("pack error: %v", err)
+	}
+	err = wc.SendBuffer(bb)
+	if err != kkerrors.ErrConnectionClosed {
+		t.Errorf("SendBuffer after Close = %v, want ErrConnectionClosed", err)
+	}
+}
+
+func TestWSConn_InvalidPacket(t *testing.T) {
+	wsURL, _, closeSrv := startTestWSServer(t)
+	defer closeSrv()
+
+	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial error: %v", err)
+	}
+	opts := kknet.ApplyOptions()
+	wc := newWSConn(c, opts, nil)
+	defer wc.Close()
+
+	// buffer too short to be valid packet (length field is 4 bytes)
+	invalidBuf := kkbuffer.GetWithCapacity(2)
+	invalidBuf.B = invalidBuf.B[:2]
+	err = wc.SendBuffer(invalidBuf)
+	if err != kkerrors.ErrInvalidPacket && err != kkerrors.ErrMaxMessageSize {
+		t.Errorf("SendBuffer invalid packet = %v, want ErrInvalidPacket or ErrMaxMessageSize", err)
 	}
 }
