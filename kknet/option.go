@@ -35,6 +35,8 @@ type Options struct {
 	SendQueueNeedFlushOver        bool                                    //关闭时是否需要等待 flush 完成
 	SendQueueTimeoutFlushOver     time.Duration                           //关闭时等待 flush 完成的超时时间
 	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
+	WriteBatchSize                int                                     //每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
+	WriteBatchLimitBytes          int                                     //单次批量写入的最大字节数(<=0 不限制)
 
 	RecvQueueSize   int         // 接收队列大小
 	RecvQueueStrict bool        // 接收队列是否严格容量控制
@@ -66,11 +68,55 @@ func DefaultOptions() Options {
 		WsReadTimeout:   16 * time.Second, // 0秒, 不超时
 		WsWriteTimeout:  16 * time.Second, // 0秒, 不超时
 
-		SendQueueSize:   256,
-		SendQueueStrict: false,
+		SendQueueSize:        256,
+		SendQueueStrict:      false,
+		WriteBatchSize:       32,
+		WriteBatchLimitBytes: 2048,
 
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
 		UDPCleanupInterval: 1 * time.Minute, // 1分钟
+	}
+}
+
+func CheckOptions(opts *Options) {
+	if opts == nil {
+		return
+	}
+	if opts.SendQueueSize <= 0 {
+		opts.SendQueueSize = 256
+	}
+	if opts.WsReadTimeout > 0 && opts.WsReadTimeout < 100*time.Millisecond {
+		opts.WsReadTimeout = 100 * time.Millisecond
+	}
+	if opts.WsWriteTimeout > 0 && opts.WsWriteTimeout < 100*time.Millisecond {
+		opts.WsWriteTimeout = 100 * time.Millisecond
+	}
+	if opts.ReconnectInterval > 0 && opts.ReconnectInterval < 500*time.Millisecond {
+		opts.ReconnectInterval = 500 * time.Millisecond
+	}
+	if opts.ReadBufferSize > 0 && opts.ReadBufferSize < 2*1024 {
+		opts.ReadBufferSize = 2 * 1024
+	}
+	if opts.WriteBufferSize > 0 && opts.WriteBufferSize < 2*1024 {
+		opts.WriteBufferSize = 2 * 1024
+	}
+	if opts.ShutdownTimeout > 0 && opts.ShutdownTimeout < 500*time.Millisecond {
+		opts.ShutdownTimeout = 500 * time.Millisecond
+	}
+	if opts.UDPConnIdleTimeout > 0 && opts.UDPConnIdleTimeout < 500*time.Millisecond {
+		opts.UDPConnIdleTimeout = 500 * time.Millisecond
+	}
+	if opts.UDPCleanupInterval > 0 && opts.UDPCleanupInterval < 500*time.Millisecond {
+		opts.UDPCleanupInterval = 500 * time.Millisecond
+	}
+	if opts.WriteBatchSize <= 0 {
+		opts.WriteBatchSize = 32
+	}
+	if opts.WriteBatchLimitBytes < 512 {
+		opts.WriteBatchLimitBytes = 512
+	}
+	if opts.WriteBatchLimitBytes > 2048 {
+		opts.WriteBatchLimitBytes = 2048
 	}
 }
 
@@ -82,6 +128,7 @@ func ApplyOptions(opts ...Option) Options {
 			opt(&cfg)
 		}
 	}
+	CheckOptions(&cfg)
 	return cfg
 }
 

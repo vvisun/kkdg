@@ -16,9 +16,6 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-const writeBatchSize = 32         // 每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
-const writeBatchLimitBytes = 2048 // 单次批量写入的最大字节数，避免单次写入过大导致延迟大
-
 type wsConn struct {
 	id    kknet.CONN_ID
 	conn  *websocket.Conn
@@ -41,35 +38,28 @@ type wsConn struct {
 var _ kknet.IConn = (*wsConn)(nil)
 
 func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *wsConn {
+	kknet.CheckOptions(&opts)
 	c := &wsConn{
 		id:            kknet.NextConnID(),
 		conn:          conn,
 		opts:          opts,
 		stats:         stats,
 		ctx:           context.Background(),
-		batchWriteBuf: make([]byte, 0, writeBatchLimitBytes),
+		batchWriteBuf: make([]byte, 0, opts.WriteBatchLimitBytes),
 	}
 	c.initSendQueue()
 	return c
 }
 
 func (c *wsConn) initSendQueue() {
-	size := c.opts.SendQueueSize
-	if size <= 0 {
-		size = kknet.DefaultOptions().SendQueueSize
-	}
-	limitBytes := c.opts.WriteBufferSize
-	if limitBytes > 2048 {
-		limitBytes = 2048
-	}
 	wp := netprocessor.NewWriteProcessor(netprocessor.WriteOptions{
-		SendQueueSize:                 size,
+		SendQueueSize:                 c.opts.SendQueueSize,
 		SendQueueStrict:               c.opts.SendQueueStrict,
 		SendQueueNeedFlushOver:        c.opts.SendQueueNeedFlushOver,
 		SendQueueTimeoutFlushOver:     c.opts.SendQueueTimeoutFlushOver,
 		SendQueueFlushTimeoutCallback: c.opts.SendQueueFlushTimeoutCallback,
-		WriteBatchSize:                writeBatchSize,
-		WriteBatchLimitBytes:          limitBytes,
+		WriteBatchSize:                c.opts.WriteBatchSize,
+		WriteBatchLimitBytes:          c.opts.WriteBatchLimitBytes,
 	})
 	c.wp = wp
 	c.writeDone = wp.Done()
@@ -209,7 +199,7 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		}
 		batchBytes = append(batchBytes, bb.B...)
 		kkbuffer.Put(bb)
-		if len(batchBytes) >= writeBatchLimitBytes {
+		if len(batchBytes) >= c.opts.WriteBatchLimitBytes {
 			// 单次写入超过限制，则立即发送
 			if err := c.sendBytes(batchBytes); err != nil {
 				return err
