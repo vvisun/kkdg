@@ -221,35 +221,50 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.By
 		}
 	}
 
-	succCnt := 0
 	batchBytes := c.batchWriteBuf[:0]
+	pendingIdxs := make([]int, 0, n) // indexes in batch belonging to current batchBytes
 	for i := 0; i < n; i++ {
 		bb := batch[i]
-		batch[i] = nil
 		if bb == nil {
 			continue
 		}
 		batchBytes = append(batchBytes, bb.B...)
+		pendingIdxs = append(pendingIdxs, i)
 		if len(batchBytes) >= c.opts.WriteBatchLimitBytes {
 			// 单次写入超过限制，则立即发送
 			if err := c.sendBytes(batchBytes); err != nil {
-				fails := batch[succCnt:n]
-				return fails, err
+				// keep pending buffers in batch for caller to release
+				return nil, err
 			}
-			succCnt = i + 1
 			batchBytes = batchBytes[:0]
+			// sent ok: release pending buffers for this chunk
+			for _, idx := range pendingIdxs {
+				bb2 := batch[idx]
+				batch[idx] = nil
+				if bb2 != nil {
+					kkbuffer.Put(bb2)
+				}
+			}
+			pendingIdxs = pendingIdxs[:0]
 		}
-		kkbuffer.Put(bb)
 	}
 
 	// 发送剩余数据
 	if len(batchBytes) > 0 {
 		if err := c.sendBytes(batchBytes); err != nil {
-			fails := batch[succCnt:n]
-			return fails, err
+			// keep pending buffers in batch for caller to release
+			return nil, err
 		}
 	}
 
+	// sent ok: release remaining pending buffers
+	for _, idx := range pendingIdxs {
+		bb := batch[idx]
+		batch[idx] = nil
+		if bb != nil {
+			kkbuffer.Put(bb)
+		}
+	}
 	return nil, nil
 }
 

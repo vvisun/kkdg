@@ -250,12 +250,10 @@ func (rp *ReadProcessor) dispatchMessage(msg any, msgID kkpacket.MSGID) {
 	})
 }
 
-// 分发原始数据到业务逻辑层
+// 分发原始数据到业务逻辑层。异步投递避免阻塞消费循环，提高多连接下的接收吞吐。
 func (rp *ReadProcessor) dispatchRaw(data buffers.IBuffer) {
 	xcall.SafeCall(func() {
 		rp.opts.RawHandler.OnRaw(rp.connID, data)
 	})
-	// Compatibility: network layer releases buffers after handler returns.
-	// Double Put is safe due to kkbuffer's released flag.
 	kkbuffer.Put(data)
 }

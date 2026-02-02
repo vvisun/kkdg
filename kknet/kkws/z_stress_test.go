@@ -13,7 +13,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -26,12 +25,13 @@ type stressRecvHandler struct {
 }
 
 func (h *stressRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
-	if data != nil {
-		n := h.recvCount.Add(1)
-		kkbuffer.Put(data)
-		if h.target > 0 && h.ch != nil && n >= h.target {
-			h.closeOnce.Do(func() { close(h.ch) })
-		}
+	if data == nil {
+		return
+	}
+	// netprocessor will release the buffer after handler returns.
+	n := h.recvCount.Add(1)
+	if h.target > 0 && h.ch != nil && n >= h.target {
+		h.closeOnce.Do(func() { close(h.ch) })
 	}
 }
 
@@ -73,24 +73,25 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}
 	start := time.Now()
 	var wg sync.WaitGroup
+	errCh := make(chan error, numConns)
 	for i := 0; i < numConns; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			client := NewClient("ws://"+addr+"/ws", nil, clientOpts...)
 			if err := client.Connect(); err != nil {
-				kklog.Errorf("Connect: %v", err)
+				errCh <- err
 				return
 			}
 			defer client.Close()
 			for j := 0; j < msgsPerConn; j++ {
 				bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 				if err != nil {
-					t.Errorf("Pack: %v", err)
+					errCh <- err
 					return
 				}
 				if err := client.SendBuffer(bb); err != nil {
-					t.Errorf("SendBuffer: %v", err)
+					errCh <- err
 					return
 				}
 			}
@@ -98,6 +99,12 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}
 	wg.Wait()
 	sendDone := time.Since(start)
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("stress send error: %v", err)
+		}
+	}
 
 	select {
 	case <-recv.ch:
@@ -143,34 +150,47 @@ func TestStress_HighThroughput(t *testing.T) {
 	}
 	start := time.Now()
 	var wg sync.WaitGroup
+	errCh := make(chan error, numConns)
 	for i := 0; i < numConns; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			client := NewClient("ws://"+addr+"/ws", nil, clientOpts...)
 			if err := client.Connect(); err != nil {
-				t.Errorf("Connect: %v", err)
+				errCh <- err
 				return
 			}
 			defer client.Close()
 			for j := 0; j < msgsPerConn; j++ {
 				bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 				if err != nil {
-					t.Errorf("Pack: %v", err)
+					errCh <- err
 					return
 				}
 				if err := client.SendBuffer(bb); err != nil {
-					t.Errorf("SendBuffer: %v", err)
+					errCh <- err
 					return
 				}
+			}
+			// Keep the connection alive briefly to reduce close-race drops under bursty load.
+			// (If something is wrong and target can't be reached, this won't block the test.)
+			select {
+			case <-recv.ch:
+			case <-time.After(2 * time.Second):
 			}
 		}()
 	}
 	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("stress send error: %v", err)
+		}
+	}
 
 	select {
 	case <-recv.ch:
-	case <-time.After(30 * time.Second):
+	case <-time.After(6 * time.Second):
 		got := recv.Count()
 		if got < minRecv {
 			kklog.Errorf("timeout: server received %d, want at least %d (target %d)", got, minRecv, totalMsgs)

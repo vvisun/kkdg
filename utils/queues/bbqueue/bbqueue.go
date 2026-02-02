@@ -193,14 +193,40 @@ func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int
 
 // 扩容
 func (q *BBQueue) grow() {
-	// 只追加一个 chunk：不搬运元素，完全避免 copy。
-	q.buf = append(q.buf, make([]*kkbuffer.ByteBuffer, q.chunkSize))
-	q.capacity += q.chunkSize
+	// Grow by adding one chunk without copying elements.
+	//
+	// IMPORTANT:
+	// q.buf (chunks slice) is used as a ring by indexing with modulo len(q.buf).
+	// Simply appending one chunk would change the ring's wrap boundary and break
+	// the logical order when the queue is in wrapped state (tail behind head),
+	// causing element loss/overwrites.
+	//
+	// To keep logical order correct without copying element pointers, we "rotate"
+	// the chunks slice so that headChunk becomes 0 (shallow copy of chunk headers),
+	// then append the new empty chunk at the end.
+	oldChunks := len(q.buf)
+	if oldChunks <= 0 {
+		// should not happen, but be defensive
+		q.buf = [][]*kkbuffer.ByteBuffer{make([]*kkbuffer.ByteBuffer, q.chunkSize)}
+		q.capacity = q.chunkSize
+		q.headChunk, q.headPos = 0, 0
+		q.tailChunk, q.tailPos = 0, 0
+		return
+	}
 
-	// 扩容后总槽位数变化，需要按新容量重算 tail，
-	// 以保证从 head 走 count 步能到 tail（否则 full 状态下 tail==head 会导致覆盖）。
-	headLinear := q.headChunk*q.chunkSize + q.headPos
-	tailLinear := (headLinear + q.count) % q.capacity
+	newBuf := make([][]*kkbuffer.ByteBuffer, oldChunks+1)
+	for i := 0; i < oldChunks; i++ {
+		newBuf[i] = q.buf[(q.headChunk+i)%oldChunks]
+	}
+	newBuf[oldChunks] = make([]*kkbuffer.ByteBuffer, q.chunkSize)
+	q.buf = newBuf
+	q.capacity = (oldChunks + 1) * q.chunkSize
+
+	// head is now at chunk 0, same headPos.
+	q.headChunk = 0
+
+	// Recompute tail from head+count in the new linear space.
+	tailLinear := q.headPos + q.count
 	q.tailChunk = tailLinear / q.chunkSize
 	q.tailPos = tailLinear % q.chunkSize
 }
