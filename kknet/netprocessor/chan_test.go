@@ -32,7 +32,7 @@ func Test_LockFreeLinkBackPressureChan(t *testing.T) {
 			defer wgProd.Done()
 			for i := 0; i < msgNumPerProd; i++ {
 				// 关键消息：循环重试直到发送成功（无丢失）
-				for !bpc.Send(msgItem{prodID: prodID, seq: i}) {
+				for bpc.Send(msgItem{prodID: prodID, seq: i}) == 1 {
 					runtime.Gosched()
 				}
 			}
@@ -90,6 +90,6 @@ func Test_LockFreeLinkBackPressureChan(t *testing.T) {
 	println("总接收消息数：", recvCnt)
 	println("消息是否丢失：", recvCnt == totalMsg)
 	println("消息是否乱序：", orderErr)
-	println("总耗时：", elapsed)
-	println("平均吞吐：", float64(totalMsg)/elapsed.Seconds(), "条/秒")
+	println("总耗时：", elapsed.Seconds(), "秒")
+	println("平均吞吐：", float64(totalMsg)/elapsed.Seconds()*1000000, "百万条/秒")
 }

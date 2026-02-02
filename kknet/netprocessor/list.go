@@ -75,10 +75,6 @@ func (l *lockFreeList[T]) Push(val T) bool {
 
 // Pop 无锁出队，返回val=数据，ok=true=成功，ok=false=空/已关闭
 func (l *lockFreeList[T]) Pop() (val T, ok bool) {
-	if atomic.LoadUint32(&l.closed) == 1 {
-		return val, false
-	}
-
 	for {
 		head := (*node[T])(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&l.head))))
 		tail := (*node[T])(atomic.LoadPointer((*unsafe.Pointer)(unsafe.Pointer(&l.tail))))
