@@ -52,10 +52,10 @@ type (
 	// IRawHandler is a handler for raw data.
 	IRawHandler interface {
 		/*OnRaw is called when a raw data is received.
-			@param connId CONN_ID 连接ID
-			@param data buffers.IBuffer [length,message]
-		    @note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
-		    @note 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
+		@param connId CONN_ID 连接ID
+		@param data buffers.IBuffer 原始数据
+		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
+		@note 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
 		*/
 		OnRaw(connId CONN_ID, data buffers.IBuffer)
 	}

@@ -189,7 +189,7 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 
 /*
 编码包。
-注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
+注意：外部需记得释放buffers.IBuffer！！！否则buffers.IBuffer得不到回收，性能反而更低！！！
 
 	@param v *T 消息对象（object）
 	@param stream IStreamPacket 流包类型
