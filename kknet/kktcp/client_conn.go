@@ -7,6 +7,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -19,18 +20,28 @@ type gnetClientConn struct {
 
 	ctxMu sync.RWMutex
 	ctx   context.Context
+
+	rp *netprocessor.ReadProcessor
 }
 
 var _ kknet.IConn = (*gnetClientConn)(nil)
 
 func newGnetClientConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *gnetClientConn {
-	return &gnetClientConn{
+	cc := &gnetClientConn{
 		id:    kknet.NextConnID(),
 		conn:  c,
 		opts:  opts,
 		stats: stats,
 		ctx:   context.Background(),
 	}
+	cc.rp = netprocessor.NewReadProcessor(netprocessor.ReadOptions{
+		RecvQueueSize:   opts.RecvQueueSize,
+		RecvQueueStrict: opts.RecvQueueStrict,
+		MsgHandler:      opts.MsgHandler,
+		RawHandler:      opts.RawHandler,
+	})
+	cc.rp.Start(cc)
+	return cc
 }
 
 func (c *gnetClientConn) ID() kknet.CONN_ID {

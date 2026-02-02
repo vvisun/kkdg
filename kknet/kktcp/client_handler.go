@@ -4,7 +4,6 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 type gnetClientEventHandler struct {
@@ -42,6 +41,10 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 		h.client.stats.AddError()
 	}
 	if cc, ok := c.Context().(*gnetClientConn); ok && h.client.handler != nil {
+		// Stop read processor asynchronously (drain remaining queue outside event-loop).
+		if cc.rp != nil {
+			go cc.rp.Stop()
+		}
 		kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnClose", func() {
 			h.client.handler.OnClose(cc, err)
 		})
@@ -71,16 +74,11 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 			return gnet.None
 		}
 		h.client.stats.AddRecv(len(data))
-		if h.client.handler != nil {
-			dataCpy := kkbuffer.GetWithCapacity(len(data))
-			dataCpy.B = dataCpy.B[:len(data)]
-			copy(dataCpy.B, data)
-			if h.client.opts.RawHandler != nil {
-				kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnMessage", func() {
-					h.client.opts.RawHandler.OnRaw(cc.id, dataCpy)
-				})
+		if cc.rp != nil {
+			if err := cc.rp.OnRecvBytes(data); err != nil {
+				h.client.stats.AddError()
+				return gnet.Close
 			}
-			kkbuffer.Put(dataCpy)
 		}
 	}
 }

@@ -227,4 +227,7 @@ func (rp *ReadProcessor) dispatchRaw(data buffers.IBuffer) {
 	xcall.SafeCall(func() {
 		rp.opts.RawHandler.OnRaw(rp.connID, data)
 	})
+	// Compatibility: network layer releases buffers after handler returns.
+	// Double Put is safe due to kkbuffer's released flag.
+	kkbuffer.Put(data)
 }

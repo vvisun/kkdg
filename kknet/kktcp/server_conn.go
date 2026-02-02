@@ -7,6 +7,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -19,18 +20,28 @@ type tcpConn struct {
 
 	ctxMu sync.RWMutex
 	ctx   context.Context
+
+	rp *netprocessor.ReadProcessor
 }
 
 var _ kknet.IConn = (*tcpConn)(nil)
 
 func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
-	return &tcpConn{
+	tc := &tcpConn{
 		id:    kknet.NextConnID(),
 		conn:  c,
 		opts:  opts,
 		stats: stats,
 		ctx:   context.Background(),
 	}
+	tc.rp = netprocessor.NewReadProcessor(netprocessor.ReadOptions{
+		RecvQueueSize:   opts.RecvQueueSize,
+		RecvQueueStrict: opts.RecvQueueStrict,
+		MsgHandler:      opts.MsgHandler,
+		RawHandler:      opts.RawHandler,
+	})
+	tc.rp.Start(tc)
+	return tc
 }
 
 func (c *tcpConn) ID() kknet.CONN_ID {
@@ -53,13 +64,16 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 
 	// TODO: 发送失败应该入队，下次优先从队列中取数据发送。
 	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
-		kkbuffer.Put(bb)
 		if err != nil {
 			// 发送失败
 			if c.stats != nil {
 				c.stats.AddError()
 			}
+		} else if c.stats != nil {
+			// 只在真正写成功时统计 sent，避免入队成功但发送失败造成统计偏差
+			c.stats.AddSent(len(bb.B))
 		}
+		kkbuffer.Put(bb)
 		return nil
 	})
 	if err != nil {
@@ -69,9 +83,6 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 			c.stats.AddError()
 		}
 		return err
-	}
-	if c.stats != nil {
-		c.stats.AddSent(len(bb.B))
 	}
 	// 入队成功立即返回，注意这里只是入队，并非真正的发送数据
 	return nil

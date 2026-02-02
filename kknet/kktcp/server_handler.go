@@ -4,8 +4,6 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 type tcpEventHandler struct {
@@ -43,6 +41,10 @@ func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 		h.server.stats.AddError()
 	}
 	if tc, ok := c.Context().(*tcpConn); ok {
+		// Stop read processor asynchronously (drain remaining queue outside event-loop).
+		if tc.rp != nil {
+			go tc.rp.Stop()
+		}
 		h.server.connMgr.removeConn(tc.id)
 	}
 	if h.server.handler == nil {
@@ -72,20 +74,12 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 			return gnet.None
 		}
 		h.server.stats.AddRecv(len(data))
-		if h.server.handler != nil {
-			dataCpy := kkbuffer.GetWithCapacity(len(data))
-			dataCpy.B = dataCpy.B[:len(data)]
-			copy(dataCpy.B, data)
-			h.dispatch(tc, dataCpy)
+		// feed into ReadProcessor; it will copy into pooled buffers and dispatch asynchronously.
+		if tc.rp != nil {
+			if err := tc.rp.OnRecvBytes(data); err != nil {
+				h.server.stats.AddError()
+				return gnet.Close
+			}
 		}
 	}
-}
-
-func (h *tcpEventHandler) dispatch(c *tcpConn, data buffers.IBuffer) {
-	if h.server.opts.RawHandler != nil {
-		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnMessage", func() {
-			h.server.opts.RawHandler.OnRaw(c.id, data)
-		})
-	}
-	kkbuffer.Put(data)
 }
