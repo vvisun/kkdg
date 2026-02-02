@@ -8,6 +8,94 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
+func TestLengthFieldPacker_Split(t *testing.T) {
+	packer := kkpacket.NewLengthFieldStreamPacket(nil)
+
+	data := []byte("1234567890")
+	pack, _ := packer.Pack(data)
+	fullLen := len(pack.B)
+
+	data = pack.B
+	recvs := make([][]byte, 0, 8)
+	packets, leftData, err := packer.Split(data, recvs)
+	if err != nil {
+		t.Fatalf("Split returned error: %v", err)
+	}
+	if len(packets) != 1 {
+		t.Fatalf("Expected 1 packet, got %d", len(packets))
+	}
+	if string(packets[0]) != string(data) {
+		t.Fatalf("Expected packet %q, got %q", string(data), string(packets[0]))
+	}
+	if len(leftData) != 0 {
+		t.Fatalf("Expected no left data, got %d", len(leftData))
+	}
+
+	data = pack.B[:fullLen-1]
+	packets, leftData, err = packer.Split(data, recvs)
+	if err != nil {
+		t.Fatalf("Split returned error: %v", err)
+	}
+	if len(packets) != 0 {
+		t.Fatalf("Expected 0 packet, got %d", len(packets))
+	}
+	if len(leftData) != fullLen-1 {
+		t.Fatalf("Expected left data length %d, got %d", fullLen-1, len(leftData))
+	}
+	if string(leftData) != string(pack.B[:fullLen-1]) {
+		t.Fatalf("Expected left data %q, got %q", string(pack.B[:fullLen-1]), string(leftData))
+	}
+
+	data = pack.B[:]
+	tmp := []byte("1234567890")
+	for i := 0; i < 2; i++ {
+		pk, _ := packer.Pack(tmp)
+		data = append(data, pk.B...)
+	}
+	packets, leftData, err = packer.Split(data, recvs)
+	if err != nil {
+		t.Fatalf("Split returned error: %v", err)
+	}
+	if len(packets) != 3 {
+		t.Fatalf("Expected 3 packets, got %d", len(packets))
+	}
+	if len(leftData) != 0 {
+		t.Fatalf("Expected no left data, got %d", len(leftData))
+	}
+	if string(packets[0][packer.LengthFieldByteCount():]) != string(tmp) {
+		t.Fatalf("Expected packet %q, got %q", string(tmp), string(packets[0]))
+	}
+	if string(packets[1][packer.LengthFieldByteCount():]) != string(tmp) {
+		t.Fatalf("Expected packet %q, got %q", string(tmp), string(packets[1]))
+	}
+	if string(packets[2][packer.LengthFieldByteCount():]) != string(tmp) {
+		t.Fatalf("Expected packet %q, got %q", string(tmp), string(packets[2]))
+	}
+
+	fullLen = len(data)
+	data = data[:fullLen-3]
+	wishLeftData := "1234567"
+	packets, leftData, err = packer.Split(data, recvs)
+	if err != nil {
+		t.Fatalf("Split returned error: %v", err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("Expected 2 packets, got %d", len(packets))
+	}
+	if len(leftData)-packer.LengthFieldByteCount() != len(wishLeftData) {
+		t.Fatalf("Expected left data length %d, got %d", len(wishLeftData), len(leftData)-packer.LengthFieldByteCount())
+	}
+	if string(leftData[packer.LengthFieldByteCount():]) != wishLeftData {
+		t.Fatalf("Expected left data %q, got %q", wishLeftData, string(leftData[packer.LengthFieldByteCount():]))
+	}
+	if string(packets[0][packer.LengthFieldByteCount():]) != string(tmp) {
+		t.Fatalf("Expected packet %q, got %q", string(tmp), string(packets[0]))
+	}
+	if string(packets[1][packer.LengthFieldByteCount():]) != string(tmp) {
+		t.Fatalf("Expected packet %q, got %q", string(tmp), string(packets[1]))
+	}
+}
+
 func TestNewLengthFieldPacker(t *testing.T) {
 	packer := kkpacket.NewLengthFieldStreamPacket(nil)
 
