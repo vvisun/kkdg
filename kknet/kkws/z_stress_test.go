@@ -4,9 +4,12 @@
 package kkws
 
 import (
+	"errors"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -48,12 +51,66 @@ func freePortStress(t *testing.T) string {
 	return addr
 }
 
+func waitTCPReady(t *testing.T, addr string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		c, err := net.DialTimeout("tcp", addr, 200*time.Millisecond)
+		if err == nil {
+			_ = c.Close()
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("server not ready on %s after %v", addr, timeout)
+}
+
+func isConnRefused(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Windows typically surfaces "connectex: ... actively refused ..."
+	if strings.Contains(strings.ToLower(err.Error()), "refused") {
+		return true
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		// best-effort: match common errno
+		if errors.Is(opErr.Err, syscall.ECONNREFUSED) {
+			return true
+		}
+	}
+	return false
+}
+
+func connectWithRetry(client *Client, attempts int, baseBackoff time.Duration) error {
+	if attempts < 1 {
+		attempts = 1
+	}
+	if baseBackoff <= 0 {
+		baseBackoff = 10 * time.Millisecond
+	}
+	var lastErr error
+	for i := 0; i < attempts; i++ {
+		if err := client.Connect(); err == nil {
+			return nil
+		} else {
+			lastErr = err
+			if !isConnRefused(err) {
+				return err
+			}
+		}
+		time.Sleep(baseBackoff + time.Duration(i)*baseBackoff)
+	}
+	return lastErr
+}
+
 // TestStress_ManyConns_ManyMessages: many concurrent connections, each sending many messages.
 func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 1000
+	numConns := 3000
 	msgsPerConn := 5555
 	totalMsgs := int64(numConns * msgsPerConn)
 
@@ -68,6 +125,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 	defer srv.Stop()
+	waitTCPReady(t, addr, 2*time.Second)
 
 	payload := []byte("stress")
 	clientOpts := []kknet.Option{
@@ -79,12 +137,16 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	errCh := make(chan error, numConns)
 	var clientsMu sync.Mutex
 	clients := make([]*Client, 0, numConns)
+	// Ramp up connections to avoid overwhelming accept backlog on Windows.
+	connSem := make(chan struct{}, 200)
 	for i := 0; i < numConns; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			connSem <- struct{}{}
+			defer func() { <-connSem }()
 			client := NewClient("ws://"+addr+"/ws", nil, clientOpts...)
-			if err := client.Connect(); err != nil {
+			if err := connectWithRetry(client, 30, 10*time.Millisecond); err != nil {
 				errCh <- err
 				return
 			}

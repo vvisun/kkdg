@@ -144,9 +144,16 @@ func (s *Server) Start() error {
 		}()
 	} else {
 		go func() {
+			ln, err := net.Listen("tcp", s.addr)
+			if err != nil {
+				s.stats.AddError()
+				s.started.Store(false)
+				s.done <- err
+				return
+			}
 			s.opts.Logger.Infof("kkws server listen on %s%s", s.addr, s.path)
 			close(s.booted)
-			err := s.httpServer.ListenAndServe()
+			err = s.httpServer.Serve(ln)
 			if err != nil && err != http.ErrServerClosed {
 				s.stats.AddError()
 			}
