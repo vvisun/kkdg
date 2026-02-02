@@ -146,11 +146,13 @@ func TestStress_HighThroughput(t *testing.T) {
 	payload := []byte("throughput")
 	clientOpts := []kknet.Option{
 		kknet.WithSendQueueNeedFlushOver(true),
-		kknet.WithSendQueueTimeoutFlushOver(15 * time.Second),
+		kknet.WithSendQueueTimeoutFlushOver(2 * time.Second),
 	}
 	start := time.Now()
 	var wg sync.WaitGroup
 	errCh := make(chan error, numConns)
+	var clientsMu sync.Mutex
+	clients := make([]*Client, 0, numConns)
 	for i := 0; i < numConns; i++ {
 		wg.Add(1)
 		go func() {
@@ -160,7 +162,6 @@ func TestStress_HighThroughput(t *testing.T) {
 				errCh <- err
 				return
 			}
-			defer client.Close()
 			for j := 0; j < msgsPerConn; j++ {
 				bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
 				if err != nil {
@@ -172,12 +173,9 @@ func TestStress_HighThroughput(t *testing.T) {
 					return
 				}
 			}
-			// Keep the connection alive briefly to reduce close-race drops under bursty load.
-			// (If something is wrong and target can't be reached, this won't block the test.)
-			select {
-			case <-recv.ch:
-			case <-time.After(2 * time.Second):
-			}
+			clientsMu.Lock()
+			clients = append(clients, client)
+			clientsMu.Unlock()
 		}()
 	}
 	wg.Wait()
@@ -187,23 +185,33 @@ func TestStress_HighThroughput(t *testing.T) {
 			t.Fatalf("stress send error: %v", err)
 		}
 	}
+	defer func() {
+		clientsMu.Lock()
+		defer clientsMu.Unlock()
+		for _, c := range clients {
+			_ = c.Close()
+		}
+	}()
 
 	select {
 	case <-recv.ch:
-	case <-time.After(6 * time.Second):
+	case <-time.After(2*time.Second + 50*time.Millisecond):
 		got := recv.Count()
 		if got < minRecv {
-			kklog.Errorf("timeout: server received %d, want at least %d (target %d)", got, minRecv, totalMsgs)
+			kklog.Errorf("throughput timeout: received %d/%d (min %d)", got, totalMsgs, minRecv)
+		} else {
+			// For stress runs, allow a small number of messages still in flight at timeout.
+			// Don't print misleading msg/s numbers based on the timeout wait.
+			kklog.Debugf("throughput: timeout with %d/%d received (acceptable)", got, totalMsgs)
 		}
-		kklog.Debugf("throughput: finished after timeout with %d/%d received", got, totalMsgs)
 	}
 	got := recv.Count()
 	if got < minRecv {
 		kklog.Errorf("server received %d messages, want at least %d (90%% of %d)", got, minRecv, totalMsgs)
 	}
 	elapsed := time.Since(start)
-	kklog.Debugf("throughput: %d conns × %d msgs = %d total in %v, ≈ %.0f msg/s",
-		numConns, msgsPerConn, totalMsgs, elapsed, float64(got)/elapsed.Seconds())
+	kklog.Debugf("throughput: %d conns × %d msgs = %d total in %v",
+		numConns, msgsPerConn, totalMsgs, elapsed)
 }
 
 // TestStress_ManyConns_ConnectDisconnect: rapid connect/disconnect to stress connection lifecycle.
