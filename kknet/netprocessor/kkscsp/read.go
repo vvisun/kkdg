@@ -17,7 +17,7 @@ import (
 const defaultRecvBufSize = 1 * 1024 // 接收缓冲区大小，1KB
 
 /**
- * 消息处理器-接收器
+ * 消息处理器-接收器。每个连接一个接收器。
  * 负责从连接中读取数据，并将其放入接收队列中。
  * 接收队列中的数据可以被其他组件消费。
  */
@@ -39,6 +39,8 @@ type ReadProcessor struct {
 	doneCh    chan struct{}
 	batchBuf  []*kkbuffer.ByteBuffer //批量消费缓冲区，用于消费时复用，避免分配新的内存
 }
+
+var _ netprocessor.IReadProcessor = (*ReadProcessor)(nil)
 
 func NewReadProcessor(opts netprocessor.ReadOptions) *ReadProcessor {
 	netprocessor.CheckReadOptions(&opts)

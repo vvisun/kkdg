@@ -23,7 +23,7 @@ type IReadProcessor interface {
 
 type IWriteProcessor interface {
 	Start(conn kknet.IConn, writeFn WriteFunc, onWriteError func(error))
-	Stop()
+	Stop(err error)
 	SendBuffer(buffer buffers.IBuffer) error
 	SendMessage(msg any) error
 }

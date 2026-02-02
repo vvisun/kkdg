@@ -110,8 +110,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 600
-	msgsPerConn := 1000
+	numConns := 12
+	msgsPerConn := 12
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)

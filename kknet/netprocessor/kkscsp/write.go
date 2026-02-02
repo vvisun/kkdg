@@ -15,7 +15,7 @@ import (
 )
 
 /**
- * 消息处理器-发送器
+ * 消息处理器-发送器。每个连接一个发送器。
  * 负责编码、然后将编码后的数据投入发送队列，供连接发送。
  */
 type WriteProcessor struct {
@@ -39,6 +39,8 @@ type WriteProcessor struct {
 	writeFn      netprocessor.WriteFunc
 	onWriteError func(error)
 }
+
+var _ netprocessor.IWriteProcessor = (*WriteProcessor)(nil)
 
 func NewWriteProcessor(opts netprocessor.WriteOptions) *WriteProcessor {
 	netprocessor.CheckWriteOptions(&opts)
