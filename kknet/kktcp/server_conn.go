@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/netprocessor"
+	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -25,8 +26,8 @@ type tcpConn struct {
 
 	closing atomic.Bool
 
-	rp *netprocessor.ReadProcessor
-	wp *netprocessor.WriteProcessor
+	rp *kkscsp.ReadProcessor
+	wp *kkscsp.WriteProcessor
 }
 
 var _ kknet.IConn = (*tcpConn)(nil)
@@ -40,7 +41,7 @@ func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
 		stats: stats,
 		ctx:   context.Background(),
 	}
-	tc.rp = netprocessor.NewReadProcessor(netprocessor.ReadOptions{
+	tc.rp = kkscsp.NewReadProcessor(netprocessor.ReadOptions{
 		RecvQueueSize:   opts.RecvQueueSize,
 		RecvQueueStrict: opts.RecvQueueStrict,
 		MsgHandler:      opts.MsgHandler,
@@ -48,7 +49,7 @@ func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
 	})
 	tc.rp.Start(tc)
 
-	tc.wp = netprocessor.NewWriteProcessor(netprocessor.WriteOptions{
+	tc.wp = kkscsp.NewWriteProcessor(netprocessor.WriteOptions{
 		SendQueueSize:                 opts.SendQueueSize,
 		SendQueueStrict:               opts.SendQueueStrict,
 		SendQueueNeedFlushOver:        opts.SendQueueNeedFlushOver,

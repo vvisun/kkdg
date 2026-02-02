@@ -1,4 +1,4 @@
-package netprocessor
+package kkscsp
 
 import (
 	"sync"

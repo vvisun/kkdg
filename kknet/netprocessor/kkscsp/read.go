@@ -1,4 +1,4 @@
-package netprocessor
+package kkscsp
 
 import (
 	"sync"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -21,10 +22,10 @@ const defaultRecvBufSize = 1 * 1024 // 接收缓冲区大小，1KB
  * 接收队列中的数据可以被其他组件消费。
  */
 type ReadProcessor struct {
-	conn   kknet.IConn   //连接
-	connID kknet.CONN_ID //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
-	userID int64         //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
-	opts   ReadOptions   //选项
+	conn   kknet.IConn              //连接
+	connID kknet.CONN_ID            //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
+	userID int64                    //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
+	opts   netprocessor.ReadOptions //选项
 
 	recvQueue *bbqueue.BBQueue //接收队列
 	recvBuf   []byte           //残包缓冲区
@@ -39,8 +40,8 @@ type ReadProcessor struct {
 	batchBuf  []*kkbuffer.ByteBuffer //批量消费缓冲区，用于消费时复用，避免分配新的内存
 }
 
-func NewReadProcessor(opts ReadOptions) *ReadProcessor {
-	CheckReadOptions(&opts)
+func NewReadProcessor(opts netprocessor.ReadOptions) *ReadProcessor {
+	netprocessor.CheckReadOptions(&opts)
 	return &ReadProcessor{
 		recvBuf:   byteslice.GetZero(defaultRecvBufSize),
 		recvQueue: bbqueue.NewBBQueue(opts.RecvQueueSize, opts.RecvQueueStrict),

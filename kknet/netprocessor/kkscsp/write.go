@@ -1,4 +1,4 @@
-package netprocessor
+package kkscsp
 
 import (
 	"sync"
@@ -8,18 +8,11 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
-
-/*
-*批量携入
- *@param batch 批量缓冲区，数组长度为 WriteBatchSize
- *@param n 批量数量
- *@return 发送失败的数据序列，error
-*/
-type WriteFunc func(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.ByteBuffer, error)
 
 /**
  * 消息处理器-发送器
@@ -32,7 +25,7 @@ type WriteProcessor struct {
 	sendQueue       *bbqueue.BBQueue       //发送队列
 	sendBatchBuffer []*kkbuffer.ByteBuffer //批量发送缓冲区
 
-	opts WriteOptions
+	opts netprocessor.WriteOptions
 
 	sendMu    sync.Mutex
 	closeOnce sync.Once
@@ -43,12 +36,12 @@ type WriteProcessor struct {
 	drainedCh chan struct{}
 	doneCh    chan struct{}
 
-	writeFn      WriteFunc
+	writeFn      netprocessor.WriteFunc
 	onWriteError func(error)
 }
 
-func NewWriteProcessor(opts WriteOptions) *WriteProcessor {
-	CheckWriteOptions(&opts)
+func NewWriteProcessor(opts netprocessor.WriteOptions) *WriteProcessor {
+	netprocessor.CheckWriteOptions(&opts)
 	return &WriteProcessor{
 		opts:            opts,
 		sendQueue:       bbqueue.NewBBQueue(opts.SendQueueSize, opts.SendQueueStrict),
@@ -73,7 +66,7 @@ func (wp *WriteProcessor) Pending() int {
 
 // Start starts the writer goroutine. writeFn must consume the buffers in batch
 // (and clear wp.sendBatchBuffer[0:n] pointers) before returning.
-func (wp *WriteProcessor) Start(conn kknet.IConn, writeFn WriteFunc, onWriteError func(error)) {
+func (wp *WriteProcessor) Start(conn kknet.IConn, writeFn netprocessor.WriteFunc, onWriteError func(error)) {
 	wp.conn = conn
 	wp.writeFn = writeFn
 	wp.onWriteError = onWriteError

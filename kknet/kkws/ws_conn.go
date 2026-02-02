@@ -12,6 +12,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/netprocessor"
+	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -29,7 +30,7 @@ type wsConn struct {
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp            *netprocessor.WriteProcessor
+	wp            *kkscsp.WriteProcessor
 	batchWriteBuf []byte
 	readBB        *kkbuffer.ByteBuffer // reused read buffer for NextReader
 }
@@ -51,7 +52,7 @@ func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *ws
 }
 
 func (c *wsConn) initSendQueue() {
-	wp := netprocessor.NewWriteProcessor(netprocessor.WriteOptions{
+	wp := kkscsp.NewWriteProcessor(netprocessor.WriteOptions{
 		SendQueueSize:                 c.opts.SendQueueSize,
 		SendQueueStrict:               c.opts.SendQueueStrict,
 		SendQueueNeedFlushOver:        c.opts.SendQueueNeedFlushOver,
@@ -123,7 +124,7 @@ func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) 
 }
 
 func (c *wsConn) readLoop() error {
-	rp := netprocessor.NewReadProcessor(netprocessor.ReadOptions{
+	rp := kkscsp.NewReadProcessor(netprocessor.ReadOptions{
 		RecvQueueSize:   c.opts.RecvQueueSize,
 		RecvQueueStrict: c.opts.RecvQueueStrict,
 		MsgHandler:      c.opts.MsgHandler,
