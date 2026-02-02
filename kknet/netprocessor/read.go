@@ -15,31 +15,6 @@ import (
 
 const defaultRecvBufSize = 1 * 1024 // 接收缓冲区大小，1KB
 
-type ReadOptions struct {
-	RecvQueueSize    int               //接收队列大小
-	RecvQueueStrict  bool              //接收队列是否严格容量控制
-	MsgHandler       kknet.IMsgHandler //消费函数, msg: object, msgID: 消息ID
-	RawHandler       kknet.IRawHandler //消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
-	RecvBatchSize    int               //每轮消费最多 Pop 的帧数
-	RecvBufShrinkCap int               //当 recvBuf cap 超过该值且当前为空时，缩容到默认值(<=0 使用默认值)
-}
-
-func CheckReadOptions(opts *ReadOptions) {
-	if opts == nil {
-		return
-	}
-	if opts.RecvQueueSize <= 0 {
-		opts.RecvQueueSize = 1024
-	}
-	if opts.RecvBatchSize <= 0 {
-		opts.RecvBatchSize = 32
-	}
-	if opts.RecvBufShrinkCap <= 0 {
-		// 空闲时如果 cap 过大则缩容，避免长期占用大内存。
-		opts.RecvBufShrinkCap = 4 * kkpacket.DefaultMaxMessageSize()
-	}
-}
-
 /**
  * 消息处理器-接收器
  * 负责从连接中读取数据，并将其放入接收队列中。

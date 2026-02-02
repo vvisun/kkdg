@@ -13,34 +13,6 @@ import (
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
-type WriteOptions struct {
-	SendQueueSize                 int                                           //发送队列大小
-	SendQueueStrict               bool                                          //发送队列是否严格容量控制
-	SendQueueNeedFlushOver        bool                                          //关闭时是否需要等待 flush 完成
-	SendQueueTimeoutFlushOver     time.Duration                                 //关闭时等待 flush 完成的超时时间
-	SendQueueFlushTimeoutCallback func(conn kknet.IConn, timeout time.Duration) //flush 超时回调
-	WriteBatchSize                int                                           //每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
-	WriteBatchLimitBytes          int                                           //单次批量写入的最大字节数(<=0 不限制)
-}
-
-func CheckWriteOptions(opts *WriteOptions) {
-	if opts == nil {
-		return
-	}
-	if opts.SendQueueSize <= 0 {
-		opts.SendQueueSize = 1024
-	}
-	if opts.WriteBatchSize <= 0 {
-		opts.WriteBatchSize = 32
-	}
-	if opts.WriteBatchLimitBytes < 512 {
-		opts.WriteBatchLimitBytes = 512
-	}
-	if opts.WriteBatchLimitBytes > 4096 {
-		opts.WriteBatchLimitBytes = 4096
-	}
-}
-
 /*
 *批量携入
  *@param batch 批量缓冲区，数组长度为 WriteBatchSize

@@ -30,7 +30,6 @@ type wsConn struct {
 	writeMu sync.Mutex // websocket 写必须串行
 
 	wp            *netprocessor.WriteProcessor
-	writeDone     <-chan struct{} // 兼容测试：writer 退出信号
 	batchWriteBuf []byte
 	readBB        *kkbuffer.ByteBuffer // reused read buffer for NextReader
 }
@@ -62,7 +61,6 @@ func (c *wsConn) initSendQueue() {
 		WriteBatchLimitBytes:          c.opts.WriteBatchLimitBytes,
 	})
 	c.wp = wp
-	c.writeDone = wp.Done()
 
 	wp.Start(c, c.writeBatch, func(_ error) {
 		// close underlying conn to force readLoop to exit

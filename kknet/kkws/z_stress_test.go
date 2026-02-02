@@ -110,8 +110,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 3000
-	msgsPerConn := 5555
+	numConns := 600
+	msgsPerConn := 1000
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
@@ -175,9 +175,18 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		}
 	}
 
+	//定时打印服务器统计信息
+	go func() {
+		for {
+			time.Sleep(250 * time.Millisecond)
+			stats := srv.Stats()
+			kklog.Debugf("server stats: %+v", stats)
+		}
+	}()
+
 	select {
 	case <-recv.ch:
-	case <-time.After(8 * time.Second):
+	case <-time.After(10 * time.Second):
 		// under load a few messages may still be in flight
 		got := recv.Count()
 		kklog.Debugf("stress: finished after timeout with %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))

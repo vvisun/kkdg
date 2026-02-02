@@ -308,7 +308,7 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 
 	// Writer should exit after peer close is detected.
 	select {
-	case <-wc.writeDone:
+	case <-wc.wp.Done():
 	case <-time.After(5 * time.Second):
 		t.Fatalf("writer did not stop after write error")
 	}
@@ -361,7 +361,7 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 
 	// writer should stop quickly as well.
 	select {
-	case <-wc.writeDone:
+	case <-wc.wp.Done():
 	case <-time.After(2 * time.Second):
 		t.Fatalf("writer did not stop after Close")
 	}
