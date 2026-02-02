@@ -202,9 +202,9 @@ func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
 }
 
 // writeBatch 写入批量数据
-func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
+func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.ByteBuffer, error) {
 	if n <= 0 {
-		return nil
+		return nil, nil
 	}
 
 	c.writeMu.Lock()
@@ -217,10 +217,11 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 				c.stats.AddError()
 			}
 			// caller (write processor) will release buffers
-			return err
+			return nil, err
 		}
 	}
 
+	succCnt := 0
 	batchBytes := c.batchWriteBuf[:0]
 	for i := 0; i < n; i++ {
 		bb := batch[i]
@@ -229,24 +230,27 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			continue
 		}
 		batchBytes = append(batchBytes, bb.B...)
-		kkbuffer.Put(bb)
 		if len(batchBytes) >= c.opts.WriteBatchLimitBytes {
 			// 单次写入超过限制，则立即发送
 			if err := c.sendBytes(batchBytes); err != nil {
-				return err
+				fails := batch[succCnt:n]
+				return fails, err
 			}
+			succCnt = i + 1
 			batchBytes = batchBytes[:0]
 		}
+		kkbuffer.Put(bb)
 	}
 
 	// 发送剩余数据
 	if len(batchBytes) > 0 {
 		if err := c.sendBytes(batchBytes); err != nil {
-			return err
+			fails := batch[succCnt:n]
+			return fails, err
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // sendBytes 发送字节数据

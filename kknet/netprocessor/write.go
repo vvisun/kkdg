@@ -41,7 +41,13 @@ func CheckWriteOptions(opts *WriteOptions) {
 	}
 }
 
-type WriteFunc func(batch []*kkbuffer.ByteBuffer, n int) error
+/*
+*批量携入
+ *@param batch 批量缓冲区，数组长度为 WriteBatchSize
+ *@param n 批量数量
+ *@return 发送失败的数据序列，error
+*/
+type WriteFunc func(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.ByteBuffer, error)
 
 /**
  * 消息处理器-发送器
@@ -216,7 +222,7 @@ func (wp *WriteProcessor) writeLoop() {
 				break
 			}
 
-			if err := wp.writeFn(wp.sendBatchBuffer, n); err != nil {
+			if _, err := wp.writeFn(wp.sendBatchBuffer, n); err != nil {
 				// 如果 writeFn 没有自己释放/清理，这里兜底释放，避免泄漏
 				wp.drainRelease(n)
 				if wp.onWriteError != nil {

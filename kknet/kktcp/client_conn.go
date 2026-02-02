@@ -119,7 +119,10 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 	return nil
 }
 
-func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
+// writeBatch 写入批量数据, return failList, error
+func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.ByteBuffer, error) {
+	succCnt := 0
+
 	for i := 0; i < n; i++ {
 		bb := batch[i]
 		batch[i] = nil
@@ -141,8 +144,10 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
-			return err
+			fails := batch[succCnt:n]
+			return fails, err
 		}
+		succCnt = i + 1
 	}
-	return nil
+	return nil, nil
 }

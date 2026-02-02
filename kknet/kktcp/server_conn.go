@@ -121,8 +121,10 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 	return nil
 }
 
-// writeBatch 写入批量数据
-func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
+// writeBatch 写入批量数据, return failList, error
+func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.ByteBuffer, error) {
+	succCnt := 0
+
 	for i := 0; i < n; i++ {
 		bb := batch[i]
 		batch[i] = nil
@@ -141,12 +143,13 @@ func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			kkbuffer.Put(bb)
 			return nil
 		}); err != nil {
-			kkbuffer.Put(bb)
 			if c.stats != nil {
 				c.stats.AddError()
 			}
-			return err
+			fails := batch[succCnt:n]
+			return fails, err
 		}
+		succCnt = i + 1
 	}
-	return nil
+	return nil, nil
 }
