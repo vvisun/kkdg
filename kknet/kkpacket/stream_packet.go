@@ -169,7 +169,7 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 // output: Array of [length,message].
 func (slf *LengthFieldStreamPacket) Split(data []byte, recvs []buffers.IBuffer) ([]buffers.IBuffer, error) {
 	if recvs == nil {
-		recvs = make([]buffers.IBuffer, 0)
+		recvs = make([]buffers.IBuffer, 0, len(data))
 	}
 
 	packets := recvs[:0] // 复用recvs，避免分配新的内存

@@ -76,7 +76,7 @@ func NewReadProcessor(opts ReadOptions) *ReadProcessor {
 		initCap = opts.RecvBufMaxBytes
 	}
 	return &ReadProcessor{
-		recvBuf:   byteslice.Get(initCap),
+		recvBuf:   byteslice.GetZero(initCap),
 		recvQueue: bbqueue.NewBBQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
 		opts:      opts,
 		wakeCh:    make(chan struct{}, 1),
@@ -106,6 +106,13 @@ func (rp *ReadProcessor) Stop() {
 	<-rp.doneCh
 }
 
+func (rp *ReadProcessor) reRecvBuf(sz int) {
+	rp.recvBuf = rp.recvBuf[:0]
+	byteslice.Put(rp.recvBuf)
+	rp.recvBuf = byteslice.Get(sz)
+	rp.recvBuf = rp.recvBuf[:0]
+}
+
 // 收到数据时（生产者生产数据）
 func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
@@ -116,9 +123,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	if rp.opts.RecvBufMaxBytes > 0 && len(data) > rp.opts.RecvBufMaxBytes {
 		rp.recvBuf = rp.recvBuf[:0]
 		if cap(rp.recvBuf) > defaultRecvBufSize {
-			rp.recvBuf = rp.recvBuf[:0]
-			byteslice.Put(rp.recvBuf)
-			rp.recvBuf = byteslice.Get(defaultRecvBufSize) //make([]byte, 0, defaultRecvBufSize)
+			rp.reRecvBuf(defaultRecvBufSize)
 		}
 		rp.mu.Unlock()
 		return kkerrors.ErrMaxMessageSize
@@ -131,15 +136,14 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		if rp.opts.RecvBufMaxBytes > 0 && len(rp.recvBuf) > rp.opts.RecvBufMaxBytes {
 			rp.recvBuf = rp.recvBuf[:0]
 			if cap(rp.recvBuf) > defaultRecvBufSize {
-				rp.recvBuf = rp.recvBuf[:0]
-				byteslice.Put(rp.recvBuf)
-				rp.recvBuf = byteslice.Get(defaultRecvBufSize) //make([]byte, 0, defaultRecvBufSize)
+				rp.reRecvBuf(defaultRecvBufSize)
 			}
 			rp.mu.Unlock()
 			return kkerrors.ErrMaxMessageSize
 		}
 		buf = rp.recvBuf
 	}
+	// 判断buf是否是rp.recvBuf的切片，如果是，则直接使用rp.recvBuf，否则需要复制数据。
 	bufIsRecv := len(rp.recvBuf) > 0 && len(buf) > 0 && &buf[0] == &rp.recvBuf[0]
 
 	wasEmpty := rp.recvQueue.IsEmpty()
@@ -192,9 +196,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 			rp.recvBuf = rp.recvBuf[:len(left)]
 		} else {
 			if cap(rp.recvBuf) < len(left) {
-				rp.recvBuf = rp.recvBuf[:0]
-				byteslice.Put(rp.recvBuf)
-				rp.recvBuf = byteslice.Get(len(left)) //make([]byte, 0, len(left))
+				rp.reRecvBuf(len(left))
 			}
 			rp.recvBuf = rp.recvBuf[:len(left)]
 			copy(rp.recvBuf, left)
@@ -203,9 +205,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		// pos == 0: no complete packet. Ensure we buffer all bytes for next time.
 		if !bufIsRecv {
 			if cap(rp.recvBuf) < len(data) {
-				rp.recvBuf = rp.recvBuf[:0]
-				byteslice.Put(rp.recvBuf)
-				rp.recvBuf = byteslice.Get(len(data)) //make([]byte, 0, len(data))
+				rp.reRecvBuf(len(data))
 			}
 			rp.recvBuf = rp.recvBuf[:len(data)]
 			copy(rp.recvBuf, data)
@@ -218,9 +218,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	if len(rp.recvBuf) == 0 && rp.opts.RecvBufShrinkCap > 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
 		rp.mu.Lock()
 		if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
-			rp.recvBuf = rp.recvBuf[:0]
-			byteslice.Put(rp.recvBuf)
-			rp.recvBuf = byteslice.Get(defaultRecvBufSize) //make([]byte, 0, defaultRecvBufSize)
+			rp.reRecvBuf(defaultRecvBufSize)
 		}
 		rp.mu.Unlock()
 	}

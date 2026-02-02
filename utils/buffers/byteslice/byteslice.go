@@ -72,6 +72,13 @@ func Get(size int) []byte {
 	return builtinPool.Get(size)
 }
 
+// Get returns a byte slice with 0 length and given capacity from the built-in pool.
+func GetZero(capacity int) []byte {
+	ret := builtinPool.Get(capacity)
+	ret = ret[:0]
+	return ret
+}
+
 // Put returns the byte slice to the built-in pool.
 func Put(buf []byte) {
 	builtinPool.Put(buf)
