@@ -3,8 +3,10 @@ package kktcp
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"github.com/panjf2000/gnet/v2"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/netprocessor"
@@ -21,12 +23,15 @@ type tcpConn struct {
 	ctxMu sync.RWMutex
 	ctx   context.Context
 
+	closing atomic.Bool
+
 	rp *netprocessor.ReadProcessor
 }
 
 var _ kknet.IConn = (*tcpConn)(nil)
 
 func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
+	kknet.CheckOptions(&opts)
 	tc := &tcpConn{
 		id:    kknet.NextConnID(),
 		conn:  c,
@@ -52,7 +57,29 @@ func (c *tcpConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
+func (c *tcpConn) Close() error {
+	c.closing.Store(true)
+	return c.conn.Close()
+}
+
+func (c *tcpConn) Context() context.Context {
+	c.ctxMu.RLock()
+	defer c.ctxMu.RUnlock()
+	return c.ctx
+}
+
+func (c *tcpConn) SetContext(ctx context.Context) {
+	c.ctxMu.Lock()
+	c.ctx = ctx
+	c.ctxMu.Unlock()
+}
+
 func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
+	if c.closing.Load() {
+		kkbuffer.Put(buffer)
+		return kkerrors.ErrConnectionClosed
+	}
+
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -88,18 +115,77 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 	return nil
 }
 
-func (c *tcpConn) Close() error {
-	return c.conn.Close()
-}
+// writeBatch 写入批量数据
+func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
+	if n <= 0 {
+		return nil
+	}
+	writev := make([][]byte, 0, n)
+	totalBytes := 0
 
-func (c *tcpConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
+	for i := 0; i < n; i++ {
+		bb := batch[i]
+		if bb == nil {
+			continue
+		}
+		writev = append(writev, bb.B)
+		totalBytes += len(bb.B)
 
-func (c *tcpConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
+		// 单次写入超过限制，则立即发送
+		if totalBytes >= c.opts.WriteBatchLimitBytes {
+			wantCnt := len(writev)
+			succCnt, err := c.conn.Writev(writev)
+			if err != nil {
+				return err
+			}
+
+			if succCnt < wantCnt {
+				// 失败的部分重新发送
+				fails := writev[succCnt:]
+				writev = fails
+				totalBytes = 0
+				for _, b := range fails {
+					totalBytes += len(b)
+				}
+			} else {
+				// 成功全部发送，清空
+				writev = writev[:0]
+				totalBytes = 0
+			}
+		}
+	}
+
+	// 发送剩余数据
+	for len(writev) > 0 {
+		wantCnt := len(writev)
+		succCnt, err := c.conn.Writev(writev)
+		if err != nil {
+			return err
+		}
+		if succCnt < wantCnt {
+			// 失败的部分重新发送
+			fails := writev[succCnt:]
+			writev = fails
+			totalBytes = 0
+			for _, b := range fails {
+				totalBytes += len(b)
+			}
+		} else {
+			// 成功全部发送，清空
+			writev = writev[:0]
+			totalBytes = 0
+		}
+	}
+
+	// free
+	for i := 0; i < n; i++ {
+		bb := batch[i]
+		batch[i] = nil
+		if bb == nil {
+			continue
+		}
+		kkbuffer.Put(bb)
+	}
+
+	return nil
 }

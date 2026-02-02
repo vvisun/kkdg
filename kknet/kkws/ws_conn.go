@@ -81,27 +81,6 @@ func (c *wsConn) RemoteAddr() string {
 	return c.conn.UnderlyingConn().RemoteAddr().String()
 }
 
-// SendBuffer 异步发送数据。
-func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
-	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		kkbuffer.Put(buffer)
-		return err
-	}
-
-	if c.closing.Load() {
-		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
-	}
-	if c.wp == nil {
-		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
-	}
-	return c.wp.SendBuffer(buffer)
-}
-
 func (c *wsConn) Close() error {
 	c.closeWithError(nil, nil)
 	return nil
@@ -117,6 +96,32 @@ func (c *wsConn) SetContext(ctx context.Context) {
 	c.ctxMu.Lock()
 	c.ctx = ctx
 	c.ctxMu.Unlock()
+}
+
+func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) {
+	c.closeOnce.Do(func() {
+		c.closing.Store(true)
+		if c.wp != nil {
+			c.wp.Stop(err)
+		}
+		if c.readBB != nil {
+			kkbuffer.Put(c.readBB)
+			c.readBB = nil
+		}
+
+		if c.stats != nil {
+			c.stats.OnClose()
+			if err != nil {
+				c.stats.AddError()
+			}
+		}
+		_ = c.conn.Close()
+		if handler != nil {
+			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "kkws OnClose", func() {
+				handler.OnClose(c, err)
+			})
+		}
+	})
 }
 
 func (c *wsConn) readLoop() error {
@@ -175,7 +180,33 @@ func (c *wsConn) readLoop() error {
 	}
 }
 
+// SendBuffer 异步发送数据。
+func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
+	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		kkbuffer.Put(buffer)
+		return err
+	}
+
+	if c.closing.Load() {
+		kkbuffer.Put(buffer)
+		return kkerrors.ErrConnectionClosed
+	}
+	if c.wp == nil {
+		kkbuffer.Put(buffer)
+		return kkerrors.ErrConnectionClosed
+	}
+	return c.wp.SendBuffer(buffer)
+}
+
+// writeBatch 写入批量数据
 func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
+	if n <= 0 {
+		return nil
+	}
+
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
@@ -218,7 +249,11 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	return nil
 }
 
+// sendBytes 发送字节数据
 func (c *wsConn) sendBytes(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
 	err := c.conn.WriteMessage(websocket.BinaryMessage, data)
 	if err != nil {
 		if c.stats != nil {
@@ -230,30 +265,4 @@ func (c *wsConn) sendBytes(data []byte) error {
 		c.stats.AddSent(len(data))
 	}
 	return nil
-}
-
-func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) {
-	c.closeOnce.Do(func() {
-		c.closing.Store(true)
-		if c.wp != nil {
-			c.wp.Stop(err)
-		}
-		if c.readBB != nil {
-			kkbuffer.Put(c.readBB)
-			c.readBB = nil
-		}
-
-		if c.stats != nil {
-			c.stats.OnClose()
-			if err != nil {
-				c.stats.AddError()
-			}
-		}
-		_ = c.conn.Close()
-		if handler != nil {
-			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "kkws OnClose", func() {
-				handler.OnClose(c, err)
-			})
-		}
-	})
 }
