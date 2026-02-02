@@ -80,10 +80,7 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		h.server.stats.AddRecv(len(data))
 		// feed into ReadProcessor; it will copy into pooled buffers and dispatch asynchronously.
 		if tc.rp != nil {
-			if err := tc.rp.OnRecvBytes(data); err != nil {
-				h.server.stats.AddError()
-				return gnet.Close
-			}
+			tc.rp.EnqueuePacket(data)
 		}
 	}
 }

@@ -79,10 +79,7 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		}
 		h.client.stats.AddRecv(len(data))
 		if cc.rp != nil {
-			if err := cc.rp.OnRecvBytes(data); err != nil {
-				h.client.stats.AddError()
-				return gnet.Close
-			}
+			cc.rp.EnqueuePacket(data)
 		}
 	}
 }

@@ -103,6 +103,34 @@ func (rp *ReadProcessor) reRecvBuf(capacity int) {
 	rp.recvBuf = byteslice.GetZero(capacity)
 }
 
+// EnqueuePacket enqueues a single, already-split packet frame: [length,message].
+//
+// This is useful for transports (like gnet) that already perform stream framing
+// and can provide complete frames, avoiding a second Split/parse in OnRecvBytes.
+//
+// Note: packet bytes are copied into a pooled buffer because the input slice may
+// reference ephemeral inbound buffers.
+func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
+	if len(packet) == 0 {
+		return
+	}
+	rp.mu.Lock()
+	wasEmpty := rp.recvQueue.IsEmpty()
+
+	bb := kkbuffer.GetWithCapacity(len(packet))
+	bb.B = bb.B[:len(packet)]
+	copy(bb.B, packet)
+	ok := rp.recvQueue.Push(bb)
+	if !ok {
+		kkbuffer.Put(bb)
+	}
+
+	rp.mu.Unlock()
+	if wasEmpty {
+		rp.wakeConsumer()
+	}
+}
+
 // 收到数据时（生产者生产数据）
 func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
