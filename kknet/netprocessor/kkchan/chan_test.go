@@ -1,4 +1,4 @@
-package netprocessor
+package kkchan
 
 import (
 	"runtime"
@@ -16,7 +16,7 @@ func Test_LockFreeLinkBackPressureChan(t *testing.T) {
 	}
 
 	// 初始化：背压队列最大长度4096（游戏服推荐），自旋次数2000
-	bpc := NewLockFreeLinkBackPressureChan[msgItem](4096, 2000)
+	bpc := NewLockFreeLinkBackPressureChan[msgItem](4096*2, 2000)
 	// NOTE: we will Close() explicitly after receiving all messages.
 
 	// 模拟：5个生产者协程（网关），每个发送20w条帧同步消息

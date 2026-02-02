@@ -1,4 +1,4 @@
-package netprocessor
+package kkchan
 
 import (
 	"runtime"
