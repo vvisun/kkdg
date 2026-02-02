@@ -188,7 +188,7 @@ func (wp *WriteProcessor) writeLoop() {
 			}
 
 			// TODO: 失败目前直接丢弃，后续可以考虑重试/重新入队/...。
-			if _, err := wp.writeFn(wp.sendBatchBuffer, n); err != nil {
+			if err := wp.writeFn(wp.sendBatchBuffer, n); err != nil {
 				// 如果 writeFn 没有自己释放/清理，这里兜底释放，避免泄漏
 				wp.drainRelease(n)
 				if wp.onWriteError != nil {

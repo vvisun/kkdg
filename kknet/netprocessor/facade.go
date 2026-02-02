@@ -7,12 +7,12 @@ import (
 )
 
 /*
-*批量携入
- *@param batch 批量缓冲区，数组长度为 WriteBatchSize
+*批量写入。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
+ *@param batch 批量缓冲区，数组长度为 WriteOptions.WriteBatchSize
  *@param n 批量数量
- *@return 发送失败的数据序列，error
+ *@return error
 */
-type WriteFunc func(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.ByteBuffer, error)
+type WriteFunc func(batch []*kkbuffer.ByteBuffer, n int) error
 
 type IReadProcessor interface {
 	Start(conn kknet.IConn)

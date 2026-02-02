@@ -122,10 +122,13 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 	return nil
 }
 
-// writeBatch 写入批量数据, return failList, error
-func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.ByteBuffer, error) {
-	succCnt := 0
-
+/*
+*批量写入。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
+ *@param batch 批量缓冲区，数组长度为 WriteOptions.WriteBatchSize
+ *@param n 批量数量
+ *@return error
+*/
+func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	for i := 0; i < n; i++ {
 		bb := batch[i]
 		batch[i] = nil
@@ -147,10 +150,8 @@ func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) ([]*kkbuffer.B
 			if c.stats != nil {
 				c.stats.AddError()
 			}
-			fails := batch[succCnt:n]
-			return fails, err
+			return err
 		}
-		succCnt = i + 1
 	}
-	return nil, nil
+	return nil
 }
