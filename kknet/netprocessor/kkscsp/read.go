@@ -199,39 +199,37 @@ func (rp *ReadProcessor) drainOnce() {
 		if n <= 0 {
 			return
 		}
-		for i := 0; i < n; i++ {
-			packet := rp.batchBuf[i]
-			rp.batchBuf[i] = nil
-			if packet == nil {
-				continue
-			}
-			if rp.opts.MsgHandler != nil {
-				msg, msgID, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
-				kkbuffer.Put(packet)
-				if err != nil {
+		xcall.SafeCall(func() {
+			for i := 0; i < n; i++ {
+				packet := rp.batchBuf[i]
+				rp.batchBuf[i] = nil
+				if packet == nil {
 					continue
 				}
-				rp.dispatchMessage(msg, msgID)
-			} else if rp.opts.RawHandler != nil {
-				rp.dispatchRaw(packet)
-			} else {
-				kkbuffer.Put(packet)
+				if rp.opts.MsgHandler != nil {
+					msg, msgID, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
+					kkbuffer.Put(packet)
+					if err != nil {
+						continue
+					}
+					rp.dispatchMessage(msg, msgID)
+				} else if rp.opts.RawHandler != nil {
+					rp.dispatchRaw(packet)
+				} else {
+					kkbuffer.Put(packet)
+				}
 			}
-		}
+		})
 	}
 }
 
 // 分发消息到业务逻辑层
 func (rp *ReadProcessor) dispatchMessage(msg any, msgID kkpacket.MSGID) {
-	xcall.SafeCall(func() {
-		rp.opts.MsgHandler.OnMsg(rp.connID, msg, msgID)
-	})
+	rp.opts.MsgHandler.OnMsg(rp.connID, msg, msgID)
 }
 
 // 分发原始数据到业务逻辑层。异步投递避免阻塞消费循环，提高多连接下的接收吞吐。
 func (rp *ReadProcessor) dispatchRaw(data buffers.IBuffer) {
-	xcall.SafeCall(func() {
-		rp.opts.RawHandler.OnRaw(rp.connID, data)
-	})
+	rp.opts.RawHandler.OnRaw(rp.connID, data)
 	kkbuffer.Put(data)
 }
