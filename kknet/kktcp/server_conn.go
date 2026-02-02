@@ -74,6 +74,47 @@ func (c *tcpConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
+func (c *tcpConn) SendBufferOld(buffer buffers.IBuffer) error {
+	if c.closing.Load() {
+		kkbuffer.Put(buffer)
+		return kkerrors.ErrConnectionClosed
+	}
+
+	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
+	}
+
+	bb := buffer
+
+	// TODO: 发送失败应该入队，下次优先从队列中取数据发送。
+	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
+		if err != nil {
+			// 发送失败
+			if c.stats != nil {
+				c.stats.AddError()
+			}
+		} else if c.stats != nil {
+			// 只在真正写成功时统计 sent，避免入队成功但发送失败造成统计偏差
+			c.stats.AddSent(len(bb.B))
+		}
+		kkbuffer.Put(bb)
+		return nil
+	})
+	if err != nil {
+		// 入队失败
+		kkbuffer.Put(bb)
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
+	}
+	// 入队成功立即返回，注意这里只是入队，并非真正的发送数据
+	return nil
+}
+
 func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 	if c.closing.Load() {
 		kkbuffer.Put(buffer)
