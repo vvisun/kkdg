@@ -49,7 +49,9 @@ func NewServer(addr string, opts ...kknet.Option) *Server {
 		codec:  c,
 		router: newRouter(),
 	}
-	s.tcp = kktcp.NewServer(addr, &serverHandler{svr: s}, opts...)
+	h := &serverHandler{svr: s}
+	// gnrpc relies on RawHandler delivery from ReadProcessor.
+	s.tcp = kktcp.NewServer(addr, h, append(opts, kknet.WithRawHandler(h))...)
 	return s
 }
 
@@ -232,6 +234,23 @@ func (h *serverHandler) OnConnect(c kknet.IConn) {
 	c.SetContext(withPeerState(c.Context(), ps))
 }
 
+// OnRaw implements kknet.IRawHandler.
+// Note: data is a framed packet: [length,message].
+func (h *serverHandler) OnRaw(connId kknet.CONN_ID, data buffers.IBuffer) {
+	if h == nil || h.svr == nil || data == nil || len(data.Bytes()) == 0 {
+		return
+	}
+	cm := h.svr.GetConnManager()
+	if cm == nil {
+		return
+	}
+	c := cm.GetConn(connId)
+	if c == nil {
+		return
+	}
+	h.onPacket(c, data)
+}
+
 func rejectReasonToStatus(reason string) error {
 	switch reason {
 	case "rate", "inflight":
@@ -254,7 +273,7 @@ func (h *serverHandler) getMethodState(method string) *methodOnewayState {
 	return v.(*methodOnewayState)
 }
 
-func (h *serverHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
+func (h *serverHandler) onPacket(c kknet.IConn, data buffers.IBuffer) {
 	if data == nil || len(data.Bytes()) == 0 {
 		return
 	}
@@ -490,4 +509,3 @@ func (t onewayTask) run() {
 		t.state.onProcessed(err)
 	}
 }
-

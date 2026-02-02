@@ -46,7 +46,9 @@ func NewClient(addr string, opts ...kknet.Option) *Client {
 		pending: make(map[uint64]chan Frame),
 		router:  newRouter(),
 	}
-	cl.cli = kktcp.NewClient(addr, &clientHandler{c: cl}, opts...)
+	h := &clientHandler{c: cl}
+	// gnrpc relies on RawHandler delivery from ReadProcessor.
+	cl.cli = kktcp.NewClient(addr, h, append(opts, kknet.WithRawHandler(h))...)
 	return cl
 }
 
@@ -128,7 +130,9 @@ type clientHandler struct {
 
 func (h *clientHandler) OnConnect(_ kknet.IConn) {}
 
-func (h *clientHandler) OnMessage(_ kknet.IConn, data buffers.IBuffer) {
+// OnRaw implements kknet.IRawHandler.
+// Note: data is a framed packet: [length,message].
+func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data buffers.IBuffer) {
 	if data == nil || len(data.Bytes()) == 0 {
 		return
 	}

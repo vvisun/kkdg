@@ -18,7 +18,8 @@ type LockFreeLinkBackPressureChan[T any] struct {
 }
 
 // NewLockFreeLinkBackPressureChan 初始化无锁链表背压Channel
-// backMaxLen：背压队列最大长度（0=无界）；spinTimes：自旋次数（建议1000-5000，游戏服推荐2000）
+// backMaxLen：背压队列最大长度（0=无界）；
+// spinTimes：自旋次数（建议1000-5000，游戏服推荐2000）
 func NewLockFreeLinkBackPressureChan[T any](backMaxLen uint64, spinTimes int) *LockFreeLinkBackPressureChan[T] {
 	if spinTimes <= 0 {
 		spinTimes = 2000 // 默认自旋次数，适配游戏服帧同步
@@ -36,16 +37,19 @@ func NewLockFreeLinkBackPressureChan[T any](backMaxLen uint64, spinTimes int) *L
 }
 
 // Send 对外发送方法：非阻塞，无锁竞争，严格FIFO
-// 返回值：true=发送成功（入主Channel/背压队列），false=背压队列满/已关闭
+// 返回值：true=发送成功（入背压队列，按序转发到主Channel），false=背压队列满/已关闭
 func (bpc *LockFreeLinkBackPressureChan[T]) Send(data T) bool {
-	// 第一步：非阻塞写入主Channel（16缓冲区），优先低延迟
+	// If closing, reject new sends to avoid data loss.
 	select {
-	case bpc.mainChan <- data:
-		return true
+	case <-bpc.closeChan:
+		return false
 	default:
-		// 第二步：主Channel满，写入无锁链表背压队列
-		return bpc.backList.Push(data)
 	}
+
+	// Strict FIFO under multi-producer requires a single enqueue path.
+	// Always enqueue into the lock-free FIFO list, and let the consumer goroutine
+	// forward to mainChan in order.
+	return bpc.backList.Push(data)
 }
 
 // consumeBackList 消费背压队列：自旋+休眠策略，兼顾低延迟和低CPU
