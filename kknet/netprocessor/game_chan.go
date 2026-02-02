@@ -44,7 +44,7 @@ func (bpc *LockFreeLinkBackPressureChan[T]) Send(data T) bool {
 		return true
 	default:
 		// 第二步：主Channel满，写入无锁链表背压队列
-		return bpc.backList.Enqueue(data)
+		return bpc.backList.Push(data)
 	}
 }
 
@@ -61,7 +61,7 @@ func (bpc *LockFreeLinkBackPressureChan[T]) consumeBackList() {
 			// 自旋+休眠策略：高流量自旋（低延迟），低流量休眠（省CPU）
 			spinCount := 0
 			for spinCount < bpc.spinTimes {
-				if val, ok := bpc.backList.Dequeue(); ok {
+				if val, ok := bpc.backList.Pop(); ok {
 					bpc.mainChan <- val // 阻塞写入主Channel，保证数据不丢
 					spinCount = 0       // 取到数据，重置自旋计数
 				} else {

@@ -1,7 +1,6 @@
 package netprocessor
 
 import (
-	"os"
 	"runtime"
 	"sync"
 	"testing"
@@ -64,7 +63,4 @@ func Test_LockFreeLinkBackPressureChan(t *testing.T) {
 	println("消息是否乱序：", orderErr)
 	println("总耗时：", elapsed)
 	println("平均吞吐：", float64(totalMsg)/elapsed.Seconds(), "条/秒")
-
-	// 退出
-	os.Exit(0)
 }

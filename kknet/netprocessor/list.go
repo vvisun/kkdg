@@ -33,8 +33,8 @@ func newLockFreeList[T any](maxLen uint64) *lockFreeList[T] {
 	}
 }
 
-// Enqueue 无锁入队，返回true=成功，false=队列满/已关闭
-func (l *lockFreeList[T]) Enqueue(val T) bool {
+// Push 无锁入队，返回true=成功，false=队列满/已关闭
+func (l *lockFreeList[T]) Push(val T) bool {
 	// 快速判断：已关闭/有界且满，直接返回false
 	if atomic.LoadUint32(&l.closed) == 1 || (l.maxLen > 0 && atomic.LoadUint64(&l.len) >= l.maxLen) {
 		return false
@@ -73,8 +73,8 @@ func (l *lockFreeList[T]) Enqueue(val T) bool {
 	}
 }
 
-// Dequeue 无锁出队，返回val=数据，ok=true=成功，ok=false=空/已关闭
-func (l *lockFreeList[T]) Dequeue() (val T, ok bool) {
+// Pop 无锁出队，返回val=数据，ok=true=成功，ok=false=空/已关闭
+func (l *lockFreeList[T]) Pop() (val T, ok bool) {
 	if atomic.LoadUint32(&l.closed) == 1 {
 		return val, false
 	}
@@ -127,7 +127,7 @@ func (l *lockFreeList[T]) Close() {
 func (l *lockFreeList[T]) Flush() []T {
 	var res []T
 	for {
-		val, ok := l.Dequeue()
+		val, ok := l.Pop()
 		if !ok {
 			break
 		}

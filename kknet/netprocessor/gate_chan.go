@@ -77,7 +77,7 @@ func (bpc *GatewayBackPressureChan) Send(msg GatewayMsg) bool {
 		return true
 	default:
 		// 2. 主通道满，写入背压队列
-		if bpc.backList.Enqueue(msg) {
+		if bpc.backList.Push(msg) {
 			atomic.AddUint64(&bpc.metricTotalSucc, 1)
 			// 检查是否触发熔断
 			bpc.checkFuse()
@@ -112,7 +112,7 @@ func (bpc *GatewayBackPressureChan) consumeAndForward() {
 			// 主通道无消息，从背压队列读取（自旋+休眠）
 			spinCount := 0
 			for spinCount < bpc.spinTimes && len(batchBuf) < bpc.batchSize {
-				if msg, ok := bpc.backList.Dequeue(); ok {
+				if msg, ok := bpc.backList.Pop(); ok {
 					batchBuf = append(batchBuf, msg)
 					spinCount = 0
 				} else {

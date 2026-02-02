@@ -12,6 +12,8 @@ type ringBuffer struct {
 	mod    int64
 }
 
+// ring buffer queue
+// multi-producer, single consumer
 type Queue struct {
 	len     int64
 	content *ringBuffer
@@ -59,20 +61,13 @@ func (q *Queue) Push(item interface{}) {
 	q.lock.Unlock()
 }
 
-func (q *Queue) Length() int64 {
-	return atomic.LoadInt64(&q.len)
-}
-
-func (q *Queue) Empty() bool {
-	return q.Length() == 0
-}
-
 // single consumer
 func (q *Queue) Pop() (interface{}, bool) {
 	if q.Empty() {
 		return nil, false
 	}
-	// as we are a single consumer, no other thread can have poped the items there are guaranteed to be items now
+	// as we are a single consumer,
+	// no other thread can have poped the items there are guaranteed to be items now
 
 	q.lock.Lock()
 	c := q.content
@@ -107,4 +102,12 @@ func (q *Queue) PopMany(count int64) ([]interface{}, bool) {
 
 	q.lock.Unlock()
 	return buffer, true
+}
+
+func (q *Queue) Length() int64 {
+	return atomic.LoadInt64(&q.len)
+}
+
+func (q *Queue) Empty() bool {
+	return q.Length() == 0
 }
