@@ -52,7 +52,7 @@ func (s *Server) Start() error {
 
 	handler := &tcpEventHandler{server: s}
 	go func() {
-		err := gnet.Run(handler, "tcp://"+s.addr, gnet.WithMulticore(true))
+		err := gnet.Run(handler, "tcp://"+s.addr, gnet.WithMulticore(true), gnet.WithLogger(gnetNopLogger))
 		s.done <- err
 	}()
 

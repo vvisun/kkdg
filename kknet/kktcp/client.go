@@ -69,6 +69,7 @@ func (c *GnetClient) Connect() error {
 		cli, err := gnet.NewClient(ev,
 			gnet.WithReadBufferCap(c.opts.ReadBufferSize),
 			gnet.WithWriteBufferCap(c.opts.WriteBufferSize),
+			gnet.WithLogger(gnetNopLogger),
 		)
 		if err != nil {
 			c.started.Store(false)
