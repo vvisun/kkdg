@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -18,7 +18,7 @@ func Benchmark_KKSCSPSendDrain(b *testing.B) {
 
 	b.ReportAllocs()
 
-	opts := netprocessor.WriteOptions{
+	opts := kknet.WriteOptions{
 		SendQueueSize:             queueSize,
 		SendQueueStrict:           false,
 		SendQueueNeedFlushOver:    true,

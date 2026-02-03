@@ -1,9 +1,7 @@
-package netprocessor
+package kknet
 
 import (
 	"time"
-
-	"github.com/vvisun/kkdg/kknet"
 )
 
 type WriteOptions struct {
@@ -18,7 +16,7 @@ type WriteOptions struct {
 	//关闭时等待 flush 完成的超时时间
 	SendQueueTimeoutFlushOver time.Duration
 	//flush 超时回调
-	SendQueueFlushTimeoutCallback func(conn kknet.IConn, timeout time.Duration)
+	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration)
 	//每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争，同时会创建这个大小的缓存复用以减少内存分配
 	WriteBatchSize int
 	//单次批量写入的最大字节数(<=0 不限制)
@@ -56,9 +54,9 @@ func CheckWriteOptions(opts *WriteOptions) {
 
 type ReadOptions struct {
 	//消费函数, msg: object, msgID: 消息ID
-	MsgHandler kknet.IMsgHandler
+	MsgHandler IMsgHandler
 	//消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
-	RawHandler kknet.IRawHandler
+	RawHandler IRawHandler
 	//接收队列大小
 	RecvQueueSize int
 	//接收队列是否严格容量控制

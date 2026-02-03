@@ -22,10 +22,10 @@ const defaultRecvBufSize = 1 * 1024 // 接收缓冲区大小，1KB
  * 接收队列中的数据可以被其他组件消费。
  */
 type ReadProcessor struct {
-	conn   kknet.IConn              //连接
-	connID kknet.CONN_ID            //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
-	userID int64                    //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
-	opts   netprocessor.ReadOptions //选项
+	conn   kknet.IConn       //连接
+	connID kknet.CONN_ID     //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
+	userID int64             //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
+	opts   kknet.ReadOptions //选项
 
 	recvQueue *bbqueue.BBQueue //接收队列
 	recvBuf   []byte           //残包缓冲区
@@ -42,8 +42,8 @@ type ReadProcessor struct {
 
 var _ netprocessor.IReadProcessor = (*ReadProcessor)(nil)
 
-func NewReadProcessor(opts netprocessor.ReadOptions) *ReadProcessor {
-	netprocessor.CheckReadOptions(&opts)
+func NewReadProcessor(opts kknet.ReadOptions) *ReadProcessor {
+	kknet.CheckReadOptions(&opts)
 	return &ReadProcessor{
 		recvBuf:   byteslice.GetZero(defaultRecvBufSize),
 		recvQueue: bbqueue.NewBBQueue(opts.RecvQueueSize, opts.RecvQueueStrict),

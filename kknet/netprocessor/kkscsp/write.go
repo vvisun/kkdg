@@ -25,7 +25,7 @@ type WriteProcessor struct {
 	sendQueue       *bbqueue.BBQueue       //发送队列
 	sendBatchBuffer []*kkbuffer.ByteBuffer //批量发送缓冲区
 
-	opts netprocessor.WriteOptions
+	opts kknet.WriteOptions
 
 	sendMu    sync.Mutex
 	closeOnce sync.Once
@@ -42,8 +42,8 @@ type WriteProcessor struct {
 
 var _ netprocessor.IWriteProcessor = (*WriteProcessor)(nil)
 
-func NewWriteProcessor(opts netprocessor.WriteOptions) *WriteProcessor {
-	netprocessor.CheckWriteOptions(&opts)
+func NewWriteProcessor(opts kknet.WriteOptions) *WriteProcessor {
+	kknet.CheckWriteOptions(&opts)
 	return &WriteProcessor{
 		opts:            opts,
 		sendQueue:       bbqueue.NewBBQueue(opts.SendQueueSize, opts.SendQueueStrict),

@@ -30,18 +30,8 @@ type Options struct {
 	WsReadTimeout   time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
 	WsWriteTimeout  time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
 
-	SendQueueSize                 int                                     // 异步发送队列大小
-	SendQueueStrict               bool                                    // 异步发送队列是否严格容量控制
-	SendQueueNeedFlushOver        bool                                    //关闭时是否需要等待 flush 完成
-	SendQueueTimeoutFlushOver     time.Duration                           //关闭时等待 flush 完成的超时时间
-	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration) //flush 超时回调
-	WriteBatchSize                int                                     //每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争
-	WriteBatchLimitBytes          int                                     //单次批量写入的最大字节数(<=0 不限制)
-
-	RecvQueueSize   int         // 接收队列大小
-	RecvQueueStrict bool        // 接收队列是否严格容量控制
-	MsgHandler      IMsgHandler //消费函数, msg: object, msgID: 消息ID
-	RawHandler      IRawHandler //消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/message_parser.go）
+	WpOptions WriteOptions
+	RpOptions ReadOptions
 }
 
 func defaultWSOriginChecker(r *http.Request) bool {
@@ -68,22 +58,17 @@ func DefaultOptions() Options {
 		WsReadTimeout:   16 * time.Second, // 0秒, 不超时
 		WsWriteTimeout:  16 * time.Second, // 0秒, 不超时
 
-		SendQueueSize:        256,
-		SendQueueStrict:      false,
-		WriteBatchSize:       32,
-		WriteBatchLimitBytes: 2048,
-
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
 		UDPCleanupInterval: 1 * time.Minute, // 1分钟
+
+		WpOptions: DefaultWriteOptions(),
+		RpOptions: DefaultReadOptions(),
 	}
 }
 
 func CheckOptions(opts *Options) {
 	if opts == nil {
 		return
-	}
-	if opts.SendQueueSize <= 0 {
-		opts.SendQueueSize = 256
 	}
 	if opts.WsReadTimeout > 0 && opts.WsReadTimeout < 100*time.Millisecond {
 		opts.WsReadTimeout = 100 * time.Millisecond
@@ -108,15 +93,6 @@ func CheckOptions(opts *Options) {
 	}
 	if opts.UDPCleanupInterval > 0 && opts.UDPCleanupInterval < 500*time.Millisecond {
 		opts.UDPCleanupInterval = 500 * time.Millisecond
-	}
-	if opts.WriteBatchSize <= 0 {
-		opts.WriteBatchSize = 32
-	}
-	if opts.WriteBatchLimitBytes < 512 {
-		opts.WriteBatchLimitBytes = 512
-	}
-	if opts.WriteBatchLimitBytes > 2048 {
-		opts.WriteBatchLimitBytes = 2048
 	}
 }
 
@@ -227,7 +203,7 @@ func WithWsWriteTimeout(timeout time.Duration) Option {
 func WithSendQueueSize(size int) Option {
 	return func(o *Options) {
 		if size > 0 {
-			o.SendQueueSize = size
+			o.WpOptions.SendQueueSize = size
 		}
 	}
 }
@@ -235,7 +211,7 @@ func WithSendQueueSize(size int) Option {
 // WithSendQueueNeedFlushOver sets tcp client need flush over.
 func WithSendQueueNeedFlushOver(needFlushOver bool) Option {
 	return func(o *Options) {
-		o.SendQueueNeedFlushOver = needFlushOver
+		o.WpOptions.SendQueueNeedFlushOver = needFlushOver
 	}
 }
 
@@ -243,9 +219,9 @@ func WithSendQueueNeedFlushOver(needFlushOver bool) Option {
 func WithSendQueueTimeoutFlushOver(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout > 0 {
-			o.SendQueueTimeoutFlushOver = timeout
-			if o.SendQueueTimeoutFlushOver < 50*time.Millisecond { // 最小超时时间，防止压根没效果
-				o.SendQueueTimeoutFlushOver = 50 * time.Millisecond
+			o.WpOptions.SendQueueTimeoutFlushOver = timeout
+			if o.WpOptions.SendQueueTimeoutFlushOver < 50*time.Millisecond { // 最小超时时间，防止压根没效果
+				o.WpOptions.SendQueueTimeoutFlushOver = 50 * time.Millisecond
 			}
 		}
 	}
@@ -254,7 +230,7 @@ func WithSendQueueTimeoutFlushOver(timeout time.Duration) Option {
 // WithSendQueueFlushTimeoutCallback sets flush timeout callback.
 func WithSendQueueFlushTimeoutCallback(cb func(conn IConn, timeout time.Duration)) Option {
 	return func(o *Options) {
-		o.SendQueueFlushTimeoutCallback = cb
+		o.WpOptions.SendQueueFlushTimeoutCallback = cb
 	}
 }
 
@@ -287,26 +263,26 @@ func WithReconnectCallback(cb func(attempt int, err error)) Option {
 
 func WithMsgHandler(handler IMsgHandler) Option {
 	return func(o *Options) {
-		o.MsgHandler = handler
+		o.RpOptions.MsgHandler = handler
 	}
 }
 
 func WithRawHandler(handler IRawHandler) Option {
 	return func(o *Options) {
-		o.RawHandler = handler
+		o.RpOptions.RawHandler = handler
 	}
 }
 
 func WithRecvQueueSize(size int) Option {
 	return func(o *Options) {
 		if size > 0 {
-			o.RecvQueueSize = size
+			o.RpOptions.RecvQueueSize = size
 		}
 	}
 }
 
 func WithRecvQueueStrict(strict bool) Option {
 	return func(o *Options) {
-		o.RecvQueueStrict = strict
+		o.RpOptions.RecvQueueStrict = strict
 	}
 }

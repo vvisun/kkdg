@@ -11,7 +11,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -45,22 +44,14 @@ func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *ws
 		opts:          opts,
 		stats:         stats,
 		ctx:           context.Background(),
-		batchWriteBuf: make([]byte, 0, opts.WriteBatchLimitBytes),
+		batchWriteBuf: make([]byte, 0, opts.WpOptions.WriteBatchLimitBytes),
 	}
 	c.initSendQueue()
 	return c
 }
 
 func (c *wsConn) initSendQueue() {
-	wp := kkscsp.NewWriteProcessor(netprocessor.WriteOptions{
-		SendQueueSize:                 c.opts.SendQueueSize,
-		SendQueueStrict:               c.opts.SendQueueStrict,
-		SendQueueNeedFlushOver:        c.opts.SendQueueNeedFlushOver,
-		SendQueueTimeoutFlushOver:     c.opts.SendQueueTimeoutFlushOver,
-		SendQueueFlushTimeoutCallback: c.opts.SendQueueFlushTimeoutCallback,
-		WriteBatchSize:                c.opts.WriteBatchSize,
-		WriteBatchLimitBytes:          c.opts.WriteBatchLimitBytes,
-	})
+	wp := kkscsp.NewWriteProcessor(c.opts.WpOptions)
 	c.wp = wp
 
 	wp.Start(c, c.writeBatch, func(_ error) {
@@ -124,12 +115,7 @@ func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) 
 }
 
 func (c *wsConn) readLoop() error {
-	rp := kkscsp.NewReadProcessor(netprocessor.ReadOptions{
-		RecvQueueSize:   c.opts.RecvQueueSize,
-		RecvQueueStrict: c.opts.RecvQueueStrict,
-		MsgHandler:      c.opts.MsgHandler,
-		RawHandler:      c.opts.RawHandler,
-	})
+	rp := kkscsp.NewReadProcessor(c.opts.RpOptions)
 	rp.Start(c)
 	defer rp.Stop()
 
@@ -233,7 +219,7 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			continue
 		}
 		batchBytes = append(batchBytes, bb.B...)
-		if len(batchBytes) >= c.opts.WriteBatchLimitBytes {
+		if len(batchBytes) >= c.opts.WpOptions.WriteBatchLimitBytes {
 			// 单次写入超过限制，则立即发送
 			if err := c.sendBytes(batchBytes); err != nil {
 				// 发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。

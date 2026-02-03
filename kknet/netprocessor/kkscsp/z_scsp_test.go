@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -24,7 +24,7 @@ func Test_Compare_KKChan_vs_KKSCSPSend_DrainNoLoss(t *testing.T) {
 	)
 
 	t.Run("kkscsp_writeprocessor", func(t *testing.T) {
-		opts := netprocessor.WriteOptions{
+		opts := kknet.WriteOptions{
 			SendQueueSize:             queueSize,
 			SendQueueStrict:           false,
 			SendQueueNeedFlushOver:    true,

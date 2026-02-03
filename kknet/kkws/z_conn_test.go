@@ -137,7 +137,7 @@ func TestWSConn_SendQueueStrict_Full(t *testing.T) {
 	}
 
 	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(2))
-	opts.SendQueueStrict = true
+	opts.WpOptions.SendQueueStrict = true
 	wc := newWSConn(c, opts, nil)
 	defer wc.Close()
 
@@ -187,8 +187,8 @@ func TestWSConn_Close_FlushOver(t *testing.T) {
 	}
 
 	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(64))
-	opts.SendQueueNeedFlushOver = true
-	opts.SendQueueTimeoutFlushOver = 2 * time.Second
+	opts.WpOptions.SendQueueNeedFlushOver = true
+	opts.WpOptions.SendQueueTimeoutFlushOver = 2 * time.Second
 	wc := newWSConn(c, opts, nil)
 
 	// Block actual writes, enqueue some messages, then ensure Close waits for flush.
@@ -333,7 +333,7 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 	}
 
 	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(256))
-	opts.SendQueueNeedFlushOver = false
+	opts.WpOptions.SendQueueNeedFlushOver = false
 	wc := newWSConn(c, opts, nil)
 
 	// enqueue some messages, then close immediately. We only assert it doesn't block.

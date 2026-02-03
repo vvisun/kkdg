@@ -9,7 +9,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -41,23 +40,10 @@ func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
 		stats: stats,
 		ctx:   context.Background(),
 	}
-	tc.rp = kkscsp.NewReadProcessor(netprocessor.ReadOptions{
-		RecvQueueSize:   opts.RecvQueueSize,
-		RecvQueueStrict: opts.RecvQueueStrict,
-		MsgHandler:      opts.MsgHandler,
-		RawHandler:      opts.RawHandler,
-	})
+	tc.rp = kkscsp.NewReadProcessor(opts.RpOptions)
 	tc.rp.Start(tc)
 
-	tc.wp = kkscsp.NewWriteProcessor(netprocessor.WriteOptions{
-		SendQueueSize:                 opts.SendQueueSize,
-		SendQueueStrict:               opts.SendQueueStrict,
-		SendQueueNeedFlushOver:        opts.SendQueueNeedFlushOver,
-		SendQueueTimeoutFlushOver:     opts.SendQueueTimeoutFlushOver,
-		SendQueueFlushTimeoutCallback: opts.SendQueueFlushTimeoutCallback,
-		WriteBatchSize:                opts.WriteBatchSize,
-		WriteBatchLimitBytes:          opts.WriteBatchLimitBytes,
-	})
+	tc.wp = kkscsp.NewWriteProcessor(opts.WpOptions)
 	tc.wp.Start(tc, tc.writeBatch, func(_ error) {
 		_ = tc.conn.Close()
 	})
