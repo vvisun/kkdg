@@ -104,8 +104,8 @@ func (p *bfPool) calibrate() {
 	}
 
 	calibrateCallsThreshold *= 2
-	if calibrateCallsThreshold > 40000 {
-		calibrateCallsThreshold = 40000
+	if calibrateCallsThreshold > 65536 {
+		calibrateCallsThreshold = 65536
 	}
 	atomic.StoreUint64(&p.defaultSize, uint64(defaultSize))
 	atomic.StoreUint64(&p.calibrating, 0)

@@ -18,7 +18,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xrand"
 )
 
 // stressRecvHandler counts received messages for stress tests.
@@ -103,7 +102,7 @@ func connectWithRetry(client *Client, attempts int, baseBackoff time.Duration) e
 	}
 	var lastErr error
 	for i := 0; i < attempts; i++ {
-		time.Sleep(time.Duration(xrand.Int64(2, 15)) * time.Millisecond)
+		// time.Sleep(time.Duration(xrand.Int64(5, 50)) * time.Millisecond)
 		if err := client.Connect(); err == nil {
 			return nil
 		} else {
@@ -122,15 +121,15 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 2222
-	msgsPerConn := 222
+	numConns := 1000
+	msgsPerConn := 555
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
-		kknet.WithRawHandler(recv),
-		//kknet.WithNoneCopyHandler(recv),
+		//kknet.WithRawHandler(recv),
+		kknet.WithNoneCopyHandler(recv),
 		kknet.WithRecvQueueSize(512),
 	)
 	srv := NewServer(addr, nil, opts)
@@ -153,7 +152,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 
 	serverAddr := "ws://" + addr + "/ws"
 
-	payload := make([]byte, 2048)
+	payload := make([]byte, 1024)
 	for i := range payload {
 		payload[i] = 0x01
 	}
