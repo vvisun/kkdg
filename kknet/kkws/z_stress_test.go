@@ -18,6 +18,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/xrand"
 )
 
 // stressRecvHandler counts received messages for stress tests.
@@ -93,6 +94,7 @@ func connectWithRetry(client *Client, attempts int, baseBackoff time.Duration) e
 	}
 	var lastErr error
 	for i := 0; i < attempts; i++ {
+		time.Sleep(time.Duration(xrand.Int64(2, 15)) * time.Millisecond)
 		if err := client.Connect(); err == nil {
 			return nil
 		} else {
@@ -111,15 +113,15 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 500
-	msgsPerConn := 1220
+	numConns := 5005
+	msgsPerConn := 256
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
-		kknet.WithRecvQueueSize(1024),
+		kknet.WithRecvQueueSize(512),
 	)
 	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
@@ -179,8 +181,6 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 			clients = append(clients, client)
 			clientsMu.Unlock()
 		}()
-		// 连接建立间隔1ms，避免瞬间压垮服务端
-		//time.Sleep(1 * time.Millisecond)
 	}
 	wg.Wait()
 
@@ -209,8 +209,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	got := recv.Count()
 	elapsed := time.Since(start)
 	kklog.Debugf("server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
-	kklog.Debugf("stress: %d conns × %d msgs = %d total, send done in %v, all done in %v, recv/s ≈ %.0f",
-		numConns, msgsPerConn, totalMsgs, sendDone, elapsed, float64(got)/elapsed.Seconds())
+	kklog.Debugf("stress: send done in %v, all done in %v, recv/s ≈ %.0f",
+		sendDone, elapsed, float64(got)/elapsed.Seconds())
 }
 
 // TestStress_ManyConns_ConnectDisconnect: rapid connect/disconnect to stress connection lifecycle.

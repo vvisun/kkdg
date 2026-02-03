@@ -17,18 +17,20 @@ type StatsSnapshot struct {
 	RecvBytes   int64
 	SentBytes   int64
 	Errors      int64
+	WpQueueLen  int // 发送队列长度
+	RpQueueLen  int // 接收队列长度
 }
 
 // Stats tracks connection and traffic counters.
 type Stats struct {
-	activeConns int64
-	totalConns  int64
-	closedConns int64
-	recvMsgs    int64
-	sentMsgs    int64
-	recvBytes   int64
-	sentBytes   int64
-	errors      int64
+	activeConns int64 // 当前活跃连接数
+	totalConns  int64 // 累计连接数
+	closedConns int64 // 累计关闭连接数
+	recvMsgs    int64 // 累计接收消息数
+	sentMsgs    int64 // 累计发送消息数
+	recvBytes   int64 // 累计接收字节数
+	sentBytes   int64 // 累计发送字节数
+	errors      int64 // 累计错误数
 }
 
 // OnConnect updates connection counters.
