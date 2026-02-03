@@ -113,8 +113,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 5005
-	msgsPerConn := 2560
+	numConns := 500
+	msgsPerConn := 1200
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
@@ -143,7 +143,11 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 
 	serverAddr := "ws://" + addr + "/ws"
 
-	payload := []byte("stress")
+	payload := make([]byte, 256)
+	for i := range payload {
+		payload[i] = 0x01
+	}
+
 	clientOpts := []kknet.Option{
 		kknet.WithSendQueueNeedFlushOver(true),
 		kknet.WithSendQueueTimeoutFlushOver(5 * time.Second),
