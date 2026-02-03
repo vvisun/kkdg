@@ -115,7 +115,6 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	for i := 0; i < n; i++ {
 		bb := batch[i]
-
 		if bb == nil {
 			continue
 		}

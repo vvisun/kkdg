@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
@@ -110,15 +111,14 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 55
-	msgsPerConn := 122
+	numConns := 500
+	msgsPerConn := 1220
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
-		// Avoid frequent recvQueue growth under bursts.
 		kknet.WithRecvQueueSize(1024),
 	)
 	srv := NewServer(addr, nil, opts)
@@ -127,6 +127,19 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}
 	defer srv.Stop()
 	waitTCPReady(t, addr, 2*time.Second)
+
+	//定时打印服务器统计信息
+	go func() {
+		for {
+			time.Sleep(1000 * time.Millisecond)
+			stats := srv.Stats()
+			kknet.PrintStress(&stats)
+		}
+	}()
+
+	//--------------------------------------------
+
+	serverAddr := "ws://" + addr + "/ws"
 
 	payload := []byte("stress")
 	clientOpts := []kknet.Option{
@@ -146,7 +159,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 			defer wg.Done()
 			connSem <- struct{}{}
 			defer func() { <-connSem }()
-			client := NewClient("ws://"+addr+"/ws", nil, kknet.ApplyOptions(clientOpts...))
+			client := NewClient(serverAddr, nil, kknet.ApplyOptions(clientOpts...))
 			if err := connectWithRetry(client, 30, 10*time.Millisecond); err != nil {
 				errCh <- err
 				return
@@ -166,8 +179,11 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 			clients = append(clients, client)
 			clientsMu.Unlock()
 		}()
+		// 连接建立间隔1ms，避免瞬间压垮服务端
+		//time.Sleep(1 * time.Millisecond)
 	}
 	wg.Wait()
+
 	sendDone := time.Since(start)
 	close(errCh)
 	for err := range errCh {
@@ -176,22 +192,14 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		}
 	}
 
-	//定时打印服务器统计信息
-	go func() {
-		for {
-			time.Sleep(250 * time.Millisecond)
-			stats := srv.Stats()
-			kklog.Debugf("server stats: %+v", stats)
-		}
-	}()
-
 	select {
 	case <-recv.ch:
 	case <-time.After(10 * time.Second):
 		// under load a few messages may still be in flight
 		got := recv.Count()
-		kklog.Debugf("stress: finished after timeout with %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
+		kklog.Debugf("stress: timeout %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
 	}
+
 	clientsMu.Lock()
 	for _, c := range clients {
 		_ = c.Close()
@@ -239,4 +247,67 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	totalConns := rounds * connsPerRound
 	kklog.Debugf("connect/disconnect: %d rounds × %d conns = %d total in %v, ≈ %.0f conn/s",
 		rounds, connsPerRound, totalConns, elapsed, float64(totalConns)/elapsed.Seconds())
+}
+
+func runClients(addr string, connNum int, msgSize int, sendInterval time.Duration) {
+	u := "ws://" + addr + "/ws"
+
+	var wg sync.WaitGroup
+	wg.Add(connNum)
+
+	// 构造固定大小的测试消息（二进制）
+	msg := make([]byte, msgSize)
+	for i := range msg {
+		msg[i] = 0x01 // 填充固定内容
+	}
+	bb, err := kkpacket.DefaultStreamPacket().Pack(msg)
+	if err != nil {
+		println("pack error:", err.Error())
+		return
+	}
+	msg = bb.Bytes()
+
+	// 启动N个协程，每个协程对应1个WS连接
+	for i := 0; i < connNum; i++ {
+		go func() {
+			defer wg.Done()
+			// 建立WS连接
+			conn, _, err := websocket.DefaultDialer.Dial(u, nil)
+			if err != nil {
+				println("dial error:", err.Error())
+				return
+			}
+			defer conn.Close()
+
+			// 后台读消息（Echo返回的消息，防止读缓冲区满）
+			go func() {
+				for {
+					_, _, err := conn.ReadMessage()
+					if err != nil {
+						return
+					}
+				}
+			}()
+
+			// 定时发消息，模拟业务场景
+			ticker := time.NewTicker(sendInterval)
+			defer ticker.Stop()
+			for range ticker.C {
+				err := conn.WriteMessage(websocket.BinaryMessage, msg)
+				if err != nil {
+					return
+				}
+			}
+		}()
+		// 连接建立间隔1ms，避免瞬间压垮服务端
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	println("=== 压测启动 ===")
+	println("目标地址：", addr)
+	println("并发连接：", connNum)
+	println("消息大小：", msgSize, "B")
+	println("发送间隔：", sendInterval)
+	println("================\n")
+	wg.Wait()
 }

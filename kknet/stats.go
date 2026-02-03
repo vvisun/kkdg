@@ -1,6 +1,11 @@
 package kknet
 
-import "sync/atomic"
+import (
+	"runtime"
+	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/kklog"
+)
 
 // StatsSnapshot is a point-in-time copy of statistics.
 type StatsSnapshot struct {
@@ -73,4 +78,28 @@ func (s *Stats) Snapshot() StatsSnapshot {
 		SentBytes:   atomic.LoadInt64(&s.sentBytes),
 		Errors:      atomic.LoadInt64(&s.errors),
 	}
+}
+
+func PrintStress(stats *StatsSnapshot) {
+	var memStats runtime.MemStats
+
+	// 统计内存（堆分配）
+	runtime.ReadMemStats(&memStats)
+	heapUsed := memStats.Alloc / 1024 / 1024 // MB
+	perConnMem := 0.0
+	if stats.ActiveConns > 0 {
+		perConnMem = float64(memStats.Mallocs) / float64(stats.ActiveConns) / 1024 // KB/连接
+	}
+
+	// 打印指标
+	kklog.Debugf("=== kknet/ws 指标 ===")
+	kklog.Debugf("并发连接数：%d", stats.ActiveConns)
+	kklog.Debugf("累计接收消息量：%d", stats.RecvMsgs)
+	kklog.Debugf("累计发送消息量：%d", stats.SentMsgs)
+	kklog.Debugf("累计接收字节数：%d", stats.RecvBytes)
+	kklog.Debugf("累计发送字节数：%d", stats.SentBytes)
+	kklog.Debugf("累计错误数：%d", stats.Errors)
+	kklog.Debugf("堆内存占用：%d MB", heapUsed)
+	kklog.Debugf("单连接内存：%.2f KB/conn", perConnMem)
+	kklog.Debugf("------------------------\n")
 }

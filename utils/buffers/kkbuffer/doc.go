@@ -27,7 +27,7 @@ var calibrateCallsThreshold uint64 = 500 // 多少次调用后进行校准
 var defaultPool bfPool
 
 func init() {
-	defaultPool.defaultSize = 256
+	defaultPool.defaultSize = 128
 }
 
 // Get returns an empty byte buffer from the pool.
