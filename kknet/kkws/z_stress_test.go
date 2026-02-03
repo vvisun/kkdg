@@ -119,7 +119,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
 		// Avoid frequent recvQueue growth under bursts.
-		kknet.WithRecvQueueSize(2560),
+		kknet.WithRecvQueueSize(1024),
 	)
 	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
