@@ -5,6 +5,8 @@ import (
 )
 
 const defaultSize = 128
+const shrinkMinSize = 2048
+const enableShrink = false
 
 // FIFO ring buffer queue.
 type BBQueue struct {
@@ -24,6 +26,12 @@ func NewBBQueue(size int, isStrict bool) *BBQueue {
 
 func (q *BBQueue) Len() int {
 	return q.count
+}
+
+// Cap returns the underlying ring buffer capacity.
+// Note: BBQueue is not concurrency-safe; callers should synchronize externally.
+func (q *BBQueue) Cap() int {
+	return len(q.buf)
 }
 
 func (q *BBQueue) IsFull() bool {
@@ -58,6 +66,10 @@ func (q *BBQueue) Pop() *kkbuffer.ByteBuffer {
 	if q.count == 0 {
 		q.head = 0
 		q.tail = 0
+	}
+	// 非严格模式下，队列大小超过2048时，如果队列长度小于容量的一半，则缩容。
+	if enableShrink && !q.isStrict {
+		q.shrink()
 	}
 	return bb
 }
@@ -136,4 +148,49 @@ func (q *BBQueue) grow() {
 	q.head = 0
 	q.tail = q.count
 	// kklog.Debugf("BBQueue grow: %.2fK -> %.2fK", float64(len(q.buf))/1024, float64(newSize)/1024)
+}
+
+// shrink reduces the underlying ring buffer capacity.
+//
+// Strategy:
+// - only shrink in non-strict mode
+// - only shrink when current capacity is > shrinkMinSize
+// - shrink by half, but never below shrinkMinSize
+// - ensure new capacity can hold current count
+func (q *BBQueue) shrink() {
+	if q == nil || q.isStrict {
+		return
+	}
+	cur := len(q.buf)
+	if q.count >= cur/2 {
+		return
+	}
+	if cur <= shrinkMinSize {
+		return
+	}
+
+	newSize := cur / 2
+	if newSize < shrinkMinSize {
+		newSize = shrinkMinSize
+	}
+	if newSize < q.count {
+		newSize = q.count
+	}
+	if newSize >= cur {
+		return
+	}
+
+	newQueue := make([]*kkbuffer.ByteBuffer, newSize)
+	if q.count > 0 {
+		// Copy elements in FIFO order starting at head.
+		if q.head < q.tail {
+			copy(newQueue, q.buf[q.head:q.tail])
+		} else {
+			n := copy(newQueue, q.buf[q.head:])
+			copy(newQueue[n:], q.buf[:q.tail])
+		}
+	}
+	q.buf = newQueue
+	q.head = 0
+	q.tail = q.count
 }

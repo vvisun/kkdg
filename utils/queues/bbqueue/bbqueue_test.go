@@ -121,6 +121,55 @@ func TestBBQueue_Grow(t *testing.T) {
 	}
 }
 
+func TestBBQueue_Shrink_AfterPop(t *testing.T) {
+	if !enableShrink {
+		t.Skip("skipping shrink test")
+		return
+	}
+	q := NewBBQueue(4096, false)
+	if q.Cap() != 4096 {
+		t.Fatalf("Cap()=%d want=4096", q.Cap())
+	}
+
+	// Push 3000 buffers.
+	for i := 0; i < 3000; i++ {
+		if !q.Push(makeBuf(fmt.Sprintf("%d", i))) {
+			t.Fatalf("Push(%d) failed", i)
+		}
+	}
+	// Pop 2000, leaving 1000 (< 4096/2), should shrink to 2048.
+	for i := 0; i < 2000; i++ {
+		bb := q.Pop()
+		if bb == nil || bb.String() != fmt.Sprintf("%d", i) {
+			t.Fatalf("Pop(%d)=%v want=%d", i, bb, i)
+		}
+		kkbuffer.Put(bb)
+	}
+
+	if q.Cap() != 2048 {
+		t.Fatalf("Cap() after shrink=%d want=2048", q.Cap())
+	}
+	if q.Len() != 1000 {
+		t.Fatalf("Len()=%d want=1000", q.Len())
+	}
+
+	// Remaining order should be preserved.
+	for i := 2000; i < 3000; i++ {
+		bb := q.Pop()
+		if bb == nil || bb.String() != fmt.Sprintf("%d", i) {
+			t.Fatalf("Pop remaining(%d)=%v want=%d", i, bb, i)
+		}
+		kkbuffer.Put(bb)
+	}
+	if q.Len() != 0 {
+		t.Fatalf("Len()=%d want=0", q.Len())
+	}
+	// Empty queue should keep minimal shrink size (2048) once it had grown big.
+	if q.Cap() != 2048 {
+		t.Fatalf("Cap() empty=%d want=2048", q.Cap())
+	}
+}
+
 func TestBBQueue_HeadTailReset(t *testing.T) {
 	q := NewBBQueue(4, false)
 	// 先填满再弹空，触发 head/tail 回零
