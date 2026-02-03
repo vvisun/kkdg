@@ -200,7 +200,12 @@ func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
 	return c.wp.SendBuffer(buffer)
 }
 
-// writeBatch 写入批量数据
+/*
+*批量写入。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
+ *@param batch 批量缓冲区，数组长度为 WriteOptions.WriteBatchSize
+ *@param n 批量数量
+ *@return error
+*/
 func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	if n <= 0 {
 		return nil

@@ -129,7 +129,7 @@ func (c *gnetClientConn) SendBuffer(buffer buffers.IBuffer) error {
 func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	for i := 0; i < n; i++ {
 		bb := batch[i]
-		batch[i] = nil
+
 		if bb == nil {
 			continue
 		}
@@ -144,12 +144,13 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			kkbuffer.Put(bb)
 			return nil
 		}); err != nil {
-			kkbuffer.Put(bb)
+			//发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。
 			if c.stats != nil {
 				c.stats.AddError()
 			}
 			return err
 		}
+		batch[i] = nil // 成功才释放。
 	}
 	return nil
 }
