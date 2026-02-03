@@ -78,8 +78,8 @@ func CheckOptions(opts *Options) {
 	if opts.WsWriteTimeout > 0 && opts.WsWriteTimeout < 100*time.Millisecond {
 		opts.WsWriteTimeout = 100 * time.Millisecond
 	}
-	if opts.WsPingInterval > 0 && opts.WsPingInterval < time.Second {
-		opts.WsPingInterval = time.Second
+	if opts.WsPingInterval > 0 && opts.WsPingInterval < 3*time.Second {
+		opts.WsPingInterval = 3 * time.Second
 	}
 	if opts.ReconnectInterval > 0 && opts.ReconnectInterval < 500*time.Millisecond {
 		opts.ReconnectInterval = 500 * time.Millisecond
@@ -207,13 +207,13 @@ func WithWsWriteTimeout(timeout time.Duration) Option {
 // WithWsPingInterval sets the interval for sending WebSocket Ping frames (keepalive).
 // Set to 0 to disable. When > 0, the connection sends Ping periodically; receiving Pong
 // refreshes the read deadline (if WsReadTimeout > 0), so idle connections stay open.
-// Minimum 1s to avoid excessive traffic. Typically use with WithWsReadTimeout (e.g. 30s).
+// Minimum 3s to avoid excessive traffic. Typically use with WithWsReadTimeout (e.g. 30s).
 func WithWsPingInterval(interval time.Duration) Option {
 	return func(o *Options) {
 		if interval >= 0 {
 			o.WsPingInterval = interval
-			if o.WsPingInterval > 0 && o.WsPingInterval < time.Second {
-				o.WsPingInterval = time.Second
+			if o.WsPingInterval > 0 && o.WsPingInterval < 3*time.Second {
+				o.WsPingInterval = 3 * time.Second
 			}
 		}
 	}
