@@ -106,8 +106,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 2000
-	msgsPerConn := 1000
+	numConns := 5000
+	msgsPerConn := 500
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
@@ -131,7 +131,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		}
 	}()
 
-	payload := make([]byte, 16)
+	payload := make([]byte, 1024)
 	for i := range payload {
 		payload[i] = 0x01
 	}
@@ -198,8 +198,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 
 	got := recv.Count()
 	elapsed := time.Since(start)
-	kklog.Debugf("server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
-	kklog.Debugf("stress: send done in %v, all done in %v, recv/s ≈ %.0f",
+	kklog.Debugf("tcp server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
+	kklog.Debugf("tcp stress: send done in %v, all done in %v, recv/s ≈ %.0f",
 		sendDone, elapsed, float64(got)/elapsed.Seconds())
 }
 

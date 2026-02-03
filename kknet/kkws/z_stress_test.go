@@ -121,7 +121,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 1000
+	numConns := 5000
 	msgsPerConn := 555
 	totalMsgs := int64(numConns * msgsPerConn)
 
@@ -221,8 +221,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 
 	got := recv.Count()
 	elapsed := time.Since(start)
-	kklog.Debugf("server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
-	kklog.Debugf("stress: send done in %v, all done in %v, recv/s ≈ %.0f",
+	kklog.Debugf("ws server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
+	kklog.Debugf("ws stress: send done in %v, all done in %v, recv/s ≈ %.0f",
 		sendDone, elapsed, float64(got)/elapsed.Seconds())
 }
 

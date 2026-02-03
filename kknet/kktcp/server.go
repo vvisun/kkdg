@@ -2,6 +2,7 @@ package kktcp
 
 import (
 	"context"
+	"runtime"
 	"sync/atomic"
 	"time"
 
@@ -52,7 +53,12 @@ func (s *Server) Start() error {
 
 	handler := &tcpEventHandler{server: s}
 	go func() {
-		err := gnet.Run(handler, "tcp://"+s.addr, gnet.WithMulticore(true), gnet.WithLogger(gnetNopLogger))
+		err := gnet.Run(handler, "tcp://"+s.addr,
+			gnet.WithMulticore(true),
+			gnet.WithLogger(gnetNopLogger),
+			gnet.WithTCPKeepAlive(10*time.Second),
+			gnet.WithNumEventLoop(runtime.NumCPU()*2),
+		)
 		s.done <- err
 	}()
 
