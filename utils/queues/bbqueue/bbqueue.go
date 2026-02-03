@@ -4,6 +4,8 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
+const defaultSize = 128
+
 // FIFO ring buffer queue.
 type BBQueue struct {
 	buf      []*kkbuffer.ByteBuffer
@@ -15,7 +17,7 @@ type BBQueue struct {
 
 func NewBBQueue(size int, isStrict bool) *BBQueue {
 	if size <= 0 {
-		size = 64
+		size = defaultSize
 	}
 	return &BBQueue{buf: make([]*kkbuffer.ByteBuffer, size), isStrict: isStrict}
 }
@@ -119,7 +121,7 @@ func (q *BBQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int
 func (q *BBQueue) grow() {
 	newSize := len(q.buf) * 2
 	if newSize == 0 {
-		newSize = 64
+		newSize = defaultSize
 	}
 	newQueue := make([]*kkbuffer.ByteBuffer, newSize)
 	if q.count > 0 {
