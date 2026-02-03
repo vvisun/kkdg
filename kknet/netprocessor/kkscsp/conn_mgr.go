@@ -1,4 +1,4 @@
-package kkmcmp
+package kkscsp
 
 import (
 	"sync"
