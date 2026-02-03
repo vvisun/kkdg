@@ -94,7 +94,7 @@ func PrintStress(stats *StatsSnapshot) {
 	}
 
 	// 打印指标
-	kklog.Debugf("=== kknet/ws 指标 ===")
+	kklog.Debugf("=== kknet 指标 ===")
 	kklog.Debugf("并发连接数：%d", stats.ActiveConns)
 	kklog.Debugf("累计接收消息量：%d", stats.RecvMsgs)
 	kklog.Debugf("累计发送消息量：%d", stats.SentMsgs)

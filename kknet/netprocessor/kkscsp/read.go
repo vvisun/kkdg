@@ -27,7 +27,7 @@ type ReadProcessor struct {
 	userID int64             //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
 	opts   kknet.ReadOptions //选项
 
-	recvQueue *bbqueue.BBQueue //接收队列
+	recvQueue *bbqueue.NNQueue //接收队列
 	recvBuf   []byte           //残包缓冲区
 	splitBuf  [16][]byte       //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 
@@ -46,7 +46,7 @@ func NewReadProcessor(opts kknet.ReadOptions) *ReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	return &ReadProcessor{
 		recvBuf:   byteslice.GetZero(defaultRecvBufSize),
-		recvQueue: bbqueue.NewBBQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
+		recvQueue: bbqueue.NewNNQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
 		opts:      opts,
 		wakeCh:    make(chan struct{}, 1),
 		closeCh:   make(chan struct{}),

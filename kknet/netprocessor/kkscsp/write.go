@@ -22,7 +22,7 @@ type WriteProcessor struct {
 	conn            kknet.IConn            //连接(用于 flush 超时回调传参)
 	connID          kknet.CONN_ID          //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
 	userID          int64                  //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
-	sendQueue       *bbqueue.BBQueue       //发送队列
+	sendQueue       *bbqueue.NNQueue       //发送队列
 	sendBatchBuffer []*kkbuffer.ByteBuffer //批量发送缓冲区
 
 	opts kknet.WriteOptions
@@ -46,7 +46,7 @@ func NewWriteProcessor(opts kknet.WriteOptions) *WriteProcessor {
 	kknet.CheckWriteOptions(&opts)
 	return &WriteProcessor{
 		opts:            opts,
-		sendQueue:       bbqueue.NewBBQueue(opts.SendQueueSize, opts.SendQueueStrict),
+		sendQueue:       bbqueue.NewNNQueue(opts.SendQueueSize, opts.SendQueueStrict),
 		sendBatchBuffer: make([]*kkbuffer.ByteBuffer, opts.WriteBatchSize),
 		wakeCh:          make(chan struct{}, 1),
 		closeCh:         make(chan struct{}),

@@ -13,7 +13,7 @@ type BBQueue struct {
 	buf      []*kkbuffer.ByteBuffer
 	head     int
 	tail     int
-	count    int
+	count    int  // 队列元素个数
 	isStrict bool //是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
 }
 
@@ -24,14 +24,14 @@ func NewBBQueue(size int, isStrict bool) *BBQueue {
 	return &BBQueue{buf: make([]*kkbuffer.ByteBuffer, size), isStrict: isStrict}
 }
 
-func (q *BBQueue) Len() int {
-	return q.count
-}
-
 // Cap returns the underlying ring buffer capacity.
 // Note: BBQueue is not concurrency-safe; callers should synchronize externally.
 func (q *BBQueue) Cap() int {
 	return len(q.buf)
+}
+
+func (q *BBQueue) Len() int {
+	return q.count
 }
 
 func (q *BBQueue) IsFull() bool {

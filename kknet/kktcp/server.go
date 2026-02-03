@@ -57,7 +57,9 @@ func (s *Server) Start() error {
 			gnet.WithMulticore(true),
 			gnet.WithLogger(gnetNopLogger),
 			gnet.WithTCPKeepAlive(10*time.Second),
-			gnet.WithNumEventLoop(runtime.NumCPU()*2),
+			gnet.WithNumEventLoop(runtime.NumCPU()*8),
+			gnet.WithReadBufferCap(s.opts.ReadBufferSize),
+			gnet.WithWriteBufferCap(s.opts.WriteBufferSize),
 		)
 		s.done <- err
 	}()
