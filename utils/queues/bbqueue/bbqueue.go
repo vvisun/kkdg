@@ -133,4 +133,5 @@ func (q *BBQueue) grow() {
 	q.buf = newQueue
 	q.head = 0
 	q.tail = q.count
+	// kklog.Debugf("BBQueue grow: %.2fK -> %.2fK", float64(len(q.buf))/1024, float64(newSize)/1024)
 }
