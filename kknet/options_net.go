@@ -273,6 +273,12 @@ func WithRawHandler(handler IRawHandler) Option {
 	}
 }
 
+func WithNoneCopyHandler(handler INoneCopyHandler) Option {
+	return func(o *Options) {
+		o.RpOptions.NoneCopyHandler = handler
+	}
+}
+
 func WithRecvQueueSize(size int) Option {
 	return func(o *Options) {
 		if size > 0 {

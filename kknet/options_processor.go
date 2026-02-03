@@ -57,6 +57,8 @@ type ReadOptions struct {
 	MsgHandler IMsgHandler
 	//消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
 	RawHandler IRawHandler
+	//消费函数, data: [length,message], 如果同步调用已经快过拷贝，可以直接同步消费数据。
+	NoneCopyHandler INoneCopyHandler
 	//接收队列大小
 	RecvQueueSize int
 	//接收队列是否严格容量控制

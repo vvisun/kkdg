@@ -29,11 +29,20 @@ type stressRecvHandler struct {
 	closeOnce sync.Once
 }
 
+func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
+	if data == nil {
+		return
+	}
+	n := h.recvCount.Add(1)
+	if h.target > 0 && h.ch != nil && n >= h.target {
+		h.closeOnce.Do(func() { close(h.ch) })
+	}
+}
+
 func (h *stressRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
 	if data == nil {
 		return
 	}
-	// netprocessor will release the buffer after handler returns.
 	n := h.recvCount.Add(1)
 	if h.target > 0 && h.ch != nil && n >= h.target {
 		h.closeOnce.Do(func() { close(h.ch) })
@@ -113,14 +122,15 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 500
-	msgsPerConn := 1200
+	numConns := 2222
+	msgsPerConn := 222
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
+		//kknet.WithNoneCopyHandler(recv),
 		kknet.WithRecvQueueSize(512),
 	)
 	srv := NewServer(addr, nil, opts)
@@ -143,7 +153,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 
 	serverAddr := "ws://" + addr + "/ws"
 
-	payload := make([]byte, 256)
+	payload := make([]byte, 2048)
 	for i := range payload {
 		payload[i] = 0x01
 	}

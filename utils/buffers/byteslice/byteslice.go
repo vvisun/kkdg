@@ -58,7 +58,7 @@ const (
 	step31     = 1 << (minBitSize + 31) // 2147483648 = 2GB
 )
 
-const max_size = step16 // 2097152 = 2MB
+const max_size = step16
 
 var builtinPool Pool
 

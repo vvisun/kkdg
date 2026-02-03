@@ -114,6 +114,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
+
 	rp.mu.Lock()
 
 	wasEmpty := rp.recvQueue.IsEmpty()
@@ -134,18 +135,25 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		return err
 	}
 
-	for _, packet := range packets {
-		bb := kkbuffer.GetWithCapacity(len(packet))
-		bb.B = bb.B[:len(packet)]
-		copy(bb.B, packet)
-		ok := rp.recvQueue.Push(bb)
-		if !ok {
-			kkbuffer.Put(bb)
+	if rp.opts.NoneCopyHandler != nil {
+		for _, packet := range packets {
+			rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
+		}
+	} else {
+		for _, packet := range packets {
+			bb := kkbuffer.GetWithCapacity(len(packet))
+			bb.B = bb.B[:len(packet)]
+			copy(bb.B, packet)
+			ok := rp.recvQueue.Push(bb)
+			if !ok {
+				kkbuffer.Put(bb)
+			}
 		}
 	}
 
 	if len(leftData) > 0 {
 		rp.reRecvBuf(defaultRecvBufSize)
+		rp.recvBuf = rp.recvBuf[:len(leftData)]
 		copy(rp.recvBuf, leftData)
 	}
 
@@ -161,7 +169,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	}
 
 	// 唤醒消费携程，消费recvQueue中的数据。
-	if wasEmpty {
+	if wasEmpty && !rp.recvQueue.IsEmpty() {
 		rp.wakeConsumer()
 	}
 	return nil
