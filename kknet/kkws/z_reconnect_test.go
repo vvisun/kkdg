@@ -95,7 +95,7 @@ func TestKKWS_Client_Reconnect(t *testing.T) {
 	}
 
 	var cbAttempts atomic.Int32
-	cli := NewClient(wsURL, h,
+	opts := kknet.ApplyOptions(
 		kknet.WithIsNeedReconnect(true),
 		kknet.WithReconnectInterval(50*time.Millisecond, 20),
 		kknet.WithReconnectCallback(func(_ int, _ error) {
@@ -103,6 +103,7 @@ func TestKKWS_Client_Reconnect(t *testing.T) {
 		}),
 		kknet.WithSendQueueSize(64),
 	)
+	cli := NewClient(wsURL, h, opts)
 
 	if err := cli.Connect(); err != nil {
 		t.Fatalf("Connect error: %v", err)
@@ -148,4 +149,3 @@ func TestKKWS_Client_Reconnect(t *testing.T) {
 	}
 	_ = cbAttempts.Load() // ensure callback executed at least once (not asserted, just coverage)
 }
-

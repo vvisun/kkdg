@@ -33,11 +33,12 @@ type Client struct {
 var _ kknet.IClient = (*Client)(nil)
 
 // NewClient creates a new WebSocket client.
-func NewClient(url string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Client {
+func NewClient(url string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *Client {
+	kknet.CheckOptions(&opts)
 	return &Client{
 		url:     url,
 		handler: handler,
-		opts:    kknet.ApplyOptions(opts...),
+		opts:    opts,
 		stopCh:  make(chan struct{}),
 	}
 }

@@ -52,18 +52,16 @@ func (slf *AppClient) Start() error {
 	handler := &clientHandler{client: slf}
 
 	var client clientSender
+	opts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Stdout()),
+	)
 	if slf.opt.WSURL != "" {
-		client = kkws.NewClient(
-			slf.opt.WSURL,
-			handler,
-			kknet.WithLogger(kklog.Stdout()),
-		)
+		client = kkws.NewClient(slf.opt.WSURL, handler, opts)
 	} else if slf.opt.TCPAddr != "" {
-		client = kktcp.NewClient(
-			slf.opt.TCPAddr,
-			handler,
+		opts := kknet.ApplyOptions(
 			kknet.WithLogger(kklog.Stdout()),
 		)
+		client = kktcp.NewClient(slf.opt.TCPAddr, handler, opts)
 	} else {
 		return errors.New("ccclient: TCPAddr or WSURL must be set")
 	}

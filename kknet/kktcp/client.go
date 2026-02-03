@@ -38,11 +38,12 @@ type GnetClient struct {
 var _ kknet.IClient = (*GnetClient)(nil)
 
 // NewGnetClient creates a new gnet-based TCP client.
-func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *GnetClient {
+func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *GnetClient {
+	kknet.CheckOptions(&opts)
 	return &GnetClient{
 		addr:    addr,
 		handler: handler,
-		opts:    kknet.ApplyOptions(opts...),
+		opts:    opts,
 		stopCh:  make(chan struct{}),
 	}
 }

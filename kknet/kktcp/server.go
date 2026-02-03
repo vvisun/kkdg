@@ -28,12 +28,12 @@ type Server struct {
 var _ kknet.IServer = (*Server)(nil)
 
 // NewServer creates a new TCP server.
-func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Server {
-	cfg := kknet.ApplyOptions(opts...)
+func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *Server {
+	kknet.CheckOptions(&opts)
 	return &Server{
 		addr:    addr,
 		handler: handler,
-		opts:    cfg,
+		opts:    opts,
 		connMgr: newServerConnMgr(),
 	}
 }

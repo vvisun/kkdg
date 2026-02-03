@@ -37,12 +37,13 @@ type Server struct {
 var _ kknet.IServer = (*Server)(nil)
 
 // NewServer creates a new WebSocket server.
-func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Server {
+func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *Server {
+	kknet.CheckOptions(&opts)
 	return &Server{
 		addr:    addr,
 		path:    "/ws",
 		handler: handler,
-		opts:    kknet.ApplyOptions(opts...),
+		opts:    opts,
 		connMgr: newServerConnMgr(),
 	}
 }

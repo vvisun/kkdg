@@ -25,7 +25,7 @@ func freePort(t *testing.T) string {
 
 func TestServer_NewServer(t *testing.T) {
 	addr := "127.0.0.1:0"
-	s := NewServer(addr, nil)
+	s := NewServer(addr, nil, kknet.DefaultOptions())
 	if s == nil {
 		t.Fatal("NewServer returned nil")
 	}
@@ -41,7 +41,7 @@ func TestServer_NewServer(t *testing.T) {
 }
 
 func TestServer_SetPath(t *testing.T) {
-	s := NewServer("127.0.0.1:0", nil)
+	s := NewServer("127.0.0.1:0", nil, kknet.DefaultOptions())
 	s.SetPath("/custom")
 	if s.path != "/custom" {
 		t.Errorf("path = %q, want /custom", s.path)
@@ -54,7 +54,7 @@ func TestServer_SetPath(t *testing.T) {
 
 func TestServer_Start_Stop(t *testing.T) {
 	addr := freePort(t)
-	s := NewServer(addr, nil)
+	s := NewServer(addr, nil, kknet.DefaultOptions())
 	if err := s.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestServer_Start_Stop(t *testing.T) {
 }
 
 func TestServer_Stop_WithoutStart(t *testing.T) {
-	s := NewServer("127.0.0.1:0", nil)
+	s := NewServer("127.0.0.1:0", nil, kknet.DefaultOptions())
 	err := s.Stop()
 	if err != kkerrors.ErrServerNotStarted {
 		t.Errorf("Stop() = %v, want ErrServerNotStarted", err)
@@ -81,7 +81,7 @@ func TestServer_Stop_WithoutStart(t *testing.T) {
 
 func TestServer_Addr_Stats_GetConnManager(t *testing.T) {
 	addr := freePort(t)
-	s := NewServer(addr, nil)
+	s := NewServer(addr, nil, kknet.DefaultOptions())
 	if s.Addr() != addr {
 		t.Errorf("Addr() = %q, want %q", s.Addr(), addr)
 	}
@@ -110,11 +110,11 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 		onConnect: func(c kknet.IConn) {},
 		onClose:   func(c kknet.IConn, err error) {},
 	}
-	s := NewServer(addr, handler)
+	s := NewServer(addr, handler, kknet.DefaultOptions())
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil)
+	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client Connect: %v", err)
 	}
@@ -170,10 +170,10 @@ func TestServer_Stop_ClosesConnections(t *testing.T) {
 	handler := &testHandler{
 		onClose: func(c kknet.IConn, err error) { close(closed) },
 	}
-	s := NewServer(addr, handler)
+	s := NewServer(addr, handler, kknet.DefaultOptions())
 	s.Start()
 
-	client := NewClient("ws://"+addr+"/ws", nil)
+	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client Connect: %v", err)
 	}
@@ -197,11 +197,12 @@ func TestServerClient_Integration_Echo(t *testing.T) {
 		onConnect: func(c kknet.IConn) { serverConn = c },
 		onRaw:     func(data []byte) { recvCh <- data },
 	}
-	s := NewServer(addr, echoHandler, kknet.WithRawHandler(echoHandler))
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(echoHandler))
+	s := NewServer(addr, echoHandler, opts)
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil)
+	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}

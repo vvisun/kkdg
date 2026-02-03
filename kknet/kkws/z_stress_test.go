@@ -110,17 +110,18 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 12
-	msgsPerConn := 255
+	numConns := 55
+	msgsPerConn := 122
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
-	srv := NewServer(addr, nil,
+	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
 		// Avoid frequent recvQueue growth under bursts.
-		kknet.WithRecvQueueSize(256),
+		kknet.WithRecvQueueSize(2560),
 	)
+	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -145,7 +146,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 			defer wg.Done()
 			connSem <- struct{}{}
 			defer func() { <-connSem }()
-			client := NewClient("ws://"+addr+"/ws", nil, clientOpts...)
+			client := NewClient("ws://"+addr+"/ws", nil, kknet.ApplyOptions(clientOpts...))
 			if err := connectWithRetry(client, 30, 10*time.Millisecond); err != nil {
 				errCh <- err
 				return
@@ -213,7 +214,7 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	connsPerRound := 20
 
 	addr := freePortStress(t)
-	srv := NewServer(addr, nil)
+	srv := NewServer(addr, nil, kknet.DefaultOptions())
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -226,7 +227,7 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				client := NewClient("ws://"+addr+"/ws", nil)
+				client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
 				_ = client.Connect()
 				time.Sleep(5 * time.Millisecond)
 				_ = client.Close()

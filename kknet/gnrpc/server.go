@@ -51,7 +51,10 @@ func NewServer(addr string, opts ...kknet.Option) *Server {
 	}
 	h := &serverHandler{svr: s}
 	// gnrpc relies on RawHandler delivery from ReadProcessor.
-	s.tcp = kktcp.NewServer(addr, h, append(opts, kknet.WithRawHandler(h))...)
+	reliesopts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+	)
+	s.tcp = kktcp.NewServer(addr, h, reliesopts)
 	return s
 }
 

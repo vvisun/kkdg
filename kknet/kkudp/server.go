@@ -35,11 +35,12 @@ type Server struct {
 var _ kknet.IServer = (*Server)(nil)
 
 // NewServer creates a new UDP server.
-func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Server {
+func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *Server {
+	kknet.CheckOptions(&opts)
 	s := &Server{
 		addr:    addr,
 		handler: handler,
-		opts:    kknet.ApplyOptions(opts...),
+		opts:    opts,
 		conns:   make(map[string]*udpConn),
 		connMgr: newServerConnMgr(),
 	}

@@ -181,11 +181,11 @@ func (slf *gateComponent) onClusterPublish(_ string, packet *kkcluster.ClusterPa
 
 func (slf *gateComponent) startTCPServer() error {
 	// 创建 TCP 服务器
-	server := kktcp.NewServer(
-		slf.opt.TCPAddr,
-		slf.handler,
+	opts := kknet.ApplyOptions(
 		kknet.WithLogger(kklog.Stdout()),
+		kknet.WithRawHandler(slf.handler),
 	)
+	server := kktcp.NewServer(slf.opt.TCPAddr, slf.handler, opts)
 
 	if err := server.Start(); err != nil {
 		return err
@@ -199,12 +199,11 @@ func (slf *gateComponent) startTCPServer() error {
 
 func (slf *gateComponent) startWSServer() error {
 	// 创建 WebSocket 服务器
-	server := kkws.NewServer(
-		slf.opt.WSAddr,
-		slf.handler,
+	opts := kknet.ApplyOptions(
 		kknet.WithLogger(kklog.Stdout()),
 		kknet.WithRawHandler(slf.handler),
 	)
+	server := kkws.NewServer(slf.opt.WSAddr, slf.handler, opts)
 
 	if err := server.Start(); err != nil {
 		return err

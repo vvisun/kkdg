@@ -27,7 +27,7 @@ func (h *rawRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
 }
 
 func TestClient_NewClient(t *testing.T) {
-	c := NewClient("ws://127.0.0.1:8080/ws", nil)
+	c := NewClient("ws://127.0.0.1:8080/ws", nil, kknet.DefaultOptions())
 	if c == nil {
 		t.Fatal("NewClient returned nil")
 	}
@@ -43,11 +43,11 @@ func TestClient_NewClient(t *testing.T) {
 
 func TestClient_Connect_Close(t *testing.T) {
 	addr := freePort(t)
-	s := NewServer(addr, nil)
+	s := NewServer(addr, nil, kknet.DefaultOptions())
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil)
+	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
@@ -75,11 +75,12 @@ func TestClient_Connect_Close(t *testing.T) {
 func TestClient_SendBuffer(t *testing.T) {
 	addr := freePort(t)
 	recvCh := make(chan []byte, 16)
-	s := NewServer(addr, nil, kknet.WithRawHandler(&rawRecvHandler{ch: recvCh}))
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&rawRecvHandler{ch: recvCh}))
+	s := NewServer(addr, nil, opts)
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil)
+	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
@@ -109,7 +110,7 @@ func TestClient_SendBuffer(t *testing.T) {
 }
 
 func TestClient_SendBuffer_NotConnected(t *testing.T) {
-	client := NewClient("ws://127.0.0.1:9999/ws", nil)
+	client := NewClient("ws://127.0.0.1:9999/ws", nil, kknet.DefaultOptions())
 	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("x"))
 	err := client.SendBuffer(bb)
 	if err != kkerrors.ErrClientNotConnected {
@@ -119,12 +120,12 @@ func TestClient_SendBuffer_NotConnected(t *testing.T) {
 
 func TestClient_Conn_Stats_Addr(t *testing.T) {
 	addr := freePort(t)
-	s := NewServer(addr, nil)
+	s := NewServer(addr, nil, kknet.DefaultOptions())
 	s.Start()
 	defer s.Stop()
 
 	url := "ws://" + addr + "/ws"
-	client := NewClient(url, nil)
+	client := NewClient(url, nil, kknet.DefaultOptions())
 	if client.Addr() != url {
 		t.Errorf("Addr() = %q, want %q", client.Addr(), url)
 	}

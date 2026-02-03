@@ -27,11 +27,12 @@ type Client struct {
 var _ kknet.IClient = (*Client)(nil)
 
 // NewClient creates a new UDP client.
-func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts ...kknet.Option) *Client {
+func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *Client {
+	kknet.CheckOptions(&opts)
 	return &Client{
 		addr:    addr,
 		handler: handler,
-		opts:    kknet.ApplyOptions(opts...),
+		opts:    opts,
 	}
 }
 
