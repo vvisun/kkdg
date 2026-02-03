@@ -29,6 +29,7 @@ type Options struct {
 	WsOriginChecker OriginCheckFunc // websocket原始检查器
 	WsReadTimeout   time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
 	WsWriteTimeout  time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
+	WsPingInterval  time.Duration   // Ping 发送间隔（为0时，不发送 Ping）；配合 WsReadTimeout 做保活，收到 Pong 会刷新读超时
 
 	WpOptions WriteOptions
 	RpOptions ReadOptions
@@ -55,8 +56,9 @@ func DefaultOptions() Options {
 		ReconnectCallback:   nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
-		WsReadTimeout:   16 * time.Second, // 0秒, 不超时
-		WsWriteTimeout:  16 * time.Second, // 0秒, 不超时
+		WsReadTimeout:   16 * time.Second, // 不超时
+		WsWriteTimeout:  16 * time.Second,
+		WsPingInterval:  0, // 0=不发送 Ping
 
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
 		UDPCleanupInterval: 1 * time.Minute, // 1分钟
@@ -75,6 +77,9 @@ func CheckOptions(opts *Options) {
 	}
 	if opts.WsWriteTimeout > 0 && opts.WsWriteTimeout < 100*time.Millisecond {
 		opts.WsWriteTimeout = 100 * time.Millisecond
+	}
+	if opts.WsPingInterval > 0 && opts.WsPingInterval < time.Second {
+		opts.WsPingInterval = time.Second
 	}
 	if opts.ReconnectInterval > 0 && opts.ReconnectInterval < 500*time.Millisecond {
 		opts.ReconnectInterval = 500 * time.Millisecond
@@ -192,8 +197,23 @@ func WithWsWriteTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
 			o.WsWriteTimeout = timeout
-			if o.WsWriteTimeout < 50*time.Millisecond { // 最小写超时时间，防止压根没效果
+			if o.WsWriteTimeout < 50*time.Millisecond {
 				o.WsWriteTimeout = 50 * time.Millisecond
+			}
+		}
+	}
+}
+
+// WithWsPingInterval sets the interval for sending WebSocket Ping frames (keepalive).
+// Set to 0 to disable. When > 0, the connection sends Ping periodically; receiving Pong
+// refreshes the read deadline (if WsReadTimeout > 0), so idle connections stay open.
+// Minimum 1s to avoid excessive traffic. Typically use with WithWsReadTimeout (e.g. 30s).
+func WithWsPingInterval(interval time.Duration) Option {
+	return func(o *Options) {
+		if interval >= 0 {
+			o.WsPingInterval = interval
+			if o.WsPingInterval > 0 && o.WsPingInterval < time.Second {
+				o.WsPingInterval = time.Second
 			}
 		}
 	}

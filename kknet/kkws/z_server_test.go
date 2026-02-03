@@ -253,3 +253,78 @@ func (h *echoHandler) OnRaw(connID int64, data buffers.IBuffer) {
 		kkbuffer.Put(data)
 	}
 }
+
+// TestPingPong_Keepalive 演示 Ping/Pong 保活：读超时 4s，Ping 间隔 1.5s；空闲 5s 后仍能收发，说明 Pong 刷新了读超时。
+//
+// 使用方式：服务端/客户端均设置 WithWsReadTimeout + WithWsPingInterval，例如：
+//
+//	opts := kknet.ApplyOptions(
+//	    kknet.WithWsReadTimeout(30*time.Second),
+//	    kknet.WithWsPingInterval(10*time.Second),
+//	)
+//	server := kkws.NewServer(addr, handler, opts)
+//	client := kkws.NewClient(url, handler, opts)
+func TestPingPong_Keepalive(t *testing.T) {
+	addr := freePort(t)
+	recvCh := make(chan []byte, 4)
+	opts := kknet.ApplyOptions(
+		kknet.WithWsReadTimeout(4*time.Second),
+		kknet.WithWsPingInterval(1500*time.Millisecond),
+		kknet.WithRawHandler(&rawRecvHandlerForPingTest{ch: recvCh}),
+	)
+	s := NewServer(addr, nil, opts)
+	s.Start()
+	defer s.Stop()
+
+	clientOpts := kknet.ApplyOptions(
+		kknet.WithWsReadTimeout(4*time.Second),
+		kknet.WithWsPingInterval(1500*time.Millisecond),
+	)
+	client := NewClient("ws://"+addr+"/ws", nil, clientOpts)
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer client.Close()
+	time.Sleep(100 * time.Millisecond)
+
+	// 空闲超过读超时（4s），仅靠 Ping/Pong 保活
+	time.Sleep(5 * time.Second)
+
+	// 仍能正常收发说明连接未因读超时断开
+	payload := []byte("alive")
+	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+	if err := client.SendBuffer(bb); err != nil {
+		t.Fatalf("SendBuffer after idle: %v", err)
+	}
+	select {
+	case got := <-recvCh:
+		msg, err := kkpacket.DefaultStreamPacket().Unpack(got)
+		if err != nil {
+			t.Fatalf("Unpack: %v", err)
+		}
+		if string(msg) != string(payload) {
+			t.Errorf("got %q, want %q", msg, payload)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for message after idle (Ping/Pong keepalive may not be active)")
+	}
+}
+
+type rawRecvHandlerForPingTest struct {
+	ch chan []byte
+}
+
+func (h *rawRecvHandlerForPingTest) OnRaw(connID int64, data buffers.IBuffer) {
+	if data == nil {
+		return
+	}
+	b := append([]byte(nil), data.Bytes()...)
+	select {
+	case h.ch <- b:
+	default:
+	}
+	// ReadProcessor releases data after OnRaw returns; do not Put here.
+}

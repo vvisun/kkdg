@@ -88,6 +88,29 @@ func (c *wsConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
+// pingLoop sends Ping frames at WsPingInterval. Gorilla auto-responds to Ping with Pong;
+// we use SetPongHandler to refresh read deadline so idle connections don't time out.
+func (c *wsConn) pingLoop() {
+	if c.opts.WsPingInterval <= 0 {
+		return
+	}
+	ticker := time.NewTicker(c.opts.WsPingInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if c.closing.Load() {
+				return
+			}
+			deadline := time.Now().Add(c.opts.WsPingInterval * 2)
+			if err := c.conn.WriteControl(websocket.PingMessage, nil, deadline); err != nil {
+				return
+			}
+		}
+	}
+}
+
 func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) {
 	c.closeOnce.Do(func() {
 		c.closing.Store(true)
@@ -118,6 +141,14 @@ func (c *wsConn) readLoop() error {
 	rp := kkscsp.NewReadProcessor(c.opts.RpOptions)
 	rp.Start(c)
 	defer rp.Stop()
+
+	// Ping/Pong keepalive: send Ping at interval; on Pong, refresh read deadline so idle conn stays open.
+	if c.opts.WsPingInterval > 0 && c.opts.WsReadTimeout > 0 {
+		c.conn.SetPongHandler(func(string) error {
+			return c.conn.SetReadDeadline(time.Now().Add(c.opts.WsReadTimeout))
+		})
+		go c.pingLoop()
+	}
 
 	for {
 		// Update read deadline if timeout is configured
