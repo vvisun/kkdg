@@ -186,7 +186,7 @@ func (c *GnetClient) reconnectLoop() {
 		}
 		if maxRetries > 0 && attempts >= maxRetries {
 			if cb != nil {
-				cb(attempts, errors.New("reconnect attempts exceeded"))
+				cb(attempts, kkerrors.ErrReconnectAttemptsExceeded)
 			}
 			c.opts.Logger.Warnf("gnetclient reconnect exceeded after %d attempts", attempts)
 			c.reconnecting.Store(false)

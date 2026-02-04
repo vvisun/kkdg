@@ -24,7 +24,7 @@ const defaultRecvBufSize = 1 * 1024 // 接收缓冲区大小，1KB
 type ReadProcessor struct {
 	conn   kknet.IConn       //连接
 	connID kknet.CONN_ID     //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
-	userID int64             //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
+	userID kknet.USER_ID     //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
 	opts   kknet.ReadOptions //选项
 
 	recvQueue bbqueue.IFiFoQueue //接收队列

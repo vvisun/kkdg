@@ -17,7 +17,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// go run client.go -addr=localhost:8080 -conn=5000 -size=64 -interval=10ms
+// go run client.go -addr=localhost:8080 -conn=5000 -size=646 -interval=30ms
 
 var (
 	// 命令行参数：目标地址、并发数、消息大小
@@ -95,6 +95,7 @@ func runOneClient(serverUrl string, rawMsg []byte) {
 	client := kkws.NewClient(serverUrl, nil, kknet.ApplyOptions(
 		kknet.WithNoneCopyHandler(recv),
 		kknet.WithLogger(kklog.GetConsoleLogger()),
+		kknet.WithPingInterval(5*time.Second),
 	))
 
 	if err := connectWithRetry(client, 60, 10*time.Millisecond); err != nil {

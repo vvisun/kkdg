@@ -21,3 +21,9 @@ var (
 	// 未注册该消息类型
 	ErrMsgTypeNotRegistered = errors.New("message type not registered")
 )
+
+// -------------- for kkcodec -------------------
+var (
+	// 无法解码为 proto.Message 类型
+	ErrCannotUnmarshalToProtoMessage = errors.New("cannot unmarshal to a value that not implements proto.Buffer")
+)

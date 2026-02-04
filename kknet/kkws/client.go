@@ -2,7 +2,6 @@ package kkws
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -228,10 +227,11 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			return
 		}
 		if maxRetries > 0 && attempts >= maxRetries {
-			err := errors.New("reconnect attempts exceeded")
+			err := kkerrors.ErrReconnectAttemptsExceeded
 			if cb != nil {
 				cb(attempts, err)
 			}
+			c.opts.Logger.Warnf("kkws client reconnect failed. attempts exceeded. err: %v", err)
 			reportFirst(err)
 			return
 		}
@@ -269,6 +269,7 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			}
 			// only report error to Connect() if we've exhausted retries.
 			if maxRetries > 0 && attempts >= maxRetries {
+				c.opts.Logger.Warnf("kkws client reconnect failed. attempts exceeded. err: %v", err)
 				reportFirst(err)
 				return
 			}

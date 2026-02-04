@@ -24,4 +24,6 @@ var (
 	ErrInvalidLengthFieldByteCount = errors.New("invalid length field byte count")
 	// 连接未设置
 	ErrConnNotSet = errors.New("connection is not set")
+	// 重连尝试次数超出。重连失败。
+	ErrReconnectAttemptsExceeded = errors.New("reconnect attempts exceeded")
 )

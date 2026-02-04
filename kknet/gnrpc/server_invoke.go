@@ -27,7 +27,7 @@ func (s *Server) InvokeConn(ctx context.Context, connID kknet.CONN_ID, method st
 
 	conn := s.tcp.GetConnManager().GetConn(int64(connID))
 	if conn == nil {
-		return nil, errors.New("gnrpc: conn not found")
+		return nil, kkerrors.ErrConnNotFound
 	}
 	ps, ok := getPeerState(conn.Context())
 	if !ok || ps == nil {
@@ -121,7 +121,7 @@ func (s *Server) InvokeConnNoResponse(ctx context.Context, connID kknet.CONN_ID,
 
 	conn := s.tcp.GetConnManager().GetConn(int64(connID))
 	if conn == nil {
-		return errors.New("gnrpc: conn not found")
+		return kkerrors.ErrConnNotFound
 	}
 
 	fr := Frame{
@@ -146,4 +146,3 @@ func (s *Server) InvokeConnNoResponse(ctx context.Context, connID kknet.CONN_ID,
 	}
 	return nil
 }
-

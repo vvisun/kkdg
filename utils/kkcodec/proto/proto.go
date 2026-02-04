@@ -1,8 +1,7 @@
 package proto
 
 import (
-	"errors"
-
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"google.golang.org/protobuf/proto"
 )
@@ -22,7 +21,7 @@ func (codec) Name() string {
 func (codec) Marshal(v any) ([]byte, error) {
 	msg, ok := v.(proto.Message)
 	if !ok {
-		return nil, errors.New("can't marshal a value that not implements proto.Buffer interface")
+		return nil, kkerrors.ErrCannotUnmarshalToProtoMessage
 	}
 	return proto.Marshal(msg)
 }
@@ -31,7 +30,7 @@ func (codec) Marshal(v any) ([]byte, error) {
 func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 	msg, ok := v.(proto.Message)
 	if !ok {
-		return nil, errors.New("can't marshal a value that not implements proto.Buffer interface")
+		return nil, kkerrors.ErrCannotUnmarshalToProtoMessage
 	}
 	size := proto.Size(msg) + offset + 64 // 64 bytes more for sure enough capacity
 	bb := kkbuffer.GetWithCapacity(size)
@@ -49,7 +48,7 @@ func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 func (codec) Unmarshal(data []byte, v any) error {
 	msg, ok := v.(proto.Message)
 	if !ok {
-		return errors.New("can't unmarshal to a value that not implements proto.Buffer")
+		return kkerrors.ErrCannotUnmarshalToProtoMessage
 	}
 	return proto.Unmarshal(data, msg)
 }

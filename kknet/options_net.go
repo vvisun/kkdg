@@ -44,7 +44,7 @@ type Option func(*Options)
 // DefaultOptions returns default settings.
 func DefaultOptions() Options {
 	return Options{
-		Logger:              kklog.Nop(),
+		Logger:              kklog.GetConsoleLogger(),
 		ReadBufferSize:      64 * 1024, // 64KB
 		WriteBufferSize:     64 * 1024, // 64KB
 		TLSConfig:           nil,
