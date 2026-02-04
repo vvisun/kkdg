@@ -15,7 +15,7 @@ type bfPool struct {
 	calibrating    uint64
 	defaultSize    uint64
 	calibrateCount uint64
-	size           int64
+	count          int64
 	calls          [steps]uint64
 	pool           sync.Pool
 }
@@ -30,8 +30,8 @@ func (p *bfPool) Get() *ByteBuffer {
 		b := v.(*ByteBuffer)
 		b.released.Store(false)
 		b.B = b.B[:0]
-		if atomic.LoadInt64(&p.size) > 0 {
-			atomic.AddInt64(&p.size, -1)
+		if atomic.LoadInt64(&p.count) > 0 {
+			atomic.AddInt64(&p.count, -1)
 		}
 		return b
 	}
@@ -56,8 +56,8 @@ func (p *bfPool) GetWithCap(capacity int) *ByteBuffer {
 		} else {
 			b.B = b.B[:0]
 		}
-		if atomic.LoadInt64(&p.size) > 0 {
-			atomic.AddInt64(&p.size, -1)
+		if atomic.LoadInt64(&p.count) > 0 {
+			atomic.AddInt64(&p.count, -1)
 		}
 		return b
 	}
@@ -83,7 +83,7 @@ func (p *bfPool) Put(b *ByteBuffer) {
 	if cap(b.B) > maxItemSize {
 		return // 超大 buffer 丢弃，不参与校准统计
 	}
-	if atomic.LoadInt64(&p.size) > 8192 {
+	if atomic.LoadInt64(&p.count) > max_size_for_pool {
 		return // 防止池过大耗尽内存
 	}
 	idx := index(cap(b.B))
@@ -92,7 +92,7 @@ func (p *bfPool) Put(b *ByteBuffer) {
 		p.calibrate()
 	}
 	b.Reset()
-	atomic.AddInt64(&p.size, 1)
+	atomic.AddInt64(&p.count, 1)
 	p.pool.Put(b)
 }
 

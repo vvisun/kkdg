@@ -104,7 +104,7 @@ func BenchmarkFactory_GetOnly(b *testing.B) {
 	factory := GetFactory[BenchObj]()
 
 	// 预先放入一些对象
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 5000; i++ {
 		obj := factory.Get().(*BenchObj)
 		factory.Put(obj)
 	}

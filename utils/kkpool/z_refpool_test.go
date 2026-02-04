@@ -290,3 +290,19 @@ func TestRefPool_GetStats(t *testing.T) {
 		t.Error("统计信息与直接获取的大小不一致")
 	}
 }
+
+// 测试超过最大池大小的情况
+func TestRefPool_OverMaxSize(t *testing.T) {
+	pool := NewRefPool(NewTestObject)
+	var objs []*TestObject
+	for i := 0; i < max_size_for_pool+2; i++ {
+		obj := pool.Get()
+		objs = append(objs, obj)
+	}
+	for _, obj := range objs {
+		pool.Put(obj)
+	}
+	if pool.Size() != max_size_for_pool+1 {
+		t.Errorf("池大小应该为%v，实际为%v", max_size_for_pool+1, pool.Size())
+	}
+}

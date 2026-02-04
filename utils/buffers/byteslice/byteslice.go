@@ -61,6 +61,10 @@ const (
 
 const max_size = step16
 
+// 假设平均每个对象4KB，1024个对象就是4MB。16*1024个对象就是64MB。
+// 所以必须做限制，防止池过大耗尽内存
+const max_size_for_pool = 16 * 1024
+
 var builtinPool Pool
 
 // Pool consists of 32 sync.Pool, representing byte slices of length from 0 to 32 in powers of 2.
@@ -111,7 +115,7 @@ func (p *Pool) Put(buf []byte) {
 	if size < 1 || size > max_size {
 		return // 超大 buffer 丢弃，不参与校准统计
 	}
-	if atomic.LoadInt64(&p.total) > 8192 {
+	if atomic.LoadInt64(&p.total) > max_size_for_pool {
 		return // 防止池过大耗尽内存
 	}
 
