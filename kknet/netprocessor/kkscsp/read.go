@@ -28,7 +28,7 @@ type ReadProcessor struct {
 	opts   kknet.ReadOptions //选项
 
 	recvQueue bbqueue.IFiFoQueue //接收队列
-	recvBuf   []byte             //残包缓冲区
+	recvBuf   []byte             //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
 	splitBuf  [16][]byte         //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 
 	mu        sync.Mutex
@@ -45,7 +45,7 @@ var _ netprocessor.IReadProcessor = (*ReadProcessor)(nil)
 func NewReadProcessor(opts kknet.ReadOptions) *ReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	return &ReadProcessor{
-		recvBuf:   byteslice.GetZero(defaultRecvBufSize),
+		recvBuf:   nil,
 		recvQueue: bbqueue.NewNNQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
 		opts:      opts,
 		wakeCh:    make(chan struct{}, 1),
@@ -76,6 +76,10 @@ func (rp *ReadProcessor) Stop() {
 }
 
 func (rp *ReadProcessor) reRecvBuf(capacity int) {
+	if rp.recvBuf == nil {
+		rp.recvBuf = byteslice.GetZero(capacity)
+		return
+	}
 	rp.recvBuf = rp.recvBuf[:0]
 	byteslice.Put(rp.recvBuf)
 	rp.recvBuf = byteslice.GetZero(capacity)
@@ -144,9 +148,11 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		return err
 	}
 
+	// 存下残包，下次收到数据时拼接到后面。
 	if len(leftData) > 0 {
-		rp.reRecvBuf(defaultRecvBufSize)
-		rp.recvBuf = rp.recvBuf[:len(leftData)]
+		leftLen := len(leftData)
+		rp.reRecvBuf(defaultRecvBufSize + leftLen)
+		rp.recvBuf = rp.recvBuf[:leftLen]
 		copy(rp.recvBuf, leftData)
 	}
 
@@ -245,7 +251,7 @@ func (rp *ReadProcessor) drainOnce() {
 	}
 }
 
-// 分发消息到业务逻辑层
+// 分发消息到业务逻辑层。异步投递避免阻塞消费循环，提高多连接下的接收吞吐。
 func (rp *ReadProcessor) dispatchMessage(msg any, msgID kkpacket.MSGID) {
 	rp.opts.MsgHandler.OnMsg(rp.connID, msg, msgID)
 }
