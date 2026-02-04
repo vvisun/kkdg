@@ -29,11 +29,15 @@ func init() {
 	defaultStreamPacket = NewLengthFieldStreamPacket(NewPacker(HeadTypeMid, kkcodec.CodecTypeProtoBuf))
 }
 
+// key layout: [headType:8 bits][codecType:8 bits]
+// headType: bits 16-23 (8 bits, 0-255)
+// codecType: bits 8-15 (8 bits, 0-255)
+func getKey(headType uint8, codecType uint8) packerKey {
+	return packerKey(headType)<<16 | packerKey(codecType)<<8
+}
+
 func initPacker(headType uint8, codecType uint8) {
-	// key layout: [headType:8 bits][codecType:8 bits]
-	// headType: bits 16-23 (8 bits, 0-255)
-	// codecType: bits 8-15 (8 bits, 0-255)
-	key := packerKey(headType)<<16 | packerKey(codecType)<<8
+	key := getKey(headType, codecType)
 	p := &PacketCodec{
 		headType:  headType,
 		codecType: codecType,
@@ -42,10 +46,7 @@ func initPacker(headType uint8, codecType uint8) {
 }
 
 func NewPacker(headType uint8, codecType uint8) *PacketCodec {
-	// key layout: [headType:8 bits][codecType:8 bits]
-	// headType: bits 16-23 (8 bits, 0-255)
-	// codecType: bits 8-15 (8 bits, 0-255)
-	key := packerKey(headType)<<16 | packerKey(codecType)<<8
+	key := getKey(headType, codecType)
 	if packer, ok := packerCache[key]; ok {
 		return packer
 	}
