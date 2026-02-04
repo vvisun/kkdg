@@ -72,10 +72,10 @@ var max_caps [32]int64 = [32]int64{
 	1024 * 256,  // step6, 1024*256个容量为64B的slice，16MB
 	1024 * 128,  // step7, 1024*128个容量为128B的slice，16MB
 	1024 * 64,   // step8, 1024*64个容量为256B的slice，16MB
-	1024 * 32,   // step9, 1024*32个容量为512B的slice，16MB
-	1024 * 16,   // step10, 1024*16个容量为1KB的slice，16MB
-	1024 * 8,    // step11, 1024*8个容量为2KB的slice，16MB
-	1024 * 4,    // step12, 1024*4个容量为4KB的slice，16MB
+	1024 * 64,   // step9, 1024*64个容量为512B的slice，32MB
+	1024 * 32,   // step10, 1024*32个容量为1KB的slice，32MB
+	1024 * 16,   // step11, 1024*16个容量为2KB的slice，32MB
+	1024 * 8,    // step12, 1024*8个容量为4KB的slice，32MB
 	1024 * 2,    // step13, 1024*2个容量为8KB的slice，16MB
 	1024,        // step14, 1024个容量为16KB的slice，16MB
 	512,         // step15, 512个容量为32KB的slice，16MB

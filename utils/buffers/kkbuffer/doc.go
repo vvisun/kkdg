@@ -24,7 +24,8 @@ const (
 
 	// 假设平均每个对象1KB，1024个对象就是1MB。
 	// 所以必须做限制，防止池过大耗尽内存
-	max_size_for_pool = 64 * 1024 //假设每个对象1KB，64*1024个对象就是64MB。
+	// 使用最频繁，这里略微放宽一些。
+	max_size_for_pool = 80 * 1024 //假设每个对象1KB，80*1024个对象就是80MB。
 )
 
 var calibrateCallsThreshold uint64 = 128 // 多少次调用后进行校准
