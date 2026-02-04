@@ -84,6 +84,7 @@ func (wp *WriteProcessor) SendBuffer(buffer buffers.IBuffer) error {
 	}
 	wasEmpty := wp.sendQueue.IsEmpty()
 	ok := wp.sendQueue.Push(buffer)
+	nowEmpty := wp.sendQueue.IsEmpty()
 	wp.sendMu.Unlock()
 	if !ok {
 		//发送队列已满，返回错误。
@@ -91,7 +92,7 @@ func (wp *WriteProcessor) SendBuffer(buffer buffers.IBuffer) error {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrSendQueueFull
 	}
-	if wasEmpty {
+	if wasEmpty && !nowEmpty {
 		wp.wakeWriter()
 	}
 	return nil

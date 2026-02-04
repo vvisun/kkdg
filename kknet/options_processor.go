@@ -53,7 +53,7 @@ func CheckWriteOptions(opts *WriteOptions) {
 }
 
 type ReadOptions struct {
-	//消费函数, msg: object, msgID: 消息ID
+	//消费函数, msg: 解码好的object, msgID: 消息ID
 	MsgHandler IMsgHandler
 	//消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
 	RawHandler IRawHandler

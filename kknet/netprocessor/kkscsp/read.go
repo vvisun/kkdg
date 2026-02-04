@@ -108,11 +108,12 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 			kkbuffer.Put(bb)
 		}
 	}
+	nowEmpty := rp.recvQueue.IsEmpty()
 
 	rp.mu.Unlock()
 
 	// 唤醒消费携程，消费recvQueue中的数据。
-	if wasEmpty && !rp.recvQueue.IsEmpty() {
+	if wasEmpty && !nowEmpty {
 		rp.wakeConsumer()
 	}
 }
@@ -168,6 +169,8 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		}
 	}
 
+	nowEmpty := rp.recvQueue.IsEmpty()
+
 	rp.mu.Unlock()
 
 	// shrink: if empty and cap too big, shrink to default.
@@ -180,7 +183,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	}
 
 	// 唤醒消费携程，消费recvQueue中的数据。
-	if wasEmpty && !rp.recvQueue.IsEmpty() {
+	if wasEmpty && !nowEmpty {
 		rp.wakeConsumer()
 	}
 	return nil
