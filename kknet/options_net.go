@@ -56,8 +56,8 @@ func DefaultOptions() Options {
 		ReconnectCallback:   nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
-		WsReadTimeout:   16 * time.Second, // 不超时
-		WsWriteTimeout:  16 * time.Second,
+		WsReadTimeout:   20 * time.Second,
+		WsWriteTimeout:  5 * time.Second,
 		WsPingInterval:  0, // 0=不发送 Ping
 
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟

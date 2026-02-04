@@ -2,6 +2,7 @@ package kkudp
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
@@ -11,11 +12,13 @@ type serverConnMgr struct {
 	server *Server
 	mu     sync.RWMutex
 	conns  map[int64]*udpConn
+	count  int64
 }
 
 func newServerConnMgr() *serverConnMgr {
 	return &serverConnMgr{
 		conns: make(map[int64]*udpConn),
+		count: 0,
 	}
 }
 
@@ -29,6 +32,7 @@ func (m *serverConnMgr) addConn(c *udpConn) {
 	m.mu.Lock()
 	m.conns[c.ID()] = c
 	m.mu.Unlock()
+	atomic.AddInt64(&m.count, 1)
 }
 
 // removeConn removes a connection from manager.
@@ -36,6 +40,7 @@ func (m *serverConnMgr) removeConn(id int64) {
 	m.mu.Lock()
 	delete(m.conns, id)
 	m.mu.Unlock()
+	atomic.AddInt64(&m.count, -1)
 }
 
 // GetAllConns returns a snapshot of all connections.
@@ -72,4 +77,9 @@ func (m *serverConnMgr) KickConn(id int64) {
 		return
 	}
 	m.removeConn(id)
+}
+
+// GetCount returns the number of connections.
+func (m *serverConnMgr) GetCount() int64 {
+	return atomic.LoadInt64(&m.count)
 }

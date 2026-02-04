@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -14,24 +15,28 @@ import (
 	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/timingwheel"
 )
 
 type wsConn struct {
 	id    kknet.CONN_ID
 	conn  *websocket.Conn
-	opts  kknet.Options
-	stats *kknet.Stats
+	opts  kknet.Options // 配置
+	stats *kknet.Stats  // 统计信息
 	ctxMu sync.RWMutex
 	ctx   context.Context
 
 	closeOnce sync.Once
-	closing   atomic.Bool
+	closing   atomic.Bool // 连接关闭标志
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp            *kkscsp.WriteProcessor
-	batchWriteBuf []byte
-	readBB        *kkbuffer.ByteBuffer // reused read buffer for NextReader
+	wp            *kkscsp.WriteProcessor // 写处理器
+	batchWriteBuf []byte                 // 批量写入缓冲区
+	readBB        *kkbuffer.ByteBuffer   // reused read buffer for NextReader
+
+	// ping 由时间轮调度，关闭连接时需 Stop 取消
+	pingTimer unsafe.Pointer // *timingwheel.Timer
 }
 
 var _ kknet.IConn = (*wsConn)(nil)
@@ -88,32 +93,51 @@ func (c *wsConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-// pingLoop sends Ping frames at WsPingInterval. Gorilla auto-responds to Ping with Pong;
-// we use SetPongHandler to refresh read deadline so idle connections don't time out.
-func (c *wsConn) pingLoop() {
-	if c.opts.WsPingInterval <= 0 {
+// wsPingScheduler 用于时间轮按 WsPingInterval 周期触发 Ping。
+type wsPingScheduler struct {
+	interval time.Duration
+}
+
+func (s *wsPingScheduler) Next(prev time.Time) time.Time {
+	return prev.Add(s.interval)
+}
+
+// startPingByTimingWheel 使用时间轮按 WsPingInterval 发送 Ping；收到 Pong 由 SetPongHandler 刷新读超时。
+func (c *wsConn) startPingByTimingWheel() {
+	if c.opts.WsPingInterval <= 0 || c.opts.WsReadTimeout <= 0 {
 		return
 	}
-	ticker := time.NewTicker(c.opts.WsPingInterval)
-	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			if c.closing.Load() {
-				return
-			}
-			deadline := time.Now().Add(c.opts.WsPingInterval * 2)
-			if err := c.conn.WriteControl(websocket.PingMessage, nil, deadline); err != nil {
-				return
-			}
+	c.conn.SetPongHandler(func(string) error {
+		return c.conn.SetReadDeadline(time.Now().Add(c.opts.WsReadTimeout))
+	})
+
+	tw := timingwheel.GetNetTimingWheel()
+	t := tw.ScheduleFunc(&wsPingScheduler{c.opts.WsPingInterval}, func() {
+		if c.closing.Load() {
+			return
 		}
+		deadline := time.Now().Add(c.opts.WsPingInterval * 2)
+		if err := c.conn.WriteControl(websocket.PingMessage, nil, deadline); err != nil {
+			return
+		}
+	})
+	if t != nil {
+		atomic.StorePointer(&c.pingTimer, unsafe.Pointer(t))
+	}
+}
+
+func (c *wsConn) stopPingByTimingWheel() {
+	if p := atomic.LoadPointer(&c.pingTimer); p != nil {
+		(*timingwheel.Timer)(p).Stop()
+		atomic.StorePointer(&c.pingTimer, nil)
 	}
 }
 
 func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) {
 	c.closeOnce.Do(func() {
 		c.closing.Store(true)
+		c.stopPingByTimingWheel()
 		if c.wp != nil {
 			c.wp.Stop(err)
 		}
@@ -142,13 +166,8 @@ func (c *wsConn) readLoop() error {
 	rp.Start(c)
 	defer rp.Stop()
 
-	// Ping/Pong keepalive: send Ping at interval; on Pong, refresh read deadline so idle conn stays open.
-	if c.opts.WsPingInterval > 0 && c.opts.WsReadTimeout > 0 {
-		c.conn.SetPongHandler(func(string) error {
-			return c.conn.SetReadDeadline(time.Now().Add(c.opts.WsReadTimeout))
-		})
-		go c.pingLoop()
-	}
+	// Ping/Pong keepalive: 用时间轮按间隔发 Ping；收到 Pong 刷新读超时。
+	c.startPingByTimingWheel()
 
 	for {
 		// Update read deadline if timeout is configured

@@ -6,24 +6,67 @@ import (
 )
 
 var (
-	globalTW          *TimingWheel
-	onceGlobalTWStart sync.Once
-	onceGlobalTWStop  sync.Once
+	netTW          *TimingWheel
+	onceNetTWStart sync.Once
+	onceNetTWStop  sync.Once
+	netTWTick            = 500 * time.Millisecond
+	netTWWheelSize int64 = 60
 )
 
-func GetGlobalTimingWheel() *TimingWheel {
-	onceGlobalTWStart.Do(func() {
-		globalTW = NewTimingWheel(time.Millisecond, 20)
-		globalTW.Start()
+var (
+	gameTW          *TimingWheel
+	onceGameTWStart sync.Once
+	onceGameTWStop  sync.Once
+	gameTWTick            = 1 * time.Millisecond
+	gameTWWheelSize int64 = 20
+)
+
+func GetNetTimingWheel() *TimingWheel {
+	onceNetTWStart.Do(func() {
+		netTW = NewTimingWheel(netTWTick, netTWWheelSize)
+		netTW.Start()
 	})
-	return globalTW
+	return netTW
 }
 
-func StopGlobalTimingWheel() {
-	onceGlobalTWStop.Do(func() {
-		if globalTW != nil {
-			globalTW.Stop()
-			globalTW = nil
+func StopNetTimingWheel() {
+	onceNetTWStop.Do(func() {
+		if netTW != nil {
+			netTW.Stop()
+			netTW = nil
 		}
 	})
+}
+
+func GetGameTimingWheel() *TimingWheel {
+	onceGameTWStart.Do(func() {
+		gameTW = NewTimingWheel(gameTWTick, gameTWWheelSize)
+		gameTW.Start()
+	})
+	return gameTW
+}
+
+func StopGameTimingWheel() {
+	onceGameTWStop.Do(func() {
+		if gameTW != nil {
+			gameTW.Stop()
+			gameTW = nil
+		}
+	})
+}
+
+// ConfigureNetTimingWheel configures the net timing wheel.
+// The default value is 500ms * 60 = 30s.
+// must call this function before GetNetTimingWheel is called.
+func ConfigureNetTimingWheel(tick time.Duration, wheelSize int64) {
+	netTWTick = tick
+	netTWWheelSize = wheelSize
+}
+
+// ConfigureGameTimingWheel configures the game timing wheel.
+// The default value is 1ms * 20 = 20ms.
+// must call this function before GetGameTimingWheel is called.
+func ConfigureGameTimingWheel(tick time.Duration, wheelSize int64) {
+	gameTWTick = tick
+	gameTWWheelSize = wheelSize
 }
