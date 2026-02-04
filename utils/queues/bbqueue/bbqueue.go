@@ -17,6 +17,8 @@ type BBQueue struct {
 	isStrict bool //是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
 }
 
+var _ IFiFoQueue = (*BBQueue)(nil)
+
 func NewBBQueue(size int, isStrict bool) *BBQueue {
 	if size <= 0 {
 		size = defaultSize

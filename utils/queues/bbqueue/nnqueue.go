@@ -35,6 +35,8 @@ type NNQueue struct {
 	isStrict bool // 是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
 }
 
+var _ IFiFoQueue = (*NNQueue)(nil)
+
 func NewNNQueue(size int, isStrict bool) *NNQueue {
 	return &NNQueue{head: nil, tail: nil, count: 0, maxCount: size, isStrict: isStrict}
 }
