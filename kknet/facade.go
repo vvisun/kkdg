@@ -80,7 +80,7 @@ type IConnLifecycleHandler interface {
 	OnConnect(c IConn)
 	/* OnClose is called when the connection is closed.
 	@param c IConn 连接
-	@param err error 错误（关闭原因）。nil表示正常关闭，非nil表示异常关闭
+	@param err error 错误（关闭原因）。
 	*/
 	OnClose(c IConn, err error)
 }

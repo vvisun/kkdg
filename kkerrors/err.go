@@ -1,6 +1,9 @@
 package kkerrors
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // 格式化错误
 // mod: 模块名
@@ -19,12 +22,25 @@ func FormatErrorErr(mod string, err error, format string, args ...any) error {
 	return fmt.Errorf("[%s] "+format+": %w", append(append([]any{mod}, args...), err)...)
 }
 
+func Error(text string) error {
+	return errors.New(text)
+}
+
+func Errorf(format string, a ...interface{}) error {
+	return Error(fmt.Sprintf(format, a...))
+}
+
 // 包装错误
 // err: 错误
 // context: 错误上下文
-func WrapError(err error, context string) error {
+func Wrap(err error, context string) error {
 	if err == nil {
 		return nil
 	}
 	return fmt.Errorf("%s: %w", context, err)
+}
+
+func Wrapf(err error, format string, a ...interface{}) error {
+	text := fmt.Sprintf(format, a...)
+	return Wrap(err, text)
 }

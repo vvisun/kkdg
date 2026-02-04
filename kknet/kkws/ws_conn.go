@@ -149,6 +149,7 @@ func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) 
 		if c.stats != nil {
 			c.stats.OnClose()
 			if err != nil {
+				c.opts.Logger.Debugf("kkws OnClose error: connId=%d, err=%v", c.id, err)
 				c.stats.AddError()
 			}
 		}
