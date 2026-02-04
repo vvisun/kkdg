@@ -17,7 +17,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// go run client.go -addr=localhost:8080 -conn=5000 -size=646 -interval=30ms
+// 运行：go run ./tests/ttws/ttwsclient -addr=localhost:8080 -conn=5000 -size=64 -interval=10ms
 
 var (
 	// 命令行参数：目标地址、并发数、消息大小
