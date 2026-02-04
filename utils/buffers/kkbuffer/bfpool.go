@@ -12,11 +12,12 @@ import (
 // Properly determined byte buffer types with their own pools may help reducing
 // memory waste.
 type bfPool struct {
-	calibrating uint64
-	defaultSize uint64
-	size        int64
-	calls       [steps]uint64
-	pool        sync.Pool
+	calibrating    uint64
+	defaultSize    uint64
+	calibrateCount uint64
+	size           int64
+	calls          [steps]uint64
+	pool           sync.Pool
 }
 
 // Get returns new byte buffer with zero length.
@@ -84,8 +85,9 @@ func (p *bfPool) Put(b *ByteBuffer) {
 	if atomic.LoadInt64(&p.size) > 8192 {
 		return // 防止池过大耗尽内存
 	}
-	idx := index(len(b.B))
-	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
+	idx := index(cap(b.B))
+	atomic.AddUint64(&p.calls[idx], 1)
+	if atomic.AddUint64(&p.calibrateCount, 1) > calibrateCallsThreshold {
 		p.calibrate()
 	}
 	b.Reset()
