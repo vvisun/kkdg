@@ -71,11 +71,11 @@ func CheckOptions(opts *Options) {
 	if opts == nil {
 		return
 	}
-	if opts.ReadTimeout > 0 && opts.ReadTimeout < 100*time.Millisecond {
-		opts.ReadTimeout = 100 * time.Millisecond
+	if opts.ReadTimeout > 0 && opts.ReadTimeout < 1*time.Second {
+		opts.ReadTimeout = 1 * time.Second
 	}
-	if opts.WriteTimeout > 0 && opts.WriteTimeout < 100*time.Millisecond {
-		opts.WriteTimeout = 100 * time.Millisecond
+	if opts.WriteTimeout > 0 && opts.WriteTimeout < 1*time.Second {
+		opts.WriteTimeout = 1 * time.Second
 	}
 	if opts.PingInterval > 0 && opts.PingInterval < 3*time.Second {
 		opts.PingInterval = 3 * time.Second

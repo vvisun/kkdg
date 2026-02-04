@@ -14,6 +14,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkws"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // go run client.go -addr=localhost:8080 -conn=5000 -size=64 -interval=10ms
@@ -93,6 +94,7 @@ func runOneClient(serverUrl string, rawMsg []byte) {
 	recv := &stressRecvHandler{}
 	client := kkws.NewClient(serverUrl, nil, kknet.ApplyOptions(
 		kknet.WithNoneCopyHandler(recv),
+		kknet.WithLogger(kklog.GetConsoleLogger()),
 	))
 
 	if err := connectWithRetry(client, 60, 10*time.Millisecond); err != nil {

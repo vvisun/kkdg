@@ -25,6 +25,8 @@ func main() {
 			//kknet.WithRawHandler(recv),
 			kknet.WithNoneCopyHandler(recv),
 			kknet.WithRecvQueueSize(512),
+			kknet.WithLogger(kklog.GetConsoleLogger()),
+			kknet.WithPingInterval(5*time.Second),
 		)
 		srv = kkws.NewServer(addr, nil, opts)
 		// 默认 path 已是 /ws，如需其他路径可 srv.SetPath("/custom")

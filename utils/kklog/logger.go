@@ -16,7 +16,7 @@ var DateTimeFormat = "2006-01-02 15:04:05"
 
 var (
 	rw             sync.RWMutex             // mutex
-	DefaultLogger  *CherryLogger            // 默认日志对象(控制台输出)
+	defaultLogger  *CherryLogger            // 默认日志对象(控制台输出)
 	loggers        map[string]*CherryLogger // 日志实例存储map(key:日志名称,value:日志实例)
 	nodeID         string                   // current node id
 	printLevel     zapcore.Level            // cherry log print level
@@ -24,8 +24,12 @@ var (
 )
 
 func init() {
-	DefaultLogger = NewConfigLogger(defaultConsoleConfig(), zap.AddCallerSkip(1))
+	defaultLogger = NewConfigLogger(defaultConsoleConfig(), zap.AddCallerSkip(1))
 	loggers = make(map[string]*CherryLogger)
+}
+
+func GetConsoleLogger() ILogger {
+	return defaultLogger
 }
 
 type CherryLogger struct {
@@ -42,7 +46,7 @@ func SetFileNameVar(key, value string) {
 }
 
 func Flush() {
-	_ = DefaultLogger.Sync()
+	_ = defaultLogger.Sync()
 
 	for _, logger := range loggers {
 		_ = logger.Sync()
@@ -158,77 +162,77 @@ func NewSugaredLogger(core zapcore.Core, opts ...zap.Option) *zap.SugaredLogger 
 }
 
 func Enable(level zapcore.Level) bool {
-	return DefaultLogger.Desugar().Core().Enabled(level)
+	return defaultLogger.Desugar().Core().Enabled(level)
 }
 
 func Debug(args ...interface{}) {
-	DefaultLogger.Debug(args...)
+	defaultLogger.Debug(args...)
 }
 
 func Info(args ...interface{}) {
-	DefaultLogger.Info(args...)
+	defaultLogger.Info(args...)
 }
 
 // Warn uses fmt.Sprint to construct and log a message.
 func Warn(args ...interface{}) {
-	DefaultLogger.Warn(args...)
+	defaultLogger.Warn(args...)
 }
 
 // Error uses fmt.Sprint to construct and log a message.
 func Error(args ...interface{}) {
-	DefaultLogger.Error(args...)
+	defaultLogger.Error(args...)
 }
 
 // DPanic uses fmt.Sprint to construct and log a message. In development, the
 // logger then panics. (See DPanicLevel for details.)
 func DPanic(args ...interface{}) {
-	DefaultLogger.DPanic(args...)
+	defaultLogger.DPanic(args...)
 }
 
 // Panic uses fmt.Sprint to construct and log a message, then panics.
 func Panic(args ...interface{}) {
-	DefaultLogger.Panic(args...)
+	defaultLogger.Panic(args...)
 }
 
 // Fatal uses fmt.Sprint to construct and log a message, then calls os.Exit.
 func Fatal(args ...interface{}) {
-	DefaultLogger.Fatal(args...)
+	defaultLogger.Fatal(args...)
 }
 
 // Debugf uses fmt.Sprintf to log a templated message.
 func Debugf(template string, args ...interface{}) {
-	DefaultLogger.Debugf(template, args...)
+	defaultLogger.Debugf(template, args...)
 }
 
 // Infof uses fmt.Sprintf to log a templated message.
 func Infof(template string, args ...interface{}) {
-	DefaultLogger.Infof(template, args...)
+	defaultLogger.Infof(template, args...)
 }
 
 // Warnf uses fmt.Sprintf to log a templated message.
 func Warnf(template string, args ...interface{}) {
-	DefaultLogger.Warnf(template, args...)
+	defaultLogger.Warnf(template, args...)
 }
 
 // Errorf uses fmt.Sprintf to log a templated message.
 func Errorf(template string, args ...interface{}) {
-	DefaultLogger.Errorf(template, args...)
+	defaultLogger.Errorf(template, args...)
 }
 
 // DPanicf uses fmt.Sprintf to log a templated message. In development, the
 // logger then panics. (See DPanicLevel for details.)
 func DPanicf(template string, args ...interface{}) {
-	DefaultLogger.DPanicf(template, args...)
+	defaultLogger.DPanicf(template, args...)
 }
 
 // Panicf uses fmt.Sprintf to log a templated message, then panics.
 func Panicf(template string, args ...interface{}) {
-	DefaultLogger.Panicf(template, args...)
+	defaultLogger.Panicf(template, args...)
 }
 
 // Fatalf uses fmt.Sprintf to log a templated message, then calls os.Exit.
 func Fatalf(template string, args ...interface{}) {
-	DefaultLogger.Fatalf(template, args...)
+	defaultLogger.Fatalf(template, args...)
 }
 
 // Debugw logs a message with some additional context. The variadic key-value
@@ -238,44 +242,44 @@ func Fatalf(template string, args ...interface{}) {
 //
 //	s.With(keysAndValues).Debug(msg)
 func Debugw(msg string, keysAndValues ...interface{}) {
-	DefaultLogger.Debugw(msg, keysAndValues...)
+	defaultLogger.Debugw(msg, keysAndValues...)
 }
 
 // Infow logs a message with some additional context. The variadic key-value
 // pairs are treated as they are in With.
 func Infow(msg string, keysAndValues ...interface{}) {
-	DefaultLogger.Infow(msg, keysAndValues...)
+	defaultLogger.Infow(msg, keysAndValues...)
 }
 
 // Warnw logs a message with some additional context. The variadic key-value
 // pairs are treated as they are in With.
 func Warnw(msg string, keysAndValues ...interface{}) {
-	DefaultLogger.Warnw(msg, keysAndValues...)
+	defaultLogger.Warnw(msg, keysAndValues...)
 }
 
 // Errorw logs a message with some additional context. The variadic key-value
 // pairs are treated as they are in With.
 func Errorw(msg string, keysAndValues ...interface{}) {
-	DefaultLogger.Errorw(msg, keysAndValues...)
+	defaultLogger.Errorw(msg, keysAndValues...)
 }
 
 // DPanicw logs a message with some additional context. In development, the
 // logger then panics. (See DPanicLevel for details.) The variadic key-value
 // pairs are treated as they are in With.
 func DPanicw(msg string, keysAndValues ...interface{}) {
-	DefaultLogger.DPanicw(msg, keysAndValues...)
+	defaultLogger.DPanicw(msg, keysAndValues...)
 }
 
 // Panicw logs a message with some additional context, then panics. The
 // variadic key-value pairs are treated as they are in With.
 func Panicw(msg string, keysAndValues ...interface{}) {
-	DefaultLogger.Panicw(msg, keysAndValues...)
+	defaultLogger.Panicw(msg, keysAndValues...)
 }
 
 // Fatalw logs a message with some additional context, then calls os.Exit. The
 // variadic key-value pairs are treated as they are in With.
 func Fatalw(msg string, keysAndValues ...interface{}) {
-	DefaultLogger.Fatalw(msg, keysAndValues...)
+	defaultLogger.Fatalw(msg, keysAndValues...)
 }
 
 func PrintLevel(level zapcore.Level) bool {
