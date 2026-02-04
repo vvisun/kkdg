@@ -20,6 +20,7 @@ func (p *bsPool) Get() *ByteBuffer {
 	if v != nil {
 		b := v.(*ByteBuffer)
 		b.released.Store(false)
+		b.B = b.B[:0]
 		return b
 	}
 	return &ByteBuffer{
@@ -43,6 +44,7 @@ func (p *bsPool) GetWithCap(capacity int) *ByteBuffer {
 	if v != nil {
 		b := v.(*ByteBuffer)
 		b.released.Store(false)
+		b.B = b.B[:0]
 		return b
 	}
 	return &ByteBuffer{

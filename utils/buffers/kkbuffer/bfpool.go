@@ -29,6 +29,7 @@ func (p *bfPool) Get() *ByteBuffer {
 	if v != nil {
 		b := v.(*ByteBuffer)
 		b.released.Store(false)
+		b.B = b.B[:0]
 		if atomic.LoadInt64(&p.size) > 0 {
 			atomic.AddInt64(&p.size, -1)
 		}

@@ -17,12 +17,11 @@ func BenchmarkGetPut(b *testing.B) {
 }
 
 func BenchmarkPool_GetPut(b *testing.B) {
-	pool := &bfPool{}
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf := pool.Get()
+		buf := Get()
 		buf.SetString("test")
-		pool.Put(buf)
+		Put(buf)
 	}
 }
 

@@ -7,9 +7,7 @@ import (
 )
 
 func TestPool_GetPut(t *testing.T) {
-	pool := &bfPool{}
-
-	buf := pool.Get()
+	buf := Get()
 	if buf == nil {
 		t.Fatal("Get returned nil")
 	}
@@ -18,15 +16,15 @@ func TestPool_GetPut(t *testing.T) {
 	}
 
 	buf.SetString("test")
-	pool.Put(buf)
+	Put(buf)
 	if !buf.released.Load() {
 		t.Fatal("Put: released should be true")
 	}
 
 	// 重复 Put 应被忽略
-	pool.Put(buf)
+	Put(buf)
 
-	buf2 := pool.Get()
+	buf2 := Get()
 	if buf2 == nil {
 		t.Fatal("Get after Put returned nil")
 	}
@@ -53,16 +51,15 @@ func TestGetPut(t *testing.T) {
 }
 
 func TestPool_Concurrent(t *testing.T) {
-	pool := &bfPool{}
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 100; j++ {
-				buf := pool.Get()
+				buf := Get()
 				buf.SetString("test")
-				pool.Put(buf)
+				Put(buf)
 			}
 		}()
 	}
@@ -70,9 +67,7 @@ func TestPool_Concurrent(t *testing.T) {
 }
 
 func TestPool_GetWithCapacity(t *testing.T) {
-	pool := &bfPool{}
-
-	buf := pool.GetWithCap(100)
+	buf := GetWithCapacity(100)
 	if buf == nil {
 		t.Fatal("GetWithCapacity returned nil")
 	}
@@ -82,14 +77,14 @@ func TestPool_GetWithCapacity(t *testing.T) {
 	if len(buf.B) != 0 {
 		t.Fatalf("len: got %d, want 0", len(buf.B))
 	}
-	pool.Put(buf)
+	Put(buf)
 
 	// 指定较小容量时可能复用
-	buf2 := pool.GetWithCap(50)
+	buf2 := GetWithCapacity(50)
 	if buf2 == nil {
 		t.Fatal("GetWithCapacity(50) returned nil")
 	}
-	pool.Put(buf2)
+	Put(buf2)
 }
 
 func TestGetWithCapacity(t *testing.T) {
@@ -104,22 +99,18 @@ func TestGetWithCapacity(t *testing.T) {
 }
 
 func TestPool_ResetOnPut(t *testing.T) {
-	pool := &bfPool{}
-
-	buf := pool.Get()
+	buf := Get()
 	buf.SetString("data")
-	pool.Put(buf)
+	Put(buf)
 
-	buf2 := pool.Get()
+	buf2 := Get()
 	if len(buf2.B) != 0 {
 		t.Fatalf("Put should reset: len got %d, want 0", len(buf2.B))
 	}
 }
 
 func TestPool_EmptyGet(t *testing.T) {
-	pool := &bfPool{}
-
-	buf := pool.Get()
+	buf := Get()
 	if buf == nil {
 		t.Fatal("Get from empty pool returned nil")
 	}
@@ -155,16 +146,15 @@ func TestIndex(t *testing.T) {
 }
 
 func TestPool_Calibrate(t *testing.T) {
-	pool := &bfPool{}
 	tstData := strings.Repeat("x", 666)
 
 	for i := uint64(0); i < calibrateCallsThreshold+1; i++ {
-		buf := pool.Get()
+		buf := Get()
 		buf.SetString(tstData)
-		pool.Put(buf)
+		Put(buf)
 	}
 
-	buf := pool.Get()
+	buf := Get()
 	if buf == nil {
 		t.Fatal("Get after calibrate returned nil")
 	}
