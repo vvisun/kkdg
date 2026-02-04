@@ -45,8 +45,8 @@ type Option func(*Options)
 func DefaultOptions() Options {
 	return Options{
 		Logger:              kklog.GetConsoleLogger(),
-		ReadBufferSize:      4 * 1024, // 64KB
-		WriteBufferSize:     4 * 1024, // 64KB
+		ReadBufferSize:      4 * 1024,
+		WriteBufferSize:     4 * 1024,
 		TLSConfig:           nil,
 		ShutdownTimeout:     10 * time.Second, // 10秒
 		IsNeedReconnect:     true,
@@ -57,7 +57,7 @@ func DefaultOptions() Options {
 		WsOriginChecker: defaultWSOriginChecker,
 		ReadTimeout:     20 * time.Second,
 		WriteTimeout:    5 * time.Second,
-		PingInterval:    0, // 0=不发送 Ping
+		PingInterval:    5 * time.Second,
 
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
 		UDPCleanupInterval: 1 * time.Minute, // 1分钟
@@ -71,6 +71,21 @@ func CheckOptions(opts *Options) {
 	if opts == nil {
 		return
 	}
+
+	// 读写缓冲区大小。限制在 1KB - 8KB 之间。太大连接数一多内存消耗非常高。太小影响性能。
+	if opts.ReadBufferSize < 1024 {
+		opts.ReadBufferSize = 1024
+	}
+	if opts.ReadBufferSize > 8*1024 {
+		opts.ReadBufferSize = 8 * 1024
+	}
+	if opts.WriteBufferSize < 1024 {
+		opts.WriteBufferSize = 1024
+	}
+	if opts.WriteBufferSize > 8*1024 {
+		opts.WriteBufferSize = 8 * 1024
+	}
+
 	if opts.ReadTimeout > 0 && opts.ReadTimeout < 1*time.Second {
 		opts.ReadTimeout = 1 * time.Second
 	}
@@ -80,24 +95,22 @@ func CheckOptions(opts *Options) {
 	if opts.PingInterval > 0 && opts.PingInterval < 3*time.Second {
 		opts.PingInterval = 3 * time.Second
 	}
+
 	if opts.ReconnectInterval > 0 && opts.ReconnectInterval < 500*time.Millisecond {
 		opts.ReconnectInterval = 500 * time.Millisecond
 	}
-	if opts.ReadBufferSize > 0 && opts.ReadBufferSize < 2*1024 {
-		opts.ReadBufferSize = 2 * 1024
-	}
-	if opts.WriteBufferSize > 0 && opts.WriteBufferSize < 2*1024 {
-		opts.WriteBufferSize = 2 * 1024
-	}
+
 	if opts.ShutdownTimeout > 0 && opts.ShutdownTimeout < 500*time.Millisecond {
 		opts.ShutdownTimeout = 500 * time.Millisecond
 	}
+
 	if opts.UDPConnIdleTimeout > 0 && opts.UDPConnIdleTimeout < 500*time.Millisecond {
 		opts.UDPConnIdleTimeout = 500 * time.Millisecond
 	}
 	if opts.UDPCleanupInterval > 0 && opts.UDPCleanupInterval < 500*time.Millisecond {
 		opts.UDPCleanupInterval = 500 * time.Millisecond
 	}
+
 	CheckWriteOptions(&opts.WpOptions)
 	CheckReadOptions(&opts.RpOptions)
 }

@@ -2,7 +2,7 @@ package kkpacket
 
 var defaultStreamPacket *LengthFieldStreamPacket
 
-const defaultMaxMessageSize = 8 * 1024 //默认MaxMessageSize
+const defaultMaxMessageSize = 4 * 1024 //默认MaxMessageSize
 
 func DefaultStreamPacket() IStreamPacket {
 	return defaultStreamPacket
