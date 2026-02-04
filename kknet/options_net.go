@@ -13,8 +13,8 @@ type OriginCheckFunc func(r *http.Request) bool
 // Options are common network settings.
 type Options struct {
 	Logger              kklog.ILogger                // 日志记录器
-	ReadBufferSize      int                          // 读缓冲区大小
-	WriteBufferSize     int                          // 写缓冲区大小
+	ReadBufferSize      int                          // 读缓冲区大小 1-64KB
+	WriteBufferSize     int                          // 写缓冲区大小 1-64KB
 	ShutdownTimeout     time.Duration                // 服务关闭超时时间
 	IsNeedReconnect     bool                         // 是否需要重连
 	ReconnectInterval   time.Duration                // 重连间隔
@@ -45,8 +45,8 @@ type Option func(*Options)
 func DefaultOptions() Options {
 	return Options{
 		Logger:              kklog.GetConsoleLogger(),
-		ReadBufferSize:      64 * 1024, // 64KB
-		WriteBufferSize:     64 * 1024, // 64KB
+		ReadBufferSize:      4 * 1024, // 64KB
+		WriteBufferSize:     4 * 1024, // 64KB
 		TLSConfig:           nil,
 		ShutdownTimeout:     10 * time.Second, // 10秒
 		IsNeedReconnect:     true,

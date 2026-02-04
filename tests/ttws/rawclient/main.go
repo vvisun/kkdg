@@ -1,5 +1,5 @@
 // 原始 gorilla/websocket 客户端，用于测试连接上限及与 kkws 做内存占用对比。
-// 运行：go run ./tests/ttws/rawclient -addr=localhost:8080 -conn=5000 -size=64 -interval=10ms
+// 运行：go run ./tests/ttws/rawclient -addr=localhost:8080 -conn=20000 -size=64 -interval=500ms
 package main
 
 import (
