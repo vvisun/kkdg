@@ -95,16 +95,24 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 	rp.mu.Lock()
 	wasEmpty := rp.recvQueue.IsEmpty()
 
-	bb := kkbuffer.GetWithCapacity(len(packet))
-	bb.B = bb.B[:len(packet)]
-	copy(bb.B, packet)
-	ok := rp.recvQueue.Push(bb)
-	if !ok {
-		kkbuffer.Put(bb)
+	if rp.opts.NoneCopyHandler != nil {
+		xcall.SafeCall(func() {
+			rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
+		})
+	} else if rp.opts.MsgHandler != nil || rp.opts.RawHandler != nil {
+		bb := kkbuffer.GetWithCapacity(len(packet))
+		bb.B = bb.B[:len(packet)]
+		copy(bb.B, packet)
+		ok := rp.recvQueue.Push(bb)
+		if !ok {
+			kkbuffer.Put(bb)
+		}
 	}
 
 	rp.mu.Unlock()
-	if wasEmpty {
+
+	// 唤醒消费携程，消费recvQueue中的数据。
+	if wasEmpty && !rp.recvQueue.IsEmpty() {
 		rp.wakeConsumer()
 	}
 }
