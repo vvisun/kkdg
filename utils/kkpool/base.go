@@ -3,7 +3,7 @@ package kkpool
 // 假设每个池有1024个对象，每个对象1KB，总共1MB。
 // 100个池就是100MB。1000个池就是1GB。
 // 所以必须做限制，防止池过大耗尽内存
-const max_size_for_pool = 1024
+const max_size_for_pool = 4096
 
 // PoolStats 池统计信息
 type PoolStats struct {

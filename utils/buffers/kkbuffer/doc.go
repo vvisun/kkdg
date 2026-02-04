@@ -22,9 +22,9 @@ const (
 	minItemSize = 1 << minBitSize               // 64
 	maxItemSize = 1 << (minBitSize + steps - 1) // 2^6 * 2^16 = 65536 = 64KB
 
-	// 假设平均每个对象4KB，1024个对象就是4MB。16*1024个对象就是64MB。
+	// 假设平均每个对象1KB，1024个对象就是1MB。
 	// 所以必须做限制，防止池过大耗尽内存
-	max_size_for_pool = 16 * 1024
+	max_size_for_pool = 64 * 1024 //假设每个对象1KB，64*1024个对象就是64MB。
 )
 
 var calibrateCallsThreshold uint64 = 128 // 多少次调用后进行校准

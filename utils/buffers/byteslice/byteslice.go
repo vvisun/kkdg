@@ -61,16 +61,42 @@ const (
 
 const max_size = step16
 
-// 假设平均每个对象4KB，1024个对象就是4MB。16*1024个对象就是64MB。
-// 所以必须做限制，防止池过大耗尽内存
-const max_size_for_pool = 16 * 1024
+// 必须做限制，防止池过大耗尽内存
+var max_caps [32]int64 = [32]int64{
+	1024 * 1024, // step0, 1MB
+	1024 * 512,  // step1, 1MB
+	1024 * 256,  // step2, 1MB
+	1024 * 512,  // step3, 4MB
+	1024 * 512,  // step4, 8MB
+	1024 * 512,  // step5, 1024*512个容量为32B的slice，16MB
+	1024 * 256,  // step6, 1024*256个容量为64B的slice，16MB
+	1024 * 128,  // step7, 1024*128个容量为128B的slice，16MB
+	1024 * 64,   // step8, 1024*64个容量为256B的slice，16MB
+	1024 * 32,   // step9, 1024*32个容量为512B的slice，16MB
+	1024 * 16,   // step10, 1024*16个容量为1KB的slice，16MB
+	1024 * 8,    // step11, 1024*8个容量为2KB的slice，16MB
+	1024 * 4,    // step12, 1024*4个容量为4KB的slice，16MB
+	1024 * 2,    // step13, 1024*2个容量为8KB的slice，16MB
+	1024,        // step14, 1024个容量为16KB的slice，16MB
+	512,         // step15, 512个容量为32KB的slice，16MB
+	256,         // step16, 256个容量为64KB的slice，16MB
+	// 后面基本不会用到
+	128, // step17, 128个容量为128KB的slice，16MB
+	64,  // step18, 64个容量为256KB的slice，16MB
+	32,  // step19, 32个容量为512KB的slice，16MB
+	16,  // step20, 16个容量为1MB的slice，16MB
+	8,   // step21, 8个容量为2MB的slice，16MB
+	4,   // step22, 4个容量为4MB的slice，16MB
+	2,   // step23, 2个容量为8MB的slice，16MB
+	1,   // step24, 1个容量为16MB的slice，16MB
+}
 
 var builtinPool Pool
 
 // Pool consists of 32 sync.Pool, representing byte slices of length from 0 to 32 in powers of 2.
 type Pool struct {
-	pools [32]sync.Pool
-	total int64
+	pools  [32]sync.Pool
+	totals [32]int64 // 每个步长对应的容量，单位：slice数量
 }
 
 // Get returns a byte slice with given length from the built-in pool.
@@ -103,8 +129,8 @@ func (p *Pool) Get(size int) []byte {
 	if ptr == nil {
 		return make([]byte, size, 1<<idx)
 	}
-	if atomic.LoadInt64(&p.total) > 0 {
-		atomic.AddInt64(&p.total, -1)
+	if atomic.LoadInt64(&p.totals[idx]) > 0 {
+		atomic.AddInt64(&p.totals[idx], -1)
 	}
 	return unsafe.Slice(ptr, 1<<idx)[:size]
 }
@@ -115,14 +141,16 @@ func (p *Pool) Put(buf []byte) {
 	if size < 1 || size > max_size {
 		return // 超大 buffer 丢弃，不参与校准统计
 	}
-	if atomic.LoadInt64(&p.total) > max_size_for_pool {
-		return // 防止池过大耗尽内存
-	}
 
 	idx := index(uint32(size))
 	if size != 1<<idx { // this byte slice is not from Pool.Get(), put it into the previous interval of idx
 		idx--
 	}
+
+	if atomic.AddInt64(&p.totals[idx], 1) > max_caps[idx] {
+		return //直接丢弃，防止池过大耗尽内存
+	}
+
 	// Store the pointer to the underlying array instead of the pointer to the slice itself,
 	// which circumvents the escape of buf from the stack to the heap.
 	p.pools[idx].Put(unsafe.SliceData(buf))
