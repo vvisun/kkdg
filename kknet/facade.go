@@ -63,7 +63,7 @@ type (
 	// INoneCopyHandler is a handler for zero copy data.
 	INoneCopyHandler interface {
 		/*OnNoneCopy is called when a raw data is received.
-		如果同步调用已经快过拷贝，可以直接同步消费数据。
+		如果同步调用已经快过拷贝，可以直接同步消费数据，实现0拷贝优化。
 		@param connId CONN_ID 连接ID
 		@param data buffers.IBuffer 原始数据
 		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！

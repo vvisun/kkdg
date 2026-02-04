@@ -135,10 +135,19 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		return err
 	}
 
+	if len(leftData) > 0 {
+		rp.reRecvBuf(defaultRecvBufSize)
+		rp.recvBuf = rp.recvBuf[:len(leftData)]
+		copy(rp.recvBuf, leftData)
+	}
+
 	if rp.opts.NoneCopyHandler != nil {
-		for _, packet := range packets {
-			rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
-		}
+		// 同步消费数据，实现0拷贝优化。
+		xcall.SafeCall(func() {
+			for _, packet := range packets {
+				rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
+			}
+		})
 	} else {
 		for _, packet := range packets {
 			bb := kkbuffer.GetWithCapacity(len(packet))
@@ -149,12 +158,6 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 				kkbuffer.Put(bb)
 			}
 		}
-	}
-
-	if len(leftData) > 0 {
-		rp.reRecvBuf(defaultRecvBufSize)
-		rp.recvBuf = rp.recvBuf[:len(leftData)]
-		copy(rp.recvBuf, leftData)
 	}
 
 	rp.mu.Unlock()
