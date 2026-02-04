@@ -50,8 +50,8 @@ func CheckWriteOptions(opts *WriteOptions) {
 	if opts.WriteBatchLimitBytes < 512 {
 		opts.WriteBatchLimitBytes = 512
 	}
-	if opts.WriteBatchLimitBytes > 4096 {
-		opts.WriteBatchLimitBytes = 4096
+	if opts.WriteBatchLimitBytes > 2048 {
+		opts.WriteBatchLimitBytes = 2048
 	}
 }
 
