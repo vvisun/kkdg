@@ -53,7 +53,7 @@ func (tp *timerPool) Put(t *time.Timer) {
 		}
 	}
 
-	if atomic.LoadInt64(&tp.size) > 10000 {
+	if atomic.LoadInt64(&tp.size) > 4096 {
 		// pool size is too large, just skip it.
 		return
 	}

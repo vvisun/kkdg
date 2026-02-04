@@ -57,7 +57,7 @@ func (rp *RefPool[T]) Get() T {
 
 // Put 归还对象
 func (rp *RefPool[T]) Put(obj T) {
-	if atomic.LoadInt64(&rp.size) > 10000 {
+	if atomic.LoadInt64(&rp.size) > 4096 {
 		// pool size is too large, just skip it.
 		return
 	}

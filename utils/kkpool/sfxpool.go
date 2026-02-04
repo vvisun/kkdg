@@ -47,7 +47,7 @@ func (fp *SfxPool[T]) Get() T {
 
 // Put 归还对象
 func (fp *SfxPool[T]) Put(obj T) {
-	if atomic.LoadInt64(&fp.size) > 10000 {
+	if atomic.LoadInt64(&fp.size) > 4096 {
 		// pool size is too large, just skip it.
 		return
 	}

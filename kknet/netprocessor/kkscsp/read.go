@@ -148,7 +148,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 				rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 			}
 		})
-	} else {
+	} else if rp.opts.MsgHandler != nil || rp.opts.RawHandler != nil {
 		for _, packet := range packets {
 			bb := kkbuffer.GetWithCapacity(len(packet))
 			bb.B = bb.B[:len(packet)]
