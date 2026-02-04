@@ -268,8 +268,8 @@ func TestPingPong_Keepalive(t *testing.T) {
 	addr := freePort(t)
 	recvCh := make(chan []byte, 4)
 	opts := kknet.ApplyOptions(
-		kknet.WithWsReadTimeout(4*time.Second),
-		kknet.WithWsPingInterval(1500*time.Millisecond),
+		kknet.WithReadTimeout(4*time.Second),
+		kknet.WithPingInterval(1500*time.Millisecond),
 		kknet.WithRawHandler(&rawRecvHandlerForPingTest{ch: recvCh}),
 	)
 	s := NewServer(addr, nil, opts)
@@ -277,8 +277,8 @@ func TestPingPong_Keepalive(t *testing.T) {
 	defer s.Stop()
 
 	clientOpts := kknet.ApplyOptions(
-		kknet.WithWsReadTimeout(4*time.Second),
-		kknet.WithWsPingInterval(1500*time.Millisecond),
+		kknet.WithReadTimeout(4*time.Second),
+		kknet.WithPingInterval(1500*time.Millisecond),
 	)
 	client := NewClient("ws://"+addr+"/ws", nil, clientOpts)
 	if err := client.Connect(); err != nil {

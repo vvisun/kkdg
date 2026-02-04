@@ -21,8 +21,8 @@ import (
 type wsConn struct {
 	id    kknet.CONN_ID
 	conn  *websocket.Conn
-	opts  kknet.Options // 配置
-	stats *kknet.Stats  // 统计信息
+	opts  *kknet.Options // 配置
+	stats *kknet.Stats   // 统计信息
 	ctxMu sync.RWMutex
 	ctx   context.Context
 
@@ -41,8 +41,8 @@ type wsConn struct {
 
 var _ kknet.IConn = (*wsConn)(nil)
 
-func newWSConn(conn *websocket.Conn, opts kknet.Options, stats *kknet.Stats) *wsConn {
-	kknet.CheckOptions(&opts)
+func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *wsConn {
+	kknet.CheckOptions(opts)
 	c := &wsConn{
 		id:            kknet.NextConnID(),
 		conn:          conn,
@@ -104,20 +104,20 @@ func (s *wsPingScheduler) Next(prev time.Time) time.Time {
 
 // startPingByTimingWheel 使用时间轮按 WsPingInterval 发送 Ping；收到 Pong 由 SetPongHandler 刷新读超时。
 func (c *wsConn) startPingByTimingWheel() {
-	if c.opts.WsPingInterval <= 0 || c.opts.WsReadTimeout <= 0 {
+	if c.opts.PingInterval <= 0 || c.opts.ReadTimeout <= 0 {
 		return
 	}
 
 	c.conn.SetPongHandler(func(string) error {
-		return c.conn.SetReadDeadline(time.Now().Add(c.opts.WsReadTimeout))
+		return c.conn.SetReadDeadline(time.Now().Add(c.opts.ReadTimeout))
 	})
 
 	tw := timingwheel.GetNetTimingWheel()
-	t := tw.ScheduleFunc(&wsPingScheduler{c.opts.WsPingInterval}, func() {
+	t := tw.ScheduleFunc(&wsPingScheduler{c.opts.PingInterval}, func() {
 		if c.closing.Load() {
 			return
 		}
-		deadline := time.Now().Add(c.opts.WsPingInterval * 2)
+		deadline := time.Now().Add(c.opts.PingInterval * 2)
 		if err := c.conn.WriteControl(websocket.PingMessage, nil, deadline); err != nil {
 			return
 		}
@@ -171,8 +171,8 @@ func (c *wsConn) readLoop() error {
 
 	for {
 		// Update read deadline if timeout is configured
-		if c.opts.WsReadTimeout > 0 {
-			if err := c.conn.SetReadDeadline(time.Now().Add(c.opts.WsReadTimeout)); err != nil {
+		if c.opts.ReadTimeout > 0 {
+			if err := c.conn.SetReadDeadline(time.Now().Add(c.opts.ReadTimeout)); err != nil {
 				return err
 			}
 		}
@@ -251,8 +251,8 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	defer c.writeMu.Unlock()
 
 	// Update write deadline if timeout is configured
-	if c.opts.WsWriteTimeout > 0 {
-		if err := c.conn.SetWriteDeadline(time.Now().Add(c.opts.WsWriteTimeout)); err != nil {
+	if c.opts.WriteTimeout > 0 {
+		if err := c.conn.SetWriteDeadline(time.Now().Add(c.opts.WriteTimeout)); err != nil {
 			if c.stats != nil {
 				c.stats.AddError()
 			}

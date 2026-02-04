@@ -24,7 +24,7 @@ func (h *tcpEventHandler) OnShutdown(eng gnet.Engine) {
 
 func (h *tcpEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	h.server.stats.OnConnect()
-	tconn := newTCPConn(c, h.server.opts, &h.server.stats)
+	tconn := newTCPConn(c, &h.server.opts, &h.server.stats)
 	h.server.connMgr.addConn(tconn)
 	c.SetContext(tconn)
 	if h.server.handler != nil {

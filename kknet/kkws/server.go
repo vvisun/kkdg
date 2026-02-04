@@ -80,18 +80,18 @@ func (s *Server) Start() error {
 			return
 		}
 
-		wsConn := newWSConn(conn, s.opts, &s.stats)
+		wsConn := newWSConn(conn, &s.opts, &s.stats)
 		wsConn.conn.SetReadLimit(int64(kkpacket.DefaultMaxMessageSize()))
 
 		// Set read/write timeouts if configured
-		if s.opts.WsReadTimeout > 0 {
-			if err := conn.SetReadDeadline(time.Now().Add(s.opts.WsReadTimeout)); err != nil {
+		if s.opts.ReadTimeout > 0 {
+			if err := conn.SetReadDeadline(time.Now().Add(s.opts.ReadTimeout)); err != nil {
 				s.stats.AddError()
 				s.opts.Logger.Warnf("kkws set read deadline error: %v", err)
 			}
 		}
-		if s.opts.WsWriteTimeout > 0 {
-			if err := conn.SetWriteDeadline(time.Now().Add(s.opts.WsWriteTimeout)); err != nil {
+		if s.opts.WriteTimeout > 0 {
+			if err := conn.SetWriteDeadline(time.Now().Add(s.opts.WriteTimeout)); err != nil {
 				s.stats.AddError()
 				s.opts.Logger.Warnf("kkws set write deadline error: %v", err)
 			}
@@ -184,6 +184,8 @@ func (s *Server) Stop() error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	s.opts.Logger.Infof("kkws server shutdown, waiting for %v", timeout)
 
 	// Stop accepting new connections
 	if s.httpServer != nil {

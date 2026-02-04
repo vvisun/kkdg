@@ -165,7 +165,7 @@ func (c *Client) dialAndStart() (*wsConn, <-chan struct{}, error) {
 	}
 	conn.SetReadLimit(int64(kkpacket.DefaultMaxMessageSize()))
 
-	wsConn := newWSConn(conn, c.opts, &c.stats)
+	wsConn := newWSConn(conn, &c.opts, &c.stats)
 
 	c.connMu.Lock()
 	c.conn = wsConn

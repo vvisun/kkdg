@@ -15,7 +15,7 @@ func (h *gnetClientEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Ac
 	h.client.stats.OnConnect()
 	h.client.connected.Store(true)
 	h.client.reconnecting.Store(false)
-	cc := newGnetClientConn(c, h.client.opts, &h.client.stats)
+	cc := newGnetClientConn(c, &h.client.opts, &h.client.stats)
 	c.SetContext(cc)
 
 	h.client.connMu.Lock()

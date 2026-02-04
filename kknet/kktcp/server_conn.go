@@ -17,7 +17,7 @@ import (
 type tcpConn struct {
 	id    kknet.CONN_ID
 	conn  gnet.Conn
-	opts  kknet.Options
+	opts  *kknet.Options
 	stats *kknet.Stats
 
 	ctxMu sync.RWMutex
@@ -31,8 +31,8 @@ type tcpConn struct {
 
 var _ kknet.IConn = (*tcpConn)(nil)
 
-func newTCPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *tcpConn {
-	kknet.CheckOptions(&opts)
+func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
+	kknet.CheckOptions(opts)
 	tc := &tcpConn{
 		id:    kknet.NextConnID(),
 		conn:  c,

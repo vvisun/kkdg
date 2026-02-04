@@ -17,7 +17,7 @@ import (
 type gnetClientConn struct {
 	id    kknet.CONN_ID
 	conn  gnet.Conn
-	opts  kknet.Options
+	opts  *kknet.Options
 	stats *kknet.Stats
 
 	ctxMu sync.RWMutex
@@ -31,8 +31,8 @@ type gnetClientConn struct {
 
 var _ kknet.IConn = (*gnetClientConn)(nil)
 
-func newGnetClientConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats) *gnetClientConn {
-	kknet.CheckOptions(&opts)
+func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetClientConn {
+	kknet.CheckOptions(opts)
 	cc := &gnetClientConn{
 		id:    kknet.NextConnID(),
 		conn:  c,

@@ -20,19 +20,18 @@ type Options struct {
 	ReconnectInterval   time.Duration                // 重连间隔
 	ReconnectMaxRetries int                          // 重连最大次数(<=0为无限)
 	ReconnectCallback   func(attempt int, err error) // 重连回调(成功时 err 为 nil)
+	ReadTimeout         time.Duration                // 读超时时间（为0时，不启用读超时）
+	WriteTimeout        time.Duration                // 写超时时间（为0时，不启用写超时）
+	PingInterval        time.Duration                // Ping发送间隔（为0时，不发送 Ping）；配合 ReadTimeout 做保活，收到 Pong 会刷新读超时
+	TLSConfig           *tls.Config                  // TLS配置。use for wss or tcp with tls
 
-	TLSConfig *tls.Config // TLS配置。use for wss or tcp with tls
+	WpOptions WriteOptions // 写处理器选项
+	RpOptions ReadOptions  // 读处理器选项
 
 	UDPConnIdleTimeout time.Duration // UDP连接空闲超时时间（为0时，不启用空闲清理）
 	UDPCleanupInterval time.Duration // UDP清理间隔时间（为0时，不启用清理）
 
 	WsOriginChecker OriginCheckFunc // websocket原始检查器
-	WsReadTimeout   time.Duration   // WebSocket读超时时间（为0时，不启用读超时）
-	WsWriteTimeout  time.Duration   // WebSocket写超时时间（为0时，不启用写超时）
-	WsPingInterval  time.Duration   // Ping 发送间隔（为0时，不发送 Ping）；配合 WsReadTimeout 做保活，收到 Pong 会刷新读超时
-
-	WpOptions WriteOptions
-	RpOptions ReadOptions
 }
 
 func defaultWSOriginChecker(r *http.Request) bool {
@@ -56,9 +55,9 @@ func DefaultOptions() Options {
 		ReconnectCallback:   nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
-		WsReadTimeout:   20 * time.Second,
-		WsWriteTimeout:  5 * time.Second,
-		WsPingInterval:  0, // 0=不发送 Ping
+		ReadTimeout:     20 * time.Second,
+		WriteTimeout:    5 * time.Second,
+		PingInterval:    0, // 0=不发送 Ping
 
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
 		UDPCleanupInterval: 1 * time.Minute, // 1分钟
@@ -72,14 +71,14 @@ func CheckOptions(opts *Options) {
 	if opts == nil {
 		return
 	}
-	if opts.WsReadTimeout > 0 && opts.WsReadTimeout < 100*time.Millisecond {
-		opts.WsReadTimeout = 100 * time.Millisecond
+	if opts.ReadTimeout > 0 && opts.ReadTimeout < 100*time.Millisecond {
+		opts.ReadTimeout = 100 * time.Millisecond
 	}
-	if opts.WsWriteTimeout > 0 && opts.WsWriteTimeout < 100*time.Millisecond {
-		opts.WsWriteTimeout = 100 * time.Millisecond
+	if opts.WriteTimeout > 0 && opts.WriteTimeout < 100*time.Millisecond {
+		opts.WriteTimeout = 100 * time.Millisecond
 	}
-	if opts.WsPingInterval > 0 && opts.WsPingInterval < 3*time.Second {
-		opts.WsPingInterval = 3 * time.Second
+	if opts.PingInterval > 0 && opts.PingInterval < 3*time.Second {
+		opts.PingInterval = 3 * time.Second
 	}
 	if opts.ReconnectInterval > 0 && opts.ReconnectInterval < 500*time.Millisecond {
 		opts.ReconnectInterval = 500 * time.Millisecond
@@ -99,6 +98,8 @@ func CheckOptions(opts *Options) {
 	if opts.UDPCleanupInterval > 0 && opts.UDPCleanupInterval < 500*time.Millisecond {
 		opts.UDPCleanupInterval = 500 * time.Millisecond
 	}
+	CheckWriteOptions(&opts.WpOptions)
+	CheckReadOptions(&opts.RpOptions)
 }
 
 // ApplyOptions returns a configured Options.
@@ -134,15 +135,6 @@ func WithBufferSizes(readSize, writeSize int) Option {
 	}
 }
 
-// WithOriginChecker sets origin checker.
-func WithOriginChecker(checker OriginCheckFunc) Option {
-	return func(o *Options) {
-		if checker != nil {
-			o.WsOriginChecker = checker
-		}
-	}
-}
-
 // WithTLSConfig enables TLS for supported protocols.
 func WithTLSConfig(cfg *tls.Config) Option {
 	return func(o *Options) {
@@ -162,58 +154,42 @@ func WithShutdownTimeout(timeout time.Duration) Option {
 	}
 }
 
-// WithUDPConnIdleTimeout sets UDP connection idle timeout.
-// Set to 0 to disable idle cleanup.
-func WithUDPConnIdleTimeout(timeout time.Duration) Option {
-	return func(o *Options) {
-		o.UDPConnIdleTimeout = timeout
-	}
-}
-
-// WithUDPCleanupInterval sets UDP cleanup interval.
-// Set to 0 to disable idle cleanup.
-func WithUDPCleanupInterval(interval time.Duration) Option {
-	return func(o *Options) {
-		o.UDPCleanupInterval = interval
-	}
-}
-
-// WithWsReadTimeout sets the read timeout for WebSocket connections.
+// WithReadTimeout sets the read timeout for WebSocket connections.
 // Set to 0 to disable read timeout.
-func WithWsReadTimeout(timeout time.Duration) Option {
+func WithReadTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
-			o.WsReadTimeout = timeout
-			if o.WsReadTimeout < 50*time.Millisecond { // 最小读超时时间，防止压根没效果
-				o.WsReadTimeout = 50 * time.Millisecond
+			o.ReadTimeout = timeout
+			if o.ReadTimeout < 50*time.Millisecond { // 最小读超时时间，防止压根没效果
+				o.ReadTimeout = 50 * time.Millisecond
 			}
 		}
 	}
 }
 
-// WithWsWriteTimeout sets the write timeout for WebSocket connections.
+// WithWriteTimeout sets the write timeout for WebSocket connections.
 // Set to 0 to disable write timeout.
-func WithWsWriteTimeout(timeout time.Duration) Option {
+func WithWriteTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
-			o.WsWriteTimeout = timeout
-			if o.WsWriteTimeout < 50*time.Millisecond {
-				o.WsWriteTimeout = 50 * time.Millisecond
+			o.WriteTimeout = timeout
+			if o.WriteTimeout < 50*time.Millisecond {
+				o.WriteTimeout = 50 * time.Millisecond
 			}
 		}
 	}
 }
 
-// WithWsPingInterval sets the interval for sending WebSocket Ping frames (keepalive).
+// WithPingInterval sets the interval for sending WebSocket Ping frames (keepalive).
 // Set to 0 to disable. When > 0, the connection sends Ping periodically; receiving Pong
 // refreshes the read deadline (if WsReadTimeout > 0), so idle connections stay open.
 // Minimum 3s to avoid excessive traffic. Typically use with WithWsReadTimeout (e.g. 30s).
-func WithWsPingInterval(interval time.Duration) Option {
+func WithPingInterval(interval time.Duration) Option {
 	return func(o *Options) {
 		if interval >= 0 {
-			o.WsPingInterval = interval
-			if o.WsPingInterval > 0 && o.WsPingInterval < 3*time.Second {
-				o.WsPingInterval = 3 * time.Second
+			o.PingInterval = interval
+			if o.PingInterval > 0 && o.PingInterval < 3*time.Second {
+				o.PingInterval = 3 * time.Second
 			}
 		}
 	}
@@ -310,5 +286,30 @@ func WithRecvQueueSize(size int) Option {
 func WithRecvQueueStrict(strict bool) Option {
 	return func(o *Options) {
 		o.RpOptions.RecvQueueStrict = strict
+	}
+}
+
+// WithWsOriginChecker sets origin checker.
+func WithWsOriginChecker(checker OriginCheckFunc) Option {
+	return func(o *Options) {
+		if checker != nil {
+			o.WsOriginChecker = checker
+		}
+	}
+}
+
+// WithUDPConnIdleTimeout sets UDP connection idle timeout.
+// Set to 0 to disable idle cleanup.
+func WithUDPConnIdleTimeout(timeout time.Duration) Option {
+	return func(o *Options) {
+		o.UDPConnIdleTimeout = timeout
+	}
+}
+
+// WithUDPCleanupInterval sets UDP cleanup interval.
+// Set to 0 to disable idle cleanup.
+func WithUDPCleanupInterval(interval time.Duration) Option {
+	return func(o *Options) {
+		o.UDPCleanupInterval = interval
 	}
 }

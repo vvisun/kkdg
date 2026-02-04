@@ -99,7 +99,7 @@ func TestWSConn_AsyncSend_Order(t *testing.T) {
 	}
 
 	opts := kknet.ApplyOptions()
-	wc := newWSConn(c, opts, nil)
+	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
 	const n = 50
@@ -138,7 +138,7 @@ func TestWSConn_SendQueueStrict_Full(t *testing.T) {
 
 	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(2))
 	opts.WpOptions.SendQueueStrict = true
-	wc := newWSConn(c, opts, nil)
+	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
 	// Block actual writes so the queue can fill deterministically.
@@ -189,7 +189,7 @@ func TestWSConn_Close_FlushOver(t *testing.T) {
 	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(64))
 	opts.WpOptions.SendQueueNeedFlushOver = true
 	opts.WpOptions.SendQueueTimeoutFlushOver = 2 * time.Second
-	wc := newWSConn(c, opts, nil)
+	wc := newWSConn(c, &opts, nil)
 
 	// Block actual writes, enqueue some messages, then ensure Close waits for flush.
 	wc.writeMu.Lock()
@@ -280,8 +280,8 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(256), kknet.WithWsWriteTimeout(300*time.Millisecond))
-	wc := newWSConn(c, opts, nil)
+	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(256), kknet.WithWriteTimeout(300*time.Millisecond))
+	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
 	// In real usage, a read loop will notice peer close and trigger closeWithError,
@@ -334,7 +334,7 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 
 	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(256))
 	opts.WpOptions.SendQueueNeedFlushOver = false
-	wc := newWSConn(c, opts, nil)
+	wc := newWSConn(c, &opts, nil)
 
 	// enqueue some messages, then close immediately. We only assert it doesn't block.
 	for i := 0; i < 100; i++ {
@@ -376,7 +376,7 @@ func TestWSConn_Context_SetContext(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 	opts := kknet.ApplyOptions()
-	wc := newWSConn(c, opts, nil)
+	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
 	if wc.Context() == nil {
@@ -398,7 +398,7 @@ func TestWSConn_RemoteAddr(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 	opts := kknet.ApplyOptions()
-	wc := newWSConn(c, opts, nil)
+	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
 	addr := wc.RemoteAddr()
@@ -416,7 +416,7 @@ func TestWSConn_SendBuffer_AfterClose(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 	opts := kknet.ApplyOptions()
-	wc := newWSConn(c, opts, nil)
+	wc := newWSConn(c, &opts, nil)
 	_ = wc.Close()
 
 	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("after close"))
@@ -438,7 +438,7 @@ func TestWSConn_InvalidPacket(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 	opts := kknet.ApplyOptions()
-	wc := newWSConn(c, opts, nil)
+	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
 	// buffer too short to be valid packet (length field is 4 bytes)
