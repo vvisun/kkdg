@@ -24,7 +24,7 @@ const (
 )
 
 var calibrateCallsThreshold uint64 = 128 // 多少次调用后进行校准
-var defaultPool bfPool
+var defaultPool bsPool
 
 func init() {
 	defaultPool.defaultSize = 128
