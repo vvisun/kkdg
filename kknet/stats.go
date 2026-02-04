@@ -17,8 +17,6 @@ type StatsSnapshot struct {
 	RecvBytes   int64
 	SentBytes   int64
 	Errors      int64
-	WpQueueLen  int // 发送队列长度
-	RpQueueLen  int // 接收队列长度
 }
 
 // Stats tracks connection and traffic counters.
