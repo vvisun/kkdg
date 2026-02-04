@@ -46,7 +46,7 @@ func NewReadProcessor(opts kknet.ReadOptions) *ReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	return &ReadProcessor{
 		recvBuf:   nil,
-		recvQueue: bbqueue.NewNNQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
+		recvQueue: bbqueue.NewFIFOQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
 		opts:      opts,
 		wakeCh:    make(chan struct{}, 1),
 		closeCh:   make(chan struct{}),

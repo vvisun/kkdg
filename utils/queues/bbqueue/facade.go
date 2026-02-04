@@ -20,3 +20,15 @@ type IFiFoQueue interface {
 	// return the number of items popped.
 	PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int) int
 }
+
+// 根据严格模式选择不同的队列实现。
+// 严格模式下，使用BBQueue，性能更高。
+// 非严格模式下，使用NNQueue，内存占用更低。
+func NewFIFOQueue(size int, isStrict bool) IFiFoQueue {
+	if isStrict {
+		// 严格模式下，使用BBQueue，性能更高
+		return NewBBQueue(size, isStrict)
+	}
+	// 非严格模式下，使用NNQueue，内存占用更低
+	return NewNNQueue(size, isStrict)
+}

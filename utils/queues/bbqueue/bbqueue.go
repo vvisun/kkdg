@@ -19,6 +19,7 @@ type BBQueue struct {
 
 var _ IFiFoQueue = (*BBQueue)(nil)
 
+// ring buffer实现，性能更高，但内存占用更高。
 func NewBBQueue(size int, isStrict bool) *BBQueue {
 	if size <= 0 {
 		size = defaultSize

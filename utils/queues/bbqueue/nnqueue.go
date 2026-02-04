@@ -37,6 +37,7 @@ type NNQueue struct {
 
 var _ IFiFoQueue = (*NNQueue)(nil)
 
+// 链表实现，内存占用更低，但性能不如BBQueue。
 func NewNNQueue(size int, isStrict bool) *NNQueue {
 	return &NNQueue{head: nil, tail: nil, count: 0, maxCount: size, isStrict: isStrict}
 }

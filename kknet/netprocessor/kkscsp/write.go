@@ -46,7 +46,7 @@ func NewWriteProcessor(opts kknet.WriteOptions) *WriteProcessor {
 	kknet.CheckWriteOptions(&opts)
 	return &WriteProcessor{
 		opts:            opts,
-		sendQueue:       bbqueue.NewNNQueue(opts.SendQueueSize, opts.SendQueueStrict),
+		sendQueue:       bbqueue.NewFIFOQueue(opts.SendQueueSize, opts.SendQueueStrict),
 		sendBatchBuffer: make([]*kkbuffer.ByteBuffer, opts.WriteBatchSize),
 		wakeCh:          make(chan struct{}, 1),
 		closeCh:         make(chan struct{}),
