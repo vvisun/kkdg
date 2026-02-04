@@ -19,9 +19,8 @@ func main() {
 
 	go func() {
 		defer wg.Done()
-		// 监听地址用 host:port，不要用 ws://...（那是客户端 URL）
 		addr := "localhost:8080"
-		recv := &stressRecvHandler{ch: make(chan struct{})}
+		recv := &stressRecvHandler{}
 		opts := kknet.ApplyOptions(
 			//kknet.WithRawHandler(recv),
 			kknet.WithNoneCopyHandler(recv),
@@ -56,27 +55,19 @@ func main() {
 // stressRecvHandler counts received messages for stress tests.
 type stressRecvHandler struct {
 	recvCount atomic.Int64
-	ch        chan struct{} // optional: closed when target count reached
-	target    int64         // 0 = no target
-	closeOnce sync.Once
+	sendCount atomic.Int64
 }
 
 func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
 	if data == nil {
 		return
 	}
-	n := h.recvCount.Add(1)
-	if h.target > 0 && h.ch != nil && n >= h.target {
-		h.closeOnce.Do(func() { close(h.ch) })
-	}
+	h.recvCount.Add(1)
 }
 
 func (h *stressRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
 	if data == nil {
 		return
 	}
-	n := h.recvCount.Add(1)
-	if h.target > 0 && h.ch != nil && n >= h.target {
-		h.closeOnce.Do(func() { close(h.ch) })
-	}
+	h.recvCount.Add(1)
 }

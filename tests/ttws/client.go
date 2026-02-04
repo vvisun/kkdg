@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -25,9 +26,16 @@ var (
 	sendInterval = flag.Duration("interval", 10*time.Millisecond, "send interval")
 )
 
+var (
+	cliMgr *clientsMgr = newClientsMgr()
+)
+
 func main() {
 	flag.Parse()
 	u := url.URL{Scheme: "ws", Host: *addr, Path: "/ws"}
+	serverUrl := u.String()
+	println("serverUrl:", serverUrl)
+
 	var wg sync.WaitGroup
 	wg.Add(*connNum)
 
@@ -41,56 +49,23 @@ func main() {
 		println("pack error:", err.Error())
 		return
 	}
-	// msg := bb.Bytes()
 
 	// 启动N个协程，每个协程对应1个WS连接
 	for i := 0; i < *connNum; i++ {
 		go func() {
 			defer wg.Done()
-
-			// // 建立WS连接
-			// conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
-			// if err != nil {
-			// 	println("dial error:", err.Error())
-			// 	return
-			// }
-			// defer conn.Close()
-
-			// // 后台读消息（Echo返回的消息，防止读缓冲区满）
-			// go func() {
-			// 	for {
-			// 		_, _, err := conn.ReadMessage()
-			// 		if err != nil {
-			// 			return
-			// 		}
-			// 	}
-			// }()
-
-			client := kkws.NewClient(u.String(), nil, kknet.ApplyOptions())
-			if err := connectWithRetry(client, 30, 10*time.Millisecond); err != nil {
-				println("connect error:", err.Error())
-				return
-			}
-
-			// 定时发消息，模拟业务场景
-			ticker := time.NewTicker(*sendInterval)
-			defer ticker.Stop()
-			for range ticker.C {
-				bb, err := kkpacket.DefaultStreamPacket().Pack(rawMsg)
-				if err != nil {
-					println("pack error:", err.Error())
-					return
-				}
-				err = client.SendBuffer(bb)
-				if err != nil {
-					println("send error:", err.Error())
-					return
-				}
-			}
+			runOneClient(serverUrl, rawMsg)
 		}()
 		// 连接建立间隔1ms，避免瞬间压垮服务端
 		time.Sleep(1 * time.Millisecond)
 	}
+
+	go func() {
+		for {
+			time.Sleep(1 * time.Second)
+			println("当前连接数：", cliMgr.getCount())
+		}
+	}()
 
 	println("=== 压测启动 ===")
 	println("目标地址：", *addr)
@@ -99,6 +74,52 @@ func main() {
 	println("发送间隔：", *sendInterval)
 	println("================\n")
 	wg.Wait()
+}
+
+// stressRecvHandler counts received messages for stress tests.
+type stressRecvHandler struct {
+	recvCount atomic.Int64
+	sendCount atomic.Int64
+}
+
+func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
+	if data == nil {
+		return
+	}
+	h.recvCount.Add(1)
+}
+
+func runOneClient(serverUrl string, rawMsg []byte) {
+	recv := &stressRecvHandler{}
+	client := kkws.NewClient(serverUrl, nil, kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(recv),
+	))
+
+	if err := connectWithRetry(client, 60, 10*time.Millisecond); err != nil {
+		println("connect error:", err.Error())
+		return
+	}
+
+	cliMgr.addClient(client)
+
+	// 定时发消息，模拟业务场景
+	ticker := time.NewTicker(*sendInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		bb, err := kkpacket.DefaultStreamPacket().Pack(rawMsg)
+		if err != nil {
+			println("pack error:", err.Error())
+			return
+		}
+		err = client.SendBuffer(bb)
+		if err != nil {
+			println("send error:", err.Error())
+			return
+		}
+		recv.sendCount.Add(1)
+	}
+
+	cliMgr.removeClient(client)
 }
 
 func connectWithRetry(client *kkws.Client, attempts int, baseBackoff time.Duration) error {
@@ -140,4 +161,36 @@ func isConnRefused(err error) bool {
 		}
 	}
 	return false
+}
+
+//---------------------------------------------------
+
+type clientsMgr struct {
+	clients map[*kkws.Client]struct{}
+	mu      sync.Mutex
+	count   atomic.Int64
+}
+
+func newClientsMgr() *clientsMgr {
+	return &clientsMgr{
+		clients: make(map[*kkws.Client]struct{}),
+	}
+}
+
+func (m *clientsMgr) addClient(client *kkws.Client) {
+	m.mu.Lock()
+	m.clients[client] = struct{}{}
+	m.mu.Unlock()
+	m.count.Add(1)
+}
+
+func (m *clientsMgr) removeClient(client *kkws.Client) {
+	m.mu.Lock()
+	delete(m.clients, client)
+	m.mu.Unlock()
+	m.count.Add(-1)
+}
+
+func (m *clientsMgr) getCount() int64 {
+	return m.count.Load()
 }

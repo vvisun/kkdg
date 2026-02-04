@@ -12,9 +12,10 @@ import (
 // Properly determined byte buffer types with their own pools may help reducing
 // memory waste.
 type bfPool struct {
-	calls       [steps]uint64
 	calibrating uint64
 	defaultSize uint64
+	size        int64
+	calls       [steps]uint64
 	pool        sync.Pool
 }
 
@@ -27,6 +28,9 @@ func (p *bfPool) Get() *ByteBuffer {
 	if v != nil {
 		b := v.(*ByteBuffer)
 		b.released.Store(false)
+		if atomic.LoadInt64(&p.size) > 0 {
+			atomic.AddInt64(&p.size, -1)
+		}
 		return b
 	}
 	if atomic.LoadUint64(&p.defaultSize) < minItemSize {
@@ -50,6 +54,9 @@ func (p *bfPool) GetWithCap(capacity int) *ByteBuffer {
 		} else {
 			b.B = b.B[:0]
 		}
+		if atomic.LoadInt64(&p.size) > 0 {
+			atomic.AddInt64(&p.size, -1)
+		}
 		return b
 	}
 	defaultSize := int(atomic.LoadUint64(&p.defaultSize))
@@ -66,19 +73,23 @@ func (p *bfPool) GetWithCap(capacity int) *ByteBuffer {
 // The buffer mustn't be accessed after returning to the pool.
 func (p *bfPool) Put(b *ByteBuffer) {
 	if b == nil {
-		return
+		return // 空 buffer 直接丢弃
 	}
 	if !b.released.CompareAndSwap(false, true) {
-		return //防止重复释放
+		return // 防止重复释放
 	}
 	if cap(b.B) > maxItemSize {
 		return // 超大 buffer 丢弃，不参与校准统计
+	}
+	if atomic.LoadInt64(&p.size) > 8192 {
+		return // 防止池过大耗尽内存
 	}
 	idx := index(len(b.B))
 	if atomic.AddUint64(&p.calls[idx], 1) > calibrateCallsThreshold {
 		p.calibrate()
 	}
 	b.Reset()
+	atomic.AddInt64(&p.size, 1)
 	p.pool.Put(b)
 }
 
