@@ -63,41 +63,37 @@ const max_size = step16
 
 // 必须做限制，防止池过大耗尽内存
 var max_caps [32]int64 = [32]int64{
-	1024 * 1024, // step0, 1MB
-	1024 * 512,  // step1, 1MB
-	1024 * 256,  // step2, 1MB
-	1024 * 512,  // step3, 4MB
-	1024 * 512,  // step4, 8MB
-	1024 * 512,  // step5, 1024*512个容量为32B的slice，16MB
-	1024 * 256,  // step6, 1024*256个容量为64B的slice，16MB
-	1024 * 128,  // step7, 1024*128个容量为128B的slice，16MB
-	1024 * 64,   // step8, 1024*64个容量为256B的slice，16MB
-	1024 * 64,   // step9, 1024*64个容量为512B的slice，32MB
-	1024 * 32,   // step10, 1024*32个容量为1KB的slice，32MB
-	1024 * 16,   // step11, 1024*16个容量为2KB的slice，32MB
-	1024 * 8,    // step12, 1024*8个容量为4KB的slice，32MB
-	1024 * 2,    // step13, 1024*2个容量为8KB的slice，16MB
-	1024,        // step14, 1024个容量为16KB的slice，16MB
-	512,         // step15, 512个容量为32KB的slice，16MB
-	256,         // step16, 256个容量为64KB的slice，16MB
+	1024 * 1024,      // step0, 1B, 1M里有1024K个byte slice
+	1024 * 1024,      // step1, 2B, 1M里有512K个byte slice
+	1024 * 1024,      // step2, 4B, 1M里有256K个byte slice
+	1024 * 1024,      // step3, 8B, 1M里有128K个byte slice
+	1024 * 1024 * 2,  // step4, 16B, 1M里有64K个byte slice
+	1024 * 1024 * 4,  // step5, 32B, 1M里有32K个byte slice
+	1024 * 1024 * 8,  // step6, 64B, 1M里有16K个byte slice
+	1024 * 1024 * 16, // step7, 128B, 1M里有8K个byte slice
+	1024 * 1024 * 20, // step8, 256B, 1M里有4096个byte slice
+	1024 * 1024 * 20, // step9, 512B, 1M里有2048个byte slice
+	1024 * 1024 * 20, // step10, 1KB, 1M里有1024个byte slice
+	1024 * 1024 * 20, // step11, 2KB, 1M里有512个byte slice
+	1024 * 1024 * 20, // step12, 4KB, 1M里有256个byte slice
+	1024 * 1024 * 10, // step13, 8KB, 1M里有128个byte slice
+	1024 * 1024 * 8,  // step14, 16KB, 1M里有64个byte slice
+	1024 * 1024 * 8,  // step15, 32KB, 1M里有32个byte slice
+	1024 * 1024 * 8,  // step16, 64KB, 1M里有16个byte slice
 	// 后面基本不会用到
-	128, // step17, 128个容量为128KB的slice，16MB
-	64,  // step18, 64个容量为256KB的slice，16MB
-	32,  // step19, 32个容量为512KB的slice，16MB
-	16,  // step20, 16个容量为1MB的slice，16MB
-	8,   // step21, 8个容量为2MB的slice，16MB
-	4,   // step22, 4个容量为4MB的slice，16MB
-	2,   // step23, 2个容量为8MB的slice，16MB
-	1,   // step24, 1个容量为16MB的slice，16MB
+	1024 * 1024, // step17, 128KB, 1M里有8个byte slice
+	1024 * 1024, // step18, 256KB, 1M里有4个byte slice
+	1024 * 1024, // step19, 512KB, 1M里有2个byte slice
+	1024 * 1024, // step20, 1MB, 1M里有1个byte slice
 }
-
-var builtinPool Pool
 
 // Pool consists of 32 sync.Pool, representing byte slices of length from 0 to 32 in powers of 2.
 type Pool struct {
 	pools  [32]sync.Pool
-	totals [32]int64 // 每个步长对应的容量，单位：slice数量
+	totals [32]int64 // 每个步长对应的容量，单位：字节数
 }
+
+var builtinPool Pool
 
 // Get returns a byte slice with given length from the built-in pool.
 func Get(size int) []byte {
@@ -129,10 +125,11 @@ func (p *Pool) Get(size int) []byte {
 	if ptr == nil {
 		return make([]byte, size, 1<<idx)
 	}
+	ret := unsafe.Slice(ptr, 1<<idx)[:size]
 	if atomic.LoadInt64(&p.totals[idx]) > 0 {
-		atomic.AddInt64(&p.totals[idx], -1)
+		atomic.AddInt64(&p.totals[idx], -int64(cap(ret)))
 	}
-	return unsafe.Slice(ptr, 1<<idx)[:size]
+	return ret
 }
 
 // Put returns the byte slice to the pool.
@@ -147,7 +144,7 @@ func (p *Pool) Put(buf []byte) {
 		idx--
 	}
 
-	if atomic.AddInt64(&p.totals[idx], 1) > max_caps[idx] {
+	if atomic.AddInt64(&p.totals[idx], int64(size)) > max_caps[idx] {
 		return //直接丢弃，防止池过大耗尽内存
 	}
 
