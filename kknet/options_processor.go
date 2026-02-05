@@ -91,7 +91,7 @@ func CheckReadOptions(opts *ReadOptions) {
 	if opts.RecvBatchSize < 8 {
 		opts.RecvBatchSize = 8
 	}
-	if opts.RecvBufShrinkCap <= 0 {
+	if opts.RecvBufShrinkCap <= 0 || opts.RecvBufShrinkCap > 2*1024 {
 		// 空闲时如果 cap 过大则缩容，避免长期占用大内存。
 		opts.RecvBufShrinkCap = 2 * 1024 // 2KB
 	}
