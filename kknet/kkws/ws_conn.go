@@ -12,6 +12,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -31,9 +32,9 @@ type wsConn struct {
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp            *kkscsp.WriteProcessor // 写处理器
-	batchWriteBuf []byte                 // 批量写入缓冲区
-	readBB        *kkbuffer.ByteBuffer   // reused read buffer for NextReader
+	wp            netprocessor.IWriteProcessor // 写处理器
+	batchWriteBuf []byte                       // 批量写入缓冲区
+	readBB        *kkbuffer.ByteBuffer         // reused read buffer for NextReader
 
 	// ping 由时间轮调度，关闭连接时需 Stop 取消
 	pingTimer unsafe.Pointer // *timingwheel.Timer

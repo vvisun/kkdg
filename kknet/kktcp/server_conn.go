@@ -9,6 +9,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -25,8 +26,8 @@ type tcpConn struct {
 
 	closing atomic.Bool
 
-	rp *kkscsp.ReadProcessor
-	wp *kkscsp.WriteProcessor
+	rp netprocessor.IReadProcessor
+	wp netprocessor.IWriteProcessor
 }
 
 var _ kknet.IConn = (*tcpConn)(nil)

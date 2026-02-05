@@ -26,4 +26,7 @@ type IWriteProcessor interface {
 	Stop(err error)
 	SendBuffer(buffer buffers.IBuffer) error
 	SendMessage(msg any) error
+
+	Pending() int          //测试在用
+	Done() <-chan struct{} //测试在用
 }
