@@ -83,6 +83,82 @@ func BenchmarkGNRPC_InvokeUnary_Parallel(b *testing.B) {
 	})
 }
 
+// BenchmarkGNRPC_InvokeNoResponse measures oneway RPC throughput (fire-and-forget).
+func BenchmarkGNRPC_InvokeNoResponse(b *testing.B) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		b.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	// handler does minimal work to focus on transport cost
+	svr := NewServer(addr)
+	svr.Register("oneway", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		_ = req
+		return nil, nil
+	}))
+	if err := svr.Start(); err != nil {
+		b.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		b.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	payload := []byte("x")
+	ctx := context.Background()
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		if err := cli.InvokeNoResponse(ctx, "oneway", payload); err != nil {
+			b.Fatalf("InvokeNoResponse: %v", err)
+		}
+	}
+}
+
+// BenchmarkGNRPC_InvokeNoResponse_Parallel measures oneway RPC throughput under parallel clients.
+func BenchmarkGNRPC_InvokeNoResponse_Parallel(b *testing.B) {
+	port, err := xnet.AssignRandPort("127.0.0.1")
+	if err != nil {
+		b.Fatalf("assign port: %v", err)
+	}
+	addr := "127.0.0.1:" + strconv.Itoa(port)
+
+	svr := NewServer(addr)
+	svr.Register("oneway", UnaryHandler(func(ctx context.Context, req []byte) ([]byte, error) {
+		_ = ctx
+		_ = req
+		return nil, nil
+	}))
+	if err := svr.Start(); err != nil {
+		b.Fatalf("server start: %v", err)
+	}
+	defer svr.Stop()
+
+	cli := NewClient(addr)
+	if err := cli.Connect(); err != nil {
+		b.Fatalf("client connect: %v", err)
+	}
+	defer cli.Close()
+
+	payload := []byte("x")
+	ctx := context.Background()
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if err := cli.InvokeNoResponse(ctx, "oneway", payload); err != nil {
+				b.Fatalf("InvokeNoResponse: %v", err)
+			}
+		}
+	})
+}
+
 // BenchmarkGNRPC_InvokeProto measures proto-based RPC throughput.
 func BenchmarkGNRPC_InvokeProto(b *testing.B) {
 	port, err := xnet.AssignRandPort("127.0.0.1")
@@ -168,4 +244,3 @@ func BenchmarkGNRPC_InvokeProto_Parallel(b *testing.B) {
 		}
 	})
 }
-
