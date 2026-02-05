@@ -90,12 +90,20 @@ func (c *tcpConn) SetContext(ctx context.Context) {
 	c.ctxMu.Unlock()
 }
 
-func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
+func (c *tcpConn) SendMsg(msg any) error {
+	if msg == nil {
+		return kkerrors.ErrInvalidPacket
+	}
 	if c.closing.Load() {
-		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed
 	}
+	if c.wp == nil {
+		return kkerrors.ErrConnectionClosed
+	}
+	return c.wp.SendMessage(msg)
+}
 
+func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -103,18 +111,15 @@ func (c *tcpConn) SendBuffer(buffer buffers.IBuffer) error {
 		kkbuffer.Put(buffer)
 		return err
 	}
-
+	if c.closing.Load() {
+		kkbuffer.Put(buffer)
+		return kkerrors.ErrConnectionClosed
+	}
 	if c.wp == nil {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed
 	}
-	if err := c.wp.SendBuffer(buffer); err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
-		return err
-	}
-	return nil
+	return c.wp.SendBuffer(buffer)
 }
 
 /*

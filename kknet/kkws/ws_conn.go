@@ -227,6 +227,19 @@ func (c *wsConn) readLoop() error {
 	}
 }
 
+func (c *wsConn) SendMsg(msg any) error {
+	if msg == nil {
+		return kkerrors.ErrInvalidPacket
+	}
+	if c.closing.Load() {
+		return kkerrors.ErrConnectionClosed
+	}
+	if c.wp == nil {
+		return kkerrors.ErrConnectionClosed
+	}
+	return c.wp.SendMessage(msg)
+}
+
 // SendBuffer 异步发送数据。
 func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
@@ -236,7 +249,6 @@ func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
 		kkbuffer.Put(buffer)
 		return err
 	}
-
 	if c.closing.Load() {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed

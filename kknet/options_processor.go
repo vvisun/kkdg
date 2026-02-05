@@ -74,9 +74,9 @@ type ReadOptions struct {
 
 func DefaultReadOptions() ReadOptions {
 	return ReadOptions{
-		RecvQueueSize:    256,
+		RecvQueueSize:    512,
 		RecvQueueStrict:  false,
-		RecvBatchSize:    8,
+		RecvBatchSize:    32,
 		RecvBufShrinkCap: 2 * 1024, // 2KB
 	}
 }
@@ -86,10 +86,13 @@ func CheckReadOptions(opts *ReadOptions) {
 		return
 	}
 	if opts.RecvQueueSize <= 0 {
-		opts.RecvQueueSize = 256
+		opts.RecvQueueSize = 512
 	}
 	if opts.RecvBatchSize < 8 {
-		opts.RecvBatchSize = 8
+		opts.RecvBatchSize = 8 //太小影响性能
+	}
+	if opts.RecvBatchSize > 128 {
+		opts.RecvBatchSize = 128 //太大占内存
 	}
 	if opts.RecvBufShrinkCap <= 0 || opts.RecvBufShrinkCap > 2*1024 {
 		// 空闲时如果 cap 过大则缩容，避免长期占用大内存。

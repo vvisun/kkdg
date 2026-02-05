@@ -88,6 +88,12 @@ func (b *ByteBuffer) SetBytes(p []byte) {
 	copy(b.B, p)
 }
 
+func (b *ByteBuffer) WriteBytes(p []byte) {
+	cnt := len(p)
+	b.B = b.B[:cnt]
+	copy(b.B, p)
+}
+
 // SetString sets ByteBuffer.B to s.
 //
 // If cap(b.B) >= len(s), it uses copy (no alloc). Use GetWithCapacity
