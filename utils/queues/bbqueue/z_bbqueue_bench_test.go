@@ -99,3 +99,20 @@ func BenchmarkBBQueue_PushPop_WithPool(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkBBQueue_PopMany(b *testing.B) {
+	bufs := nnBenchBufs(10000)
+	q := NewNNQueue(10000, false)
+	for i := 0; i < 10000; i++ {
+		q.Push(bufs[i])
+	}
+	recv := make([]*kkbuffer.ByteBuffer, 32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		n := q.PopMany(32, recv, 0)
+		for j := 0; j < n; j++ {
+			q.Push(recv[j])
+			recv[j] = nil
+		}
+	}
+}
