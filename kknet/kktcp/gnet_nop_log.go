@@ -13,7 +13,4 @@ func (gnetNopLog) Warnf(format string, args ...any)  {}
 func (gnetNopLog) Errorf(format string, args ...any) {}
 func (gnetNopLog) Fatalf(format string, args ...any) {}
 
-func init() {
-	// Ensure type implements interface.
-	_ = logging.Logger(gnetNopLogger)
-}
+var _ logging.Logger = (*gnetNopLog)(nil)

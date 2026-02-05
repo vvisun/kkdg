@@ -30,3 +30,6 @@ type IWriteProcessor interface {
 	Pending() int          //测试在用
 	Done() <-chan struct{} //测试在用
 }
+
+type WpProvider func(opts kknet.WriteOptions) IWriteProcessor
+type RpProvider func(opts kknet.ReadOptions) IReadProcessor

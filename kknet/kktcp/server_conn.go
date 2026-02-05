@@ -10,7 +10,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/netprocessor"
-	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -41,10 +40,10 @@ func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
 		stats: stats,
 		ctx:   context.Background(),
 	}
-	tc.rp = kkscsp.NewReadProcessor(opts.RpOptions)
+	tc.rp = defaultRpProvider(opts.RpOptions)
 	tc.rp.Start(tc)
 
-	tc.wp = kkscsp.NewWriteProcessor(opts.WpOptions)
+	tc.wp = defaultWpProvider(opts.WpOptions)
 	tc.wp.Start(tc, tc.writeBatch, func(_ error) {
 		_ = tc.conn.Close()
 	})

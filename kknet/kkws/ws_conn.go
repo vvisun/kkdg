@@ -13,7 +13,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/netprocessor"
-	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/timingwheel"
@@ -60,7 +59,7 @@ func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *w
 }
 
 func (c *wsConn) initSendQueue() {
-	wp := kkscsp.NewWriteProcessor(c.opts.WpOptions)
+	wp := defaultWpProvider(c.opts.WpOptions)
 	c.wp = wp
 
 	wp.Start(c, c.writeBatch, func(_ error) {
@@ -171,7 +170,7 @@ func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) 
 }
 
 func (c *wsConn) readLoop() error {
-	rp := kkscsp.NewReadProcessor(c.opts.RpOptions)
+	rp := defaultRpProvider(c.opts.RpOptions)
 	rp.Start(c)
 	defer rp.Stop()
 
