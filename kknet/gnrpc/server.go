@@ -78,8 +78,8 @@ func (s *Server) SetMethodConfig(method string, cfg MethodConfig) {
 	if method == "" {
 		return
 	}
-	v, _ := s.methodStates.LoadOrStore(method, &methodOnewayState{})
-	st := v.(*methodOnewayState)
+	v, _ := s.methodStates.LoadOrStore(method, &methodState{})
+	st := v.(*methodState)
 	st.setConfig(cfg)
 }
 
@@ -89,7 +89,7 @@ func (s *Server) GetMethodStats(method string) (MethodStats, bool) {
 	if !ok {
 		return MethodStats{}, false
 	}
-	return v.(*methodOnewayState).snapshot(method), true
+	return v.(*methodState).snapshot(method), true
 }
 
 // GetAllMethodStats returns stats for all configured methods (and any methods seen).
@@ -97,7 +97,7 @@ func (s *Server) GetAllMethodStats() map[string]MethodStats {
 	out := make(map[string]MethodStats)
 	s.methodStates.Range(func(k, v any) bool {
 		method := k.(string)
-		out[method] = v.(*methodOnewayState).snapshot(method)
+		out[method] = v.(*methodState).snapshot(method)
 		return true
 	})
 	return out
@@ -265,15 +265,15 @@ func rejectReasonToStatus(reason string) error {
 	}
 }
 
-func (h *serverHandler) getMethodState(method string) *methodOnewayState {
+func (h *serverHandler) getMethodState(method string) *methodState {
 	if method == "" {
 		return nil
 	}
 	if v, ok := h.svr.methodStates.Load(method); ok {
-		return v.(*methodOnewayState)
+		return v.(*methodState)
 	}
-	v, _ := h.svr.methodStates.LoadOrStore(method, &methodOnewayState{})
-	return v.(*methodOnewayState)
+	v, _ := h.svr.methodStates.LoadOrStore(method, &methodState{})
+	return v.(*methodState)
 }
 
 func (h *serverHandler) onPacket(c kknet.IConn, data buffers.IBuffer) {
@@ -499,7 +499,7 @@ func UnaryHandler(fn func(ctx context.Context, req []byte) ([]byte, error)) Hand
 
 type onewayTask struct {
 	method string
-	state  *methodOnewayState
+	state  *methodState
 	fn     func() error
 }
 

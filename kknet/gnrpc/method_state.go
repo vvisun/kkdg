@@ -43,7 +43,7 @@ type MethodStats struct {
 	InFlightMax int64
 }
 
-type methodOnewayState struct {
+type methodState struct {
 	cfg atomic.Value // stores MethodConfig
 
 	inFlight atomic.Int64
@@ -61,7 +61,7 @@ type methodOnewayState struct {
 	mux sync.Mutex // protects tb/cb init/update
 }
 
-func (s *methodOnewayState) setConfig(cfg MethodConfig) {
+func (s *methodState) setConfig(cfg MethodConfig) {
 	s.cfg.Store(cfg)
 	s.mux.Lock()
 	// (re)create token bucket / breaker as needed
@@ -98,7 +98,7 @@ func (s *methodOnewayState) setConfig(cfg MethodConfig) {
 	s.mux.Unlock()
 }
 
-func (s *methodOnewayState) getConfig() MethodConfig {
+func (s *methodState) getConfig() MethodConfig {
 	v := s.cfg.Load()
 	if v == nil {
 		return MethodConfig{}
@@ -106,7 +106,7 @@ func (s *methodOnewayState) getConfig() MethodConfig {
 	return v.(MethodConfig)
 }
 
-func (s *methodOnewayState) tryAcquire() (ok bool, reason string) {
+func (s *methodState) tryAcquire() (ok bool, reason string) {
 	cfg := s.getConfig()
 
 	// rate limit
@@ -149,16 +149,16 @@ func (s *methodOnewayState) tryAcquire() (ok bool, reason string) {
 	return true, ""
 }
 
-func (s *methodOnewayState) onEnqueued() {
+func (s *methodState) onEnqueued() {
 	s.enq.Add(1)
 }
 
-func (s *methodOnewayState) onDropped() {
+func (s *methodState) onDropped() {
 	s.drop.Add(1)
 	s.inFlight.Add(-1)
 }
 
-func (s *methodOnewayState) onProcessed(err error) {
+func (s *methodState) onProcessed(err error) {
 	s.proc.Add(1)
 	if err != nil {
 		s.fail.Add(1)
@@ -179,7 +179,7 @@ func (s *methodOnewayState) onProcessed(err error) {
 	s.inFlight.Add(-1)
 }
 
-func (s *methodOnewayState) snapshot(method string) MethodStats {
+func (s *methodState) snapshot(method string) MethodStats {
 	cfg := s.getConfig()
 	st := MethodStats{
 		Method:      method,
@@ -209,7 +209,7 @@ func newTokenBucket(rate, burst float64) *tokenBucket {
 	now := time.Now()
 	return &tokenBucket{
 		rate:   rate,
-		burst: burst,
+		burst:  burst,
 		tokens: burst,
 		last:   now,
 	}
@@ -330,4 +330,3 @@ func (cb *circuitBreaker) Fail() {
 		cb.openedAt = time.Now()
 	}
 }
-
