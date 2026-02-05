@@ -41,7 +41,7 @@ type WriteProcessor struct {
 
 var _ kknet.IWriteProcessor = (*WriteProcessor)(nil)
 
-func NewWriteProcessor(opts kknet.WriteOptions) *WriteProcessor {
+func NewWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	kknet.CheckWriteOptions(&opts)
 	return &WriteProcessor{
 		opts:            opts,

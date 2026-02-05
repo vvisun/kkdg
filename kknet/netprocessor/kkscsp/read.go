@@ -41,7 +41,7 @@ type ReadProcessor struct {
 
 var _ kknet.IReadProcessor = (*ReadProcessor)(nil)
 
-func NewReadProcessor(opts kknet.ReadOptions) *ReadProcessor {
+func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	return &ReadProcessor{
 		recvBuf:   nil,

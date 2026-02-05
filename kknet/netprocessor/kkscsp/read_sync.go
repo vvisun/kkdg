@@ -21,7 +21,7 @@ type SyncReadProcessor struct {
 
 var _ kknet.IReadProcessor = (*SyncReadProcessor)(nil)
 
-func NewSyncReadProcessor(opts kknet.ReadOptions) *SyncReadProcessor {
+func NewSyncReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	if opts.NoneCopyHandler == nil {
 		panic("NoneCopyHandler is required")
 	}

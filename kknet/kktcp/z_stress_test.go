@@ -15,6 +15,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -27,6 +28,16 @@ type stressRecvHandler struct {
 }
 
 func (h *stressRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
+	if data == nil {
+		return
+	}
+	n := h.recvCount.Add(1)
+	if h.target > 0 && h.ch != nil && n >= h.target {
+		h.closeOnce.Do(func() { close(h.ch) })
+	}
+}
+
+func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
 	if data == nil {
 		return
 	}
@@ -106,8 +117,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 1000
-	msgsPerConn := 555
+	numConns := 6000
+	msgsPerConn := 666
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
@@ -115,6 +126,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	// 高连接数时用较小读写缓冲以降低内存：50k 连接 × (2KB+2KB) ≈ 200MB，默认 64KB×2 约 6.4GB
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
+		kknet.WithNoneCopyHandler(recv),
+		kknet.WithRpProvider(kkscsp.NewSyncReadProcessor),
 		kknet.WithRecvQueueSize(512),
 		kknet.WithBufferSizes(2*1024, 2*1024),
 	)
