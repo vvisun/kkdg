@@ -32,9 +32,11 @@ type wsConn struct {
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp            netprocessor.IWriteProcessor // 写处理器
-	batchWriteBuf []byte                       // 批量写入缓冲区
-	readBB        *kkbuffer.ByteBuffer         // reused read buffer for NextReader
+	wp              netprocessor.IWriteProcessor // 写处理器
+	batchWriteBuf   []byte                       // 批量写入缓冲区
+	batchWriteLimit int                          // 批量写入限制字节数
+
+	readBB *kkbuffer.ByteBuffer // reused read buffer for NextReader
 
 	// ping 由时间轮调度，关闭连接时需 Stop 取消
 	pingTimer unsafe.Pointer // *timingwheel.Timer
@@ -45,12 +47,13 @@ var _ kknet.IConn = (*wsConn)(nil)
 func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *wsConn {
 	kknet.CheckOptions(opts)
 	c := &wsConn{
-		id:            kknet.NextConnID(),
-		conn:          conn,
-		opts:          opts,
-		stats:         stats,
-		ctx:           context.Background(),
-		batchWriteBuf: make([]byte, 0, opts.WpOptions.WriteBatchLimitBytes),
+		id:              kknet.NextConnID(),
+		conn:            conn,
+		opts:            opts,
+		stats:           stats,
+		ctx:             context.Background(),
+		batchWriteBuf:   make([]byte, 0, opts.WpOptions.WriteBatchLimitBytes),
+		batchWriteLimit: opts.WpOptions.WriteBatchLimitBytes,
 	}
 	c.initSendQueue()
 	return c
@@ -275,7 +278,7 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			continue
 		}
 		batchBytes = append(batchBytes, bb.B...)
-		if len(batchBytes) >= c.opts.WpOptions.WriteBatchLimitBytes {
+		if len(batchBytes) >= c.batchWriteLimit {
 			// 单次写入超过限制，则立即发送
 			if err := c.sendBytes(batchBytes); err != nil {
 				// 发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。
