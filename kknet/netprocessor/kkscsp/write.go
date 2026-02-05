@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
@@ -36,11 +35,11 @@ type WriteProcessor struct {
 	drainedCh chan struct{}
 	doneCh    chan struct{}
 
-	writeFn      netprocessor.WriteFunc
+	writeFn      kknet.WriteFunc
 	onWriteError func(error)
 }
 
-var _ netprocessor.IWriteProcessor = (*WriteProcessor)(nil)
+var _ kknet.IWriteProcessor = (*WriteProcessor)(nil)
 
 func NewWriteProcessor(opts kknet.WriteOptions) *WriteProcessor {
 	kknet.CheckWriteOptions(&opts)
@@ -68,7 +67,7 @@ func (wp *WriteProcessor) Pending() int {
 
 // Start starts the writer goroutine. writeFn must consume the buffers in batch
 // (and clear wp.sendBatchBuffer[0:n] pointers) before returning.
-func (wp *WriteProcessor) Start(conn kknet.IConn, writeFn netprocessor.WriteFunc, onWriteError func(error)) {
+func (wp *WriteProcessor) Start(conn kknet.IConn, writeFn kknet.WriteFunc, onWriteError func(error)) {
 	wp.conn = conn
 	wp.writeFn = writeFn
 	wp.onWriteError = onWriteError

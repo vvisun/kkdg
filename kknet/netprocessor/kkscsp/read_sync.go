@@ -5,7 +5,6 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -20,7 +19,7 @@ type SyncReadProcessor struct {
 	mu       sync.Mutex
 }
 
-var _ netprocessor.IReadProcessor = (*SyncReadProcessor)(nil)
+var _ kknet.IReadProcessor = (*SyncReadProcessor)(nil)
 
 func NewSyncReadProcessor(opts kknet.ReadOptions) *SyncReadProcessor {
 	if opts.NoneCopyHandler == nil {

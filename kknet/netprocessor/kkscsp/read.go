@@ -6,7 +6,6 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -40,7 +39,7 @@ type ReadProcessor struct {
 	batchBuf  []*kkbuffer.ByteBuffer //批量消费缓冲区，用于消费时复用，避免分配新的内存
 }
 
-var _ netprocessor.IReadProcessor = (*ReadProcessor)(nil)
+var _ kknet.IReadProcessor = (*ReadProcessor)(nil)
 
 func NewReadProcessor(opts kknet.ReadOptions) *ReadProcessor {
 	kknet.CheckReadOptions(&opts)

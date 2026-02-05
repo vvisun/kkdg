@@ -12,7 +12,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/timingwheel"
@@ -31,9 +30,9 @@ type wsConn struct {
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp              netprocessor.IWriteProcessor // 写处理器
-	batchWriteBuf   []byte                       // 批量写入缓冲区
-	batchWriteLimit int                          // 批量写入限制字节数
+	wp              kknet.IWriteProcessor // 写处理器
+	batchWriteBuf   []byte                // 批量写入缓冲区
+	batchWriteLimit int                   // 批量写入限制字节数
 
 	readBB *kkbuffer.ByteBuffer // reused read buffer for NextReader
 
@@ -54,18 +53,18 @@ func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *w
 		batchWriteBuf:   make([]byte, 0, opts.WpOptions.WriteBatchLimitBytes),
 		batchWriteLimit: opts.WpOptions.WriteBatchLimitBytes,
 	}
-	c.initSendQueue()
-	return c
-}
 
-func (c *wsConn) initSendQueue() {
-	wp := defaultWpProvider(c.opts.WpOptions)
-	c.wp = wp
-
-	wp.Start(c, c.writeBatch, func(_ error) {
+	if c.opts.WpProvider != nil {
+		c.wp = c.opts.WpProvider(c.opts.WpOptions)
+	} else {
+		c.wp = defaultWpProvider(c.opts.WpOptions)
+	}
+	c.wp.Start(c, c.writeBatch, func(_ error) {
 		// close underlying conn to force readLoop to exit
 		_ = c.conn.Close()
 	})
+
+	return c
 }
 
 func (c *wsConn) ID() kknet.CONN_ID {
@@ -170,7 +169,12 @@ func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) 
 }
 
 func (c *wsConn) readLoop() error {
-	rp := defaultRpProvider(c.opts.RpOptions)
+	var rp kknet.IReadProcessor
+	if c.opts.RpProvider != nil {
+		rp = c.opts.RpProvider(c.opts.RpOptions)
+	} else {
+		rp = defaultRpProvider(c.opts.RpOptions)
+	}
 	rp.Start(c)
 	defer rp.Stop()
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers"
 )
 
@@ -35,42 +34,6 @@ type IConn interface {
 	// 同步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
 	//SendBufferSync(buffer buffers.IBuffer) error
 }
-
-type (
-	// IMsgHandler is a handler for messages.
-	IMsgHandler interface {
-		/*OnMsg is called when a message is received.
-		@param connId CONN_ID 连接ID
-		@param msg any 消息对象（object）
-		@param msgID kkpacket.MSGID 消息ID
-		@note 外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
-		@note 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
-		*/
-		OnMsg(connId CONN_ID, msg any, msgID kkpacket.MSGID)
-	}
-
-	// IRawHandler is a handler for raw data.
-	IRawHandler interface {
-		/*OnRaw is called when a raw data is received.
-		@param connId CONN_ID 连接ID
-		@param data buffers.IBuffer 原始数据
-		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
-		@note 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
-		*/
-		OnRaw(connId CONN_ID, data buffers.IBuffer)
-	}
-
-	// INoneCopyHandler is a handler for zero copy data.
-	INoneCopyHandler interface {
-		/*OnNoneCopy is called when a raw data is received.
-		如果同步调用已经快过拷贝，可以直接同步消费数据，实现0拷贝优化。
-		@param connId CONN_ID 连接ID
-		@param data buffers.IBuffer 原始数据
-		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
-		*/
-		OnNoneCopy(connId CONN_ID, data []byte)
-	}
-)
 
 // IConnLifecycleHandler handles connection lifecycle.
 type IConnLifecycleHandler interface {

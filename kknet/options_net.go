@@ -25,8 +25,10 @@ type Options struct {
 	PingInterval        time.Duration                // Ping发送间隔（为0时，不发送 Ping）；配合 ReadTimeout 做保活，收到 Pong 会刷新读超时
 	TLSConfig           *tls.Config                  // TLS配置。use for wss or tcp with tls
 
-	WpOptions WriteOptions // 写处理器选项
-	RpOptions ReadOptions  // 读处理器选项
+	WpOptions  WriteOptions // 写处理器选项
+	RpOptions  ReadOptions  // 读处理器选项
+	WpProvider WpProvider   // 写处理器提供者
+	RpProvider RpProvider   // 读处理器提供者
 
 	UDPConnIdleTimeout time.Duration // UDP连接空闲超时时间（为0时，不启用空闲清理）
 	UDPCleanupInterval time.Duration // UDP清理间隔时间（为0时，不启用清理）
@@ -257,6 +259,20 @@ func WithUDPConnIdleTimeout(timeout time.Duration) Option {
 func WithUDPCleanupInterval(interval time.Duration) Option {
 	return func(o *Options) {
 		o.UDPCleanupInterval = interval
+	}
+}
+
+//------------------------- read write processor -------------------------
+
+func WithWpProvider(provider WpProvider) Option {
+	return func(o *Options) {
+		o.WpProvider = provider
+	}
+}
+
+func WithRpProvider(provider RpProvider) Option {
+	return func(o *Options) {
+		o.RpProvider = provider
 	}
 }
 

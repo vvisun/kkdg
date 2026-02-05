@@ -9,7 +9,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -25,8 +24,8 @@ type tcpConn struct {
 
 	closing atomic.Bool
 
-	rp netprocessor.IReadProcessor
-	wp netprocessor.IWriteProcessor
+	rp kknet.IReadProcessor
+	wp kknet.IWriteProcessor
 }
 
 var _ kknet.IConn = (*tcpConn)(nil)
@@ -40,13 +39,23 @@ func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
 		stats: stats,
 		ctx:   context.Background(),
 	}
-	tc.rp = defaultRpProvider(opts.RpOptions)
+
+	if opts.RpProvider != nil {
+		tc.rp = opts.RpProvider(opts.RpOptions)
+	} else {
+		tc.rp = defaultRpProvider(opts.RpOptions)
+	}
 	tc.rp.Start(tc)
 
-	tc.wp = defaultWpProvider(opts.WpOptions)
+	if opts.WpProvider != nil {
+		tc.wp = opts.WpProvider(opts.WpOptions)
+	} else {
+		tc.wp = defaultWpProvider(opts.WpOptions)
+	}
 	tc.wp.Start(tc, tc.writeBatch, func(_ error) {
 		_ = tc.conn.Close()
 	})
+
 	return tc
 }
 

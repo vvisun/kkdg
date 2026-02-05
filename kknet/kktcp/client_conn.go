@@ -9,7 +9,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor"
 	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -25,8 +24,8 @@ type gnetClientConn struct {
 
 	closing atomic.Bool
 
-	rp netprocessor.IReadProcessor
-	wp netprocessor.IWriteProcessor
+	rp kknet.IReadProcessor
+	wp kknet.IWriteProcessor
 }
 
 var _ kknet.IConn = (*gnetClientConn)(nil)
@@ -40,13 +39,22 @@ func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gn
 		stats: stats,
 		ctx:   context.Background(),
 	}
-	cc.rp = defaultRpProvider(opts.RpOptions)
+	if opts.RpProvider != nil {
+		cc.rp = opts.RpProvider(opts.RpOptions)
+	} else {
+		cc.rp = defaultRpProvider(opts.RpOptions)
+	}
 	cc.rp.Start(cc)
 
-	cc.wp = defaultWpProvider(opts.WpOptions)
+	if opts.WpProvider != nil {
+		cc.wp = opts.WpProvider(opts.WpOptions)
+	} else {
+		cc.wp = defaultWpProvider(opts.WpOptions)
+	}
 	cc.wp.Start(cc, cc.writeBatch, func(_ error) {
 		_ = cc.conn.Close()
 	})
+
 	return cc
 }
 
