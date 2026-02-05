@@ -27,8 +27,3 @@ type IWriteProcessor interface {
 	SendBuffer(buffer buffers.IBuffer) error
 	SendMessage(msg any) error
 }
-
-type StatsSnapshot struct {
-	WpQueueLen int
-	RpQueueLen int
-}

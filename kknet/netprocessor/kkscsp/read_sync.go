@@ -104,7 +104,3 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 
 	return nil
 }
-
-func (rp *SyncReadProcessor) Stats() netprocessor.StatsSnapshot {
-	return netprocessor.StatsSnapshot{}
-}

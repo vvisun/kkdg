@@ -202,12 +202,3 @@ func (wp *WriteProcessor) writeLoop() {
 		}
 	}
 }
-
-func (wp *WriteProcessor) Stats() netprocessor.StatsSnapshot {
-	if wp == nil {
-		return netprocessor.StatsSnapshot{}
-	}
-	return netprocessor.StatsSnapshot{
-		WpQueueLen: wp.sendQueue.Len(),
-	}
-}

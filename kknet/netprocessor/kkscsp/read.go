@@ -261,12 +261,3 @@ func (rp *ReadProcessor) dispatchRaw(data buffers.IBuffer) {
 	rp.opts.RawHandler.OnRaw(rp.connID, data)
 	kkbuffer.Put(data)
 }
-
-func (rp *ReadProcessor) Stats() netprocessor.StatsSnapshot {
-	if rp == nil {
-		return netprocessor.StatsSnapshot{}
-	}
-	return netprocessor.StatsSnapshot{
-		RpQueueLen: rp.recvQueue.Len(),
-	}
-}

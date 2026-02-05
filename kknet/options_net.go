@@ -208,41 +208,6 @@ func WithPingInterval(interval time.Duration) Option {
 	}
 }
 
-// WithSendQueueSize sets the send queue size for WebSocket connections.
-func WithSendQueueSize(size int) Option {
-	return func(o *Options) {
-		if size > 0 {
-			o.WpOptions.SendQueueSize = size
-		}
-	}
-}
-
-// WithSendQueueNeedFlushOver sets tcp client need flush over.
-func WithSendQueueNeedFlushOver(needFlushOver bool) Option {
-	return func(o *Options) {
-		o.WpOptions.SendQueueNeedFlushOver = needFlushOver
-	}
-}
-
-// WithSendQueueTimeoutFlushOver sets timeout send queue flush over.
-func WithSendQueueTimeoutFlushOver(timeout time.Duration) Option {
-	return func(o *Options) {
-		if timeout > 0 {
-			o.WpOptions.SendQueueTimeoutFlushOver = timeout
-			if o.WpOptions.SendQueueTimeoutFlushOver < 50*time.Millisecond { // 最小超时时间，防止压根没效果
-				o.WpOptions.SendQueueTimeoutFlushOver = 50 * time.Millisecond
-			}
-		}
-	}
-}
-
-// WithSendQueueFlushTimeoutCallback sets flush timeout callback.
-func WithSendQueueFlushTimeoutCallback(cb func(conn IConn, timeout time.Duration)) Option {
-	return func(o *Options) {
-		o.WpOptions.SendQueueFlushTimeoutCallback = cb
-	}
-}
-
 // WithIsNeedReconnect sets is need reconnect.
 func WithIsNeedReconnect(isNeedReconnect bool) Option {
 	return func(o *Options) {
@@ -267,6 +232,31 @@ func WithReconnectInterval(interval time.Duration, maxRetries int) Option {
 func WithReconnectCallback(cb func(attempt int, err error)) Option {
 	return func(o *Options) {
 		o.ReconnectCallback = cb
+	}
+}
+
+// WithWsOriginChecker sets origin checker.
+func WithWsOriginChecker(checker OriginCheckFunc) Option {
+	return func(o *Options) {
+		if checker != nil {
+			o.WsOriginChecker = checker
+		}
+	}
+}
+
+// WithUDPConnIdleTimeout sets UDP connection idle timeout.
+// Set to 0 to disable idle cleanup.
+func WithUDPConnIdleTimeout(timeout time.Duration) Option {
+	return func(o *Options) {
+		o.UDPConnIdleTimeout = timeout
+	}
+}
+
+// WithUDPCleanupInterval sets UDP cleanup interval.
+// Set to 0 to disable idle cleanup.
+func WithUDPCleanupInterval(interval time.Duration) Option {
+	return func(o *Options) {
+		o.UDPCleanupInterval = interval
 	}
 }
 
@@ -302,27 +292,37 @@ func WithRecvQueueStrict(strict bool) Option {
 	}
 }
 
-// WithWsOriginChecker sets origin checker.
-func WithWsOriginChecker(checker OriginCheckFunc) Option {
+// WithSendQueueSize sets the send queue size for WebSocket connections.
+func WithSendQueueSize(size int) Option {
 	return func(o *Options) {
-		if checker != nil {
-			o.WsOriginChecker = checker
+		if size > 0 {
+			o.WpOptions.SendQueueSize = size
 		}
 	}
 }
 
-// WithUDPConnIdleTimeout sets UDP connection idle timeout.
-// Set to 0 to disable idle cleanup.
-func WithUDPConnIdleTimeout(timeout time.Duration) Option {
+// WithSendQueueNeedFlushOver sets tcp client need flush over.
+func WithSendQueueNeedFlushOver(needFlushOver bool) Option {
 	return func(o *Options) {
-		o.UDPConnIdleTimeout = timeout
+		o.WpOptions.SendQueueNeedFlushOver = needFlushOver
 	}
 }
 
-// WithUDPCleanupInterval sets UDP cleanup interval.
-// Set to 0 to disable idle cleanup.
-func WithUDPCleanupInterval(interval time.Duration) Option {
+// WithSendQueueTimeoutFlushOver sets timeout send queue flush over.
+func WithSendQueueTimeoutFlushOver(timeout time.Duration) Option {
 	return func(o *Options) {
-		o.UDPCleanupInterval = interval
+		if timeout > 0 {
+			o.WpOptions.SendQueueTimeoutFlushOver = timeout
+			if o.WpOptions.SendQueueTimeoutFlushOver < 50*time.Millisecond { // 最小超时时间，防止压根没效果
+				o.WpOptions.SendQueueTimeoutFlushOver = 50 * time.Millisecond
+			}
+		}
+	}
+}
+
+// WithSendQueueFlushTimeoutCallback sets flush timeout callback.
+func WithSendQueueFlushTimeoutCallback(cb func(conn IConn, timeout time.Duration)) Option {
+	return func(o *Options) {
+		o.WpOptions.SendQueueFlushTimeoutCallback = cb
 	}
 }
