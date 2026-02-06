@@ -13,6 +13,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Server represents a WebSocket server.
@@ -257,4 +258,20 @@ func (s *Server) Stats() kknet.StatsSnapshot {
 // GetConnManager returns the connection manager.
 func (s *Server) GetConnManager() kknet.IConnManager {
 	return s.connMgr
+}
+
+func (s *Server) SendMsg(connId kknet.CONN_ID, msg any) error {
+	conn := s.connMgr.GetConn(connId)
+	if conn == nil {
+		return kkerrors.ErrConnNotFound
+	}
+	return conn.SendMsg(msg)
+}
+
+func (s *Server) SendBuffer(connId kknet.CONN_ID, buffer *kkbuffer.ByteBuffer) error {
+	conn := s.connMgr.GetConn(connId)
+	if conn == nil {
+		return kkerrors.ErrConnNotFound
+	}
+	return conn.SendBuffer(buffer)
 }

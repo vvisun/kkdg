@@ -236,7 +236,7 @@ func (c *wsConn) SendMsg(msg any) error {
 	if c.wp == nil {
 		return kkerrors.ErrConnectionClosed
 	}
-	return c.wp.SendMessage(msg)
+	return c.wp.SendMsg(msg)
 }
 
 // SendBuffer 异步发送数据。

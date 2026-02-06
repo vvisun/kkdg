@@ -24,7 +24,7 @@ type IWriteProcessor interface {
 	Start(conn IConn, writeFn WriteFunc, onWriteError func(error))
 	Stop(err error)
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
-	SendMessage(msg any) error
+	SendMsg(msg any) error
 
 	Pending() int          //测试在用
 	Done() <-chan struct{} //测试在用

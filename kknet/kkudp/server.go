@@ -9,6 +9,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Server represents a UDP server.
@@ -221,4 +222,20 @@ func (s *Server) removeConnByID(id int64) *udpConn {
 		}
 	}
 	return nil
+}
+
+func (s *Server) SendMsg(connId kknet.CONN_ID, msg any) error {
+	conn := s.connMgr.GetConn(connId)
+	if conn == nil {
+		return kkerrors.ErrConnNotFound
+	}
+	return conn.SendMsg(msg)
+}
+
+func (s *Server) SendBuffer(connId kknet.CONN_ID, buffer *kkbuffer.ByteBuffer) error {
+	conn := s.connMgr.GetConn(connId)
+	if conn == nil {
+		return kkerrors.ErrConnNotFound
+	}
+	return conn.SendBuffer(buffer)
 }

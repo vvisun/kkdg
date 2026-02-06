@@ -98,7 +98,7 @@ func (c *gnetClientConn) SendMsg(msg any) error {
 	if c.wp == nil {
 		return kkerrors.ErrConnectionClosed
 	}
-	return c.wp.SendMessage(msg)
+	return c.wp.SendMsg(msg)
 }
 
 func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {

@@ -97,7 +97,7 @@ func (wp *WriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 }
 
 // 发送消息。
-func (wp *WriteProcessor) SendMessage(msg any) error {
+func (wp *WriteProcessor) SendMsg(msg any) error {
 	// 编码消息
 	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), wp.opts.Router)
 	if err != nil {

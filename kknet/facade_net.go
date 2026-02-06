@@ -29,10 +29,8 @@ type IConn interface {
 	Context() context.Context       //get context
 	SetContext(ctx context.Context) //set context
 
-	// 异步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
-	// 同步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
-	//SendBufferSync(buffer *kkbuffer.ByteBuffer) error
+	SendMsg(msg any) error
 }
 
 // IConnLifecycleHandler handles connection lifecycle.
@@ -63,6 +61,9 @@ type IServer interface {
 	Addr() string
 	Stats() StatsSnapshot
 	GetConnManager() IConnManager
+
+	SendBuffer(connId CONN_ID, buffer *kkbuffer.ByteBuffer) error
+	SendMsg(connId CONN_ID, msg any) error
 }
 
 // IClient represents a client.
@@ -72,6 +73,7 @@ type IClient interface {
 	Addr() string
 	Stats() StatsSnapshot
 	SetContext(ctx context.Context)
-	//SendBuffer 异步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
+
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
+	SendMsg(msg any) error
 }

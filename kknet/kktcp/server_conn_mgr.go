@@ -9,13 +9,13 @@ import (
 
 type serverConnMgr struct {
 	mu    sync.RWMutex
-	conns map[int64]*tcpConn
+	conns map[kknet.CONN_ID]*tcpConn
 	count int64
 }
 
 func newServerConnMgr() *serverConnMgr {
 	return &serverConnMgr{
-		conns: make(map[int64]*tcpConn),
+		conns: make(map[kknet.CONN_ID]*tcpConn),
 		count: 0,
 	}
 }
@@ -34,7 +34,7 @@ func (m *serverConnMgr) addConn(c *tcpConn) {
 }
 
 // removeConn removes a connection from manager.
-func (m *serverConnMgr) removeConn(id int64) {
+func (m *serverConnMgr) removeConn(id kknet.CONN_ID) {
 	m.mu.Lock()
 	delete(m.conns, id)
 	m.mu.Unlock()
@@ -42,10 +42,10 @@ func (m *serverConnMgr) removeConn(id int64) {
 }
 
 // GetAllConns returns a snapshot of all connections.
-func (m *serverConnMgr) GetAllConns() map[int64]kknet.IConn {
+func (m *serverConnMgr) GetAllConns() map[kknet.CONN_ID]kknet.IConn {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	out := make(map[int64]kknet.IConn, len(m.conns))
+	out := make(map[kknet.CONN_ID]kknet.IConn, len(m.conns))
 	for id, c := range m.conns {
 		out[id] = c
 	}
@@ -53,14 +53,14 @@ func (m *serverConnMgr) GetAllConns() map[int64]kknet.IConn {
 }
 
 // GetConn returns a connection by id.
-func (m *serverConnMgr) GetConn(id int64) kknet.IConn {
+func (m *serverConnMgr) GetConn(id kknet.CONN_ID) kknet.IConn {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.conns[id]
 }
 
 // KickConn closes and removes a connection.
-func (m *serverConnMgr) KickConn(id int64) {
+func (m *serverConnMgr) KickConn(id kknet.CONN_ID) {
 	c := m.GetConn(id)
 	if c != nil {
 		_ = c.Close()

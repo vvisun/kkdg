@@ -72,6 +72,16 @@ func (c *Client) Connect() error {
 	return nil
 }
 
+func (c *Client) SendMsg(msg any) error {
+	if msg == nil {
+		return kkerrors.ErrInvalidPacket
+	}
+	c.connMu.Lock()
+	conn := c.conn
+	c.connMu.Unlock()
+	return conn.SendMsg(msg)
+}
+
 func (c *Client) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if buffer == nil {
 		return kkerrors.ErrInvalidPacket
