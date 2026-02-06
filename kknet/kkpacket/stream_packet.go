@@ -31,7 +31,7 @@ type IStreamPacket interface {
 	 *@return int 包体[message]的长度
 	 *@return error 错误
 	 */
-	GetBodySize(data []byte) (int, error)
+	ReadBodySize(data []byte) (int, error)
 
 	/**write byte count of message to data.
 	 *@param data []byte 整包数据 [length,message] 或 一部分
@@ -126,7 +126,7 @@ func (slf *LengthFieldStreamPacket) LengthFieldByteCount() int {
  *@return int 包体[message]的长度
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) GetBodySize(data []byte) (int, error) {
+func (slf *LengthFieldStreamPacket) ReadBodySize(data []byte) (int, error) {
 	if len(data) < slf.lengthFieldByteCount {
 		return 0, kkerrors.ErrDataTooShortToDecode
 	}
@@ -168,7 +168,7 @@ func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
 	if lenPacket < slf.lengthFieldByteCount {
 		return kkerrors.ErrDataTooShortToDecode
 	}
-	size, err := slf.GetBodySize(packet)
+	size, err := slf.ReadBodySize(packet)
 	if err != nil {
 		return err
 	}
@@ -247,7 +247,7 @@ func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
 	if len(data) < lengthFieldByteCount {
 		return nil, kkerrors.ErrDataTooShortToDecode
 	}
-	size, err := slf.GetBodySize(data)
+	size, err := slf.ReadBodySize(data)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (slf *LengthFieldStreamPacket) Split(data []byte, recvs [][]byte) ([][]byte
 			leftData = data[pos:]
 			break // 数据不足，无法解析长度字段
 		}
-		messageSize, err := slf.GetBodySize(data[pos:])
+		messageSize, err := slf.ReadBodySize(data[pos:])
 		if err != nil { // 解析长度字段失败
 			errRet = err
 			leftData = data[pos:]
@@ -331,7 +331,7 @@ func (slf *LengthFieldStreamPacket) SplitSR(r IStreamReader) ([]byte, bool, erro
 		}
 		return nil, false, err
 	}
-	size, err := slf.GetBodySize(header)
+	size, err := slf.ReadBodySize(header)
 	if err != nil {
 		return nil, false, err
 	}

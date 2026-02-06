@@ -179,10 +179,10 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (*kkbuffer
 	switch pkType.headType {
 	case HeadTypeMid:
 		head := HeadMid{mid: msgID}
-		head.Marshal(buf.B[:4], endian)
+		head.Marshal(buf.B[:headSize], endian)
 	case HeadTypeMidSeq:
 		head := HeadMidSeq{mid: msgID, seq: 0}
-		head.Marshal(buf.B[:8], endian)
+		head.Marshal(buf.B[:headSize], endian)
 	default:
 		kkbuffer.Put(buf)
 		return nil, kkerrors.ErrInvalidMsgHeadType
@@ -219,26 +219,25 @@ func EncodeStream(v any, stream IStreamPacket, router *Router) (*kkbuffer.ByteBu
 
 	lfbCount := stream.LengthFieldByteCount()
 
-	buf, err := codec.MarshalAppend(v, headSize+lfbCount)
+	buf, err := codec.MarshalAppend(v, lfbCount+headSize)
 	if err != nil {
 		return nil, kkerrors.ErrEncodeFailed
 	}
 
-	bodyLen := len(buf.B) - headSize - lfbCount
-	if bodyLen < 0 {
+	if len(buf.B)-lfbCount-headSize < 0 {
 		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
-	stream.writeBodySize(buf.B[:lfbCount], bodyLen)
+	stream.writeBodySize(buf.B[:lfbCount], len(buf.B)-lfbCount)
 
 	endian := GetByteOrder()
 	switch pkType.headType {
 	case HeadTypeMid:
-		endian.PutUint32(buf.B[lfbCount:lfbCount+4], msgID)
+		head := HeadMid{mid: msgID}
+		head.Marshal(buf.B[lfbCount:lfbCount+headSize], endian)
 	case HeadTypeMidSeq:
-		seq := uint32(0)
-		endian.PutUint32(buf.B[lfbCount:lfbCount+4], msgID)
-		endian.PutUint32(buf.B[lfbCount+4:lfbCount+8], seq)
+		head := HeadMidSeq{mid: msgID, seq: 0}
+		head.Marshal(buf.B[lfbCount:lfbCount+headSize], endian)
 	default:
 		kkbuffer.Put(buf)
 		return nil, kkerrors.ErrInvalidMsgHeadType
