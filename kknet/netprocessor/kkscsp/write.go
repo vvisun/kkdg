@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
@@ -74,7 +73,7 @@ func (wp *WriteProcessor) Start(conn kknet.IConn, writeFn kknet.WriteFunc, onWri
 	go wp.writeLoop()
 }
 
-func (wp *WriteProcessor) SendBuffer(buffer buffers.IBuffer) error {
+func (wp *WriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	wp.sendMu.Lock()
 	if wp.closing.Load() {
 		wp.sendMu.Unlock()

@@ -16,7 +16,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -27,11 +27,12 @@ type stressRecvHandler struct {
 	closeOnce sync.Once
 }
 
-func (h *stressRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
+func (h *stressRecvHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
 	if data == nil {
 		return
 	}
 	n := h.recvCount.Add(1)
+	kkbuffer.Put(data)
 	if h.target > 0 && h.ch != nil && n >= h.target {
 		h.closeOnce.Do(func() { close(h.ch) })
 	}

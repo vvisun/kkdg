@@ -6,7 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
@@ -24,7 +24,7 @@ func NewClient(addr string, opts kknet.Options) *Client {
 	return cc
 }
 
-func (c *Client) SendBuffer(data buffers.IBuffer) error {
+func (c *Client) SendBuffer(data *kkbuffer.ByteBuffer) error {
 	return c.cli.SendBuffer(data)
 }
 
@@ -50,8 +50,8 @@ func (h *clientHandler) OnClose(_ kknet.IConn, _ error) {
 
 }
 
-func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data buffers.IBuffer) {
-
+func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	kkbuffer.Put(data)
 }
 
 func (h *clientHandler) OnNoneCopy(connId kknet.CONN_ID, data []byte) {

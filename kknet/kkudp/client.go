@@ -8,7 +8,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // Client represents a UDP client.
@@ -72,7 +72,7 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-func (c *Client) SendBuffer(buffer buffers.IBuffer) error {
+func (c *Client) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if buffer == nil {
 		return kkerrors.ErrInvalidPacket
 	}

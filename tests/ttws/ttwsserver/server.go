@@ -7,7 +7,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkws"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -67,9 +67,10 @@ func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
 	h.recvCount.Add(1)
 }
 
-func (h *stressRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
+func (h *stressRecvHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
 	if data == nil {
 		return
 	}
 	h.recvCount.Add(1)
+	kkbuffer.Put(data)
 }

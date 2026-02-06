@@ -8,7 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 func freePort(t *testing.T) string {
@@ -225,7 +225,7 @@ func (h *tcpEchoHandler) OnConnect(c kknet.IConn) {
 	}
 }
 func (h *tcpEchoHandler) OnClose(c kknet.IConn, err error) {}
-func (h *tcpEchoHandler) OnRaw(connID int64, data buffers.IBuffer) {
+func (h *tcpEchoHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
 	if h.onRaw != nil && data != nil {
 		b := append([]byte(nil), data.Bytes()...)
 		h.onRaw(b)

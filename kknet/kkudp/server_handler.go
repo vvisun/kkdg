@@ -4,7 +4,6 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -49,9 +48,8 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	return gnet.None
 }
 
-func (h *udpEventHandler) dispatch(c *udpConn, data buffers.IBuffer) {
+func (h *udpEventHandler) dispatch(c *udpConn, data *kkbuffer.ByteBuffer) {
 	// UDP connection is only valid during OnTraffic callback.
-	defer kkbuffer.Put(data)
 	if h.server.opts.RpOptions.RawHandler != nil {
 		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kkudp OnMessage", func() {
 			h.server.opts.RpOptions.RawHandler.OnRaw(c.id, data)

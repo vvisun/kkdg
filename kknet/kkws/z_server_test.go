@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -246,7 +245,7 @@ func (h *echoHandler) OnConnect(c kknet.IConn) {
 	}
 }
 func (h *echoHandler) OnClose(c kknet.IConn, err error) {}
-func (h *echoHandler) OnRaw(connID int64, data buffers.IBuffer) {
+func (h *echoHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
 	if h.onRaw != nil && data != nil {
 		b := append([]byte(nil), data.Bytes()...)
 		h.onRaw(b)
@@ -317,7 +316,7 @@ type rawRecvHandlerForPingTest struct {
 	ch chan []byte
 }
 
-func (h *rawRecvHandlerForPingTest) OnRaw(connID int64, data buffers.IBuffer) {
+func (h *rawRecvHandlerForPingTest) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
 	if data == nil {
 		return
 	}
@@ -326,5 +325,5 @@ func (h *rawRecvHandlerForPingTest) OnRaw(connID int64, data buffers.IBuffer) {
 	case h.ch <- b:
 	default:
 	}
-	// ReadProcessor releases data after OnRaw returns; do not Put here.
+	kkbuffer.Put(data)
 }

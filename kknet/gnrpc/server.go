@@ -9,7 +9,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
@@ -240,7 +239,7 @@ func (h *serverHandler) OnConnect(c kknet.IConn) {
 
 // OnRaw implements kknet.IRawHandler.
 // Note: data is a framed packet: [length,message].
-func (h *serverHandler) OnRaw(connId kknet.CONN_ID, data buffers.IBuffer) {
+func (h *serverHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if h == nil || h.svr == nil || data == nil || len(data.Bytes()) == 0 {
 		return
 	}
@@ -277,12 +276,13 @@ func (h *serverHandler) getMethodState(method string) *methodState {
 	return v.(*methodState)
 }
 
-func (h *serverHandler) onPacket(c kknet.IConn, data buffers.IBuffer) {
+func (h *serverHandler) onPacket(c kknet.IConn, data *kkbuffer.ByteBuffer) {
 	if data == nil || len(data.Bytes()) == 0 {
 		return
 	}
 
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	kkbuffer.Put(data)
 	if err != nil {
 		return
 	}

@@ -2,7 +2,6 @@ package kknet
 
 import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -24,7 +23,7 @@ type IReadProcessor interface {
 type IWriteProcessor interface {
 	Start(conn IConn, writeFn WriteFunc, onWriteError func(error))
 	Stop(err error)
-	SendBuffer(buffer buffers.IBuffer) error
+	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 	SendMessage(msg any) error
 
 	Pending() int          //测试在用
@@ -51,11 +50,11 @@ type (
 	IRawHandler interface {
 		/*OnRaw is called when a raw data is received.
 		@param connId CONN_ID 连接ID
-		@param data buffers.IBuffer 原始数据
+		@param data *kkbuffer.ByteBuffer 原始数据
 		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
 		@note 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
 		*/
-		OnRaw(connId CONN_ID, data buffers.IBuffer)
+		OnRaw(connId CONN_ID, data *kkbuffer.ByteBuffer)
 	}
 
 	// INoneCopyHandler is a handler for zero copy data.
@@ -63,7 +62,7 @@ type (
 		/*OnNoneCopy is called when a raw data is received.
 		如果同步调用已经快过拷贝，可以直接同步消费数据，实现0拷贝优化。
 		@param connId CONN_ID 连接ID
-		@param data buffers.IBuffer 原始数据
+		@param data *kkbuffer.ByteBuffer 原始数据
 		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
 		*/
 		OnNoneCopy(connId CONN_ID, data []byte)

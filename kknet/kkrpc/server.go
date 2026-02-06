@@ -5,7 +5,6 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -188,7 +187,7 @@ func (h *serverHandler) OnClose(_ kknet.IConn, _ error) {
 
 }
 
-func (h *serverHandler) OnRaw(_ kknet.CONN_ID, data buffers.IBuffer) {
+func (h *serverHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
 	kkbuffer.Put(data)
 	if err != nil {

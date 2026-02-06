@@ -10,7 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 type udpConn struct {
@@ -48,7 +48,7 @@ func (c *udpConn) RemoteAddr() string {
 	return c.remoteAddr
 }
 
-func (c *udpConn) SendBuffer(buffer buffers.IBuffer) error {
+func (c *udpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()

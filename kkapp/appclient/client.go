@@ -10,7 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -28,7 +28,7 @@ type AppClient struct {
 type clientSender interface {
 	Connect() error
 	Close() error
-	SendBuffer(buffer buffers.IBuffer) error
+	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 }
 
 func (slf *AppClient) GetID() string {
@@ -154,7 +154,7 @@ func (h *clientHandler) OnConnect(c kknet.IConn) {
 	kklog.Infof("[ccclient] connected: remoteAddr=%s", c.RemoteAddr())
 }
 
-func (h *clientHandler) OnMessage(c kknet.IConn, data buffers.IBuffer) {
+func (h *clientHandler) OnMessage(c kknet.IConn, data *kkbuffer.ByteBuffer) {
 	kklog.Infof("[ccclient] recv: size=%d", len(data.Bytes()))
 }
 

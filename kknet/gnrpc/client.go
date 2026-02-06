@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"google.golang.org/protobuf/proto"
@@ -135,11 +134,12 @@ func (h *clientHandler) OnConnect(_ kknet.IConn) {}
 
 // OnRaw implements kknet.IRawHandler.
 // Note: data is a framed packet: [length,message].
-func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data buffers.IBuffer) {
+func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data == nil || len(data.Bytes()) == 0 {
 		return
 	}
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	kkbuffer.Put(data)
 	if err != nil {
 		return
 	}

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
@@ -31,13 +31,13 @@ type CallConfig struct {
 }
 
 type IRpcClient interface {
-	SendBuffer(data buffers.IBuffer) error
+	SendBuffer(data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
 }
 
 type IRpcServer interface {
-	SendBuffer(connId kknet.CONN_ID, data buffers.IBuffer) error
+	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
 }

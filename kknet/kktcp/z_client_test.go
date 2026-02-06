@@ -7,14 +7,14 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 type rawRecvHandler struct {
 	ch chan []byte
 }
 
-func (h *rawRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
+func (h *rawRecvHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
 	if data != nil {
 		b := append([]byte(nil), data.Bytes()...)
 		select {
@@ -23,6 +23,7 @@ func (h *rawRecvHandler) OnRaw(connID int64, data buffers.IBuffer) {
 		}
 	}
 	// ReadProcessor releases data after OnRaw returns
+	kkbuffer.Put(data)
 }
 
 func TestClient_NewClient(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -50,15 +49,15 @@ type IStreamPacket interface {
 	 *@param packet []byte 整包数据 [length,message]
 	 *@return error 错误
 	 */
-	CheckPacketBuffer(buffer buffers.IBuffer) error
+	CheckPacketBuffer(buffer *kkbuffer.ByteBuffer) error
 
 	/**pack message to stream.
 	 *@param data []byte 消息数据 [message]
-	 *@return buffers.IBuffer 整包数据 [length,message]
+	 *@return *kkbuffer.ByteBuffer 整包数据 [length,message]
 	 *@return error 错误
 	 *注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 	 */
-	Pack(data []byte) (buffers.IBuffer, error)
+	Pack(data []byte) (*kkbuffer.ByteBuffer, error)
 
 	/**unpack message from stream.
 	 *@param data []byte 整包数据 [length,message]
@@ -69,10 +68,10 @@ type IStreamPacket interface {
 
 	/**encode message to stream.
 	 *@param msg any 消息数据 [message]
-	 *@return buffers.IBuffer 整包数据 [length,message]
+	 *@return *kkbuffer.ByteBuffer 整包数据 [length,message]
 	 *@return error 错误
 	 */
-	Encode(msg any, router *Router) (buffers.IBuffer, error)
+	Encode(msg any, router *Router) (*kkbuffer.ByteBuffer, error)
 
 	/**decode message from stream.
 	 *@param data []byte 整包数据 [length,message]
@@ -180,10 +179,10 @@ func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
 }
 
 /**check packet is valid.
- *@param buffer buffers.IBuffer 整包数据 [length,message]
+ *@param buffer *kkbuffer.ByteBuffer 整包数据 [length,message]
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) CheckPacketBuffer(buffer buffers.IBuffer) error {
+func (slf *LengthFieldStreamPacket) CheckPacketBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if buffer == nil {
 		return kkerrors.ErrInvalidPacket
 	}
@@ -192,10 +191,10 @@ func (slf *LengthFieldStreamPacket) CheckPacketBuffer(buffer buffers.IBuffer) er
 
 /**encode message to stream.
  *@param msg any 消息数据 [message]
- *@return buffers.IBuffer 整包数据 [length,message]
+ *@return *kkbuffer.ByteBuffer 整包数据 [length,message]
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) Encode(msg any, router *Router) (buffers.IBuffer, error) {
+func (slf *LengthFieldStreamPacket) Encode(msg any, router *Router) (*kkbuffer.ByteBuffer, error) {
 	bb, err := EncodeStream(msg, slf, router)
 	if err != nil {
 		return nil, err
@@ -218,11 +217,11 @@ func (slf *LengthFieldStreamPacket) Decode(data []byte, router *Router) (any, er
 
 /**pack message to stream.
  *@param data []byte 消息数据 [message]
- *@return buffers.IBuffer 整包数据 [length,message]
+ *@return *kkbuffer.ByteBuffer 整包数据 [length,message]
  *@return error 错误
  *注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
  */
-func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
+func (slf *LengthFieldStreamPacket) Pack(data []byte) (*kkbuffer.ByteBuffer, error) {
 	if len(data) > DefaultMaxMessageSize()-slf.lengthFieldByteCount {
 		return nil, kkerrors.ErrMaxMessageSize
 	}

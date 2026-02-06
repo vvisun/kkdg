@@ -7,7 +7,6 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -44,7 +43,7 @@ func (c *clientConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
-func (c *clientConn) SendBuffer(buffer buffers.IBuffer) error {
+func (c *clientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -102,7 +101,6 @@ func (c *clientConn) readLoop() error {
 			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "udpclient OnMessage", func() {
 				c.opts.RpOptions.RawHandler.OnRaw(c.id, dataCpy)
 			})
-			kkbuffer.Put(dataCpy)
 		}
 	}
 }

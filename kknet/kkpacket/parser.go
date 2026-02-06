@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kkpool"
@@ -147,10 +146,10 @@ func EncodePacket[T any](v *T, pkType *PacketCodec, router *Router) ([]byte, err
 
 	@param v *T 消息对象（object）
 	@param pkType *PacketCodec 包类型
-	@return buffers.IBuffer 包数据[message]
+	@return *kkbuffer.ByteBuffer 包数据[message]
 	@return error 错误
 */
-func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (buffers.IBuffer, error) {
+func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (*kkbuffer.ByteBuffer, error) {
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
@@ -189,14 +188,14 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (buffers.I
 
 /*
 编码包。
-注意：外部需记得释放buffers.IBuffer！！！否则buffers.IBuffer得不到回收，性能反而更低！！！
+注意：外部需记得释放*kkbuffer.ByteBuffer！！！否则*kkbuffer.ByteBuffer得不到回收，性能反而更低！！！
 
 	@param v *T 消息对象（object）
 	@param stream IStreamPacket 流包类型
-	@return buffers.IBuffer 包数据[length,message]
+	@return *kkbuffer.ByteBuffer 包数据[length,message]
 	@return error 错误
 */
-func EncodeStream(v any, stream IStreamPacket, router *Router) (buffers.IBuffer, error) {
+func EncodeStream(v any, stream IStreamPacket, router *Router) (*kkbuffer.ByteBuffer, error) {
 	pkType := stream.GetMessagePacket()
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // CONN_ID is the type of connection ID.
@@ -30,9 +30,9 @@ type IConn interface {
 	SetContext(ctx context.Context) //set context
 
 	// 异步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
-	SendBuffer(buffer buffers.IBuffer) error
+	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 	// 同步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
-	//SendBufferSync(buffer buffers.IBuffer) error
+	//SendBufferSync(buffer *kkbuffer.ByteBuffer) error
 }
 
 // IConnLifecycleHandler handles connection lifecycle.
@@ -73,5 +73,5 @@ type IClient interface {
 	Stats() StatsSnapshot
 	SetContext(ctx context.Context)
 	//SendBuffer 异步发送数据。该方法会回收buffer，外部无需手动释放，也不可再使用该buffer。
-	SendBuffer(buffer buffers.IBuffer) error
+	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 }

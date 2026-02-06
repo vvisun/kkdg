@@ -5,7 +5,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
@@ -21,7 +21,7 @@ func NewServer(addr string, opts kknet.Options) *Server {
 	return s
 }
 
-func (s *Server) SendBuffer(connId kknet.CONN_ID, data buffers.IBuffer) error {
+func (s *Server) SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error {
 	conn := s.tcp.GetConnManager().GetConn(connId)
 	if conn == nil {
 		return kkerrors.ErrConnNotFound
@@ -51,8 +51,8 @@ func (h *serverHandler) OnClose(_ kknet.IConn, _ error) {
 
 }
 
-func (h *serverHandler) OnRaw(_ kknet.CONN_ID, data buffers.IBuffer) {
-
+func (h *serverHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	kkbuffer.Put(data)
 }
 
 func (h *serverHandler) OnNoneCopy(_ kknet.CONN_ID, data []byte) {

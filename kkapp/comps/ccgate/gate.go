@@ -14,7 +14,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -239,13 +239,14 @@ func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
 
-func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data buffers.IBuffer) {
+func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data == nil || len(data.Bytes()) == 0 {
 		return
 	}
 
 	// server handler gives us a frame [length,message]. unpack to [message].
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	kkbuffer.Put(data)
 	if err != nil {
 		kklog.Errorf("[ccgate] unpack stream packet error: %v", err)
 		return

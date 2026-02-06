@@ -12,7 +12,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/timingwheel"
 )
@@ -241,7 +240,7 @@ func (c *wsConn) SendMsg(msg any) error {
 }
 
 // SendBuffer 异步发送数据。
-func (c *wsConn) SendBuffer(buffer buffers.IBuffer) error {
+func (c *wsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()

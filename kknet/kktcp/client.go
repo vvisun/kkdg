@@ -10,7 +10,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // GnetClient represents a TCP client based on gnet.
@@ -122,7 +122,7 @@ func (c *GnetClient) SendMsg(msg any) error {
 }
 
 // SendBuffer sends a buffer to the server.
-func (c *GnetClient) SendBuffer(buffer buffers.IBuffer) error {
+func (c *GnetClient) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if buffer == nil {
 		return kkerrors.ErrInvalidPacket
 	}
