@@ -29,28 +29,31 @@ type HeadMid struct {
 	mid uint32
 }
 
+func (h *HeadMid) Marshal(data []byte, endian binary.ByteOrder) error {
+	endian.PutUint32(data[:4], h.mid)
+	return nil
+}
+
+func (h *HeadMid) Unmarshal(data []byte, endian binary.ByteOrder) error {
+	h.mid = endian.Uint32(data[:4])
+	return nil
+}
+
 type HeadMidSeq struct {
 	mid uint32
 	seq uint32
 }
 
-func ParseHeadMid(data []byte, endian binary.ByteOrder) HeadMid {
-	return HeadMid{
-		mid: endian.Uint32(data[:4]),
-	}
+func (h *HeadMidSeq) Marshal(data []byte, endian binary.ByteOrder) error {
+	endian.PutUint32(data[:4], h.mid)
+	endian.PutUint32(data[4:8], h.seq)
+	return nil
 }
 
-func ParseHeadMidSeq(data []byte, endian binary.ByteOrder) HeadMidSeq {
-	return HeadMidSeq{
-		mid: endian.Uint32(data[:4]),
-		seq: endian.Uint32(data[4:8]),
-	}
-}
-
-type MsgInfo struct {
-	MsgId MSGID
-	Data  []byte
-	Err   error
+func (h *HeadMidSeq) Unmarshal(data []byte, endian binary.ByteOrder) error {
+	h.mid = endian.Uint32(data[:4])
+	h.seq = endian.Uint32(data[4:8])
+	return nil
 }
 
 /*
@@ -76,10 +79,12 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 
 	switch pkType.headType {
 	case HeadTypeMid:
-		head := ParseHeadMid(data[:headSize], GetByteOrder())
+		head := HeadMid{}
+		head.Unmarshal(data[:headSize], GetByteOrder())
 		msgId = head.mid
 	case HeadTypeMidSeq:
-		head := ParseHeadMidSeq(data[:headSize], GetByteOrder())
+		head := HeadMidSeq{}
+		head.Unmarshal(data[:headSize], GetByteOrder())
 		msgId = head.mid
 	}
 	return msgId, body, nil
@@ -173,11 +178,11 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (*kkbuffer
 	endian := GetByteOrder()
 	switch pkType.headType {
 	case HeadTypeMid:
-		endian.PutUint32(buf.B[:4], msgID)
+		head := HeadMid{mid: msgID}
+		head.Marshal(buf.B[:4], endian)
 	case HeadTypeMidSeq:
-		seq := uint32(0)
-		endian.PutUint32(buf.B[:4], msgID)
-		endian.PutUint32(buf.B[4:8], seq)
+		head := HeadMidSeq{mid: msgID, seq: 0}
+		head.Marshal(buf.B[:8], endian)
 	default:
 		kkbuffer.Put(buf)
 		return nil, kkerrors.ErrInvalidMsgHeadType

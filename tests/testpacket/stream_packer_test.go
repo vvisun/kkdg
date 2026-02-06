@@ -207,7 +207,7 @@ func TestLengthFieldPacker_Pack_ExceedsMaxSize(t *testing.T) {
 
 func TestLengthFieldPacker_Pack_LargeData(t *testing.T) {
 	packer := kkpacket.NewLengthFieldStreamPacket(nil)
-	data := make([]byte, 5000)
+	data := make([]byte, kkpacket.DefaultMaxMessageSize()-packer.LengthFieldByteCount())
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
