@@ -4,6 +4,8 @@ import (
 	"math/bits"
 	"sync"
 	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // bfPool represents byte buffer pool.
@@ -78,6 +80,7 @@ func (p *bfPool) Put(b *ByteBuffer) {
 		return // 空 buffer 直接丢弃
 	}
 	if !b.released.CompareAndSwap(false, true) {
+		kklog.Debug("byte buffer already released")
 		return // 防止重复释放
 	}
 	if cap(b.B) > maxItemSize {

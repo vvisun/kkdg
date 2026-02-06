@@ -37,6 +37,11 @@ func (b *ByteBuffer) Reset() {
 	b.B = b.B[:0]
 }
 
+// Release releases the byte buffer to the pool.
+func (b *ByteBuffer) Release() {
+	Put(b)
+}
+
 // ReadFrom implements io.ReaderFrom.
 //
 // The function appends all the data read from r to b.

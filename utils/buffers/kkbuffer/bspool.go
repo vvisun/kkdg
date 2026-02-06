@@ -4,6 +4,8 @@ import (
 	"math/bits"
 	"sync"
 	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 func indexBS(n uint32) uint32 {
@@ -65,6 +67,7 @@ func (p *bsPool) Put(b *ByteBuffer) {
 		return // 空 buffer 直接丢弃
 	}
 	if !b.released.CompareAndSwap(false, true) {
+		kklog.Debug("byte buffer already released")
 		return // 防止重复释放
 	}
 	if atomic.LoadInt64(&p.count) > max_size_for_pool {
