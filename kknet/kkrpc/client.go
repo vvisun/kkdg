@@ -194,11 +194,11 @@ func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 	switch fr.T {
 	case FrameTypeResponse:
-		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+		h.c.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
 	case FrameTypeRequest:
-		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+		h.c.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
 	case FrameTypeTell:
-		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+		h.c.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
 	}
 }
 
@@ -217,11 +217,11 @@ func (h *clientHandler) OnNoneCopy(_ kknet.CONN_ID, data []byte) {
 	}
 	switch fr.T {
 	case FrameTypeResponse:
-		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+		h.c.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
 	case FrameTypeRequest:
-		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+		h.c.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
 	case FrameTypeTell:
-		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+		h.c.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
 	}
 }
 

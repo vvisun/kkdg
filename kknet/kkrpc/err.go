@@ -22,4 +22,6 @@ var (
 	ErrConnNotFound = errors.New("conn not found")
 	// 服务器未启动
 	ErrServerNotStarted = errors.New("server not started")
+	// 无效的请求ID
+	ErrInvalidRequestID = errors.New("invalid request id")
 )
