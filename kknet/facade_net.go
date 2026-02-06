@@ -51,8 +51,8 @@ type IConnLifecycleHandler interface {
 // IConnManager manages server connections.
 type IConnManager interface {
 	GetAllConns() map[int64]IConn //获取所有连接
-	GetConn(id int64) IConn       //获取指定连接
-	KickConn(id int64)            //踢出指定连接
+	GetConn(id CONN_ID) IConn     //获取指定连接
+	KickConn(id CONN_ID)          //踢出指定连接
 	GetCount() int64              //获取连接数量
 }
 

@@ -234,7 +234,7 @@ func (rp *ReadProcessor) drainOnce() {
 					continue
 				}
 				if rp.opts.MsgHandler != nil {
-					msg, msgID, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket())
+					msg, msgID, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket(), rp.opts.Router)
 					kkbuffer.Put(packet)
 					if err != nil {
 						continue

@@ -7,6 +7,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
@@ -32,13 +33,11 @@ type CallConfig struct {
 }
 
 type IRpcClient interface {
-	Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error)
-	InvokeNoResponse(ctx context.Context, method string, data any, opts CallConfig) error
+	SendBuffer(data buffers.IBuffer) error
 }
 
 type IRpcServer interface {
-	InvokeConn(ctx context.Context, connId kknet.CONN_ID, method string, data any, opts CallConfig) (any, error)
-	InvokeConnNoResponse(ctx context.Context, connId kknet.CONN_ID, method string, data any, opts CallConfig) error
+	SendBuffer(connId kknet.CONN_ID, data buffers.IBuffer) error
 }
 
 // Invoker is a small abstraction over "something that can invoke a method".
@@ -100,51 +99,66 @@ func (i *ClientInvoker) Invoke(ctx context.Context, method string, data any, opt
 	if i.rpcClient == nil {
 		return nil, ErrClientNotConnected
 	}
+	// encode data
 	rawData, err := dataCodec.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
-	request := RpcRequest{
-		ReqId:  genReqId(),
-		Method: method,
-		Data:   rawData,
+	// encode frame
+	request := Frame{
+		T:  FrameTypeRequest,
+		ID: genReqId(),
+		M:  method,
+		P:  rawData,
 	}
 	rawRequest, err := rpcCodec.Marshal(&request)
 	if err != nil {
 		return nil, err
 	}
-	bb := kkbuffer.GetWithCapacity(len(rawRequest))
-	bb.WriteBytes(rawRequest)
-	return i.rpcClient.Invoke(ctx, method, bb, opts)
+	// encode stream
+	bb, err := kkpacket.DefaultStreamPacket().Pack(rawRequest)
+	if err != nil {
+		return nil, err
+	}
+	// send buffer
+	return nil, i.rpcClient.SendBuffer(bb)
 }
 
 func (i *ClientInvoker) InvokeNoResponse(ctx context.Context, method string, data any, opts CallConfig) error {
-	if i.rpcClient == nil {
-		return ErrClientNotConnected
-	}
+	// encode data
 	rawData, err := dataCodec.Marshal(data)
 	if err != nil {
 		return err
 	}
-	request := RpcTell{
-		Method: method,
-		Data:   rawData,
+	// encode frame
+	request := Frame{
+		T:  FrameTypeTell,
+		ID: 0,
+		M:  method,
+		P:  rawData,
 	}
 	rawRequest, err := rpcCodec.Marshal(&request)
 	if err != nil {
 		return err
 	}
-	bb := kkbuffer.GetWithCapacity(len(rawRequest))
-	bb.WriteBytes(rawRequest)
-	return i.rpcClient.InvokeNoResponse(ctx, method, bb, opts)
+	// encode stream
+	bb, err := kkpacket.DefaultStreamPacket().Pack(rawRequest)
+	if err != nil {
+		return err
+	}
+	// send buffer
+	return i.rpcClient.SendBuffer(bb)
 }
 
 func (i *ClientInvoker) SendMsg(clientId kknet.CONN_ID, msg any) error {
 	if i.rpcClient == nil {
 		return ErrClientNotConnected
 	}
-	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket())
+
+	// encode message
+	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), nil)
 	if err != nil {
+		kkbuffer.Put(msgBB)
 		return err
 	}
 	request := TransMsg{
@@ -156,17 +170,35 @@ func (i *ClientInvoker) SendMsg(clientId kknet.CONN_ID, msg any) error {
 	if err != nil {
 		return err
 	}
-	bb := kkbuffer.GetWithCapacity(len(rawRequest))
-	bb.WriteBytes(rawRequest)
-	return i.rpcClient.InvokeNoResponse(context.Background(), "TransMsg", bb, CallConfig{})
+
+	// encode frame
+	requestFrame := Frame{
+		T:  FrameTypeTransMsg,
+		ID: 0,
+		M:  "TransMsg",
+		P:  rawRequest,
+	}
+	rawRequestFrame, err := rpcCodec.Marshal(&requestFrame)
+	if err != nil {
+		return err
+	}
+	stream, err := kkpacket.DefaultStreamPacket().Pack(rawRequestFrame)
+	if err != nil {
+		return err
+	}
+
+	// send buffer
+	return i.rpcClient.SendBuffer(stream)
 }
 
 func (i *ClientInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
 	if i.rpcClient == nil {
 		return ErrClientNotConnected
 	}
-	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket())
+	// encode message
+	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), nil)
 	if err != nil {
+		kkbuffer.Put(msgBB)
 		return err
 	}
 	request := TransBroadMsg{
@@ -178,9 +210,25 @@ func (i *ClientInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
 	if err != nil {
 		return err
 	}
-	bb := kkbuffer.GetWithCapacity(len(rawRequest))
-	bb.WriteBytes(rawRequest)
-	return i.rpcClient.InvokeNoResponse(context.Background(), "TransBroadMsg", bb, CallConfig{})
+
+	// encode frame
+	requestFrame := Frame{
+		T:  FrameTypeTransBroadMsg,
+		ID: 0,
+		M:  "TransBroadMsg",
+		P:  rawRequest,
+	}
+	rawRequestFrame, err := rpcCodec.Marshal(&requestFrame)
+	if err != nil {
+		return err
+	}
+	stream, err := kkpacket.DefaultStreamPacket().Pack(rawRequestFrame)
+	if err != nil {
+		return err
+	}
+
+	// send buffer
+	return i.rpcClient.SendBuffer(stream)
 }
 
 // ------------------------- rpc Server -------------------------
@@ -204,51 +252,69 @@ func (i *ConnInvoker) Invoke(ctx context.Context, method string, data any, opts 
 	if i.rpcServer == nil {
 		return nil, ErrServerNotStarted
 	}
+	// encode data
 	rawData, err := dataCodec.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
-	request := RpcRequest{
-		ReqId:  genReqId(),
-		Method: method,
-		Data:   rawData,
+	// encode frame
+	request := Frame{
+		T:  FrameTypeRequest,
+		ID: genReqId(),
+		M:  method,
+		P:  rawData,
 	}
 	rawRequest, err := rpcCodec.Marshal(&request)
 	if err != nil {
 		return nil, err
 	}
-	bb := kkbuffer.GetWithCapacity(len(rawRequest))
-	bb.WriteBytes(rawRequest)
-	return i.rpcServer.InvokeConn(ctx, i.connId, method, bb, opts)
+	// encode stream
+	bb, err := kkpacket.DefaultStreamPacket().Pack(rawRequest)
+	if err != nil {
+		return nil, err
+	}
+	// send buffer
+	return nil, i.rpcServer.SendBuffer(i.connId, bb)
 }
 
 func (i *ConnInvoker) InvokeNoResponse(ctx context.Context, method string, data any, opts CallConfig) error {
 	if i.rpcServer == nil {
 		return ErrServerNotStarted
 	}
+	// encode data
 	rawData, err := dataCodec.Marshal(data)
 	if err != nil {
 		return err
 	}
-	request := RpcTell{
-		Method: method,
-		Data:   rawData,
+	// encode frame
+	request := Frame{
+		T:  FrameTypeTell,
+		ID: 0,
+		M:  method,
+		P:  rawData,
 	}
 	rawRequest, err := rpcCodec.Marshal(&request)
 	if err != nil {
 		return err
 	}
-	bb := kkbuffer.GetWithCapacity(len(rawRequest))
-	bb.WriteBytes(rawRequest)
-	return i.rpcServer.InvokeConnNoResponse(ctx, i.connId, method, bb, opts)
+	// encode stream
+	bb, err := kkpacket.DefaultStreamPacket().Pack(rawRequest)
+	if err != nil {
+		return err
+	}
+	// send buffer
+	return i.rpcServer.SendBuffer(i.connId, bb)
 }
 
 func (i *ConnInvoker) SendMsg(clientId kknet.CONN_ID, msg any) error {
 	if i.rpcServer == nil {
 		return ErrServerNotStarted
 	}
-	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket())
+
+	// encode message
+	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), nil)
 	if err != nil {
+		kkbuffer.Put(msgBB)
 		return err
 	}
 	request := TransMsg{
@@ -260,9 +326,25 @@ func (i *ConnInvoker) SendMsg(clientId kknet.CONN_ID, msg any) error {
 	if err != nil {
 		return err
 	}
-	bb := kkbuffer.GetWithCapacity(len(rawRequest))
-	bb.WriteBytes(rawRequest)
-	return i.rpcServer.InvokeConnNoResponse(context.Background(), i.connId, "TransMsg", bb, CallConfig{})
+
+	// encode frame
+	requestFrame := Frame{
+		T:  FrameTypeTransMsg,
+		ID: 0,
+		M:  "TransMsg",
+		P:  rawRequest,
+	}
+	rawRequestFrame, err := rpcCodec.Marshal(&requestFrame)
+	if err != nil {
+		return err
+	}
+	stream, err := kkpacket.DefaultStreamPacket().Pack(rawRequestFrame)
+	if err != nil {
+		return err
+	}
+
+	// send buffer
+	return i.rpcServer.SendBuffer(i.connId, stream)
 }
 
 func (i *ConnInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
@@ -272,8 +354,11 @@ func (i *ConnInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
 	if i.rpcServer == nil {
 		return ErrServerNotStarted
 	}
-	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket())
+
+	// encode message
+	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), nil)
 	if err != nil {
+		kkbuffer.Put(msgBB)
 		return err
 	}
 	request := TransBroadMsg{
@@ -285,7 +370,23 @@ func (i *ConnInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
 	if err != nil {
 		return err
 	}
-	bb := kkbuffer.GetWithCapacity(len(rawRequest))
-	bb.WriteBytes(rawRequest)
-	return i.rpcServer.InvokeConnNoResponse(context.Background(), i.connId, "TransBroadMsg", bb, CallConfig{})
+
+	// encode frame
+	requestFrame := Frame{
+		T:  FrameTypeTransBroadMsg,
+		ID: 0,
+		M:  "TransBroadMsg",
+		P:  rawRequest,
+	}
+	rawRequestFrame, err := rpcCodec.Marshal(&requestFrame)
+	if err != nil {
+		return err
+	}
+	stream, err := kkpacket.DefaultStreamPacket().Pack(rawRequestFrame)
+	if err != nil {
+		return err
+	}
+
+	// send buffer
+	return i.rpcServer.SendBuffer(i.connId, stream)
 }

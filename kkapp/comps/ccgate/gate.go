@@ -28,7 +28,8 @@ type gateComponent struct {
 	cluster   kkcluster.ICluster
 
 	// sessionID(string) -> kknet.IConn
-	connMap sync.Map
+	connMap   sync.Map
+	msgRouter *kkpacket.Router
 }
 
 func (slf *gateComponent) GetID() string {
@@ -254,7 +255,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data buffers.IBuffer) {
 	msgID, _, err := kkpacket.ParseMsgInfo(msgBytes, kkpacket.DefaultStreamPacket().GetMessagePacket())
 	route := ""
 	if err == nil {
-		route = kkpacket.GetMsgRoute(msgID)
+		route = h.gate.msgRouter.GetMsgRoute(msgID)
 	}
 
 	sessionID := strconv.FormatInt(connID, 10)

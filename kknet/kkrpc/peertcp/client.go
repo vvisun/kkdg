@@ -1,7 +1,6 @@
 package peertcp
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 
@@ -45,12 +44,8 @@ func NewClient(addr string, opts kknet.Options, codec kkcodec.ICodec, router *kk
 	return cc
 }
 
-func (c *Client) InvokeNoResponse(ctx context.Context, method string, data any, opts kkrpc.CallConfig) error {
-	return nil
-}
-
-func (c *Client) Invoke(ctx context.Context, method string, data any, opts kkrpc.CallConfig) (any, error) {
-	return nil, nil
+func (c *Client) SendBuffer(data buffers.IBuffer) error {
+	return c.cli.SendBuffer(data)
 }
 
 type clientHandler struct {

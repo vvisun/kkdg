@@ -1,8 +1,7 @@
 package peertcp
 
 import (
-	"context"
-
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkrpc"
@@ -39,12 +38,12 @@ func NewServer(addr string, opts kknet.Options, codec kkcodec.ICodec, router *kk
 	return s
 }
 
-func (s *Server) InvokeConnNoResponse(ctx context.Context, connID kknet.CONN_ID, method string, data any, opts kkrpc.CallConfig) error {
-	return nil
-}
-
-func (s *Server) InvokeConn(ctx context.Context, connID kknet.CONN_ID, method string, data any, opts kkrpc.CallConfig) (any, error) {
-	return nil, nil
+func (s *Server) SendBuffer(connId kknet.CONN_ID, data buffers.IBuffer) error {
+	conn := s.tcp.GetConnManager().GetConn(connId)
+	if conn == nil {
+		return kkerrors.ErrConnNotFound
+	}
+	return conn.SendBuffer(data)
 }
 
 type serverHandler struct {

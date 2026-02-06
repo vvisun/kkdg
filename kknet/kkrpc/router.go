@@ -10,29 +10,24 @@ import (
 type RpcHandler func(ctx context.Context, req []byte) ([]byte, error)
 
 type RpcRouter struct {
-	mu sync.RWMutex
-	m  map[string]RpcHandler
+	m sync.Map //  map[string]RpcHandler
 }
 
 func NewRouter() *RpcRouter {
-	return &RpcRouter{m: make(map[string]RpcHandler)}
+	return &RpcRouter{}
 }
 
 func (r *RpcRouter) Register(method string, h RpcHandler) {
 	if method == "" || h == nil {
 		return
 	}
-	r.mu.Lock()
-	r.m[method] = h
-	r.mu.Unlock()
+	r.m.Store(method, h)
 }
 
 func (r *RpcRouter) Call(ctx context.Context, method string, payload []byte) ([]byte, error) {
-	r.mu.RLock()
-	h := r.m[method]
-	r.mu.RUnlock()
-	if h == nil {
+	h, ok := r.m.Load(method)
+	if !ok || h == nil {
 		return nil, ErrMethodNotFound
 	}
-	return h(ctx, payload)
+	return h.(RpcHandler)(ctx, payload)
 }

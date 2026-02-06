@@ -67,22 +67,22 @@ type IStreamPacket interface {
 	 */
 	Unpack(data []byte) ([]byte, error)
 
-	/**拆分数据包。
-	 *@param data []byte 数据
-	 *@param recvs [][]byte 接收缓冲区
-	 *@return [][]byte 数据包
-	 *@return []byte 剩余数据
+	/**合并包的粘包拆包。通用方法，适用于任何流式协议。
+	 *@param data []byte 数据. [length,message][length,message]...
+	 *@param recvs [][]byte 接收缓冲区. 用于复用，避免分配新的内存。[length,message][length,message]...
+	 *@return [][]byte 数据包. [length,message][length,message]...
+	 *@return []byte 剩余数据. 不完整的[length,message]。下次收到数据时，拼接到后面继续解析。
 	 *@return error 错误
 	 */
 	Split(data []byte, recvs [][]byte) ([][]byte, []byte, error)
 
-	/**粘包拆包
+	/**流式粘包拆包。for gnet
 	 *@param r IStreamReader 流读取器
 	 *@return []byte 整包数据[length,message]
 	 *@return bool 是否完整
 	 *@return error 错误
 	 */
-	UnpackFromSR(r IStreamReader) ([]byte, bool, error)
+	SplitSR(r IStreamReader) ([]byte, bool, error)
 }
 
 // LengthFieldStreamPacket packs and unpacks 4-byte length-prefixed frames.
@@ -195,14 +195,34 @@ func (slf *LengthFieldStreamPacket) Pack(data []byte) (buffers.IBuffer, error) {
 	return bb, nil
 }
 
-/*
-*拆分数据包。
- *@param data []byte 数据
+/**unpack message from stream.
+ *@param data []byte 整包数据 [length,message]
+ *@return []byte 消息数据 [message]
+ *@return error 错误
+ */
+func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
+	lengthFieldByteCount := slf.lengthFieldByteCount
+	if len(data) < lengthFieldByteCount {
+		return nil, kkerrors.ErrDataTooShortToDecode
+	}
+	size, err := slf.GetBodySize(data)
+	if err != nil {
+		return nil, err
+	}
+	totalLen := lengthFieldByteCount + size
+	if len(data) < totalLen {
+		return nil, kkerrors.ErrInvalidPacket
+	}
+	return data[lengthFieldByteCount:totalLen], nil
+}
+
+/**批量拆分数据包。通用方法，适用于任何流式协议。
+ *@param data []byte 数据. [length,message][length,message]...
  *@param recvs 接收缓冲区，用于复用，避免分配新的内存 [length,message][length,message]...
  *@return [][]byte 数据包 [length,message][length,message]...
- *@return []byte 剩余数据，不完整的[length,message]
+ *@return []byte 剩余数据. 不完整的[length,message]。下次收到数据时，拼接到后面继续解析。
  *@return error 错误
-*/
+ */
 func (slf *LengthFieldStreamPacket) Split(data []byte, recvs [][]byte) ([][]byte, []byte, error) {
 	if len(data) == 0 {
 		return recvs[:0], nil, nil
@@ -251,34 +271,13 @@ func (slf *LengthFieldStreamPacket) Split(data []byte, recvs [][]byte) ([][]byte
 	return packets, leftData, errRet
 }
 
-/**unpack message from stream.
- *@param data []byte 整包数据 [length,message]
- *@return []byte 消息数据 [message]
- *@return error 错误
- */
-func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
-	lengthFieldByteCount := slf.lengthFieldByteCount
-	if len(data) < lengthFieldByteCount {
-		return nil, kkerrors.ErrDataTooShortToDecode
-	}
-	size, err := slf.GetBodySize(data)
-	if err != nil {
-		return nil, err
-	}
-	totalLen := lengthFieldByteCount + size
-	if len(data) < totalLen {
-		return nil, kkerrors.ErrInvalidPacket
-	}
-	return data[lengthFieldByteCount:totalLen], nil
-}
-
-/**粘包拆包
+/**流式粘包拆包。for gnet
  *@param r IStreamReader 流读取器
  *@return []byte 整包数据[length,message]
  *@return bool 是否完整
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) UnpackFromSR(r IStreamReader) ([]byte, bool, error) {
+func (slf *LengthFieldStreamPacket) SplitSR(r IStreamReader) ([]byte, bool, error) {
 	lengthFieldByteCount := slf.lengthFieldByteCount
 	if r.InboundBuffered() < lengthFieldByteCount {
 		return nil, false, nil

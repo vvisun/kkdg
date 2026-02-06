@@ -2,6 +2,8 @@ package kknet
 
 import (
 	"time"
+
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
 type WriteOptions struct {
@@ -21,6 +23,8 @@ type WriteOptions struct {
 	WriteBatchSize int
 	//单次批量写入的最大字节数(<=0 不限制)
 	WriteBatchLimitBytes int
+	//消息路由
+	Router *kkpacket.Router
 }
 
 func DefaultWriteOptions() WriteOptions {
@@ -70,6 +74,8 @@ type ReadOptions struct {
 	RecvBatchSize int
 	//当 recvBuf cap 超过该值且当前为空时，缩容到默认值(<=0 使用默认值defaultRecvBufSize)
 	RecvBufShrinkCap int
+	//消息路由
+	Router *kkpacket.Router
 }
 
 func DefaultReadOptions() ReadOptions {

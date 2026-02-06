@@ -96,7 +96,7 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	@return MSGID 消息ID
 	@return error 错误
 */
-func DecodePacket(data []byte, pkType *PacketCodec) (any, MSGID, error) {
+func DecodePacket(data []byte, pkType *PacketCodec, router *Router) (any, MSGID, error) {
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, 0, kkerrors.ErrInvalidCodec
@@ -107,7 +107,7 @@ func DecodePacket(data []byte, pkType *PacketCodec) (any, MSGID, error) {
 		return nil, 0, err
 	}
 
-	msgType := GetMsgType(msgID)
+	msgType := router.GetMsgType(msgID)
 	if msgType == nil {
 		return nil, 0, kkerrors.ErrMsgIDNotRegistered
 	}
@@ -129,8 +129,8 @@ func DecodePacket(data []byte, pkType *PacketCodec) (any, MSGID, error) {
 	@return []byte 包数据[message]
 	@return error 错误
 */
-func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
-	buf, err := EncodePacketEx(v, pkType)
+func EncodePacket[T any](v *T, pkType *PacketCodec, router *Router) ([]byte, error) {
+	buf, err := EncodePacketEx(v, pkType, router)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func EncodePacket[T any](v *T, pkType *PacketCodec) ([]byte, error) {
 	@return buffers.IBuffer 包数据[message]
 	@return error 错误
 */
-func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
+func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (buffers.IBuffer, error) {
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
@@ -161,7 +161,7 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
-	msgID := GetMsgID(v)
+	msgID := router.GetMsgID(v)
 	if msgID == 0 {
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
@@ -196,7 +196,7 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec) (buffers.IBuffer, error) {
 	@return buffers.IBuffer 包数据[length,message]
 	@return error 错误
 */
-func EncodeStream(v any, stream IStreamPacket) (buffers.IBuffer, error) {
+func EncodeStream(v any, stream IStreamPacket, router *Router) (buffers.IBuffer, error) {
 	pkType := stream.GetMessagePacket()
 	codec := kkcodec.GetCodec(pkType.codecType)
 	if codec == nil {
@@ -208,7 +208,7 @@ func EncodeStream(v any, stream IStreamPacket) (buffers.IBuffer, error) {
 		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
-	msgID := GetMsgID(v)
+	msgID := router.GetMsgID(v)
 	if msgID == 0 {
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
@@ -253,6 +253,6 @@ func EncodeStream(v any, stream IStreamPacket) (buffers.IBuffer, error) {
 	@return MSGID 消息ID
 	@return error 错误
 */
-func DecodeStream(data []byte, stream IStreamPacket) (any, MSGID, error) {
-	return DecodePacket(data[stream.LengthFieldByteCount():], stream.GetMessagePacket())
+func DecodeStream(data []byte, stream IStreamPacket, router *Router) (any, MSGID, error) {
+	return DecodePacket(data[stream.LengthFieldByteCount():], stream.GetMessagePacket(), router)
 }

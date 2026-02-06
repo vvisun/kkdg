@@ -6,10 +6,12 @@ import (
 )
 
 func TestRpcRequest(t *testing.T) {
-	request := &RpcRequest{
-		Method: "test",
-		ReqId:  1,
-		Data:   []byte("test"),
+	request := &Frame{
+		T:  FrameTypeRequest,
+		ID: 1,
+		M:  "test",
+		DL: 0,
+		P:  []byte("test"),
 	}
 	fmt.Println(request)
 
@@ -19,23 +21,25 @@ func TestRpcRequest(t *testing.T) {
 	}
 	fmt.Println(rows)
 
-	msg := &RpcRequest{}
+	msg := &Frame{}
 	err = rpcCodec.Unmarshal(rows, msg)
 	if err != nil {
 		t.Fatalf("unmarshal request: %v", err)
 	}
 	fmt.Println(msg)
-	if msg.Method != request.Method || msg.ReqId != request.ReqId || string(msg.Data) != string(request.Data) {
+	if msg.M != request.M || msg.ID != request.ID || string(msg.P) != string(request.P) {
 		t.Fatalf("unmarshal request: %v", err)
 	}
 }
 
 // 性能测试
 func Benchmark_Marshal_Unmarshal_RpcRequest(b *testing.B) {
-	request := &RpcRequest{
-		Method: "test",
-		ReqId:  1,
-		Data:   []byte("test"),
+	request := &Frame{
+		T:  FrameTypeRequest,
+		ID: 1,
+		M:  "test",
+		DL: 0,
+		P:  []byte("test"),
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -44,7 +48,7 @@ func Benchmark_Marshal_Unmarshal_RpcRequest(b *testing.B) {
 		if err != nil {
 			b.Fatalf("marshal request: %v", err)
 		}
-		msg := RpcRequest{}
+		msg := Frame{}
 		err = rpcCodec.Unmarshal(rows, &msg)
 		if err != nil {
 			b.Fatalf("unmarshal request: %v", err)
@@ -54,9 +58,10 @@ func Benchmark_Marshal_Unmarshal_RpcRequest(b *testing.B) {
 
 // 性能测试
 func Benchmark_Marshal_RpcResponse(b *testing.B) {
-	response := &RpcResponse{
-		ReqId: 1,
-		Data:  []byte("test"),
+	response := &Frame{
+		T:  FrameTypeResponse,
+		ID: 1,
+		P:  []byte("test"),
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -70,9 +75,10 @@ func Benchmark_Marshal_RpcResponse(b *testing.B) {
 
 // 性能测试
 func Benchmark_Unmarshal_RpcResponse(b *testing.B) {
-	response := &RpcResponse{
-		ReqId: 1,
-		Data:  []byte("test"),
+	response := &Frame{
+		T:  FrameTypeResponse,
+		ID: 1,
+		P:  []byte("test"),
 	}
 	rows, err := rpcCodec.Marshal(response)
 	if err != nil {
@@ -81,7 +87,7 @@ func Benchmark_Unmarshal_RpcResponse(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		msg := RpcResponse{}
+		msg := Frame{}
 		err := rpcCodec.Unmarshal(rows, &msg)
 		if err != nil {
 			b.Fatalf("unmarshal response: %v", err)
