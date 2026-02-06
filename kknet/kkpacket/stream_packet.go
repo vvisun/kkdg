@@ -67,6 +67,20 @@ type IStreamPacket interface {
 	 */
 	Unpack(data []byte) ([]byte, error)
 
+	/**encode message to stream.
+	 *@param msg any 消息数据 [message]
+	 *@return buffers.IBuffer 整包数据 [length,message]
+	 *@return error 错误
+	 */
+	Encode(msg any, router *Router) (buffers.IBuffer, error)
+
+	/**decode message from stream.
+	 *@param data []byte 整包数据 [length,message]
+	 *@return any 消息数据 [message]
+	 *@return error 错误
+	 */
+	Decode(data []byte, router *Router) (any, error)
+
 	/**合并包的粘包拆包。通用方法，适用于任何流式协议。
 	 *@param data []byte 数据. [length,message][length,message]...
 	 *@param recvs [][]byte 接收缓冲区. 用于复用，避免分配新的内存。[length,message][length,message]...
@@ -149,8 +163,11 @@ func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
 		return kkerrors.ErrInvalidPacket
 	}
 	lenPacket := len(packet)
-	if lenPacket > DefaultMaxMessageSize() || lenPacket < slf.lengthFieldByteCount {
+	if lenPacket > DefaultMaxMessageSize() {
 		return kkerrors.ErrMaxMessageSize
+	}
+	if lenPacket < slf.lengthFieldByteCount {
+		return kkerrors.ErrDataTooShortToDecode
 	}
 	size, err := slf.GetBodySize(packet)
 	if err != nil {
@@ -171,6 +188,32 @@ func (slf *LengthFieldStreamPacket) CheckPacketBuffer(buffer buffers.IBuffer) er
 		return kkerrors.ErrInvalidPacket
 	}
 	return slf.CheckPacket(buffer.B)
+}
+
+/**encode message to stream.
+ *@param msg any 消息数据 [message]
+ *@return buffers.IBuffer 整包数据 [length,message]
+ *@return error 错误
+ */
+func (slf *LengthFieldStreamPacket) Encode(msg any, router *Router) (buffers.IBuffer, error) {
+	bb, err := EncodeStream(msg, slf, router)
+	if err != nil {
+		return nil, err
+	}
+	return bb, nil
+}
+
+/**decode message from stream.
+ *@param data []byte 整包数据 [length,message]
+ *@return any 消息数据 [message]
+ *@return error 错误
+ */
+func (slf *LengthFieldStreamPacket) Decode(data []byte, router *Router) (any, error) {
+	msg, _, err := DecodeStream(data, slf, router)
+	if err != nil {
+		return nil, err
+	}
+	return msg, nil
 }
 
 /**pack message to stream.
