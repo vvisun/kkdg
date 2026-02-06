@@ -19,8 +19,10 @@ type ICodec interface {
 	MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error)
 }
 
+type CodecType uint8
+
 const (
-	CodecTypeJson uint8 = iota
+	CodecTypeJson CodecType = iota
 	CodecTypeProtoBuf
 	CodecTypeMsgpack
 	CodecTypeYaml
@@ -28,7 +30,7 @@ const (
 	CodecTypeToml
 )
 
-func GetCodec(codecType uint8) ICodec {
+func GetCodec(codecType CodecType) ICodec {
 	switch codecType {
 	case CodecTypeJson:
 		return json.DefaultCodec

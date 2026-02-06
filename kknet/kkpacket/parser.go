@@ -1,60 +1,10 @@
 package kkpacket
 
 import (
-	"encoding/binary"
-
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kkpool"
 )
-
-const (
-	HeadTypeMid uint8 = iota
-	HeadTypeMidSeq
-)
-
-func GetHeadSize(headType uint8) int {
-	switch headType {
-	case HeadTypeMid:
-		return 4
-	case HeadTypeMidSeq:
-		return 8
-	default:
-		return -1
-	}
-}
-
-type HeadMid struct {
-	mid uint32
-}
-
-func (h *HeadMid) Marshal(data []byte, endian binary.ByteOrder) error {
-	endian.PutUint32(data[:4], h.mid)
-	return nil
-}
-
-func (h *HeadMid) Unmarshal(data []byte, endian binary.ByteOrder) error {
-	h.mid = endian.Uint32(data[:4])
-	return nil
-}
-
-type HeadMidSeq struct {
-	mid uint32
-	seq uint32
-}
-
-func (h *HeadMidSeq) Marshal(data []byte, endian binary.ByteOrder) error {
-	endian.PutUint32(data[:4], h.mid)
-	endian.PutUint32(data[4:8], h.seq)
-	return nil
-}
-
-func (h *HeadMidSeq) Unmarshal(data []byte, endian binary.ByteOrder) error {
-	h.mid = endian.Uint32(data[:4])
-	h.seq = endian.Uint32(data[4:8])
-	return nil
-}
 
 /*
 * 解析消息信息。
@@ -101,7 +51,7 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	@return error 错误
 */
 func DecodePacket(data []byte, pkType *PacketCodec, router *Router) (any, MSGID, error) {
-	codec := kkcodec.GetCodec(pkType.codecType)
+	codec := pkType.codec
 	if codec == nil {
 		return nil, 0, kkerrors.ErrInvalidCodec
 	}
@@ -155,7 +105,7 @@ func EncodePacket[T any](v *T, pkType *PacketCodec, router *Router) ([]byte, err
 	@return error 错误
 */
 func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (*kkbuffer.ByteBuffer, error) {
-	codec := kkcodec.GetCodec(pkType.codecType)
+	codec := pkType.codec
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
 	}
@@ -201,8 +151,8 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (*kkbuffer
 	@return error 错误
 */
 func EncodeStream(v any, stream IStreamPacket, router *Router) (*kkbuffer.ByteBuffer, error) {
-	pkType := stream.GetMessagePacket()
-	codec := kkcodec.GetCodec(pkType.codecType)
+	pkType := stream.GetMessageCodec()
+	codec := pkType.codec
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
 	}
@@ -228,7 +178,7 @@ func EncodeStream(v any, stream IStreamPacket, router *Router) (*kkbuffer.ByteBu
 		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
-	stream.writeBodySize(buf.B[:lfbCount], len(buf.B)-lfbCount)
+	stream.writeMessageSize(buf.B[:lfbCount], len(buf.B)-lfbCount)
 
 	endian := GetByteOrder()
 	switch pkType.headType {
@@ -257,5 +207,5 @@ func EncodeStream(v any, stream IStreamPacket, router *Router) (*kkbuffer.ByteBu
 	@return error 错误
 */
 func DecodeStream(data []byte, stream IStreamPacket, router *Router) (any, MSGID, error) {
-	return DecodePacket(data[stream.LengthFieldByteCount():], stream.GetMessagePacket(), router)
+	return DecodePacket(data[stream.LengthFieldByteCount():], stream.GetMessageCodec(), router)
 }

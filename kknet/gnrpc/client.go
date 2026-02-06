@@ -88,7 +88,7 @@ func (c *Client) RegisterProto(method string, newReq func() proto.Message, handl
 }
 
 // SetFrameCodec sets the codec used for encoding/decoding internal frames.
-func (c *Client) SetFrameCodec(codecType uint8) error {
+func (c *Client) SetFrameCodec(codecType kkcodec.CodecType) error {
 	cc, err := newCodec(codecType)
 	if err != nil {
 		return err

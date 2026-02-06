@@ -7,10 +7,10 @@ import (
 )
 
 type codec struct {
-	typ uint8
+	typ kkcodec.CodecType
 }
 
-func newCodec(codecType uint8) (*codec, error) {
+func newCodec(codecType kkcodec.CodecType) (*codec, error) {
 	if kkcodec.GetCodec(codecType) == nil {
 		return nil, fmt.Errorf("gnrpc: invalid codecType=%d", codecType)
 	}
@@ -26,4 +26,3 @@ func (c *codec) Unmarshal(data []byte, v any) error {
 	cc := kkcodec.GetCodec(c.typ)
 	return cc.Unmarshal(data, v)
 }
-

@@ -177,7 +177,7 @@ func (s *Server) onewayWorker() {
 }
 
 // SetFrameCodec sets the codec used for encoding/decoding internal frames.
-func (s *Server) SetFrameCodec(codecType uint8) error {
+func (s *Server) SetFrameCodec(codecType kkcodec.CodecType) error {
 	c, err := newCodec(codecType)
 	if err != nil {
 		return err

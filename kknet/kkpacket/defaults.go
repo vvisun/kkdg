@@ -1,6 +1,14 @@
 package kkpacket
 
-var defaultStreamPacket *LengthFieldStreamPacket
+import (
+	"encoding/binary"
+
+	"github.com/vvisun/kkdg/utils/kkcodec"
+)
+
+var defaultStreamPacket = NewLengthFieldStreamPacket(
+	NewPacketCodec(HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)),
+)
 
 const defaultMaxMessageSize = 4 * 1024 //默认MaxMessageSize
 
@@ -11,4 +19,14 @@ func DefaultStreamPacket() IStreamPacket {
 // 整包最大长度，包括长度字段。[length,message]
 func DefaultMaxMessageSize() int {
 	return defaultMaxMessageSize
+}
+
+var gByteOrder binary.ByteOrder = binary.BigEndian
+
+func SetByteOrder(order binary.ByteOrder) {
+	gByteOrder = order
+}
+
+func GetByteOrder() binary.ByteOrder {
+	return gByteOrder
 }

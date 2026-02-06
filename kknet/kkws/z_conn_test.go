@@ -49,7 +49,7 @@ func startTestWSServer(t *testing.T) (wsURL string, recv <-chan []byte, closeFn 
 					if len(data)-pos < kkpacket.DefaultStreamPacket().LengthFieldByteCount() {
 						break
 					}
-					size, err := kkpacket.DefaultStreamPacket().ReadBodySize(data[pos:])
+					size, err := kkpacket.DefaultStreamPacket().ReadMessageSize(data[pos:])
 					if err != nil {
 						break
 					}
@@ -251,7 +251,7 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 				// Split packets in first ws message and forward the first packet (if any).
 				pos := 0
 				if len(data) >= kkpacket.DefaultStreamPacket().LengthFieldByteCount() {
-					size, e := kkpacket.DefaultStreamPacket().ReadBodySize(data[pos:])
+					size, e := kkpacket.DefaultStreamPacket().ReadMessageSize(data[pos:])
 					if e == nil {
 						totalLen := kkpacket.DefaultStreamPacket().LengthFieldByteCount() + size
 						if len(data) >= totalLen {
