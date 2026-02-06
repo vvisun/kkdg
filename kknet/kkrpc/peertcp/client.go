@@ -5,34 +5,22 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/kkrpc"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
 type Client struct {
 	cli    *kktcp.GnetClient
-	addr   string
-	opts   kknet.Options
 	mu     sync.Mutex
 	closed bool
 }
 
-var _ kkrpc.IRpcClient = (*Client)(nil)
-
 func NewClient(addr string, opts kknet.Options) *Client {
-	cc := &Client{
-		addr: addr,
-		opts: opts,
-	}
-	h := &clientHandler{c: cc}
-	reliesOpts := kknet.ApplyOptions(
-		kknet.WithRawHandler(h),
-		kknet.WithNoneCopyHandler(h),
-		kknet.WithMsgHandler(h),
-		kknet.WithBufferSizes(2*1024, 2*1024),
-	)
-	cc.cli = kktcp.NewClient(addr, h, reliesOpts)
+	cc := &Client{}
+	handler := &clientHandler{c: cc}
+	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
+	cc.cli = kktcp.NewClient(addr, handler, opts)
 	return cc
 }
 
@@ -62,14 +50,14 @@ func (h *clientHandler) OnClose(_ kknet.IConn, _ error) {
 
 }
 
-func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data buffers.IBuffer) {
+func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data buffers.IBuffer) {
 
 }
 
-func (h *clientHandler) OnNoneCopy(_ kknet.CONN_ID, data []byte) {
+func (h *clientHandler) OnNoneCopy(connId kknet.CONN_ID, data []byte) {
 
 }
 
-func (h *clientHandler) OnMsg(_ kknet.CONN_ID, _ any, _ kkpacket.MSGID) {
+func (h *clientHandler) OnMsg(connId kknet.CONN_ID, msg any, msgId kkpacket.MSGID) {
 
 }

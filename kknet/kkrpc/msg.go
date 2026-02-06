@@ -12,7 +12,7 @@ const (
 )
 
 type Frame struct {
-	T    FrameType `json:"t" msgpack:"t"`             // type
+	T    FrameType `json:"t" msgpack:"t"`             // FrameType
 	ID   uint64    `json:"id" msgpack:"id"`           // request id. 0 means no response required
 	M    string    `json:"m,omitempty" msgpack:"m"`   // method
 	DL   int64     `json:"dl,omitempty" msgpack:"dl"` // deadline unix ms (0 means no deadline)

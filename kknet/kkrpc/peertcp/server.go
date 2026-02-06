@@ -4,32 +4,20 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/kkrpc"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers"
+	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
 type Server struct {
-	tcp  *kktcp.Server
-	addr string
-	opts kknet.Options
+	tcp *kktcp.Server
 }
 
-var _ kkrpc.IRpcServer = (*Server)(nil)
-
 func NewServer(addr string, opts kknet.Options) *Server {
-	s := &Server{
-		addr: addr,
-		opts: opts,
-	}
-	h := &serverHandler{s: s}
-	reliesOpts := kknet.ApplyOptions(
-		kknet.WithRawHandler(h),
-		kknet.WithNoneCopyHandler(h),
-		kknet.WithMsgHandler(h),
-		kknet.WithBufferSizes(2*1024, 2*1024),
-	)
-	s.tcp = kktcp.NewServer(addr, h, reliesOpts)
+	s := &Server{}
+	handler := &serverHandler{s: s}
+	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
+	s.tcp = kktcp.NewServer(addr, handler, opts)
 	return s
 }
 

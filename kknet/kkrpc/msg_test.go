@@ -1,9 +1,36 @@
 package kkrpc
 
 import (
+	"context"
 	"fmt"
 	"testing"
+	"time"
+
+	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkrpc/peertcp"
 )
+
+func TestAll(t *testing.T) {
+	svr := peertcp.NewServer("localhost:8080", kknet.DefaultOptions())
+	err := svr.Start()
+	if err != nil {
+		t.Fatalf("start server: %v", err)
+	}
+
+	cli := peertcp.NewClient("localhost:8080", kknet.DefaultOptions())
+	err = cli.Start()
+	if err != nil {
+		t.Fatalf("start client: %v", err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	cliInvoker := ClientInvoker{}
+	cliInvoker.Init(cli, nil, nil)
+	cliInvoker.Invoke(context.Background(), "test", []byte("test"), CallConfig{})
+
+	time.Sleep(2 * time.Second)
+}
 
 func TestRpcRequest(t *testing.T) {
 	request := &Frame{

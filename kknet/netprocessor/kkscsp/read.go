@@ -258,5 +258,5 @@ func (rp *ReadProcessor) dispatchMessage(msg any, msgID kkpacket.MSGID) {
 // 分发原始数据到业务逻辑层。异步投递避免阻塞消费循环，提高多连接下的接收吞吐。
 func (rp *ReadProcessor) dispatchRaw(data buffers.IBuffer) {
 	rp.opts.RawHandler.OnRaw(rp.connID, data)
-	kkbuffer.Put(data)
+	// data 交由外部自行是否，因为考虑到外部可能开启线程异步使用, 这里释放会引起外部数据错乱
 }

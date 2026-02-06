@@ -5,7 +5,9 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // ------------------------- rpc Client -------------------------
@@ -14,14 +16,16 @@ import (
 type ClientInvoker struct {
 	rpcClient IRpcClient
 	msgRouter *kkpacket.Router
+	rpcRouter *RpcRouter
 }
 
 var _ Invoker = (*ClientInvoker)(nil)
 var _ IGatewayTransport = (*ClientInvoker)(nil)
 
-func (i *ClientInvoker) Init(cli IRpcClient, msgRouter *kkpacket.Router) error {
+func (i *ClientInvoker) Init(cli IRpcClient, rpcRouter *RpcRouter, msgRouter *kkpacket.Router) error {
 	i.rpcClient = cli
 	i.msgRouter = msgRouter
+	i.rpcRouter = rpcRouter
 	return nil
 }
 
@@ -159,4 +163,69 @@ func (i *ClientInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
 
 	// send buffer
 	return i.rpcClient.SendBuffer(stream)
+}
+
+//-------------------------------------------------------
+
+type clientHandler struct {
+	c *ClientInvoker
+}
+
+func (h *clientHandler) OnConnect(_ kknet.IConn) {
+
+}
+
+func (h *clientHandler) OnClose(_ kknet.IConn, _ error) {
+
+}
+
+func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data buffers.IBuffer) {
+	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	kkbuffer.Put(data)
+	if err != nil {
+		return
+	}
+	var fr Frame
+	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
+		return
+	}
+	kklog.Infof("client handler on raw: %d, %d, %s, %s, %d, %s", fr.T, fr.ID, fr.M, string(fr.P), fr.Code, fr.Err)
+	if h.c == nil || h.c.rpcRouter == nil {
+		return
+	}
+	switch fr.T {
+	case FrameTypeResponse:
+		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+	case FrameTypeRequest:
+		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+	case FrameTypeTell:
+		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+	}
+}
+
+func (h *clientHandler) OnNoneCopy(_ kknet.CONN_ID, data []byte) {
+	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data)
+	if err != nil {
+		return
+	}
+	var fr Frame
+	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
+		return
+	}
+	kklog.Infof("client handler on raw: %d, %d, %s, %s, %d, %s", fr.T, fr.ID, fr.M, string(fr.P), fr.Code, fr.Err)
+	if h.c == nil || h.c.rpcRouter == nil {
+		return
+	}
+	switch fr.T {
+	case FrameTypeResponse:
+		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+	case FrameTypeRequest:
+		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+	case FrameTypeTell:
+		h.c.rpcRouter.Call(context.Background(), fr.M, fr.P)
+	}
+}
+
+func (h *clientHandler) OnMsg(_ kknet.CONN_ID, _ any, _ kkpacket.MSGID) {
+
 }
