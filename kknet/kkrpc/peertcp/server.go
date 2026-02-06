@@ -7,25 +7,20 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkrpc"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 type Server struct {
-	codec  kkcodec.ICodec
-	router *kkrpc.RpcRouter
-	tcp    *kktcp.Server
-	addr   string
-	opts   kknet.Options
+	tcp  *kktcp.Server
+	addr string
+	opts kknet.Options
 }
 
 var _ kkrpc.IRpcServer = (*Server)(nil)
 
-func NewServer(addr string, opts kknet.Options, codec kkcodec.ICodec, router *kkrpc.RpcRouter) *Server {
+func NewServer(addr string, opts kknet.Options) *Server {
 	s := &Server{
-		addr:   addr,
-		opts:   opts,
-		codec:  codec,
-		router: router,
+		addr: addr,
+		opts: opts,
 	}
 	h := &serverHandler{s: s}
 	reliesOpts := kknet.ApplyOptions(
@@ -45,6 +40,16 @@ func (s *Server) SendBuffer(connId kknet.CONN_ID, data buffers.IBuffer) error {
 	}
 	return conn.SendBuffer(data)
 }
+
+func (s *Server) Start() error {
+	return s.tcp.Start()
+}
+
+func (s *Server) Stop() error {
+	return s.tcp.Stop()
+}
+
+//-------------------------------------------------------
 
 type serverHandler struct {
 	s *Server

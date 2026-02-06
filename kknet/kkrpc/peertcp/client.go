@@ -2,36 +2,28 @@ package peertcp
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkrpc"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 type Client struct {
-	codec  kkcodec.ICodec
-	router *kkrpc.RpcRouter
 	cli    *kktcp.GnetClient
 	addr   string
 	opts   kknet.Options
-
-	seq    atomic.Uint64
 	mu     sync.Mutex
 	closed bool
 }
 
 var _ kkrpc.IRpcClient = (*Client)(nil)
 
-func NewClient(addr string, opts kknet.Options, codec kkcodec.ICodec, router *kkrpc.RpcRouter) *Client {
+func NewClient(addr string, opts kknet.Options) *Client {
 	cc := &Client{
-		addr:   addr,
-		opts:   opts,
-		codec:  codec,
-		router: router,
+		addr: addr,
+		opts: opts,
 	}
 	h := &clientHandler{c: cc}
 	reliesOpts := kknet.ApplyOptions(
@@ -47,6 +39,16 @@ func NewClient(addr string, opts kknet.Options, codec kkcodec.ICodec, router *kk
 func (c *Client) SendBuffer(data buffers.IBuffer) error {
 	return c.cli.SendBuffer(data)
 }
+
+func (c *Client) Start() error {
+	return c.cli.Connect()
+}
+
+func (c *Client) Stop() error {
+	return c.cli.Close()
+}
+
+//-------------------------------------------------------
 
 type clientHandler struct {
 	c *Client
