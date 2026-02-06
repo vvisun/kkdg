@@ -1,7 +1,6 @@
 package peertcp
 
 import (
-	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -22,11 +21,7 @@ func NewServer(addr string, opts kknet.Options) *Server {
 }
 
 func (s *Server) SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error {
-	conn := s.tcp.GetConnManager().GetConn(connId)
-	if conn == nil {
-		return kkerrors.ErrConnNotFound
-	}
-	return conn.SendBuffer(data)
+	return s.tcp.SendBuffer(connId, data)
 }
 
 func (s *Server) Start() error {
