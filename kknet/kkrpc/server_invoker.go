@@ -14,14 +14,14 @@ import (
 type ConnInvoker struct {
 	connId    kknet.CONN_ID
 	rpcServer IRpcServer
-	msgRouter *kkpacket.Router
+	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcRouter
 }
 
 var _ Invoker = (*ConnInvoker)(nil)
 var _ IGatewayTransport = (*ConnInvoker)(nil)
 
-func (i *ConnInvoker) Init(server IRpcServer, connId kknet.CONN_ID, rpcRouter *RpcRouter, msgRouter *kkpacket.Router) error {
+func (i *ConnInvoker) Init(server IRpcServer, connId kknet.CONN_ID, rpcRouter *RpcRouter, msgRouter *kkpacket.MsgRouter) error {
 	i.rpcServer = server
 	i.connId = connId
 	i.msgRouter = msgRouter

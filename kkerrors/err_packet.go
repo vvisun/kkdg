@@ -20,6 +20,8 @@ var (
 	ErrMsgIDNotRegistered = errors.New("message id not registered")
 	// 未注册该消息类型
 	ErrMsgTypeNotRegistered = errors.New("message type not registered")
+	// 未注册该消息的Handler
+	ErrMsgHandlerNotRegistered = errors.New("message handler not registered")
 )
 
 // -------------- for kkcodec -------------------

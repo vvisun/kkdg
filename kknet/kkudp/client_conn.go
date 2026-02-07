@@ -5,7 +5,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -45,14 +44,7 @@ func (c *clientConn) RemoteAddr() string {
 }
 
 func (c *clientConn) SendMsg(msg any) error {
-	if msg == nil {
-		return kkerrors.ErrInvalidPacket
-	}
-	buffer, err := kkpacket.DefaultStreamPacket().Encode(msg, nil)
-	if err != nil {
-		return err
-	}
-	return c.SendBuffer(buffer)
+	return nil
 }
 
 func (c *clientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {

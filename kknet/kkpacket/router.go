@@ -8,30 +8,29 @@ import (
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-type MsgMeta struct {
-	ID           MSGID
-	Type         reflect.Type
-	Route        string
-	streamPacket IStreamPacket
+type msgMeta struct {
+	msgID    MSGID
+	msgType  reflect.Type
+	msgRoute string
 }
 
 type MSGID = uint32 // 消息ID
 
-type Router struct {
+type MsgRouter struct {
 	typeToId  map[reflect.Type]MSGID
 	idToType  map[MSGID]reflect.Type
 	idToRoute map[MSGID]string
 }
 
-func NewRouter() *Router {
-	return &Router{
+func NewMsgRouter() *MsgRouter {
+	return &MsgRouter{
 		typeToId:  make(map[reflect.Type]MSGID),
 		idToType:  make(map[MSGID]reflect.Type),
 		idToRoute: make(map[MSGID]string),
 	}
 }
 
-func (r *Router) Register(id MSGID, msg any, route string) error {
+func (r *MsgRouter) Register(id MSGID, msg any, route string) error {
 	if id == 0 {
 		kklog.Errorf("message id is 0")
 		return kkerrors.ErrInvalidMsgID
@@ -47,7 +46,7 @@ func (r *Router) Register(id MSGID, msg any, route string) error {
 	return nil
 }
 
-func (r *Router) GetMsgID(msg any) MSGID {
+func (r *MsgRouter) GetMsgID(msg any) MSGID {
 	msgType := reflect.TypeOf(msg)
 	id, ok := r.typeToId[msgType]
 	if !ok {
@@ -57,7 +56,7 @@ func (r *Router) GetMsgID(msg any) MSGID {
 	return id
 }
 
-func (r *Router) GetMsgType(id MSGID) reflect.Type {
+func (r *MsgRouter) GetMsgType(id MSGID) reflect.Type {
 	tp, ok := r.idToType[id]
 	if !ok {
 		kklog.Errorf("message id %v is not registered", id)
@@ -66,7 +65,7 @@ func (r *Router) GetMsgType(id MSGID) reflect.Type {
 	return tp
 }
 
-func (r *Router) GetMsgRoute(id MSGID) string {
+func (r *MsgRouter) GetMsgRoute(id MSGID) string {
 	route, ok := r.idToRoute[id]
 	if !ok {
 		kklog.Errorf("message id %v is not registered", id)

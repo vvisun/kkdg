@@ -13,14 +13,14 @@ import (
 // ClientInvoker adapts *Client to Invoker.
 type ClientInvoker struct {
 	rpcClient IRpcClient
-	msgRouter *kkpacket.Router
+	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcRouter
 }
 
 var _ Invoker = (*ClientInvoker)(nil)
 var _ IGatewayTransport = (*ClientInvoker)(nil)
 
-func (i *ClientInvoker) Init(cli IRpcClient, rpcRouter *RpcRouter, msgRouter *kkpacket.Router) error {
+func (i *ClientInvoker) Init(cli IRpcClient, rpcRouter *RpcRouter, msgRouter *kkpacket.MsgRouter) error {
 	i.rpcClient = cli
 	i.msgRouter = msgRouter
 	i.rpcRouter = rpcRouter

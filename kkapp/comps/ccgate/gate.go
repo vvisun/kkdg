@@ -29,7 +29,7 @@ type gateComponent struct {
 
 	// sessionID(string) -> kknet.IConn
 	connMap   sync.Map
-	msgRouter *kkpacket.Router
+	msgRouter *kkpacket.MsgRouter
 }
 
 func (slf *gateComponent) GetID() string {

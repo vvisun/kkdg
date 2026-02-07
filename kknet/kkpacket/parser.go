@@ -50,7 +50,7 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	@return MSGID 消息ID
 	@return error 错误
 */
-func DecodePacket(data []byte, pkType *PacketCodec, router *Router) (any, MSGID, error) {
+func DecodePacket(data []byte, pkType *PacketCodec, router *MsgRouter) (any, MSGID, error) {
 	codec := pkType.codec
 	if codec == nil {
 		return nil, 0, kkerrors.ErrInvalidCodec
@@ -83,7 +83,7 @@ func DecodePacket(data []byte, pkType *PacketCodec, router *Router) (any, MSGID,
 	@return []byte 包数据[message]
 	@return error 错误
 */
-func EncodePacket[T any](v *T, pkType *PacketCodec, router *Router) ([]byte, error) {
+func EncodePacket[T any](v *T, pkType *PacketCodec, router *MsgRouter) ([]byte, error) {
 	buf, err := EncodePacketEx(v, pkType, router)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func EncodePacket[T any](v *T, pkType *PacketCodec, router *Router) ([]byte, err
 	@return *kkbuffer.ByteBuffer 包数据[message]
 	@return error 错误
 */
-func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (*kkbuffer.ByteBuffer, error) {
+func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
 	codec := pkType.codec
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec
@@ -150,7 +150,7 @@ func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *Router) (*kkbuffer
 	@return *kkbuffer.ByteBuffer 包数据[length,message]
 	@return error 错误
 */
-func EncodeStream(v any, stream IStreamPacket, router *Router) (*kkbuffer.ByteBuffer, error) {
+func EncodeStream(v any, stream IStreamPacket, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
 	pkType := stream.GetMessageCodec()
 	codec := pkType.codec
 	if codec == nil {
@@ -206,6 +206,6 @@ func EncodeStream(v any, stream IStreamPacket, router *Router) (*kkbuffer.ByteBu
 	@return MSGID 消息ID
 	@return error 错误
 */
-func DecodeStream(data []byte, stream IStreamPacket, router *Router) (any, MSGID, error) {
+func DecodeStream(data []byte, stream IStreamPacket, router *MsgRouter) (any, MSGID, error) {
 	return DecodePacket(data[stream.LengthFieldByteCount():], stream.GetMessageCodec(), router)
 }

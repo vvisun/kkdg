@@ -13,7 +13,7 @@ import (
 
 type Server struct {
 	tcp       *kktcp.Server
-	msgRouter *kkpacket.Router
+	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcRouter
 }
 
@@ -43,7 +43,7 @@ func (s *Server) Stop() error {
 //----------------------------------------------------------------
 
 type serverHandler struct {
-	msgRouter *kkpacket.Router
+	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcRouter
 }
 

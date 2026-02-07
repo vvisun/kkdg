@@ -9,17 +9,17 @@ import (
 
 // 消息接收器
 type IMsgHandler interface {
-	GetMethod() string                           // 获取消息ID
+	GetMsgID() any                               // 获取消息ID
 	OnMsg(ctx context.Context, msg []byte) error // 消息回调
 }
 
 type RouteHandler[T any] struct {
-	call   func(ctx context.Context, msg *T) error
-	method string
+	call  func(ctx context.Context, msg *T) error
+	msgID any
 }
 
-func (h *RouteHandler[T]) GetMethod() string {
-	return h.method
+func (h *RouteHandler[T]) GetMsgID() any {
+	return h.msgID
 }
 
 func (h *RouteHandler[T]) OnMsg(ctx context.Context, msg []byte) error {
@@ -38,20 +38,20 @@ func (h *RouteHandler[T]) OnMsg(ctx context.Context, msg []byte) error {
 	return h.call(ctx, &data)
 }
 
-func NewRouteHandler[T any](method string, call func(ctx context.Context, msg *T) error) *RouteHandler[T] {
+func NewRouteHandler[T any](method any, call func(ctx context.Context, msg *T) error) *RouteHandler[T] {
 	var handler RouteHandler[T]
 	handler.call = call
-	handler.method = method
+	handler.msgID = method
 	return &handler
 }
 
 //---------------------------------------------------------------
 
 type RpcRouter struct {
-	m map[string]IMsgHandler
+	m map[interface{}]IMsgHandler
 }
 
-func (r *RpcRouter) OnMsg(ctx context.Context, method string, msg []byte) error {
+func (r *RpcRouter) OnMsg(ctx context.Context, method any, msg []byte) error {
 	h, ok := r.m[method]
 	if !ok || h == nil {
 		return ErrMethodNotFound
@@ -61,7 +61,7 @@ func (r *RpcRouter) OnMsg(ctx context.Context, method string, msg []byte) error 
 
 func NewRouter() *RpcRouter {
 	return &RpcRouter{
-		m: make(map[string]IMsgHandler),
+		m: make(map[interface{}]IMsgHandler),
 	}
 }
 
@@ -69,7 +69,7 @@ func RegistRouteHandler[T any](router *RpcRouter, h *RouteHandler[T]) {
 	if h == nil {
 		return
 	}
-	router.m[h.GetMethod()] = h
+	router.m[h.GetMsgID()] = h
 }
 
 //----------------------------------------------------------------

@@ -49,14 +49,7 @@ func (c *udpConn) RemoteAddr() string {
 }
 
 func (c *udpConn) SendMsg(msg any) error {
-	if msg == nil {
-		return kkerrors.ErrInvalidPacket
-	}
-	buffer, err := kkpacket.DefaultStreamPacket().Encode(msg, nil)
-	if err != nil {
-		return err
-	}
-	return c.SendBuffer(buffer)
+	return nil
 }
 
 func (c *udpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {

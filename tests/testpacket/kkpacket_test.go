@@ -35,7 +35,7 @@ type msgTest2 struct {
 	Country string
 }
 
-var router = kkpacket.NewRouter()
+var router = kkpacket.NewMsgRouter()
 
 func initTestEnv(_ *testing.T) {
 	router.Register(1, &msgTest1{}, "test1")

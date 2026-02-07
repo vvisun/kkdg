@@ -13,7 +13,7 @@ import (
 
 type Client struct {
 	cli       *kktcp.GnetClient
-	msgRouter *kkpacket.Router
+	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcRouter
 }
 
@@ -43,7 +43,7 @@ func (c *Client) Stop() error {
 //----------------------------------------------------------------
 
 type clientHandler struct {
-	msgRouter *kkpacket.Router
+	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcRouter
 }
 
