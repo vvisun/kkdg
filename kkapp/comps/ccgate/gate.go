@@ -15,6 +15,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -217,15 +218,22 @@ func (slf *gateComponent) startWSServer() error {
 }
 
 type gateHandler struct {
-	gate *gateComponent
+	gate          *gateComponent
+	messagePacket *kkpacket.MessagePacket
 }
 
 var _ kknet.IConnLifecycleHandler = (*gateHandler)(nil)
 var _ kknet.IRawHandler = (*gateHandler)(nil)
 
 func newGateHandler(gate *gateComponent) *gateHandler {
+	msgPacket := kkpacket.NewMessagePacket(
+		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+		kkcodec.GetCodec(kkcodec.CodecTypeJson),
+		gate.msgRouter,
+	)
 	return &gateHandler{
-		gate: gate,
+		gate:          gate,
+		messagePacket: msgPacket,
 	}
 }
 
@@ -253,10 +261,10 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	// Best-effort: derive route from msgID if it is registered.
-	msgID, err := kkpacket.DefaultStreamPacket().GetMsgID(data.Bytes())
+	msgID, err := h.messagePacket.GetMsgID(msgBytes)
 	route := ""
 	if err == nil {
-		route = h.gate.msgRouter.GetMsgRoute(msgID)
+		route = h.messagePacket.GetRouter().GetMsgRoute(msgID)
 	}
 
 	sessionID := strconv.FormatInt(connID, 10)
