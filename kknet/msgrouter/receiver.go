@@ -1,8 +1,6 @@
 package msgrouter
 
 import (
-	"reflect"
-
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -50,20 +48,14 @@ func NewMsgReceiver(messagePacket *kkpacket.MessagePacket) *MsgReceiver {
 	}
 }
 
-// RegistMsgHandler 注册消息处理器
-func RegistMsgHandler[T any](receiver *MsgReceiver, h *MsgHandler[T]) {
-	if h == nil {
-		return
-	}
-	receiver.m[h.GetMsgID()] = h
-}
-
+// RegisterMsgHandler 注册消息处理器
 func RegisterMsgHandler[T any](receiver *MsgReceiver, call MsgHandlerFunc[T]) {
-	msgID := receiver.messagePacket.GetRouter().GetMsgID(new(T))
+	var v T
+	msgID := receiver.messagePacket.GetRouter().GetMsgID(&v)
 	if msgID == 0 {
-		kklog.Errorf("message type %v is not registered", reflect.TypeOf(new(T)))
+		kklog.Error("message type not registered")
 		return
 	}
-	handler := NewMsgHandler[T](msgID, receiver.messagePacket.GetBodyCodec(), call)
-	RegistMsgHandler(receiver, handler)
+	h := NewMsgHandler[T](msgID, receiver.messagePacket.GetBodyCodec(), call)
+	receiver.m[h.GetMsgID()] = h
 }

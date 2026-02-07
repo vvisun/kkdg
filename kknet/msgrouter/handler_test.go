@@ -80,14 +80,14 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 			ID:   1,
 			Data: "test",
 		}
-		_, err := kkpacket.EncodeStream(msg, stream, msgPacket)
+		bb, err := kkpacket.EncodeStream(msg, stream, msgPacket)
 		if err != nil {
 			b.Fatalf("encode stream: %v", err)
 		}
 
-		// err = receiver.OnRaw(1, bb)
-		// if err != nil {
-		// 	b.Fatalf("on raw: %v", err)
-		// }
+		err = receiver.OnRaw(1, bb)
+		if err != nil {
+			b.Fatalf("on raw: %v", err)
+		}
 	}
 }

@@ -30,24 +30,24 @@ func NewMsgRouter() *MsgRouter {
 	}
 }
 
-func (r *MsgRouter) Register(id MSGID, msg any, route string) error {
+func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 	if id == 0 {
 		kklog.Errorf("message id is 0")
 		return kkerrors.ErrInvalidMsgID
 	}
-	msgType := reflect.TypeOf(msg)
-	if msgType == nil || !xreflect.IsPointer(msg) {
+	msgType := reflect.TypeOf(msgPtr)
+	if msgType == nil || !xreflect.IsPointer(msgPtr) {
 		kklog.Errorf("message pointer required, got %v", msgType)
 		return kkerrors.ErrInvalidMessage
 	}
-	r.typeToId[reflect.TypeOf(msg)] = id
-	r.idToType[id] = reflect.TypeOf(msg)
+	r.typeToId[reflect.TypeOf(msgPtr)] = id
+	r.idToType[id] = reflect.TypeOf(msgPtr)
 	r.idToRoute[id] = route
 	return nil
 }
 
-func (r *MsgRouter) GetMsgID(msg any) MSGID {
-	msgType := reflect.TypeOf(msg)
+func (r *MsgRouter) GetMsgID(msgPtr any) MSGID {
+	msgType := reflect.TypeOf(msgPtr)
 	id, ok := r.typeToId[msgType]
 	if !ok {
 		kklog.Errorf("message %v is not registered", msgType)
