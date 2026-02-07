@@ -6,7 +6,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // ------------------------- rpc Server -------------------------
@@ -171,69 +170,4 @@ func (i *ConnInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
 
 	// send buffer
 	return i.rpcServer.SendBuffer(i.connId, stream)
-}
-
-//-------------------------------------------------------
-
-type serverHandler struct {
-	s *ConnInvoker
-}
-
-func (h *serverHandler) OnConnect(_ kknet.IConn) {
-
-}
-
-func (h *serverHandler) OnClose(_ kknet.IConn, _ error) {
-
-}
-
-func (h *serverHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
-	kkbuffer.Put(data)
-	if err != nil {
-		return
-	}
-	var fr Frame
-	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
-		return
-	}
-	kklog.Infof("server handler on raw: %d, %d, %s, %s, %d, %s", fr.T, fr.ID, fr.M, string(fr.P), fr.Code, fr.Err)
-	if h.s == nil || h.s.rpcRouter == nil {
-		return
-	}
-	switch fr.T {
-	case FrameTypeRequest:
-		h.s.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	case FrameTypeResponse:
-		h.s.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	case FrameTypeTell:
-		h.s.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	}
-}
-
-func (h *serverHandler) OnNoneCopy(_ kknet.CONN_ID, data []byte) {
-	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data)
-	if err != nil {
-		return
-	}
-	var fr Frame
-	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
-		return
-	}
-	kklog.Infof("server handler on raw: %d, %d, %s, %s, %d, %s", fr.T, fr.ID, fr.M, string(fr.P), fr.Code, fr.Err)
-	if h.s == nil || h.s.rpcRouter == nil {
-		return
-	}
-	switch fr.T {
-	case FrameTypeRequest:
-		h.s.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	case FrameTypeResponse:
-		h.s.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	case FrameTypeTell:
-		h.s.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	}
-}
-
-func (h *serverHandler) OnMsg(_ kknet.CONN_ID, _ any, _ kkpacket.MSGID) {
-
 }

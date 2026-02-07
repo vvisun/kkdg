@@ -7,17 +7,16 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkrpc/peertcp"
 )
 
 func TestAll(t *testing.T) {
-	svr := peertcp.NewServer("localhost:8080", kknet.DefaultOptions())
+	svr := NewServer("localhost:8080", kknet.DefaultOptions())
 	err := svr.Start()
 	if err != nil {
 		t.Fatalf("start server: %v", err)
 	}
 
-	cli := peertcp.NewClient("localhost:8080", kknet.DefaultOptions())
+	cli := NewClient("localhost:8080", kknet.DefaultOptions())
 	err = cli.Start()
 	if err != nil {
 		t.Fatalf("start client: %v", err)

@@ -101,6 +101,7 @@ func (wp *WriteProcessor) SendMsg(msg any) error {
 	// 编码消息
 	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), wp.opts.Router)
 	if err != nil {
+		kkbuffer.Put(buffer)
 		return err
 	}
 	return wp.SendBuffer(buffer)

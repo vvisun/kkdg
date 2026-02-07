@@ -24,4 +24,6 @@ var (
 	ErrServerNotStarted = errors.New("server not started")
 	// 无效的请求ID
 	ErrInvalidRequestID = errors.New("invalid request id")
+	// 无效的帧类型
+	ErrInvalidFrameType = errors.New("invalid frame type")
 )

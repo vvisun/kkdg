@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 type testMsg struct {
@@ -11,37 +13,179 @@ type testMsg struct {
 	Data string
 }
 
+type testRsp struct {
+	Code int
+	Msg  string
+}
+
 func TestRouter(t *testing.T) {
 	router := NewRouter()
-	handler := NewMsgHandler("test", func(ctx context.Context, msg *testMsg) error {
+	handler := NewRouteHandler("test", func(ctx context.Context, msg *testMsg) error {
 		fmt.Println(msg)
 		return nil
 	})
-	handler1 := NewMsgHandler("test1", func(ctx context.Context, msg *Frame) error {
-		fmt.Println(msg)
-		return nil
-	})
-	RegisterHandler(router, handler)
-	RegisterHandler(router, handler1)
+	RegistRouteHandler(router, handler)
 
 	msg := &testMsg{
 		ID:   1,
 		Data: "test",
 	}
-	msgBytes, err := dataCodec.Marshal(msg)
+	bb, err := EncodeRpcFrame(FrameTypeRequest, 1, "test", msg)
 	if err != nil {
-		t.Fatalf("marshal msg: %v", err)
+		t.Fatalf("encode rpc frame: %v", err)
 	}
-	router.OnMsg(context.Background(), "test", msgBytes)
+	router.OnMsg(context.Background(), "test", bb.Bytes())
+}
 
-	frame := &Frame{
-		T: FrameTypeRequest,
-		M: "test1",
-		P: msgBytes,
-	}
-	frameBytes, err := rpcCodec.Marshal(frame)
+func TestMsgPeer_Request(t *testing.T) {
+	peer := NewMsgPeer[testMsg, testRsp]("test")
+	bb, err := peer.EncodeReq(&testMsg{
+		ID:   1,
+		Data: "test",
+	})
 	if err != nil {
-		t.Fatalf("marshal frame: %v", err)
+		t.Fatalf("encode req: %v", err)
 	}
-	router.OnMsg(context.Background(), "test1", frameBytes)
+
+	req, err := peer.DecodeReq(bb)
+	if err != nil {
+		t.Fatalf("decode req: %v", err)
+	}
+	fmt.Println(req, req.ID, req.Data)
+	if req.ID != 1 || req.Data != "test" {
+		t.Fatalf("req != testMsg{ID: 1, Data: 'test'}")
+	}
+}
+
+func TestMsgPeer_Response(t *testing.T) {
+	peer := NewMsgPeer[testMsg, testRsp]("test")
+	bb, err := peer.EncodeRsp(&testRsp{
+		Code: 0,
+		Msg:  "test",
+	})
+	if err != nil {
+		t.Fatalf("encode rsp: %v", err)
+	}
+	rsp, err := peer.DecodeRsp(bb)
+	if err != nil {
+		t.Fatalf("decode rsp: %v", err)
+	}
+	fmt.Println(rsp, rsp.Code, rsp.Msg)
+	if rsp.Code != 0 || rsp.Msg != "test" {
+		t.Fatalf("rsp != testRsp{Code: 0, Msg: 'test'}")
+	}
+}
+
+func TestMsgPeer_Request_Response(t *testing.T) {
+	peer := NewMsgPeer[testMsg, testRsp]("test")
+	bb, err := peer.EncodeReq(&testMsg{
+		ID:   1,
+		Data: "test",
+	})
+	if err != nil {
+		t.Fatalf("encode req: %v", err)
+	}
+	req, err := peer.DecodeReq(bb)
+	if err != nil {
+		t.Fatalf("decode req: %v", err)
+	}
+	fmt.Println(req, req.ID, req.Data)
+	if req.ID != 1 || req.Data != "test" {
+		t.Fatalf("req != testMsg{ID: 1, Data: 'test'}")
+	}
+
+	bb, err = peer.EncodeRsp(&testRsp{
+		Code: 0,
+		Msg:  "test",
+	})
+	if err != nil {
+		t.Fatalf("encode rsp: %v", err)
+	}
+	rsp, err := peer.DecodeRsp(bb)
+	if err != nil {
+		t.Fatalf("decode rsp: %v", err)
+	}
+	fmt.Println(rsp, rsp.Code, rsp.Msg)
+	if rsp.Code != 0 || rsp.Msg != "test" {
+		t.Fatalf("rsp != testRsp{Code: 0, Msg: 'test'}")
+	}
+}
+
+func BenchmarkMsgPeer_Request_Response(b *testing.B) {
+	peer := NewMsgPeer[testMsg, testRsp]("test")
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		bb, err := peer.EncodeReq(&testMsg{
+			ID:   1,
+			Data: "test",
+		})
+		if err != nil {
+			b.Fatalf("encode req: %v", err)
+		}
+		req, err := peer.DecodeReq(bb)
+		if err != nil {
+			b.Fatalf("decode req: %v", err)
+		}
+		if req.ID != 1 || req.Data != "test" {
+			b.Fatalf("req != testMsg{ID: 1, Data: 'test'}")
+		}
+		kkbuffer.Put(bb)
+
+		bb, err = peer.EncodeRsp(&testRsp{
+			Code: 0,
+			Msg:  "test",
+		})
+		if err != nil {
+			b.Fatalf("encode rsp: %v", err)
+		}
+		rsp, err := peer.DecodeRsp(bb)
+		if err != nil {
+			b.Fatalf("decode rsp: %v", err)
+		}
+		if rsp.Code != 0 || rsp.Msg != "test" {
+			b.Fatalf("rsp != testRsp{Code: 0, Msg: 'test'}")
+		}
+		kkbuffer.Put(bb)
+	}
+}
+
+func BenchmarkMsgPeer_Encode(b *testing.B) {
+	peer := NewMsgPeer[testMsg, testRsp]("test")
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		bb, err := peer.EncodeReq(&testMsg{
+			ID:   1,
+			Data: "test",
+		})
+		if err != nil {
+			b.Fatalf("encode req: %v", err)
+		}
+		kkbuffer.Put(bb)
+	}
+}
+
+func BenchmarkMsgPeer_Decode(b *testing.B) {
+	peer := NewMsgPeer[testMsg, testRsp]("test")
+
+	bb, err := peer.EncodeReq(&testMsg{
+		ID:   1,
+		Data: "test",
+	})
+	if err != nil {
+		b.Fatalf("encode req: %v", err)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		req, err := peer.DecodeReq(bb)
+		if err != nil {
+			b.Fatalf("decode req: %v", err)
+		}
+		if req.ID != 1 || req.Data != "test" {
+			b.Fatalf("req != testMsg{ID: 1, Data: 'test'}")
+		}
+	}
 }

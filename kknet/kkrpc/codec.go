@@ -6,10 +6,13 @@ import (
 )
 
 func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, data *T) (*kkbuffer.ByteBuffer, error) {
-	if ft == FrameTypeRequest || ft == FrameTypeResponse {
+	switch ft {
+	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
 			return nil, ErrInvalidRequestID
 		}
+	case FrameTypeTell:
+		reqId = 0
 	}
 
 	// encode args
@@ -36,4 +39,20 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, data *T) (
 		return nil, err
 	}
 	return bb, nil
+}
+
+func DecodeRpcFrame[T any](bb *kkbuffer.ByteBuffer) (*T, error) {
+	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(bb.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	var frame Frame
+	if err := rpcCodec.Unmarshal(msgBytes, &frame); err != nil {
+		return nil, err
+	}
+	var data T
+	if err := dataCodec.Unmarshal(frame.P, &data); err != nil {
+		return nil, err
+	}
+	return &data, nil
 }
