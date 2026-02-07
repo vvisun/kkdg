@@ -2,7 +2,7 @@ package kkpacket
 
 /*
 
-整包格式： [length,head,body]
+整包格式：packet = [length,head,body]
 
 [length]: 存放[message]的长度，默认占4个字节。
 [head]: 存放消息头[head]。(mid,seq,etc.)

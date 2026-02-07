@@ -14,7 +14,7 @@ var defaultStreamPacket = NewLengthFieldStreamPacket(
 	kkcodec.GetCodec(kkcodec.CodecTypeJson), // 消息体编码器。用于编码解码[body]部分。
 )
 
-func DefaultStreamPacket() IStreamPacket {
+func DefaultStreamPacket() IPacket {
 	return defaultStreamPacket
 }
 

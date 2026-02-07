@@ -108,7 +108,7 @@ func EncodePacket[T any](v *T, head *PacketHead, bodyCodec kkcodec.ICodec, route
 	@return *kkbuffer.ByteBuffer 包数据[length,message]
 	@return error 错误
 */
-func EncodeStream(v any, stream IStreamPacket, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
+func EncodeStream(v any, stream IPacket, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
 	headSize := stream.GetHead().GetSize()
 
 	msgID := router.GetMsgID(v)

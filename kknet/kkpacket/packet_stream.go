@@ -17,109 +17,35 @@ type IStreamReader interface {
 	Next(n int) (buf []byte, err error)
 }
 
-// 完整包。
-// 包结构：[length,message]。
-// length表示message的长度，占LengthFieldByteCount()个字节。
-// message是消息对象的二进制数据。
-type IStreamPacket interface {
-	// get length field byte count. [length].
-	LengthFieldByteCount() int
-	// get head.
-	GetHead() *PacketHead
-	// get body codec.
-	GetBodyCodec() kkcodec.ICodec
-
-	// get head bytes. data [length,message]
-	HeadBytes(data []byte) []byte
-	// get body bytes. data [length,message]
-	BodyBytes(data []byte) []byte
-
-	/**get msgID from data.
-	 *@param data []byte 整包数据 [length,message]
-	 *@return MSGID 消息ID
-	 *@return error 错误
-	 */
-	GetMsgID(data []byte) (MSGID, error)
-
-	/**get byte count of message.
-	 *@param data []byte 整包数据 [length,message] 或 一部分
-	 *@return int 包体[message]的长度
-	 *@return error 错误
-	 */
-	ReadMessageSize(data []byte) (int, error)
-
-	/**write byte count of message to data.
-	 *@param data []byte 整包数据 [length,message] 或 一部分
-	 *@param size int 包体[message]的长度
-	 */
-	writeMessageSize(data []byte, size int)
-
-	/**check packet is valid.
-	 *@param packet []byte 整包数据 [length,message]
-	 *@return error 错误
-	 */
-	CheckPacket(packet []byte) error
-
-	/**check packet is valid.
-	 *@param packet []byte 整包数据 [length,message]
-	 *@return error 错误
-	 */
-	CheckPacketBuffer(buffer *kkbuffer.ByteBuffer) error
-
-	/**pack message to stream.
-	 *@param data []byte 消息数据 [message]
-	 *@return *kkbuffer.ByteBuffer 整包数据 [length,message]
-	 *@return error 错误
-	 *注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
-	 */
-	Pack(data []byte) (*kkbuffer.ByteBuffer, error)
-
-	/**unpack message from stream.
-	 *@param data []byte 整包数据 [length,message]
-	 *@return []byte 消息数据 [message]
-	 *@return error 错误
-	 */
-	Unpack(data []byte) ([]byte, error)
-
-	/**合并包的粘包拆包。通用方法，适用于任何流式协议。
-	 *@param data []byte 数据. [length,message][length,message]...
-	 *@param recvs [][]byte 接收缓冲区. 用于复用，避免分配新的内存。[length,message][length,message]...
-	 *@return [][]byte 数据包. [length,message][length,message]...
-	 *@return []byte 剩余数据. 不完整的[length,message]。下次收到数据时，拼接到后面继续解析。
-	 *@return error 错误
-	 */
-	Split(data []byte, recvs [][]byte) ([][]byte, []byte, error)
-
-	/**流式粘包拆包。for gnet
-	 *@param r IStreamReader 流读取器
-	 *@return []byte 整包数据[length,message]
-	 *@return bool 是否完整
-	 *@return error 错误
-	 */
-	SplitSR(r IStreamReader) ([]byte, bool, error)
-}
-
 // [length,message]流式包。
+// [length,message] = [length,head,body]
+// [message] = [head,body]
 type LengthFieldStreamPacket struct {
-	lengthFieldByteCount int            // [length]部分的字节数。该部分用于表示包体[message]的长度。
-	head                 *PacketHead    // 消息头。用于编码解码[head]部分。
-	bodyCodec            kkcodec.ICodec // 消息体编码器。用于编码解码[body]部分。
+	lfbCount  int            // [length]部分的字节数。该部分用于表示包体[message]的长度。
+	head      *PacketHead    // 消息头。用于编码解码[head]部分。
+	bodyCodec kkcodec.ICodec // 消息体编码器。用于编码解码[body]部分。
 }
 
-var _ IStreamPacket = (*LengthFieldStreamPacket)(nil)
+var _ IPacket = (*LengthFieldStreamPacket)(nil)
 
 // NewLengthFieldStreamPacket creates a length-field stream packet.
 func NewLengthFieldStreamPacket(lfb int, head *PacketHead, bodyCodec kkcodec.ICodec) *LengthFieldStreamPacket {
+	if lfb != 2 && lfb != 4 {
+		panic("length field byte count must be 2 or 4")
+	}
+	if head == nil {
+		panic("head is nil")
+	}
 	return &LengthFieldStreamPacket{
-		lengthFieldByteCount: lfb,
-		head:                 head,
-		bodyCodec:            bodyCodec,
+		lfbCount:  lfb,
+		head:      head,
+		bodyCodec: bodyCodec,
 	}
 }
 
 // get length field byte count.
 func (slf *LengthFieldStreamPacket) LengthFieldByteCount() int {
-	return slf.lengthFieldByteCount
+	return slf.lfbCount
 }
 
 // get head.
@@ -132,23 +58,28 @@ func (slf *LengthFieldStreamPacket) GetBodyCodec() kkcodec.ICodec {
 	return slf.bodyCodec
 }
 
-// get head bytes. data [length,message]. return [head]
-func (slf *LengthFieldStreamPacket) HeadBytes(data []byte) []byte {
-	return data[slf.lengthFieldByteCount : slf.lengthFieldByteCount+slf.head.GetSize()]
+// length field bytes. packet = [length,message]
+func (slf *LengthFieldStreamPacket) LengthFieldBytes(packet []byte) []byte {
+	return packet[:slf.lfbCount]
 }
 
-// get body bytes. data [length,message]. return [body]
-func (slf *LengthFieldStreamPacket) BodyBytes(data []byte) []byte {
-	return data[slf.lengthFieldByteCount+slf.head.GetSize():]
+// get head bytes. packet [length,message]. return [head]
+func (slf *LengthFieldStreamPacket) HeadBytes(packet []byte) []byte {
+	return packet[slf.lfbCount : slf.lfbCount+slf.head.GetSize()]
+}
+
+// get body bytes. packet [length,message]. return [body]
+func (slf *LengthFieldStreamPacket) BodyBytes(packet []byte) []byte {
+	return packet[slf.lfbCount+slf.head.GetSize():]
 }
 
 /**get msgID from data.
- *@param data []byte 整包数据 [length,message]
+ *@param packet []byte 整包数据 [length,message]
  *@return MSGID 消息ID
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) GetMsgID(data []byte) (MSGID, error) {
-	headBytes := slf.HeadBytes(data)
+func (slf *LengthFieldStreamPacket) GetMsgID(packet []byte) (MSGID, error) {
+	headBytes := slf.HeadBytes(packet)
 	valueList := [max_head_part_count]int{0}
 	err := slf.head.UnmarshalTo(headBytes, GetByteOrder(), valueList[:])
 	if err != nil {
@@ -158,34 +89,34 @@ func (slf *LengthFieldStreamPacket) GetMsgID(data []byte) (MSGID, error) {
 }
 
 /**get byte count of message.
- *@param data []byte 整包数据 [length,message] 或 一部分
+ *@param packet []byte 整包数据 [length,message] 或 一部分
  *@return int 包体[message]的长度
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) ReadMessageSize(data []byte) (int, error) {
-	if len(data) < slf.lengthFieldByteCount {
+func (slf *LengthFieldStreamPacket) ReadMessageSize(packet []byte) (int, error) {
+	if len(packet) < slf.lfbCount {
 		return 0, kkerrors.ErrDataTooShortToDecode
 	}
-	switch slf.lengthFieldByteCount {
+	switch slf.lfbCount {
 	case 4:
-		return int(GetByteOrder().Uint32(data)), nil
+		return int(GetByteOrder().Uint32(packet)), nil
 	case 2:
-		return int(GetByteOrder().Uint16(data)), nil
+		return int(GetByteOrder().Uint16(packet)), nil
 	default:
 		return 0, kkerrors.ErrInvalidLengthFieldByteCount
 	}
 }
 
-/**write byte count of message to data.
- *@param data []byte 整包数据 [length,message] 或 一部分
+/**write byte count of message to packet.
+ *@param packet []byte 整包数据 [length,message] 或 一部分
  *@param size int 包体[message]的长度
  */
-func (slf *LengthFieldStreamPacket) writeMessageSize(data []byte, size int) {
-	switch slf.lengthFieldByteCount {
+func (slf *LengthFieldStreamPacket) writeMessageSize(packet []byte, size int) {
+	switch slf.lfbCount {
 	case 4:
-		GetByteOrder().PutUint32(data[:4], uint32(size))
+		GetByteOrder().PutUint32(packet[:4], uint32(size))
 	case 2:
-		GetByteOrder().PutUint16(data[:2], uint16(size))
+		GetByteOrder().PutUint16(packet[:2], uint16(size))
 	}
 }
 
@@ -201,82 +132,82 @@ func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
 	if totalLen > DefaultMaxMessageSize() {
 		return kkerrors.ErrMaxMessageSize
 	}
-	if totalLen < slf.lengthFieldByteCount {
+	if totalLen < slf.lfbCount {
 		return kkerrors.ErrDataTooShortToDecode
 	}
 	messageLen, err := slf.ReadMessageSize(packet)
 	if err != nil {
 		return err
 	}
-	if totalLen != messageLen+slf.lengthFieldByteCount {
+	if totalLen != messageLen+slf.lfbCount {
 		return kkerrors.ErrInvalidPacket
 	}
 	return nil
 }
 
 /**check packet is valid.
- *@param buffer *kkbuffer.ByteBuffer 整包数据 [length,message]
+ *@param packetBB *kkbuffer.ByteBuffer 整包数据 [length,message]
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) CheckPacketBuffer(buffer *kkbuffer.ByteBuffer) error {
-	if buffer == nil {
+func (slf *LengthFieldStreamPacket) CheckPacketBuffer(packetBB *kkbuffer.ByteBuffer) error {
+	if packetBB == nil {
 		return kkerrors.ErrInvalidPacket
 	}
-	return slf.CheckPacket(buffer.B)
+	return slf.CheckPacket(packetBB.B)
 }
 
 /**pack message to stream.
- *@param data []byte 消息数据 [message]
+ *@param messageBytes []byte 消息数据 [message]
  *@return *kkbuffer.ByteBuffer 整包数据 [length,message]
  *@return error 错误
  *注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
  */
-func (slf *LengthFieldStreamPacket) Pack(data []byte) (*kkbuffer.ByteBuffer, error) {
-	if len(data) > DefaultMaxMessageSize()-slf.lengthFieldByteCount {
+func (slf *LengthFieldStreamPacket) Pack(messageBytes []byte) (*kkbuffer.ByteBuffer, error) {
+	if len(messageBytes) > DefaultMaxMessageSize()-slf.lfbCount {
 		return nil, kkerrors.ErrMaxMessageSize
 	}
 
-	lfb := slf.lengthFieldByteCount
-	messageLen := len(data)
+	lfb := slf.lfbCount
+	messageLen := len(messageBytes)
 	totalLen := lfb + messageLen
 	bb := kkbuffer.GetWithCapacity(totalLen)
 	bb.B = bb.B[:totalLen]
 	slf.writeMessageSize(bb.B[:lfb], messageLen)
-	copy(bb.B[lfb:], data)
+	copy(bb.B[lfb:], messageBytes)
 
 	return bb, nil
 }
 
 /**unpack message from stream.
- *@param data []byte 整包数据 [length,message]
+ *@param packet []byte 整包数据 [length,message]
  *@return []byte 消息数据 [message]
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) Unpack(data []byte) ([]byte, error) {
-	lfb := slf.lengthFieldByteCount
-	if len(data) < lfb {
+func (slf *LengthFieldStreamPacket) Unpack(packet []byte) ([]byte, error) {
+	lfb := slf.lfbCount
+	if len(packet) < lfb {
 		return nil, kkerrors.ErrDataTooShortToDecode
 	}
-	messageLen, err := slf.ReadMessageSize(data)
+	messageLen, err := slf.ReadMessageSize(packet)
 	if err != nil {
 		return nil, err
 	}
 	totalLen := lfb + messageLen
-	if len(data) < totalLen {
+	if len(packet) < totalLen {
 		return nil, kkerrors.ErrInvalidPacket
 	}
-	return data[lfb:totalLen], nil
+	return packet[lfb:totalLen], nil
 }
 
 /**批量拆分数据包。通用方法，适用于任何流式协议。
- *@param data []byte 数据. [length,message][length,message]...
- *@param recvs 接收缓冲区，用于复用，避免分配新的内存 [length,message][length,message]...
- *@return [][]byte 数据包 [length,message][length,message]...
+ *@param packets []byte 数据. [length,message][length,message]...
+ *@param recvs 接收缓冲区，用于复用，避免分配新的内存，会自动扩容。[length,message][length,message]...
+ *@return [][]byte 拆分后的数据包. [length,message][length,message]...
  *@return []byte 剩余数据. 不完整的[length,message]。下次收到数据时，拼接到后面继续解析。
  *@return error 错误
  */
-func (slf *LengthFieldStreamPacket) Split(data []byte, recvs [][]byte) ([][]byte, []byte, error) {
-	if len(data) == 0 {
+func (slf *LengthFieldStreamPacket) Split(packets []byte, recvs [][]byte) ([][]byte, []byte, error) {
+	if len(packets) == 0 {
 		return recvs[:0], nil, nil
 	}
 
@@ -284,43 +215,43 @@ func (slf *LengthFieldStreamPacket) Split(data []byte, recvs [][]byte) ([][]byte
 		recvs = make([][]byte, 0, 8)
 	}
 
-	packets := recvs[:0]
+	bufList := recvs[:0]
 
-	lfb := slf.lengthFieldByteCount
-	dataLen := len(data)
+	lfb := slf.lfbCount
+	dataLen := len(packets)
 	var errRet error = nil
 	var leftData []byte = nil
 
 	pos := 0
 	for {
 		if dataLen-pos < lfb {
-			leftData = data[pos:]
+			leftData = packets[pos:]
 			break // 数据不足，无法解析长度字段
 		}
-		messageLen, err := slf.ReadMessageSize(data[pos:])
+		messageLen, err := slf.ReadMessageSize(packets[pos:])
 		if err != nil { // 解析长度字段失败
 			errRet = err
-			leftData = data[pos:]
+			leftData = packets[pos:]
 			break
 		}
 		totalLen := lfb + messageLen // [length,message]的长度
 		if totalLen > DefaultMaxMessageSize() {
 			errRet = kkerrors.ErrMaxMessageSize // 包体超过了最大长度
-			leftData = data[pos:]
+			leftData = packets[pos:]
 			break
 		}
 		if dataLen-pos < totalLen { // 包体未接收完整
-			leftData = data[pos:]
+			leftData = packets[pos:]
 			break
 		}
 
-		packets = append(packets, data[pos:pos+totalLen])
+		bufList = append(bufList, packets[pos:pos+totalLen])
 		pos += totalLen // 移动到下一个包的开始位置
 		if pos >= dataLen {
 			break // 数据已全部处理完毕
 		}
 	}
-	return packets, leftData, errRet
+	return bufList, leftData, errRet
 }
 
 /**流式粘包拆包。for gnet
@@ -330,7 +261,7 @@ func (slf *LengthFieldStreamPacket) Split(data []byte, recvs [][]byte) ([][]byte
  *@return error 错误
  */
 func (slf *LengthFieldStreamPacket) SplitSR(r IStreamReader) ([]byte, bool, error) {
-	lfb := slf.lengthFieldByteCount
+	lfb := slf.lfbCount
 	if r.InboundBuffered() < lfb {
 		return nil, false, nil
 	}
