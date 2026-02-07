@@ -85,15 +85,12 @@ func (slf *LengthFieldStreamPacket) writeMessageSize(packet []byte, size int) {
  *@return error 错误
  */
 func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
-	if len(packet) == 0 {
-		return kkerrors.ErrInvalidPacket
-	}
 	totalLen := len(packet)
-	if totalLen > MaxPacketSize() {
-		return kkerrors.ErrMaxMessageSize
-	}
 	if totalLen < slf.lfbCount {
 		return kkerrors.ErrDataTooShortToDecode
+	}
+	if totalLen > MaxPacketSize() {
+		return kkerrors.ErrMaxMessageSize
 	}
 	messageLen, err := slf.ReadMessageSize(packet)
 	if err != nil {
@@ -144,14 +141,11 @@ func (slf *LengthFieldStreamPacket) Pack(messageBytes []byte) (*kkbuffer.ByteBuf
  *@return error 错误
  */
 func (slf *LengthFieldStreamPacket) Unpack(packet []byte) ([]byte, error) {
-	lfb := slf.lfbCount
-	if len(packet) < lfb {
-		return nil, kkerrors.ErrDataTooShortToDecode
-	}
 	messageLen, err := slf.ReadMessageSize(packet)
 	if err != nil {
 		return nil, err
 	}
+	lfb := slf.lfbCount
 	totalLen := lfb + messageLen
 	if len(packet) < totalLen {
 		return nil, kkerrors.ErrInvalidPacket
@@ -221,29 +215,37 @@ func (slf *LengthFieldStreamPacket) Split(packets []byte, recvs [][]byte) ([][]b
  *@return error 错误
  */
 func (slf *LengthFieldStreamPacket) SplitSR(r IStreamReader) ([]byte, bool, error) {
+	// 1. 检查是否收到完整的长度字段
 	lfb := slf.lfbCount
 	if r.InboundBuffered() < lfb {
-		return nil, false, nil
+		return nil, false, nil //尚未收到完整的长度字段
 	}
 	header, err := r.Peek(lfb)
 	if err != nil {
 		if errors.Is(err, io.ErrShortBuffer) {
-			return nil, false, nil
+			return nil, false, nil //尚未收到完整的长度字段
 		}
-		return nil, false, err
+		return nil, false, err // 解析长度字段失败
 	}
+
+	// 2. 解析长度字段
 	messageLen, err := slf.ReadMessageSize(header)
 	if err != nil {
-		return nil, false, err
+		return nil, false, err // 解析长度字段失败
 	}
+
+	// 3. 检查是否收到完整的数据包
 	totalLen := lfb + messageLen
 	if r.InboundBuffered() < totalLen {
-		return nil, false, nil
+		return nil, false, nil //尚未收到完整的数据包
 	}
-	// _, _ = r.Discard(lengthFieldByteCount)
+
+	// 4. 取出完整的数据包
 	data, err := r.Next(totalLen)
 	if err != nil {
-		return nil, false, err
+		return nil, false, err // 取出数据包失败
 	}
+
+	// 5. 成功收到完整的数据包
 	return data, true, nil
 }
