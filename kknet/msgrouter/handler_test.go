@@ -1,0 +1,60 @@
+package msgrouter
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/kkcodec"
+)
+
+type testMsg struct {
+	ID   int
+	Data string
+}
+
+func TestMsgHandler_OnRaw(t *testing.T) {
+	handler := NewMsgHandler[testMsg](1, kkcodec.GetCodec(kkcodec.CodecTypeJson), func(connId kknet.CONN_ID, msg *testMsg) error {
+		fmt.Println(msg)
+		return nil
+	})
+
+	bodyBytes, err := kkcodec.GetCodec(kkcodec.CodecTypeJson).Marshal(&testMsg{
+		ID:   1,
+		Data: "test",
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	err = handler.OnRaw(1, bodyBytes)
+	if err != nil {
+		t.Fatalf("on raw: %v", err)
+	}
+}
+
+// receiver test
+func TestMsgReceiver_OnRaw(t *testing.T) {
+	router := kkpacket.NewMsgRouter()
+	router.Register(1, &testMsg{}, "test")
+	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
+	receiver := NewMsgReceiver(router, codec)
+	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
+		fmt.Println(msg)
+		return nil
+	})
+
+	stream := kkpacket.NewLengthFieldStreamPacket(4, kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec)
+	bb, err := kkpacket.EncodeStream(&testMsg{
+		ID:   1,
+		Data: "test",
+	}, stream, router)
+	if err != nil {
+		t.Fatalf("encode stream: %v", err)
+	}
+	err = receiver.OnRaw(1, bb)
+	if err != nil {
+		t.Fatalf("on raw: %v", err)
+	}
+}

@@ -80,7 +80,7 @@ func (slf *LengthFieldStreamPacket) BodyBytes(packet []byte) []byte {
  */
 func (slf *LengthFieldStreamPacket) GetMsgID(packet []byte) (MSGID, error) {
 	headBytes := slf.HeadBytes(packet)
-	valueList := [max_head_part_count]int{0}
+	valueList := [maxHeadPathCount]int{0}
 	err := slf.head.UnmarshalTo(headBytes, GetByteOrder(), valueList[:])
 	if err != nil {
 		return 0, err
@@ -129,7 +129,7 @@ func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
 		return kkerrors.ErrInvalidPacket
 	}
 	totalLen := len(packet)
-	if totalLen > DefaultMaxMessageSize() {
+	if totalLen > MaxPacketSize() {
 		return kkerrors.ErrMaxMessageSize
 	}
 	if totalLen < slf.lfbCount {
@@ -163,7 +163,7 @@ func (slf *LengthFieldStreamPacket) CheckPacketBuffer(packetBB *kkbuffer.ByteBuf
  *注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
  */
 func (slf *LengthFieldStreamPacket) Pack(messageBytes []byte) (*kkbuffer.ByteBuffer, error) {
-	if len(messageBytes) > DefaultMaxMessageSize()-slf.lfbCount {
+	if len(messageBytes) > MaxPacketSize()-slf.lfbCount {
 		return nil, kkerrors.ErrMaxMessageSize
 	}
 
@@ -235,7 +235,7 @@ func (slf *LengthFieldStreamPacket) Split(packets []byte, recvs [][]byte) ([][]b
 			break
 		}
 		totalLen := lfb + messageLen // [length,message]的长度
-		if totalLen > DefaultMaxMessageSize() {
+		if totalLen > MaxPacketSize() {
 			errRet = kkerrors.ErrMaxMessageSize // 包体超过了最大长度
 			leftData = packets[pos:]
 			break

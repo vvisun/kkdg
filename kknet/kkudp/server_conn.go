@@ -63,7 +63,7 @@ func (c *udpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if !c.active.Load() {
 		return kkerrors.ErrConnectionClosed
 	}
-	if len(data) > kkpacket.DefaultMaxMessageSize() {
+	if len(data) > kkpacket.MaxPacketSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}

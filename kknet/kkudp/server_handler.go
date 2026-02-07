@@ -24,7 +24,7 @@ func (h *udpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	if size <= 0 {
 		return gnet.None
 	}
-	if size > kkpacket.DefaultMaxMessageSize() {
+	if size > kkpacket.MaxPacketSize() {
 		h.server.stats.AddError()
 		h.server.opts.Logger.Errorf("kkudp message too large: %d", size)
 		return gnet.None

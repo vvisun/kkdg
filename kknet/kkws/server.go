@@ -82,7 +82,7 @@ func (s *Server) Start() error {
 		}
 
 		wsConn := newWSConn(conn, &s.opts, &s.stats)
-		wsConn.conn.SetReadLimit(int64(kkpacket.DefaultMaxMessageSize()))
+		wsConn.conn.SetReadLimit(int64(kkpacket.MaxPacketSize()))
 
 		// Set read/write timeouts if configured
 		if s.opts.ReadTimeout > 0 {

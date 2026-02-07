@@ -89,7 +89,7 @@ func (c *clientConn) SetContext(ctx context.Context) {
 }
 
 func (c *clientConn) readLoop() error {
-	buf := make([]byte, kkpacket.DefaultMaxMessageSize())
+	buf := make([]byte, kkpacket.MaxPacketSize())
 	for {
 		n, err := c.conn.Read(buf)
 		if err != nil {

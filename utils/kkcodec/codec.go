@@ -15,7 +15,7 @@ type ICodec interface {
 	Marshal(v any) ([]byte, error)
 	// Unmarshal 解码
 	Unmarshal(data []byte, v any) error
-	// MarshalAppend 编码
+	// MarshalAppend 编码, 编码的数据在offset偏移后的位置，少一次拷贝，offset前的数据一般用于存放消息头。
 	MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error)
 }
 

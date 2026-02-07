@@ -27,7 +27,7 @@ func ParseMsgInfo(messageBytes []byte, head *PacketHead) (MSGID, []byte, error) 
 
 	body := messageBytes[headSize:]
 
-	valueList := [max_head_part_count]int{0}
+	valueList := [maxHeadPathCount]int{0}
 	err := head.UnmarshalTo(messageBytes[:headSize], GetByteOrder(), valueList[:])
 	if err != nil {
 		return 0, nil, err
@@ -94,7 +94,7 @@ func EncodePacket[T any](v *T, head *PacketHead, bodyCodec kkcodec.ICodec, route
 	}
 
 	endian := GetByteOrder()
-	valueList := [max_head_part_count]int{0}
+	valueList := [maxHeadPathCount]int{0}
 	err = head.UnmarshalTo(buf.B[:headSize], endian, valueList[:])
 	if err != nil {
 		return nil, err
@@ -114,24 +114,18 @@ func EncodePacket[T any](v *T, head *PacketHead, bodyCodec kkcodec.ICodec, route
 	@return error 错误
 */
 func EncodeStream(v any, stream IPacket, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
-	headSize := stream.GetHead().GetSize()
-
 	msgID := router.GetMsgID(v)
 	if msgID == 0 {
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
 
 	lfbCount := stream.LengthFieldByteCount()
+	headSize := stream.GetHead().GetSize()
 
 	bb, err := stream.GetBodyCodec().MarshalAppend(v, lfbCount+headSize)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return nil, kkerrors.ErrEncodeFailed
-	}
-
-	if len(bb.B)-lfbCount-headSize < 0 {
-		kkbuffer.Put(bb)
-		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
 	stream.writeMessageSize(bb.B[:lfbCount], len(bb.B)-lfbCount)
