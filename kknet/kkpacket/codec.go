@@ -37,41 +37,6 @@ func DecodeMessage(messageBytes []byte, messagePacket *MessagePacket) (any, MSGI
 }
 
 /*
-编码消息。
-注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
-
-	@param v *T 消息对象（object）
-	@param messagePacket *MessagePacket 消息包
-	@return *kkbuffer.ByteBuffer 包数据[message]
-	@return error 错误
-*/
-func EncodeMessage[T any](v *T, messagePacket *MessagePacket) (*kkbuffer.ByteBuffer, error) {
-	if v == nil {
-		return nil, kkerrors.ErrInvalidMessage
-	}
-
-	headSize := messagePacket.GetHead().GetSize()
-
-	msgID := messagePacket.GetRouter().GetMsgID(v)
-	if msgID == 0 {
-		return nil, kkerrors.ErrMsgTypeNotRegistered
-	}
-
-	buf, err := messagePacket.GetBodyCodec().MarshalAppend(v, headSize)
-	if err != nil {
-		return nil, kkerrors.ErrEncodeFailed
-	}
-
-	valueList := [maxHeadPathCount]int{0}
-	err = messagePacket.GetHead().UnmarshalTo(buf.B[:headSize], GetByteOrder(), valueList[:])
-	if err != nil {
-		return nil, err
-	}
-
-	return buf, nil
-}
-
-/*
 *解析消息信息。
 
 	@param messageBytes []byte 包数据[message]
@@ -112,8 +77,7 @@ func ParseMsgInfo(messageBytes []byte, head *PacketHead) (MSGID, []byte, error) 
 	@return error 错误
 */
 func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffer.ByteBuffer, error) {
-	router := messagePacket.GetRouter()
-	msgID := router.GetMsgID(v)
+	msgID := messagePacket.GetRouter().GetMsgID(v)
 	if msgID == 0 {
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
