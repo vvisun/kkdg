@@ -20,7 +20,7 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 		return err
 	}
 
-	msgID, msgBytes, err := kkpacket.ParseMsgInfo(messageBytes, kkpacket.DefaultStreamPacket().GetMessageCodec())
+	msgID, msgBytes, err := kkpacket.ParseMsgInfo(messageBytes, kkpacket.DefaultStreamPacket().GetHead())
 	if err != nil {
 		kkbuffer.Put(data)
 		return err

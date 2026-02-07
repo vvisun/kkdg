@@ -3,6 +3,7 @@ package kkpacket
 import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kkpool"
 )
 
@@ -15,8 +16,8 @@ import (
 	@return []byte 消息体（object的二进制数据）
 	@return error 错误
 */
-func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
-	headSize := GetHeadSize(pkType.headType)
+func ParseMsgInfo(data []byte, head *PacketHead) (MSGID, []byte, error) {
+	headSize := head.GetSize()
 	if headSize < 0 {
 		return 0, nil, kkerrors.ErrInvalidMsgHeadType
 	}
@@ -24,19 +25,15 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 		return 0, nil, kkerrors.ErrDataTooShortToDecode
 	}
 
-	msgId := uint32(0)
 	body := data[headSize:]
 
-	switch pkType.headType {
-	case HeadTypeMid:
-		head := HeadMid{}
-		head.Unmarshal(data[:headSize], GetByteOrder())
-		msgId = head.mid
-	case HeadTypeMidSeq:
-		head := HeadMidSeq{}
-		head.Unmarshal(data[:headSize], GetByteOrder())
-		msgId = head.mid
+	valueList := [max_head_part_count]int{0}
+	err := head.UnmarshalTo(data[:headSize], GetByteOrder(), valueList[:])
+	if err != nil {
+		return 0, nil, err
 	}
+	msgId := MSGID(valueList[0])
+
 	return msgId, body, nil
 }
 
@@ -50,13 +47,8 @@ func ParseMsgInfo(data []byte, pkType *PacketCodec) (MSGID, []byte, error) {
 	@return MSGID 消息ID
 	@return error 错误
 */
-func DecodePacket(data []byte, pkType *PacketCodec, router *MsgRouter) (any, MSGID, error) {
-	codec := pkType.codec
-	if codec == nil {
-		return nil, 0, kkerrors.ErrInvalidCodec
-	}
-
-	msgID, body, err := ParseMsgInfo(data, pkType)
+func DecodePacket(data []byte, head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRouter) (any, MSGID, error) {
+	msgID, body, err := ParseMsgInfo(data, head)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -67,7 +59,7 @@ func DecodePacket(data []byte, pkType *PacketCodec, router *MsgRouter) (any, MSG
 	}
 
 	v := kkpool.GetFactoryByType(msgType).Get()
-	err = codec.Unmarshal(body, v)
+	err = bodyCodec.Unmarshal(body, v)
 	if err != nil {
 		kkpool.GetFactoryByType(msgType).Put(v)
 		return nil, 0, kkerrors.ErrDecodeFailed
@@ -84,38 +76,24 @@ func DecodePacket(data []byte, pkType *PacketCodec, router *MsgRouter) (any, MSG
 	@return *kkbuffer.ByteBuffer 包数据[message]
 	@return error 错误
 */
-func EncodePacket[T any](v *T, pkType *PacketCodec, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
-	codec := pkType.codec
-	if codec == nil {
-		return nil, kkerrors.ErrInvalidCodec
-	}
-
-	headSize := GetHeadSize(pkType.headType)
-	if headSize < 0 {
-		return nil, kkerrors.ErrInvalidMsgHeadType
-	}
+func EncodePacket[T any](v *T, head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
+	headSize := head.GetSize()
 
 	msgID := router.GetMsgID(v)
 	if msgID == 0 {
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
 
-	buf, err := codec.MarshalAppend(v, headSize)
+	buf, err := bodyCodec.MarshalAppend(v, headSize)
 	if err != nil {
 		return nil, kkerrors.ErrEncodeFailed
 	}
 
 	endian := GetByteOrder()
-	switch pkType.headType {
-	case HeadTypeMid:
-		head := HeadMid{mid: msgID}
-		head.Marshal(buf.B[:headSize], endian)
-	case HeadTypeMidSeq:
-		head := HeadMidSeq{mid: msgID, seq: 0}
-		head.Marshal(buf.B[:headSize], endian)
-	default:
-		kkbuffer.Put(buf)
-		return nil, kkerrors.ErrInvalidMsgHeadType
+	valueList := [max_head_part_count]int{0}
+	err = head.UnmarshalTo(buf.B[:headSize], endian, valueList[:])
+	if err != nil {
+		return nil, err
 	}
 
 	return buf, nil
@@ -131,16 +109,7 @@ func EncodePacket[T any](v *T, pkType *PacketCodec, router *MsgRouter) (*kkbuffe
 	@return error 错误
 */
 func EncodeStream(v any, stream IStreamPacket, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
-	pkType := stream.GetMessageCodec()
-	codec := pkType.codec
-	if codec == nil {
-		return nil, kkerrors.ErrInvalidCodec
-	}
-
-	headSize := GetHeadSize(pkType.headType)
-	if headSize < 0 {
-		return nil, kkerrors.ErrInvalidMsgHeadType
-	}
+	headSize := stream.GetHead().GetSize()
 
 	msgID := router.GetMsgID(v)
 	if msgID == 0 {
@@ -149,43 +118,24 @@ func EncodeStream(v any, stream IStreamPacket, router *MsgRouter) (*kkbuffer.Byt
 
 	lfbCount := stream.LengthFieldByteCount()
 
-	buf, err := codec.MarshalAppend(v, lfbCount+headSize)
+	bb, err := stream.GetBodyCodec().MarshalAppend(v, lfbCount+headSize)
 	if err != nil {
+		kkbuffer.Put(bb)
 		return nil, kkerrors.ErrEncodeFailed
 	}
 
-	if len(buf.B)-lfbCount-headSize < 0 {
+	if len(bb.B)-lfbCount-headSize < 0 {
+		kkbuffer.Put(bb)
 		return nil, kkerrors.ErrInvalidMsgHeadType
 	}
 
-	stream.writeMessageSize(buf.B[:lfbCount], len(buf.B)-lfbCount)
+	stream.writeMessageSize(bb.B[:lfbCount], len(bb.B)-lfbCount)
 
-	endian := GetByteOrder()
-	switch pkType.headType {
-	case HeadTypeMid:
-		head := HeadMid{mid: msgID}
-		head.Marshal(buf.B[lfbCount:lfbCount+headSize], endian)
-	case HeadTypeMidSeq:
-		head := HeadMidSeq{mid: msgID, seq: 0}
-		head.Marshal(buf.B[lfbCount:lfbCount+headSize], endian)
-	default:
-		kkbuffer.Put(buf)
-		return nil, kkerrors.ErrInvalidMsgHeadType
+	err = stream.GetHead().Marshal(stream.HeadBytes(bb.B), GetByteOrder(), int(msgID))
+	if err != nil {
+		kkbuffer.Put(bb)
+		return nil, err
 	}
 
-	return buf, nil
-}
-
-/*
-*
-解码包。
-
-	@param data []byte 包数据[length,message]
-	@param stream IStreamPacket 流包类型
-	@return any 消息对象（object）
-	@return MSGID 消息ID
-	@return error 错误
-*/
-func DecodeStream(data []byte, stream IStreamPacket, router *MsgRouter) (any, MSGID, error) {
-	return DecodePacket(data[stream.LengthFieldByteCount():], stream.GetMessageCodec(), router)
+	return bb, nil
 }

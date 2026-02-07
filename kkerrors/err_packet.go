@@ -22,6 +22,10 @@ var (
 	ErrMsgTypeNotRegistered = errors.New("message type not registered")
 	// 未注册该消息的Handler
 	ErrMsgHandlerNotRegistered = errors.New("message handler not registered")
+	// 数据太短，无法编码
+	ErrDataTooShortToMarshal = errors.New("data too short to marshal")
+	// 数据太短，无法解码
+	ErrDataTooShortToUnmarshal = errors.New("data too short to unmarshal")
 )
 
 // -------------- for kkcodec -------------------

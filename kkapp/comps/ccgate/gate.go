@@ -253,7 +253,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	// Best-effort: derive route from msgID if it is registered.
-	msgID, _, err := kkpacket.ParseMsgInfo(msgBytes, kkpacket.DefaultStreamPacket().GetMessageCodec())
+	msgID, err := kkpacket.DefaultStreamPacket().GetMsgID(data.Bytes())
 	route := ""
 	if err == nil {
 		route = h.gate.msgRouter.GetMsgRoute(msgID)

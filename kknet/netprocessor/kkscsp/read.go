@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -233,12 +234,8 @@ func (rp *ReadProcessor) drainOnce() {
 					continue
 				}
 				if rp.opts.MsgHandler != nil {
-					msg, msgID, err := kkpacket.DecodeStream(packet.B, kkpacket.DefaultStreamPacket(), rp.opts.Router)
+					kklog.Errorf("not implemented")
 					kkbuffer.Put(packet)
-					if err != nil {
-						continue
-					}
-					rp.dispatchMessage(msg, msgID)
 				} else if rp.opts.RawHandler != nil {
 					rp.dispatchRaw(packet)
 				} else {

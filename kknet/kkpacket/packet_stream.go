@@ -6,6 +6,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 // IStreamReader provides buffered stream access for unpacking.
@@ -23,9 +24,22 @@ type IStreamReader interface {
 type IStreamPacket interface {
 	// get length field byte count. [length].
 	LengthFieldByteCount() int
+	// get head.
+	GetHead() *PacketHead
+	// get body codec.
+	GetBodyCodec() kkcodec.ICodec
 
-	// get message codec.
-	GetMessageCodec() *PacketCodec
+	// get head bytes. data [length,message]
+	HeadBytes(data []byte) []byte
+	// get body bytes. data [length,message]
+	BodyBytes(data []byte) []byte
+
+	/**get msgID from data.
+	 *@param data []byte 整包数据 [length,message]
+	 *@return MSGID 消息ID
+	 *@return error 错误
+	 */
+	GetMsgID(data []byte) (MSGID, error)
 
 	/**get byte count of message.
 	 *@param data []byte 整包数据 [length,message] 或 一部分
@@ -87,25 +101,60 @@ type IStreamPacket interface {
 
 // [length,message]流式包。
 type LengthFieldStreamPacket struct {
-	lengthFieldByteCount int          // [length]部分的字节数。该部分用于表示包体[message]的长度。
-	msgPacket            *PacketCodec // 消息包类型。用于编码解码[message]部分。
+	lengthFieldByteCount int            // [length]部分的字节数。该部分用于表示包体[message]的长度。
+	head                 *PacketHead    // 消息头。用于编码解码[head]部分。
+	bodyCodec            kkcodec.ICodec // 消息体编码器。用于编码解码[body]部分。
 }
 
 var _ IStreamPacket = (*LengthFieldStreamPacket)(nil)
 
 // NewLengthFieldStreamPacket creates a length-field stream packet.
-func NewLengthFieldStreamPacket(msgPacket *PacketCodec) *LengthFieldStreamPacket {
-	return &LengthFieldStreamPacket{lengthFieldByteCount: 4, msgPacket: msgPacket}
-}
-
-// get message packet.
-func (slf *LengthFieldStreamPacket) GetMessageCodec() *PacketCodec {
-	return slf.msgPacket
+func NewLengthFieldStreamPacket(lfb int, head *PacketHead, bodyCodec kkcodec.ICodec) *LengthFieldStreamPacket {
+	return &LengthFieldStreamPacket{
+		lengthFieldByteCount: lfb,
+		head:                 head,
+		bodyCodec:            bodyCodec,
+	}
 }
 
 // get length field byte count.
 func (slf *LengthFieldStreamPacket) LengthFieldByteCount() int {
 	return slf.lengthFieldByteCount
+}
+
+// get head.
+func (slf *LengthFieldStreamPacket) GetHead() *PacketHead {
+	return slf.head
+}
+
+// get body codec.
+func (slf *LengthFieldStreamPacket) GetBodyCodec() kkcodec.ICodec {
+	return slf.bodyCodec
+}
+
+// get head bytes. data [length,message]. return [head]
+func (slf *LengthFieldStreamPacket) HeadBytes(data []byte) []byte {
+	return data[slf.lengthFieldByteCount : slf.lengthFieldByteCount+slf.head.GetSize()]
+}
+
+// get body bytes. data [length,message]. return [body]
+func (slf *LengthFieldStreamPacket) BodyBytes(data []byte) []byte {
+	return data[slf.lengthFieldByteCount+slf.head.GetSize():]
+}
+
+/**get msgID from data.
+ *@param data []byte 整包数据 [length,message]
+ *@return MSGID 消息ID
+ *@return error 错误
+ */
+func (slf *LengthFieldStreamPacket) GetMsgID(data []byte) (MSGID, error) {
+	headBytes := slf.HeadBytes(data)
+	valueList := [max_head_part_count]int{0}
+	err := slf.head.UnmarshalTo(headBytes, GetByteOrder(), valueList[:])
+	if err != nil {
+		return 0, err
+	}
+	return MSGID(valueList[0]), nil
 }
 
 /**get byte count of message.
