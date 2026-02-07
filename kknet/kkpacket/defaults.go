@@ -6,11 +6,11 @@ import (
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
+const defaultMaxMessageSize = 4 * 1024 //默认MaxMessageSize
+
 var defaultStreamPacket = NewLengthFieldStreamPacket(
 	NewPacketCodec(HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)),
 )
-
-const defaultMaxMessageSize = 4 * 1024 //默认MaxMessageSize
 
 func DefaultStreamPacket() IStreamPacket {
 	return defaultStreamPacket

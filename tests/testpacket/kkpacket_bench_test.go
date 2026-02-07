@@ -31,7 +31,7 @@ func Benchmark_kkpacket_EncodeEx(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf, _ := kkpacket.EncodePacketEx(msg, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
+		buf, _ := kkpacket.EncodePacket(msg, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
 		kkbuffer.Put(buf)
 	}
 }
@@ -49,7 +49,7 @@ func Benchmark_kkpacket_Decode(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		kkpacket.DecodePacket(packet, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
+		kkpacket.DecodePacket(packet.B, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
 		kkpool.GetFactory[msgTest1]().Put(msg)
 	}
 }
@@ -63,7 +63,7 @@ func Benchmark_kkpacket_EncodeDecode(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		packet, err := kkpacket.EncodePacketEx(msg, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
+		packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
 		if err != nil {
 			b.Fatalf("encode packet: %v", err)
 		}

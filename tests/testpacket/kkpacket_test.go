@@ -81,20 +81,20 @@ func TestKK_packet_Encode(t *testing.T) {
 	}
 	t.Logf("packet: %v", packet)
 
-	packet2, err := kkpacket.EncodePacketEx(msg1, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
+	packet2, err := kkpacket.EncodePacket(msg1, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
 	t.Logf("packet2: %v", packet2)
 
-	msgAA, _, errAA := kkpacket.DecodePacket(packet[:len(packet)-5], kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
+	msgAA, _, errAA := kkpacket.DecodePacket(packet.B[:len(packet.B)-5], kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
 	if errAA == nil {
 		fmt.Printf("msgAA: %+v\n", msgAA)
 	} else {
 		fmt.Printf("errAA: %+v\n", errAA)
 	}
 
-	msg22, _, err := kkpacket.DecodePacket(packet, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
+	msg22, _, err := kkpacket.DecodePacket(packet.B, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestKK_packet_Decode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
-	msg22, _, err := kkpacket.DecodePacket(packet, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
+	msg22, _, err := kkpacket.DecodePacket(packet.B, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeJson)), router)
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}

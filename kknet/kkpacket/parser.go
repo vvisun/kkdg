@@ -77,26 +77,6 @@ func DecodePacket(data []byte, pkType *PacketCodec, router *MsgRouter) (any, MSG
 
 /*
 编码包。
-
-	@param v *T 消息类型
-	@param pkType *PacketCodec 包类型
-	@return []byte 包数据[message]
-	@return error 错误
-*/
-func EncodePacket[T any](v *T, pkType *PacketCodec, router *MsgRouter) ([]byte, error) {
-	buf, err := EncodePacketEx(v, pkType, router)
-	if err != nil {
-		return nil, err
-	}
-	if len(buf.B) == 0 {
-		kkbuffer.Put(buf)
-		return make([]byte, 0), nil
-	}
-	return buf.B, nil
-}
-
-/*
-编码包。
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
 	@param v *T 消息对象（object）
@@ -104,7 +84,7 @@ func EncodePacket[T any](v *T, pkType *PacketCodec, router *MsgRouter) ([]byte, 
 	@return *kkbuffer.ByteBuffer 包数据[message]
 	@return error 错误
 */
-func EncodePacketEx[T any](v *T, pkType *PacketCodec, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
+func EncodePacket[T any](v *T, pkType *PacketCodec, router *MsgRouter) (*kkbuffer.ByteBuffer, error) {
 	codec := pkType.codec
 	if codec == nil {
 		return nil, kkerrors.ErrInvalidCodec

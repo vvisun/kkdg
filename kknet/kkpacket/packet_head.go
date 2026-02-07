@@ -13,6 +13,7 @@ type IHead interface {
 	Marshal(data []byte, endian binary.ByteOrder) error
 	Unmarshal(data []byte, endian binary.ByteOrder) error
 	GetSize() int
+	GetType() HeadType
 }
 
 func GetHeadSize(headType HeadType) int {
@@ -46,6 +47,10 @@ func (h *HeadMid) GetSize() int {
 	return 4
 }
 
+func (h *HeadMid) GetType() HeadType {
+	return HeadTypeMid
+}
+
 type HeadMidSeq struct {
 	mid uint32
 	seq uint32
@@ -67,4 +72,8 @@ func (h *HeadMidSeq) Unmarshal(data []byte, endian binary.ByteOrder) error {
 
 func (h *HeadMidSeq) GetSize() int {
 	return 8
+}
+
+func (h *HeadMidSeq) GetType() HeadType {
+	return HeadTypeMidSeq
 }

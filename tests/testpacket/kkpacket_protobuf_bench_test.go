@@ -61,7 +61,7 @@ func Benchmark_kkpacket_ProtoBuf_Decode(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		kkpacket.DecodePacket(packet, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)), router)
+		kkpacket.DecodePacket(packet.B, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)), router)
 	}
 }
 
@@ -87,7 +87,7 @@ func Benchmark_kkpacket_ProtoBuf_EncodeDecode(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		packet, err := kkpacket.EncodePacketEx(msg, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)), router)
+		packet, err := kkpacket.EncodePacket(msg, kkpacket.NewPacketCodec(kkpacket.HeadTypeMid, kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)), router)
 		if err != nil {
 			b.Fatalf("encode packet: %v", err)
 		}

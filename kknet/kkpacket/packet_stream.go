@@ -16,9 +16,10 @@ type IStreamReader interface {
 	Next(n int) (buf []byte, err error)
 }
 
-// 消息结构：[length,message]。
-// length表示message的长度，占4个字节。
-// message是消息对象的二进制数据，可以通过message_parser解析为消息对象。
+// 完整包。
+// 包结构：[length,message]。
+// length表示message的长度，占LengthFieldByteCount()个字节。
+// message是消息对象的二进制数据。
 type IStreamPacket interface {
 	// get length field byte count. [length].
 	LengthFieldByteCount() int
