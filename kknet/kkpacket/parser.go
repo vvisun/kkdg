@@ -129,9 +129,10 @@ func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffe
 		return nil, kkerrors.ErrEncodeFailed
 	}
 
-	stream.writeMessageSize(bb.B[:lfbCount], len(bb.B)-lfbCount)
+	stream.writeMessageSize(bb.B, len(bb.B)-lfbCount)
 
-	err = messagePacket.GetHead().Marshal(messagePacket.HeadBytes(bb.B[lfbCount:]), GetByteOrder(), int(msgID))
+	messageBytes := stream.MessageBytes(bb.B)
+	err = messagePacket.GetHead().Marshal(messagePacket.HeadBytes(messageBytes), GetByteOrder(), int(msgID))
 	if err != nil {
 		kkbuffer.Put(bb)
 		return nil, err

@@ -23,10 +23,8 @@ type LengthFieldStreamPacket struct {
 	lfbCount int // [length]部分的字节数。该部分用于表示包体[message]的长度。
 }
 
-var _ IPacket = (*LengthFieldStreamPacket)(nil)
-
 // NewLengthFieldStreamPacket creates a length-field stream packet.
-func NewLengthFieldStreamPacket(lfb int) *LengthFieldStreamPacket {
+func NewLengthFieldStreamPacket(lfb int) IPacket {
 	if lfb != 2 && lfb != 4 {
 		panic("length field byte count must be 2 or 4")
 	}
