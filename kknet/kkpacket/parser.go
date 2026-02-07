@@ -8,27 +8,27 @@ import (
 )
 
 /*
-* 解析消息信息。
+*解析消息信息。
 
-	@param data []byte 包数据[message]
-	@param pkType *PacketCodec 包类型
+	@param messageBytes []byte 包数据[message]
+	@param head *PacketHead 消息头
 	@return MSGID 消息ID
 	@return []byte 消息体（object的二进制数据）
 	@return error 错误
 */
-func ParseMsgInfo(data []byte, head *PacketHead) (MSGID, []byte, error) {
+func ParseMsgInfo(messageBytes []byte, head *PacketHead) (MSGID, []byte, error) {
 	headSize := head.GetSize()
 	if headSize < 0 {
 		return 0, nil, kkerrors.ErrInvalidMsgHeadType
 	}
-	if len(data) < headSize {
+	if len(messageBytes) < headSize {
 		return 0, nil, kkerrors.ErrDataTooShortToDecode
 	}
 
-	body := data[headSize:]
+	body := messageBytes[headSize:]
 
 	valueList := [max_head_part_count]int{0}
-	err := head.UnmarshalTo(data[:headSize], GetByteOrder(), valueList[:])
+	err := head.UnmarshalTo(messageBytes[:headSize], GetByteOrder(), valueList[:])
 	if err != nil {
 		return 0, nil, err
 	}
@@ -41,14 +41,16 @@ func ParseMsgInfo(data []byte, head *PacketHead) (MSGID, []byte, error) {
 解码包。
 注意：外部需记得释放消息对象！！！否则消息对象得不到回收，性能反而更低！！！
 
-	@param data []byte 包数据[message]
-	@param pkType *PacketCodec 包类型
+	@param messageBytes []byte 包数据[message]
+	@param head *PacketHead 消息头
+	@param bodyCodec kkcodec.ICodec 消息体编码器
+	@param router *MsgRouter 消息路由
 	@return any 消息对象（object）
 	@return MSGID 消息ID
 	@return error 错误
 */
-func DecodePacket(data []byte, head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRouter) (any, MSGID, error) {
-	msgID, body, err := ParseMsgInfo(data, head)
+func DecodePacket(messageBytes []byte, head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRouter) (any, MSGID, error) {
+	msgID, body, err := ParseMsgInfo(messageBytes, head)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -72,7 +74,9 @@ func DecodePacket(data []byte, head *PacketHead, bodyCodec kkcodec.ICodec, route
 注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
 
 	@param v *T 消息对象（object）
-	@param pkType *PacketCodec 包类型
+	@param head *PacketHead 消息头
+	@param bodyCodec kkcodec.ICodec 消息体编码器
+	@param router *MsgRouter 消息路由
 	@return *kkbuffer.ByteBuffer 包数据[message]
 	@return error 错误
 */
@@ -104,7 +108,8 @@ func EncodePacket[T any](v *T, head *PacketHead, bodyCodec kkcodec.ICodec, route
 注意：外部需记得释放*kkbuffer.ByteBuffer！！！否则*kkbuffer.ByteBuffer得不到回收，性能反而更低！！！
 
 	@param v *T 消息对象（object）
-	@param stream IStreamPacket 流包类型
+	@param stream IPacket 流包类型
+	@param router *MsgRouter 消息路由
 	@return *kkbuffer.ByteBuffer 包数据[length,message]
 	@return error 错误
 */
