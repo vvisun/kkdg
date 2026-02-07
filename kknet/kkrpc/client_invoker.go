@@ -12,18 +12,18 @@ import (
 
 // ClientInvoker adapts *Client to Invoker.
 type ClientInvoker struct {
-	rpcClient IRpcClient
-	msgRouter *kkpacket.MsgRouter
-	rpcRouter *RpcRouter
+	rpcClient     IRpcClient
+	rpcRouter     *RpcRouter
+	messagePacket *kkpacket.MessagePacket
 }
 
 var _ Invoker = (*ClientInvoker)(nil)
 var _ IGatewayTransport = (*ClientInvoker)(nil)
 
-func (i *ClientInvoker) Init(cli IRpcClient, rpcRouter *RpcRouter, msgRouter *kkpacket.MsgRouter) error {
+func (i *ClientInvoker) Init(cli IRpcClient, rpcRouter *RpcRouter, messagePacket *kkpacket.MessagePacket) error {
 	i.rpcClient = cli
-	i.msgRouter = msgRouter
 	i.rpcRouter = rpcRouter
+	i.messagePacket = messagePacket
 	return nil
 }
 
@@ -88,7 +88,7 @@ func (i *ClientInvoker) SendMsg(clientId kknet.CONN_ID, msg any) error {
 	}
 
 	// encode message
-	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), i.msgRouter)
+	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), i.messagePacket)
 	if err != nil {
 		kkbuffer.Put(msgBB)
 		return err
@@ -128,7 +128,7 @@ func (i *ClientInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
 		return ErrClientNotConnected
 	}
 	// encode message
-	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), i.msgRouter)
+	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), i.messagePacket)
 	if err != nil {
 		kkbuffer.Put(msgBB)
 		return err

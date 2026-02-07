@@ -39,17 +39,18 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 	router := kkpacket.NewMsgRouter()
 	router.Register(1, &testMsg{}, "test")
 	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
-	receiver := NewMsgReceiver(router, codec)
+	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
+	receiver := NewMsgReceiver(msgPacket)
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
 		fmt.Println(msg)
 		return nil
 	})
 
-	stream := kkpacket.NewLengthFieldStreamPacket(4, kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec)
+	stream := kkpacket.NewLengthFieldStreamPacket(4)
 	bb, err := kkpacket.EncodeStream(&testMsg{
 		ID:   1,
 		Data: "test",
-	}, stream, router)
+	}, stream, msgPacket)
 	if err != nil {
 		t.Fatalf("encode stream: %v", err)
 	}

@@ -12,19 +12,19 @@ import (
 
 // ConnInvoker adapts (Server + ConnID) to Invoker, enabling server-initiated calls to a connected peer.
 type ConnInvoker struct {
-	connId    kknet.CONN_ID
-	rpcServer IRpcServer
-	msgRouter *kkpacket.MsgRouter
-	rpcRouter *RpcRouter
+	connId        kknet.CONN_ID
+	rpcServer     IRpcServer
+	messagePacket *kkpacket.MessagePacket
+	rpcRouter     *RpcRouter
 }
 
 var _ Invoker = (*ConnInvoker)(nil)
 var _ IGatewayTransport = (*ConnInvoker)(nil)
 
-func (i *ConnInvoker) Init(server IRpcServer, connId kknet.CONN_ID, rpcRouter *RpcRouter, msgRouter *kkpacket.MsgRouter) error {
+func (i *ConnInvoker) Init(server IRpcServer, connId kknet.CONN_ID, rpcRouter *RpcRouter, messagePacket *kkpacket.MessagePacket) error {
 	i.rpcServer = server
 	i.connId = connId
-	i.msgRouter = msgRouter
+	i.messagePacket = messagePacket
 	i.rpcRouter = rpcRouter
 	return nil
 }
@@ -93,7 +93,7 @@ func (i *ConnInvoker) SendMsg(clientId kknet.CONN_ID, msg any) error {
 	}
 
 	// encode message
-	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), i.msgRouter)
+	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), i.messagePacket)
 	if err != nil {
 		kkbuffer.Put(msgBB)
 		return err
@@ -137,7 +137,7 @@ func (i *ConnInvoker) BroadcastMsg(clientIds []kknet.CONN_ID, msg any) error {
 	}
 
 	// encode message
-	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), i.msgRouter)
+	msgBB, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), i.messagePacket)
 	if err != nil {
 		kkbuffer.Put(msgBB)
 		return err

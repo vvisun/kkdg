@@ -2,7 +2,6 @@ package kkpacket
 
 import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 // 完整包。
@@ -12,24 +11,12 @@ import (
 type IPacket interface {
 	// get length field byte count. [length].
 	LengthFieldByteCount() int
-	// get head.
-	GetHead() *PacketHead
-	// get body codec.
-	GetBodyCodec() kkcodec.ICodec
 
 	// length field bytes. packet = [length,message]
 	LengthFieldBytes(packet []byte) []byte
-	// get head bytes. packet = [length,message]
-	HeadBytes(packet []byte) []byte
-	// get body bytes. packet = [length,message]
-	BodyBytes(packet []byte) []byte
 
-	/**get msgID from packet.
-	 *@param packet []byte 整包数据 [length,message]
-	 *@return MSGID 消息ID
-	 *@return error 错误
-	 */
-	GetMsgID(packet []byte) (MSGID, error)
+	// get message bytes. packet = [length,message]
+	MessageBytes(packet []byte) []byte
 
 	/**get byte count of message.
 	 *@param packet []byte 整包数据 [length,message] 或 一部分

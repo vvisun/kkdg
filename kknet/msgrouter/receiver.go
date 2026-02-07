@@ -7,15 +7,13 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // MsgReceiver 消息接收器
 type MsgReceiver struct {
-	router *kkpacket.MsgRouter
-	codec  kkcodec.ICodec
-	m      map[interface{}]IMsgHandler // 消息ID到消息处理器的映射
+	messagePacket *kkpacket.MessagePacket
+	m             map[interface{}]IMsgHandler // 消息ID到消息处理器的映射
 }
 
 // OnRaw 接收原始数据并分发到消息处理器
@@ -26,7 +24,7 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 		return err
 	}
 
-	msgID, bodyBytes, err := kkpacket.ParseMsgInfo(messageBytes, kkpacket.DefaultStreamPacket().GetHead())
+	msgID, bodyBytes, err := kkpacket.ParseMsgInfo(messageBytes, r.messagePacket.GetHead())
 	if err != nil {
 		kkbuffer.Put(data)
 		return err
@@ -45,11 +43,10 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 }
 
 // NewMsgReceiver 创建消息接收器
-func NewMsgReceiver(router *kkpacket.MsgRouter, codec kkcodec.ICodec) *MsgReceiver {
+func NewMsgReceiver(messagePacket *kkpacket.MessagePacket) *MsgReceiver {
 	return &MsgReceiver{
-		router: router,
-		codec:  codec,
-		m:      make(map[interface{}]IMsgHandler),
+		messagePacket: messagePacket,
+		m:             make(map[interface{}]IMsgHandler),
 	}
 }
 
@@ -62,11 +59,11 @@ func RegistMsgHandler[T any](receiver *MsgReceiver, h *MsgHandler[T]) {
 }
 
 func RegisterMsgHandler[T any](receiver *MsgReceiver, call MsgHandlerFunc[T]) {
-	msgID := receiver.router.GetMsgID(new(T))
+	msgID := receiver.messagePacket.GetRouter().GetMsgID(new(T))
 	if msgID == 0 {
 		kklog.Errorf("message type %v is not registered", reflect.TypeOf(new(T)))
 		return
 	}
-	handler := NewMsgHandler[T](msgID, receiver.codec, call)
+	handler := NewMsgHandler[T](msgID, receiver.messagePacket.GetBodyCodec(), call)
 	RegistMsgHandler(receiver, handler)
 }
