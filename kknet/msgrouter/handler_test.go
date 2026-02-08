@@ -105,6 +105,7 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 			b.Fatalf("encode stream: %v", err)
 		}
 
-		receiver.OnRaw(1, bb)
+		//receiver.OnRaw(1, bb)
+		kkbuffer.Put(bb)
 	}
 }

@@ -5,6 +5,26 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
+func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
+	if frame.Code == 0 {
+		frame.Code = 1
+	}
+	if frame.Err == "" {
+		frame.Err = "unknown error"
+	}
+	frameBytes, err := rpcCodec.Marshal(frame)
+	if err != nil {
+		return nil, err
+	}
+	// encode stream
+	bb, err := kkpacket.DefaultStreamPacket().Pack(frameBytes)
+	if err != nil {
+		kkbuffer.Put(bb)
+		return nil, err
+	}
+	return bb, nil
+}
+
 func EncodeRpcFrame(ft FrameType, reqId uint64, method string, argBytes []byte) (*kkbuffer.ByteBuffer, error) {
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:

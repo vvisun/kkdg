@@ -13,8 +13,10 @@ type RpcHandlerFunc[T any, R any] func(ctx context.Context, msg *T, resp *R) err
 
 // 消息接收器
 type IRpcHandler interface {
-	GetMsgID() any                                              // 获取消息ID
-	OnMsg(ctx context.Context, msgBytes []byte) ([]byte, error) // 消息回调
+	// 获取消息ID
+	GetMsgID() any
+	// 消息回调
+	OnMsg(ctx context.Context, payload []byte) ([]byte, error)
 }
 
 type RpcHandler[T any, R any] struct {
@@ -26,10 +28,10 @@ func (h *RpcHandler[T, R]) GetMsgID() any {
 	return h.msgID
 }
 
-func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, msgBytes []byte) ([]byte, error) {
+func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, error) {
 	var data T
 	var resp R
-	if err := dataCodec.Unmarshal(msgBytes, &data); err != nil {
+	if err := dataCodec.Unmarshal(payload, &data); err != nil {
 		return nil, err
 	}
 	err := h.call(ctx, &data, &resp)
@@ -54,7 +56,7 @@ func newRpcHandler[T any, R any](method any, call RpcHandlerFunc[T, R]) *RpcHand
 //---------------------------------------------------------------
 
 type RpcReceiver struct {
-	m map[interface{}]IRpcHandler
+	hdMap map[interface{}]IRpcHandler
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kkbuffer.ByteBuffer {
@@ -70,24 +72,52 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kk
 	}
 	kkbuffer.Put(data)
 
-	method := fr.M
-	h, ok := r.m[method]
-	if !ok || h == nil {
+	switch fr.T {
+	case FrameTypeResponse:
+		kklog.Debugf("远程方法返回: %v", fr)
 		return nil
+	case FrameTypeTell:
+		kklog.Warnf("单向调用，不应该收到响应消息: %v", fr)
+		return nil
+	case FrameTypeRequest:
+		kklog.Debugf("收到远程方法调用请求: %v", fr)
+	default:
+		kklog.Warnf("收到未知类型的消息: %v", fr)
+		return nil
+	}
+
+	// 处理 FrameTypeRequest 类型的请求
+	rspFrame := Frame{
+		T:    FrameTypeResponse,
+		ID:   fr.ID,
+		M:    fr.M,
+		Code: 0,
+		Err:  "",
+	}
+
+	method := fr.M
+	h, ok := r.hdMap[method]
+	if !ok || h == nil {
+		rspFrame.Code = 1
+		rspFrame.Err = "未找到远程方法" + method
+		rspBB, err := EncodeFailedResponse(&rspFrame)
+		if err != nil {
+			kklog.Errorf("encode failed response: %v", err)
+			return nil
+		}
+		return rspBB
 	}
 
 	respBytes, err := h.OnMsg(context.Background(), fr.P)
 	if err != nil {
-		return nil
-	}
-
-	if fr.T == FrameTypeResponse {
-		kklog.Debugf("response frame: %v", fr)
-		return nil
-	}
-
-	if fr.T != FrameTypeRequest {
-		return nil // only request need response
+		rspFrame.Code = 1
+		rspFrame.Err = "远程方法执行失败: " + err.Error()
+		rspBB, err := EncodeFailedResponse(&rspFrame)
+		if err != nil {
+			kklog.Errorf("encode failed response: %v", err)
+			return nil
+		}
+		return rspBB
 	}
 
 	// encode response
@@ -95,16 +125,17 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kk
 	if err != nil {
 		return nil
 	}
+	//喂给上层函数发送回执
 	return rspBB
 }
 
 func NewRpcReceiver() *RpcReceiver {
 	return &RpcReceiver{
-		m: make(map[interface{}]IRpcHandler),
+		hdMap: make(map[interface{}]IRpcHandler),
 	}
 }
 
 func RegistRpcHandler[T any, R any](router *RpcReceiver, method any, call RpcHandlerFunc[T, R]) {
 	h := newRpcHandler(method, call)
-	router.m[method] = h
+	router.hdMap[method] = h
 }
