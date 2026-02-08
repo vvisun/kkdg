@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -334,5 +335,12 @@ func WithSendQueueTimeoutFlushOver(timeout time.Duration) Option {
 func WithSendQueueFlushTimeoutCallback(cb func(conn IConn, timeout time.Duration)) Option {
 	return func(o *Options) {
 		o.WpOptions.SendQueueFlushTimeoutCallback = cb
+	}
+}
+
+// WithMsgPacket sets message packet.
+func WithMsgPacket(packet *kkpacket.MessagePacket) Option {
+	return func(o *Options) {
+		o.WpOptions.MsgPacket = packet
 	}
 }
