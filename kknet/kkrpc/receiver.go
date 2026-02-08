@@ -46,11 +46,24 @@ func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, e
 	return respBytes, nil
 }
 
+//---------------------------------------------------------------
+
 func newRpcHandler[T any, R any](method any, call RpcHandlerFunc[T, R]) *RpcHandler[T, R] {
 	var handler RpcHandler[T, R]
 	handler.call = call
 	handler.msgID = method
 	return &handler
+}
+
+func NewRpcReceiver() *RpcReceiver {
+	return &RpcReceiver{
+		hdMap: make(map[interface{}]IRpcHandler),
+	}
+}
+
+func RegistRpcHandler[T any, R any](router *RpcReceiver, method any, call RpcHandlerFunc[T, R]) {
+	h := newRpcHandler(method, call)
+	router.hdMap[method] = h
 }
 
 //---------------------------------------------------------------
@@ -127,15 +140,4 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kk
 	}
 	//喂给上层函数发送回执
 	return rspBB
-}
-
-func NewRpcReceiver() *RpcReceiver {
-	return &RpcReceiver{
-		hdMap: make(map[interface{}]IRpcHandler),
-	}
-}
-
-func RegistRpcHandler[T any, R any](router *RpcReceiver, method any, call RpcHandlerFunc[T, R]) {
-	h := newRpcHandler(method, call)
-	router.hdMap[method] = h
 }
