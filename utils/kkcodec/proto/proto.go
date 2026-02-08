@@ -8,8 +8,6 @@ import (
 
 const Name = "proto"
 
-var DefaultCodec = &codec{}
-
 type codec struct{}
 
 // Name 编解码器名称
@@ -52,6 +50,8 @@ func (codec) Unmarshal(data []byte, v any) error {
 	}
 	return proto.Unmarshal(data, msg)
 }
+
+var DefaultCodec = &codec{}
 
 // Marshal 编码
 func Marshal(v any) ([]byte, error) {

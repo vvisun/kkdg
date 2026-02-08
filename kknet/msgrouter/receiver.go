@@ -11,7 +11,7 @@ import (
 // MsgReceiver 消息接收器
 type MsgReceiver struct {
 	messagePacket *kkpacket.MessagePacket
-	m             map[interface{}]IMsgHandler // 消息ID到消息处理器的映射
+	hdMap         map[interface{}]IMsgHandler // 消息ID到消息处理器的映射
 }
 
 // OnRaw 接收原始数据并分发到消息处理器
@@ -28,7 +28,7 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 		return err
 	}
 
-	h, ok := r.m[msgID]
+	h, ok := r.hdMap[msgID]
 	if !ok || h == nil {
 		return kkerrors.ErrMsgHandlerNotRegistered
 	}
@@ -44,7 +44,7 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 func NewMsgReceiver(messagePacket *kkpacket.MessagePacket) *MsgReceiver {
 	return &MsgReceiver{
 		messagePacket: messagePacket,
-		m:             make(map[interface{}]IMsgHandler),
+		hdMap:         make(map[interface{}]IMsgHandler),
 	}
 }
 
@@ -57,5 +57,5 @@ func RegisterMsgHandler[T any](receiver *MsgReceiver, call MsgHandlerFunc[T]) {
 		return
 	}
 	h := NewMsgHandler[T](msgID, receiver.messagePacket.GetBodyCodec(), call)
-	receiver.m[h.GetMsgID()] = h
+	receiver.hdMap[msgID] = h
 }

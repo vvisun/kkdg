@@ -10,8 +10,6 @@ const (
 	ShortName = "yml"
 )
 
-var DefaultCodec = &codec{}
-
 type codec struct{}
 
 // Name 编解码器名称
@@ -41,6 +39,8 @@ func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 func (codec) Unmarshal(data []byte, v any) error {
 	return yaml.Unmarshal(data, v)
 }
+
+var DefaultCodec = &codec{}
 
 // Marshal 编码
 func Marshal(v any) ([]byte, error) {
