@@ -5,7 +5,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, data *T) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrame(ft FrameType, reqId uint64, method string, argBytes []byte) (*kkbuffer.ByteBuffer, error) {
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
@@ -13,12 +13,6 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, data *T) (
 		}
 	case FrameTypeTell:
 		reqId = 0
-	}
-
-	// encode args
-	argBytes, err := dataCodec.Marshal(data)
-	if err != nil {
-		return nil, err
 	}
 
 	// encode frame
@@ -36,6 +30,7 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, data *T) (
 	// encode stream
 	bb, err := kkpacket.DefaultStreamPacket().Pack(frameBytes)
 	if err != nil {
+		kkbuffer.Put(bb)
 		return nil, err
 	}
 	return bb, nil

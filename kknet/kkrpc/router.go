@@ -9,33 +9,43 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-type RpcHandlerFunc[T any] func(ctx context.Context, msg *T) error
+type RpcHandlerFunc[T any, R any] func(ctx context.Context, msg *T, resp *R) error
 
 // 消息接收器
 type IRpcHandler interface {
-	GetMsgID() any                                    // 获取消息ID
-	OnMsg(ctx context.Context, msgBytes []byte) error // 消息回调
+	GetMsgID() any                                              // 获取消息ID
+	OnMsg(ctx context.Context, msgBytes []byte) ([]byte, error) // 消息回调
 }
 
-type RpcHandler[T any] struct {
-	call  RpcHandlerFunc[T]
+type RpcHandler[T any, R any] struct {
+	call  RpcHandlerFunc[T, R]
 	msgID any
 }
 
-func (h *RpcHandler[T]) GetMsgID() any {
+func (h *RpcHandler[T, R]) GetMsgID() any {
 	return h.msgID
 }
 
-func (h *RpcHandler[T]) OnMsg(ctx context.Context, msgBytes []byte) error {
+func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, msgBytes []byte) ([]byte, error) {
 	var data T
+	var resp R
 	if err := dataCodec.Unmarshal(msgBytes, &data); err != nil {
-		return err
+		return nil, err
 	}
-	return h.call(ctx, &data)
+	err := h.call(ctx, &data, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	respBytes, err := dataCodec.Marshal(&resp)
+	if err != nil {
+		return nil, err
+	}
+	return respBytes, nil
 }
 
-func newRpcHandler[T any](method any, call RpcHandlerFunc[T]) *RpcHandler[T] {
-	var handler RpcHandler[T]
+func newRpcHandler[T any, R any](method any, call RpcHandlerFunc[T, R]) *RpcHandler[T, R] {
+	var handler RpcHandler[T, R]
 	handler.call = call
 	handler.msgID = method
 	return &handler
@@ -74,11 +84,20 @@ func (r *RpcRouter) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		kkbuffer.Put(data)
 		return
 	}
-	err = h.OnMsg(context.Background(), fr.P)
+	respBytes, err := h.OnMsg(context.Background(), fr.P)
+	if err != nil {
+		kkbuffer.Put(data)
+		kklog.Errorf("server handler on msg: %v", err)
+		return
+	}
 	kkbuffer.Put(data)
+	rspBB, err := EncodeRpcFrame(FrameTypeResponse, fr.ID, method, respBytes)
 	if err != nil {
 		kklog.Errorf("server handler on msg: %v", err)
+		return
 	}
+	//s.SendBuffer(connId, rspBB)
+	kkbuffer.Put(rspBB) // todo: send to conn
 }
 
 func NewRpcRouter() *RpcRouter {
@@ -87,7 +106,7 @@ func NewRpcRouter() *RpcRouter {
 	}
 }
 
-func RegistRpcHandler[T any](router *RpcRouter, method any, call RpcHandlerFunc[T]) {
+func RegistRpcHandler[T any, R any](router *RpcRouter, method any, call RpcHandlerFunc[T, R]) {
 	h := newRpcHandler(method, call)
 	router.m[method] = h
 }

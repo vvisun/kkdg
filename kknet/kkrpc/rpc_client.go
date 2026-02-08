@@ -41,18 +41,18 @@ func (c *Client) Stop() error {
 	return c.cli.Close()
 }
 
-// 同步调用
-func (s *Client) Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+// 同步调用（阻塞等待结果）
+func (c *Client) Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
 	return nil, nil
 }
 
-// 异步调用
-func (s *Client) InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+// 异步调用（非阻塞等待结果）
+func (c *Client) InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
 	return nil, nil
 }
 
-// 无响应调用
-func (s *Client) InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error {
+// 无响应调用（没有结果，单向调用）
+func (c *Client) InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error {
 	return nil
 }
 
