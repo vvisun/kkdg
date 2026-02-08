@@ -1,7 +1,6 @@
 package kkrpc
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -23,10 +22,6 @@ func TestAll(t *testing.T) {
 	}
 
 	time.Sleep(2 * time.Second)
-
-	cliInvoker := ClientInvoker{}
-	cliInvoker.Init(cli, nil, nil)
-	cliInvoker.Invoke(context.Background(), "test", []byte("test"), CallConfig{})
 
 	time.Sleep(2 * time.Second)
 }

@@ -19,12 +19,11 @@ type testRsp struct {
 }
 
 func TestRouter(t *testing.T) {
-	router := NewRouter()
-	handler := NewRouteHandler("test", func(ctx context.Context, msg *testMsg) error {
+	router := NewRpcRouter()
+	RegistRpcHandler(router, "test", func(ctx context.Context, msg *testMsg) error {
 		fmt.Println(msg)
 		return nil
 	})
-	RegistRouteHandler(router, handler)
 
 	msg := &testMsg{
 		ID:   1,

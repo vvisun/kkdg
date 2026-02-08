@@ -5,6 +5,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
+// [message] 编码解码器。用于编码解码[message]部分。
 type MessagePacket struct {
 	head      *PacketHead
 	bodyCodec kkcodec.ICodec

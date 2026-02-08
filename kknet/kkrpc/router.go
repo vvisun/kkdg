@@ -7,22 +7,24 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
+type RpcHandlerFunc[T any] func(ctx context.Context, msg *T) error
+
 // 消息接收器
-type IMsgHandler interface {
+type IRpcHandler interface {
 	GetMsgID() any                               // 获取消息ID
 	OnMsg(ctx context.Context, msg []byte) error // 消息回调
 }
 
-type RouteHandler[T any] struct {
-	call  func(ctx context.Context, msg *T) error
+type RpcHandler[T any] struct {
+	call  RpcHandlerFunc[T]
 	msgID any
 }
 
-func (h *RouteHandler[T]) GetMsgID() any {
+func (h *RpcHandler[T]) GetMsgID() any {
 	return h.msgID
 }
 
-func (h *RouteHandler[T]) OnMsg(ctx context.Context, msg []byte) error {
+func (h *RpcHandler[T]) OnMsg(ctx context.Context, msg []byte) error {
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(msg)
 	if err != nil {
 		return err
@@ -38,8 +40,8 @@ func (h *RouteHandler[T]) OnMsg(ctx context.Context, msg []byte) error {
 	return h.call(ctx, &data)
 }
 
-func NewRouteHandler[T any](method any, call func(ctx context.Context, msg *T) error) *RouteHandler[T] {
-	var handler RouteHandler[T]
+func newRpcHandler[T any](method any, call RpcHandlerFunc[T]) *RpcHandler[T] {
+	var handler RpcHandler[T]
 	handler.call = call
 	handler.msgID = method
 	return &handler
@@ -48,7 +50,7 @@ func NewRouteHandler[T any](method any, call func(ctx context.Context, msg *T) e
 //---------------------------------------------------------------
 
 type RpcRouter struct {
-	m map[interface{}]IMsgHandler
+	m map[interface{}]IRpcHandler
 }
 
 func (r *RpcRouter) OnMsg(ctx context.Context, method any, msg []byte) error {
@@ -59,17 +61,15 @@ func (r *RpcRouter) OnMsg(ctx context.Context, method any, msg []byte) error {
 	return h.OnMsg(ctx, msg)
 }
 
-func NewRouter() *RpcRouter {
+func NewRpcRouter() *RpcRouter {
 	return &RpcRouter{
-		m: make(map[interface{}]IMsgHandler),
+		m: make(map[interface{}]IRpcHandler),
 	}
 }
 
-func RegistRouteHandler[T any](router *RpcRouter, h *RouteHandler[T]) {
-	if h == nil {
-		return
-	}
-	router.m[h.GetMsgID()] = h
+func RegistRpcHandler[T any](router *RpcRouter, method any, call RpcHandlerFunc[T]) {
+	h := newRpcHandler(method, call)
+	router.m[method] = h
 }
 
 //----------------------------------------------------------------
