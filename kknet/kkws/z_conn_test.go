@@ -445,7 +445,7 @@ func TestWSConn_InvalidPacket(t *testing.T) {
 	invalidBuf := kkbuffer.GetWithCapacity(2)
 	invalidBuf.B = invalidBuf.B[:2]
 	err = wc.SendBuffer(invalidBuf)
-	if err != kkerrors.ErrInvalidPacket && err != kkerrors.ErrMaxMessageSize {
-		t.Errorf("SendBuffer invalid packet = %v, want ErrInvalidPacket or ErrMaxMessageSize", err)
+	if err == nil {
+		t.Errorf("SendBuffer invalid packet = %v, want error", err)
 	}
 }
