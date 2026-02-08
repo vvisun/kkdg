@@ -80,11 +80,11 @@ func (h *clientHandler) OnClose(_ kknet.IConn, _ error) {
 
 func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	bb := h.rpcRouter.OnRaw(connId, data)
-	if h.cli == nil {
-		kkbuffer.Put(bb)
-		return
-	}
 	if bb != nil {
+		if h.cli == nil {
+			kkbuffer.Put(bb)
+			return
+		}
 		h.cli.SendBuffer(bb)
 	}
 }

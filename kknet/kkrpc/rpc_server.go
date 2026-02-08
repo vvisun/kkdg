@@ -83,11 +83,11 @@ func (h *serverHandler) OnClose(conn kknet.IConn, _ error) {
 
 func (h *serverHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	bb := h.rpcRouter.OnRaw(connId, data)
-	if h.svr == nil {
-		kkbuffer.Put(bb)
-		return
-	}
 	if bb != nil {
+		if h.svr == nil {
+			kkbuffer.Put(bb)
+			return
+		}
 		h.svr.SendBuffer(connId, bb)
 	}
 }

@@ -12,7 +12,7 @@ import (
 func TestAll(t *testing.T) {
 	rpcRouter := NewRpcReceiver()
 	RegistRpcHandler(rpcRouter, "test", func(ctx context.Context, msg *testMsg, resp *testRsp) error {
-		fmt.Println(msg)
+		fmt.Println("recv msg: ", msg)
 		resp.Code = 0
 		resp.Msg = "test success"
 		return nil
@@ -37,7 +37,7 @@ func TestAll(t *testing.T) {
 		Data: "test",
 	}, CallConfig{})
 
-	time.Sleep(22 * time.Second)
+	time.Sleep(2 * time.Second)
 }
 
 func TestRpcRequest(t *testing.T) {

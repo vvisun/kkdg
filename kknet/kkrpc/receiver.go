@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type RpcHandlerFunc[T any, R any] func(ctx context.Context, msg *T, resp *R) error
@@ -77,6 +78,11 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kk
 
 	respBytes, err := h.OnMsg(context.Background(), fr.P)
 	if err != nil {
+		return nil
+	}
+
+	if fr.T == FrameTypeResponse {
+		kklog.Debugf("response frame: %v", fr)
 		return nil
 	}
 

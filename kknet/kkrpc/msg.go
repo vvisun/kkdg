@@ -21,6 +21,9 @@ type Frame struct {
 	Err  string    `json:"e,omitempty" msgpack:"e"`   // error message 错误信息
 }
 
+// NilResponse 占位，注册单向调用时用来占位，实际不会返回。方便统一method注册逻辑
+type NilResponse struct{}
+
 type (
 	// TransMsg 网关转发消息
 	TransMsg struct {
