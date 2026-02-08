@@ -276,12 +276,6 @@ func WithRpProvider(provider RpProvider) Option {
 	}
 }
 
-func WithMsgHandler(handler IMsgHandler) Option {
-	return func(o *Options) {
-		o.RpOptions.MsgHandler = handler
-	}
-}
-
 func WithRawHandler(handler IRawHandler) Option {
 	return func(o *Options) {
 		o.RpOptions.RawHandler = handler

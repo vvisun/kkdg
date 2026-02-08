@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -102,7 +101,7 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 		xcall.SafeCall(func() {
 			rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 		})
-	} else if rp.opts.MsgHandler != nil || rp.opts.RawHandler != nil {
+	} else if rp.opts.RawHandler != nil {
 		bb := kkbuffer.GetWithCapacity(len(packet))
 		bb.B = bb.B[:len(packet)]
 		copy(bb.B, packet)
@@ -162,7 +161,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 				rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 			}
 		})
-	} else if rp.opts.MsgHandler != nil || rp.opts.RawHandler != nil {
+	} else if rp.opts.RawHandler != nil {
 		for _, packet := range packets {
 			bb := kkbuffer.GetWithCapacity(len(packet))
 			bb.B = bb.B[:len(packet)]
@@ -233,10 +232,7 @@ func (rp *ReadProcessor) drainOnce() {
 				if packet == nil {
 					continue
 				}
-				if rp.opts.MsgHandler != nil {
-					kklog.Errorf("not implemented")
-					kkbuffer.Put(packet)
-				} else if rp.opts.RawHandler != nil {
+				if rp.opts.RawHandler != nil {
 					rp.dispatchRaw(packet)
 				} else {
 					kkbuffer.Put(packet)
@@ -244,11 +240,6 @@ func (rp *ReadProcessor) drainOnce() {
 			}
 		})
 	}
-}
-
-// 分发消息到业务逻辑层。异步投递避免阻塞消费循环，提高多连接下的接收吞吐。
-func (rp *ReadProcessor) dispatchMessage(msg any, msgID kkpacket.MSGID) {
-	rp.opts.MsgHandler.OnMsg(rp.connID, msg, msgID)
 }
 
 // 分发原始数据到业务逻辑层。异步投递避免阻塞消费循环，提高多连接下的接收吞吐。

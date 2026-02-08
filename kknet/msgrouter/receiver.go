@@ -1,7 +1,6 @@
 package msgrouter
 
 import (
-	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -16,6 +15,8 @@ type MsgReceiver struct {
 	hdMap         map[interface{}]IMsgHandler // 消息ID到消息处理器的映射
 	metaParser    MetaParser
 }
+
+var _ kknet.IRawHandler = (*MsgReceiver)(nil)
 
 // 解析出 消息ID，消息二进制数据
 func (r *MsgReceiver) parseMsgInfo(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error) {
@@ -39,25 +40,24 @@ func (r *MsgReceiver) parseMsgInfo(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, [
 }
 
 // OnRaw 接收原始数据并分发到消息处理器
-func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error {
+func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	msgID, bodyBytes, err := r.parseMsgInfo(data)
 	if err != nil {
 		kkbuffer.Put(data)
-		return err
+		return
 	}
 
 	h, ok := r.hdMap[msgID]
 	if !ok || h == nil {
 		kkbuffer.Put(data)
-		return kkerrors.ErrMsgHandlerNotRegistered
+		return
 	}
 
 	err = h.OnRaw(connId, bodyBytes)
 	kkbuffer.Put(data)
 	if err != nil {
-		return err
+		return
 	}
-	return nil
 }
 
 // NewMsgReceiver 创建消息接收器

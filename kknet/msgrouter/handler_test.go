@@ -55,10 +55,7 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode stream: %v", err)
 	}
-	err = receiver.OnRaw(1, bb)
-	if err != nil {
-		t.Fatalf("on raw: %v", err)
-	}
+	receiver.OnRaw(1, bb)
 }
 
 func TestMsgReceiver_OnRawWithParser(t *testing.T) {
@@ -74,16 +71,13 @@ func TestMsgReceiver_OnRawWithParser(t *testing.T) {
 		return nil
 	})
 
-	mbytes, err := codec.Marshal(&testMsg{
+	mbytes, _ := codec.Marshal(&testMsg{
 		ID:   1,
 		Data: "test",
 	})
 	bb := kkbuffer.GetWithCapacity(len(mbytes))
 	bb.WriteBytes(mbytes)
-	err = receiver.OnRaw(1, bb)
-	if err != nil {
-		t.Fatalf("on raw: %v", err)
-	}
+	receiver.OnRaw(1, bb)
 }
 
 func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
@@ -111,9 +105,6 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 			b.Fatalf("encode stream: %v", err)
 		}
 
-		err = receiver.OnRaw(1, bb)
-		if err != nil {
-			b.Fatalf("on raw: %v", err)
-		}
+		receiver.OnRaw(1, bb)
 	}
 }
