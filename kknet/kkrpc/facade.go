@@ -34,37 +34,18 @@ type IRpcClient interface {
 	SendBuffer(data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
+	Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error)
+	InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error)
+	InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error
 }
 
 type IRpcServer interface {
 	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
-}
-
-// Invoker is a small abstraction over "something that can invoke a method".
-//
-// Typical implementations:
-// - ClientInvoker: client -> server (address-based)
-// - ConnInvoker: server -> client (connection-based)
-type Invoker interface {
-	/**同步调用方法。with Return Value
-	@param ctx context.Context 上下文
-	@param method string 方法名
-	@param data any 方法参数
-	@param opts CallConfig 调用配置
-	@return any 返回数据
-	@return error 错误
-	*/
 	Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error)
-	/**异步调用方法。without Return Value
-	@param ctx context.Context 上下文
-	@param method string 方法名
-	@param data any 方法参数
-	@param opts CallConfig 调用配置
-	@return error 错误
-	*/
-	InvokeNoResponse(ctx context.Context, method string, data any, opts CallConfig) error
+	InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error)
+	InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error
 }
 
 type IGatewayTransport interface {

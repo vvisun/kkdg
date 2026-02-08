@@ -40,6 +40,21 @@ func (s *Server) Stop() error {
 	return s.tcp.Stop()
 }
 
+// 同步调用
+func (s *Server) Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+	return nil, nil
+}
+
+// 异步调用
+func (s *Server) InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+	return nil, nil
+}
+
+// 无响应调用
+func (s *Server) InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error {
+	return nil
+}
+
 //----------------------------------------------------------------
 
 type serverHandler struct {

@@ -3,7 +3,6 @@ package kkrpc
 import (
 	"context"
 
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -11,8 +10,8 @@ type RpcHandlerFunc[T any] func(ctx context.Context, msg *T) error
 
 // 消息接收器
 type IRpcHandler interface {
-	GetMsgID() any                               // 获取消息ID
-	OnMsg(ctx context.Context, msg []byte) error // 消息回调
+	GetMsgID() any                                    // 获取消息ID
+	OnMsg(ctx context.Context, msgBytes []byte) error // 消息回调
 }
 
 type RpcHandler[T any] struct {
@@ -24,17 +23,9 @@ func (h *RpcHandler[T]) GetMsgID() any {
 	return h.msgID
 }
 
-func (h *RpcHandler[T]) OnMsg(ctx context.Context, msg []byte) error {
-	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(msg)
-	if err != nil {
-		return err
-	}
-	var frame Frame
-	if err := rpcCodec.Unmarshal(msgBytes, &frame); err != nil {
-		return err
-	}
+func (h *RpcHandler[T]) OnMsg(ctx context.Context, msgBytes []byte) error {
 	var data T
-	if err := dataCodec.Unmarshal(frame.P, &data); err != nil {
+	if err := dataCodec.Unmarshal(msgBytes, &data); err != nil {
 		return err
 	}
 	return h.call(ctx, &data)
@@ -53,12 +44,12 @@ type RpcRouter struct {
 	m map[interface{}]IRpcHandler
 }
 
-func (r *RpcRouter) OnMsg(ctx context.Context, method any, msg []byte) error {
+func (r *RpcRouter) OnMsg(ctx context.Context, method any, msgBytes []byte) error {
 	h, ok := r.m[method]
 	if !ok || h == nil {
 		return ErrMethodNotFound
 	}
-	return h.OnMsg(ctx, msg)
+	return h.OnMsg(ctx, msgBytes)
 }
 
 func NewRpcRouter() *RpcRouter {

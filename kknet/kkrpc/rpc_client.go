@@ -40,6 +40,21 @@ func (c *Client) Stop() error {
 	return c.cli.Close()
 }
 
+// 同步调用
+func (s *Client) Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+	return nil, nil
+}
+
+// 异步调用
+func (s *Client) InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+	return nil, nil
+}
+
+// 无响应调用
+func (s *Client) InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error {
+	return nil
+}
+
 //----------------------------------------------------------------
 
 type clientHandler struct {
@@ -102,8 +117,4 @@ func (h *clientHandler) OnNoneCopy(_ kknet.CONN_ID, data []byte) {
 	case FrameTypeTell:
 		h.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
 	}
-}
-
-func (h *clientHandler) OnMsg(_ kknet.CONN_ID, _ any, _ kkpacket.MSGID) {
-
 }
