@@ -23,3 +23,15 @@ func deadlineCtx(deadlineUnixMs int64) (context.Context, context.CancelFunc) {
 	dl := time.UnixMilli(deadlineUnixMs)
 	return context.WithDeadline(context.Background(), dl)
 }
+
+func maybeApplyTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, ok := ctx.Deadline(); ok || d <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, d)
+}
+
+func contextCanceled() error { return context.Canceled }
