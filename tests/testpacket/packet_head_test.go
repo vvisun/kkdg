@@ -44,7 +44,7 @@ func BenchmarkPacketHead_UnmarshalTo(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		err := head.UnmarshalTo(data, binary.BigEndian, valueList)
+		_, err := head.UnmarshalTo(data, binary.BigEndian, valueList)
 		if err != nil {
 			b.Fatalf("unmarshal head: %v", err)
 		}

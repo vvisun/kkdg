@@ -44,8 +44,11 @@ func (slf *LengthFieldStreamPacket) LengthFieldBytes(packet []byte) []byte {
 }
 
 // get message bytes. packet = [length,message]
-func (slf *LengthFieldStreamPacket) MessageBytes(packet []byte) []byte {
-	return packet[slf.lfbCount:]
+func (slf *LengthFieldStreamPacket) MessageBytes(packet []byte) ([]byte, error) {
+	if len(packet) < slf.lfbCount {
+		return nil, kkerrors.ErrDataTooShortToDecode
+	}
+	return packet[slf.lfbCount:], nil
 }
 
 /**get byte count of message.

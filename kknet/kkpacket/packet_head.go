@@ -151,18 +151,21 @@ func (h *PacketHead) Unmarshal(headBytes []byte, endian binary.ByteOrder) ([]int
 	return valueList, nil
 }
 
-func (h *PacketHead) UnmarshalTo(headBytes []byte, endian binary.ByteOrder, valueList []int) error {
-	if len(headBytes) < h.size {
-		return kkerrors.ErrDataTooShortToUnmarshal
+func (h *PacketHead) UnmarshalTo(headBytes []byte, endian binary.ByteOrder, valueList []int) ([]int, error) {
+	if len(headBytes) < h.size || h.GetPartCount() <= 0 {
+		return valueList[:0], kkerrors.ErrDataTooShortToUnmarshal
+	}
+	if len(valueList) < h.GetPartCount() {
+		valueList = make([]int, h.GetPartCount())
 	}
 	offset := 0
 	for i, part := range h.partList {
 		value, err := part.Unmarshal(headBytes[offset:offset+part.GetSize()], endian)
 		if err != nil {
-			return err
+			return valueList[:i], err
 		}
 		valueList[i] = value
 		offset += part.GetSize()
 	}
-	return nil
+	return valueList[:h.GetPartCount()], nil
 }

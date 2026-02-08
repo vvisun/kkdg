@@ -16,7 +16,7 @@ type IPacket interface {
 	LengthFieldBytes(packet []byte) []byte
 
 	// get message bytes. packet = [length,message]
-	MessageBytes(packet []byte) []byte
+	MessageBytes(packet []byte) ([]byte, error)
 
 	/**get byte count of message.
 	 *@param packet []byte 整包数据 [length,message] 或 一部分
