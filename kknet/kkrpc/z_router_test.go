@@ -33,7 +33,7 @@ func TestRouter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
-	router.OnMsg(context.Background(), "test", bb.Bytes())
+	router.OnRaw(1, bb)
 }
 
 func TestMsgPeer_Request(t *testing.T) {

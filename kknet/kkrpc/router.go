@@ -3,7 +3,10 @@ package kkrpc
 import (
 	"context"
 
+	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type RpcHandlerFunc[T any] func(ctx context.Context, msg *T) error
@@ -44,12 +47,38 @@ type RpcRouter struct {
 	m map[interface{}]IRpcHandler
 }
 
-func (r *RpcRouter) OnMsg(ctx context.Context, method any, msgBytes []byte) error {
+func (r *RpcRouter) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	if err != nil {
+		kkbuffer.Put(data)
+		return
+	}
+	var fr Frame
+	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
+		kkbuffer.Put(data)
+		return
+	}
+
+	switch fr.T {
+	case FrameTypeRequest:
+
+	case FrameTypeResponse:
+
+	case FrameTypeTell:
+
+	}
+
+	method := fr.M
 	h, ok := r.m[method]
 	if !ok || h == nil {
-		return ErrMethodNotFound
+		kkbuffer.Put(data)
+		return
 	}
-	return h.OnMsg(ctx, msgBytes)
+	err = h.OnMsg(context.Background(), fr.P)
+	kkbuffer.Put(data)
+	if err != nil {
+		kklog.Errorf("server handler on msg: %v", err)
+	}
 }
 
 func NewRpcRouter() *RpcRouter {

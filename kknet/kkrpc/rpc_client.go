@@ -7,7 +7,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
@@ -70,51 +69,10 @@ func (h *clientHandler) OnClose(_ kknet.IConn, _ error) {
 
 }
 
-func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
-	if err != nil {
-		kkbuffer.Put(data)
-		return
-	}
-	var fr Frame
-	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
-		kkbuffer.Put(data)
-		return
-	}
-	kkbuffer.Put(data)
-	kklog.Infof("client handler on raw: %d, %d, %s, %s, %d, %s", fr.T, fr.ID, fr.M, string(fr.P), fr.Code, fr.Err)
-	if h.rpcRouter == nil {
-		return
-	}
-	switch fr.T {
-	case FrameTypeResponse:
-		h.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	case FrameTypeRequest:
-		h.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	case FrameTypeTell:
-		h.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	}
+func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	h.rpcRouter.OnRaw(connId, data)
 }
 
 func (h *clientHandler) OnNoneCopy(_ kknet.CONN_ID, data []byte) {
-	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data)
-	if err != nil {
-		return
-	}
-	var fr Frame
-	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
-		return
-	}
-	kklog.Infof("client handler on raw: %d, %d, %s, %s, %d, %s", fr.T, fr.ID, fr.M, string(fr.P), fr.Code, fr.Err)
-	if h.rpcRouter == nil {
-		return
-	}
-	switch fr.T {
-	case FrameTypeResponse:
-		h.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	case FrameTypeRequest:
-		h.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	case FrameTypeTell:
-		h.rpcRouter.OnMsg(context.Background(), fr.M, fr.P)
-	}
+
 }
