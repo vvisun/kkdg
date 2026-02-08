@@ -21,6 +21,7 @@ var _ IRpcClient = (*Client)(nil)
 func NewClient(addr string, opts kknet.Options) *Client {
 	cc := &Client{}
 	handler := &clientHandler{
+		cli:       cc,
 		msgRouter: cc.msgRouter,
 		rpcRouter: cc.rpcRouter,
 	}
@@ -59,6 +60,7 @@ func (c *Client) InvokeNR(ctx context.Context, method string, data any, opts Cal
 //----------------------------------------------------------------
 
 type clientHandler struct {
+	cli       *Client
 	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcRouter
 }
@@ -72,7 +74,14 @@ func (h *clientHandler) OnClose(_ kknet.IConn, _ error) {
 }
 
 func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	h.rpcRouter.OnRaw(connId, data)
+	bb := h.rpcRouter.OnRaw(connId, data)
+	if h.cli == nil {
+		kkbuffer.Put(bb)
+		return
+	}
+	if bb != nil {
+		h.cli.SendBuffer(bb)
+	}
 }
 
 func (h *clientHandler) OnNoneCopy(_ kknet.CONN_ID, data []byte) {

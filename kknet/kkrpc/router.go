@@ -57,16 +57,16 @@ type RpcRouter struct {
 	m map[interface{}]IRpcHandler
 }
 
-func (r *RpcRouter) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+func (r *RpcRouter) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kkbuffer.ByteBuffer {
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
 	if err != nil {
 		kkbuffer.Put(data)
-		return
+		return nil
 	}
 	var fr Frame
 	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
 		kkbuffer.Put(data)
-		return
+		return nil
 	}
 
 	switch fr.T {
@@ -82,22 +82,21 @@ func (r *RpcRouter) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	h, ok := r.m[method]
 	if !ok || h == nil {
 		kkbuffer.Put(data)
-		return
+		return nil
 	}
 	respBytes, err := h.OnMsg(context.Background(), fr.P)
 	if err != nil {
 		kkbuffer.Put(data)
 		kklog.Errorf("server handler on msg: %v", err)
-		return
+		return nil
 	}
 	kkbuffer.Put(data)
 	rspBB, err := EncodeRpcFrame(FrameTypeResponse, fr.ID, method, respBytes)
 	if err != nil {
 		kklog.Errorf("server handler on msg: %v", err)
-		return
+		return nil
 	}
-	//s.SendBuffer(connId, rspBB)
-	kkbuffer.Put(rspBB) // todo: send to conn
+	return rspBB
 }
 
 func NewRpcRouter() *RpcRouter {

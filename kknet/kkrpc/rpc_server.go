@@ -22,6 +22,7 @@ var _ IRpcServer = (*Server)(nil)
 func NewServer(addr string, opts kknet.Options) *Server {
 	s := &Server{}
 	handler := &serverHandler{
+		svr:       s,
 		msgRouter: s.msgRouter,
 		rpcRouter: s.rpcRouter,
 	}
@@ -72,6 +73,7 @@ func (s *Server) InvokeNR(connID kknet.CONN_ID, ctx context.Context, method stri
 //----------------------------------------------------------------
 
 type serverHandler struct {
+	svr       *Server
 	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcRouter
 }
@@ -85,7 +87,14 @@ func (h *serverHandler) OnClose(conn kknet.IConn, _ error) {
 }
 
 func (h *serverHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	h.rpcRouter.OnRaw(connId, data)
+	bb := h.rpcRouter.OnRaw(connId, data)
+	if h.svr == nil {
+		kkbuffer.Put(bb)
+		return
+	}
+	if bb != nil {
+		h.svr.SendBuffer(connId, bb)
+	}
 }
 
 func (h *serverHandler) OnNoneCopy(connId kknet.CONN_ID, data []byte) {
