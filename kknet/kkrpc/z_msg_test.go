@@ -1,6 +1,7 @@
 package kkrpc
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -9,13 +10,21 @@ import (
 )
 
 func TestAll(t *testing.T) {
-	svr := NewServer("localhost:8080", kknet.DefaultOptions())
+	rpcRouter := NewRpcReceiver()
+	RegistRpcHandler(rpcRouter, "test", func(ctx context.Context, msg *testMsg, resp *testRsp) error {
+		fmt.Println(msg)
+		resp.Code = 0
+		resp.Msg = "test success"
+		return nil
+	})
+
+	svr := NewServer("localhost:8080", kknet.DefaultOptions(), rpcRouter)
 	err := svr.Start()
 	if err != nil {
 		t.Fatalf("start server: %v", err)
 	}
 
-	cli := NewClient("localhost:8080", kknet.DefaultOptions())
+	cli := NewClient("localhost:8080", kknet.DefaultOptions(), rpcRouter)
 	err = cli.Start()
 	if err != nil {
 		t.Fatalf("start client: %v", err)
@@ -23,7 +32,12 @@ func TestAll(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	time.Sleep(2 * time.Second)
+	cli.Invoke(context.Background(), "test", &testMsg{
+		ID:   1,
+		Data: "test",
+	}, CallConfig{})
+
+	time.Sleep(22 * time.Second)
 }
 
 func TestRpcRequest(t *testing.T) {

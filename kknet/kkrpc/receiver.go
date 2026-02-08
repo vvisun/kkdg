@@ -92,7 +92,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kk
 	return rspBB
 }
 
-func NewRpcRouter() *RpcReceiver {
+func NewRpcReceiver() *RpcReceiver {
 	return &RpcReceiver{
 		m: make(map[interface{}]IRpcHandler),
 	}

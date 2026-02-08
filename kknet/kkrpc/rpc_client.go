@@ -4,26 +4,23 @@ import (
 	"context"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
 type Client struct {
-	cli       *kktcp.GnetClient
-	msgRouter *kkpacket.MsgRouter
-	rpcRouter *RpcReceiver
+	cli *kktcp.GnetClient
 }
 
 var _ IRpcClient = (*Client)(nil)
 
-func NewClient(addr string, opts kknet.Options) *Client {
+func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
 	cc := &Client{}
 	handler := &clientHandler{
 		cli:       cc,
-		msgRouter: cc.msgRouter,
-		rpcRouter: cc.rpcRouter,
+		rpcRouter: rpcRouter,
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	cc.cli = kktcp.NewClient(addr, handler, opts)
@@ -44,6 +41,15 @@ func (c *Client) Stop() error {
 
 // 同步调用（阻塞等待结果）
 func (c *Client) Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+	bb, err := EncodeRpcFrameEx(FrameTypeRequest, genReqId(), method, data)
+	if err != nil {
+		kklog.Errorf("encode rpc frame: %v", err)
+		return nil, err
+	}
+	err = c.cli.SendBuffer(bb)
+	if err != nil {
+		return nil, err
+	}
 	return nil, nil
 }
 
@@ -61,7 +67,6 @@ func (c *Client) InvokeNR(ctx context.Context, method string, data any, opts Cal
 
 type clientHandler struct {
 	cli       *Client
-	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcReceiver
 }
 

@@ -17,7 +17,7 @@ type testRsp struct {
 }
 
 func TestRouter(t *testing.T) {
-	router := NewRpcRouter()
+	router := NewRpcReceiver()
 	RegistRpcHandler(router, "test", func(ctx context.Context, msg *testMsg, resp *testRsp) error {
 		fmt.Println(msg)
 		resp.Code = 0

@@ -5,26 +5,22 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
 type Server struct {
-	tcp       *kktcp.Server
-	msgRouter *kkpacket.MsgRouter
-	rpcRouter *RpcReceiver
+	tcp *kktcp.Server
 }
 
 var _ IRpcServer = (*Server)(nil)
 
-func NewServer(addr string, opts kknet.Options) *Server {
+func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
 	s := &Server{}
 	handler := &serverHandler{
 		svr:       s,
-		msgRouter: s.msgRouter,
-		rpcRouter: s.rpcRouter,
+		rpcRouter: rpcRouter,
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	s.tcp = kktcp.NewServer(addr, handler, opts)
@@ -74,7 +70,6 @@ func (s *Server) InvokeNR(connID kknet.CONN_ID, ctx context.Context, method stri
 
 type serverHandler struct {
 	svr       *Server
-	msgRouter *kkpacket.MsgRouter
 	rpcRouter *RpcReceiver
 }
 
