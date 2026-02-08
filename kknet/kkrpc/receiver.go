@@ -6,7 +6,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type RpcHandlerFunc[T any, R any] func(ctx context.Context, msg *T, resp *R) error
@@ -58,42 +57,36 @@ type RpcReceiver struct {
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kkbuffer.ByteBuffer {
-	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
 	if err != nil {
 		kkbuffer.Put(data)
 		return nil
 	}
 	var fr Frame
-	if err := rpcCodec.Unmarshal(msgBytes, &fr); err != nil {
+	if err := rpcCodec.Unmarshal(frameBytes, &fr); err != nil {
 		kkbuffer.Put(data)
 		return nil
 	}
-
-	switch fr.T {
-	case FrameTypeRequest:
-
-	case FrameTypeResponse:
-
-	case FrameTypeTell:
-
-	}
+	kkbuffer.Put(data)
 
 	method := fr.M
 	h, ok := r.m[method]
 	if !ok || h == nil {
-		kkbuffer.Put(data)
 		return nil
 	}
+
 	respBytes, err := h.OnMsg(context.Background(), fr.P)
 	if err != nil {
-		kkbuffer.Put(data)
-		kklog.Errorf("server handler on msg: %v", err)
 		return nil
 	}
-	kkbuffer.Put(data)
+
+	if fr.T != FrameTypeRequest {
+		return nil // only request need response
+	}
+
+	// encode response
 	rspBB, err := EncodeRpcFrame(FrameTypeResponse, fr.ID, method, respBytes)
 	if err != nil {
-		kklog.Errorf("server handler on msg: %v", err)
 		return nil
 	}
 	return rspBB
