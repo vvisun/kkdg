@@ -53,11 +53,11 @@ func newRpcHandler[T any, R any](method any, call RpcHandlerFunc[T, R]) *RpcHand
 
 //---------------------------------------------------------------
 
-type RpcRouter struct {
+type RpcReceiver struct {
 	m map[interface{}]IRpcHandler
 }
 
-func (r *RpcRouter) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kkbuffer.ByteBuffer {
+func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kkbuffer.ByteBuffer {
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
 	if err != nil {
 		kkbuffer.Put(data)
@@ -99,13 +99,13 @@ func (r *RpcRouter) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kkbu
 	return rspBB
 }
 
-func NewRpcRouter() *RpcRouter {
-	return &RpcRouter{
+func NewRpcRouter() *RpcReceiver {
+	return &RpcReceiver{
 		m: make(map[interface{}]IRpcHandler),
 	}
 }
 
-func RegistRpcHandler[T any, R any](router *RpcRouter, method any, call RpcHandlerFunc[T, R]) {
+func RegistRpcHandler[T any, R any](router *RpcReceiver, method any, call RpcHandlerFunc[T, R]) {
 	h := newRpcHandler(method, call)
 	router.m[method] = h
 }

@@ -14,7 +14,7 @@ import (
 type Server struct {
 	tcp       *kktcp.Server
 	msgRouter *kkpacket.MsgRouter
-	rpcRouter *RpcRouter
+	rpcRouter *RpcReceiver
 }
 
 var _ IRpcServer = (*Server)(nil)
@@ -75,7 +75,7 @@ func (s *Server) InvokeNR(connID kknet.CONN_ID, ctx context.Context, method stri
 type serverHandler struct {
 	svr       *Server
 	msgRouter *kkpacket.MsgRouter
-	rpcRouter *RpcRouter
+	rpcRouter *RpcReceiver
 }
 
 func (h *serverHandler) OnConnect(conn kknet.IConn) {

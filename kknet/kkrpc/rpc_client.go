@@ -13,7 +13,7 @@ import (
 type Client struct {
 	cli       *kktcp.GnetClient
 	msgRouter *kkpacket.MsgRouter
-	rpcRouter *RpcRouter
+	rpcRouter *RpcReceiver
 }
 
 var _ IRpcClient = (*Client)(nil)
@@ -62,7 +62,7 @@ func (c *Client) InvokeNR(ctx context.Context, method string, data any, opts Cal
 type clientHandler struct {
 	cli       *Client
 	msgRouter *kkpacket.MsgRouter
-	rpcRouter *RpcRouter
+	rpcRouter *RpcReceiver
 }
 
 func (h *clientHandler) OnConnect(_ kknet.IConn) {
