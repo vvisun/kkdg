@@ -23,8 +23,8 @@ type WriteOptions struct {
 	WriteBatchSize int
 	//单次批量写入的最大字节数(<=0 不限制)
 	WriteBatchLimitBytes int
-	//消息路由
-	Router *kkpacket.MsgRouter
+	//消息包解码器
+	MsgPacket *kkpacket.MessagePacket
 }
 
 func DefaultWriteOptions() WriteOptions {

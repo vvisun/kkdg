@@ -7,6 +7,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
@@ -98,13 +99,12 @@ func (wp *WriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 // 发送消息。
 func (wp *WriteProcessor) SendMsg(msg any) error {
 	// 编码消息
-	// buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), wp.opts.Router)
-	// if err != nil {
-	// 	kkbuffer.Put(buffer)
-	// 	return err
-	// }
-	// return wp.SendBuffer(buffer)
-	return nil // TODO: 实现消息编码和发送
+	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), wp.opts.MsgPacket)
+	if err != nil {
+		kkbuffer.Put(buffer)
+		return err
+	}
+	return wp.SendBuffer(buffer)
 }
 
 // 唤醒写携程。让写携程消费发送队列中的数据并发送。
