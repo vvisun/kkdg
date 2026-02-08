@@ -41,18 +41,18 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, data *T) (
 	return bb, nil
 }
 
-func DecodeRpcFrame[T any](bb *kkbuffer.ByteBuffer) (*T, error) {
+func DecodeRpcFrame[T any](bb *kkbuffer.ByteBuffer) (*T, *Frame, error) {
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(bb.Bytes())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var frame Frame
 	if err := rpcCodec.Unmarshal(msgBytes, &frame); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var data T
 	if err := dataCodec.Unmarshal(frame.P, &data); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return &data, nil
+	return &data, &frame, nil
 }

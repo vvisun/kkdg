@@ -16,6 +16,8 @@ type Server struct {
 	rpcRouter *RpcRouter
 }
 
+var _ IRpcServer = (*Server)(nil)
+
 func NewServer(addr string, opts kknet.Options) *Server {
 	s := &Server{}
 	handler := &serverHandler{
@@ -40,17 +42,17 @@ func (s *Server) Stop() error {
 }
 
 // 同步调用
-func (s *Server) Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+func (s *Server) Invoke(connID kknet.CONN_ID, ctx context.Context, method string, data any, opts CallConfig) (any, error) {
 	return nil, nil
 }
 
 // 异步调用
-func (s *Server) InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
+func (s *Server) InvokeAsync(connID kknet.CONN_ID, ctx context.Context, method string, data any, opts CallConfig) (any, error) {
 	return nil, nil
 }
 
 // 无响应调用
-func (s *Server) InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error {
+func (s *Server) InvokeNR(connID kknet.CONN_ID, ctx context.Context, method string, data any, opts CallConfig) error {
 	return nil
 }
 

@@ -16,6 +16,8 @@ type Client struct {
 	rpcRouter *RpcRouter
 }
 
+var _ IRpcClient = (*Client)(nil)
+
 func NewClient(addr string, opts kknet.Options) *Client {
 	cc := &Client{}
 	handler := &clientHandler{
