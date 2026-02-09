@@ -3,6 +3,7 @@ package kkrpc
 import (
 	"context"
 	"reflect"
+	"sync"
 
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -15,9 +16,9 @@ type RpcInvoker[T any, R any] struct {
 }
 
 func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opts CallConfig, rsp *R) error {
-	// if !CheckPeer(req, rsp) {
-	// 	kklog.Errorf("peer not found")
-	// 	return ErrInvalidPeer
+	// if !CheckReqResp(req, rsp) {
+	// 	kklog.Errorf("req resp type not match")
+	// 	return ErrInvalidReqResp
 	// }
 	bb, err := EncodeRpcFrame(FrameTypeRequest, genReqId(), method, req)
 	if err != nil {
@@ -41,10 +42,16 @@ func (i RpcInvoker[T, R]) InvokeNR(ctx context.Context, method string, req *T, o
 
 //----------------------------------------------------------------
 
+type methodType struct {
+	reqType reflect.Type
+	rspType reflect.Type
+}
+
 type rpcManager struct {
 	peers       map[string]interface{}
 	oneWays     map[string]interface{}
 	type2method map[reflect.Type]string
+	method2type map[string]methodType
 }
 
 func newRpcManager() *rpcManager {
@@ -52,26 +59,56 @@ func newRpcManager() *rpcManager {
 		peers:       make(map[string]interface{}),
 		oneWays:     make(map[string]interface{}),
 		type2method: make(map[reflect.Type]string),
+		method2type: make(map[string]methodType),
 	}
 }
 
-var gRpcManager = newRpcManager()
+var (
+	gRpcManager    = newRpcManager()
+	onceRpcManager = sync.Once{}
+)
 
 func DefaultRpcManager() *rpcManager {
+	onceRpcManager.Do(func() {
+		gRpcManager = newRpcManager()
+	})
 	return gRpcManager
+}
+
+func CheckReqResp[REQ any, RSP any](req *REQ, rsp *RSP) bool {
+	typeReq := reflect.TypeOf(req)
+	methodReq, ok := gRpcManager.type2method[typeReq]
+	if !ok {
+		return false
+	}
+	typeRsp := reflect.TypeOf(rsp)
+	methodRsp, ok := gRpcManager.type2method[typeRsp]
+	if !ok {
+		return false
+	}
+	return methodReq == methodRsp
+}
+
+func CheckOneWay[REQ any](req *REQ) bool {
+	typeReq := reflect.TypeOf(req)
+	methodReq, ok := gRpcManager.type2method[typeReq]
+	if !ok {
+		return false
+	}
+	return methodReq != ""
 }
 
 //----------------------------------------------------------------
 
-type RpcPeer[REQ any, RSP any] struct {
+type ReqResp[REQ any, RSP any] struct {
 	method string
 }
 
-func (p *RpcPeer[REQ, RSP]) GetMethod() string {
+func (p *ReqResp[REQ, RSP]) GetMethod() string {
 	return p.method
 }
 
-func newRpcPeer[REQ any, RSP any](method string) *RpcPeer[REQ, RSP] {
+func newReqResp[REQ any, RSP any](method string) *ReqResp[REQ, RSP] {
 	if method == "" {
 		kklog.Errorf("method is empty")
 		return nil
@@ -88,7 +125,7 @@ func newRpcPeer[REQ any, RSP any](method string) *RpcPeer[REQ, RSP] {
 		kklog.Errorf("type %s already registered", reflect.TypeOf((*RSP)(nil)))
 		return nil
 	}
-	p := &RpcPeer[REQ, RSP]{
+	p := &ReqResp[REQ, RSP]{
 		method: method,
 	}
 	var vReq REQ
@@ -98,21 +135,8 @@ func newRpcPeer[REQ any, RSP any](method string) *RpcPeer[REQ, RSP] {
 	gRpcManager.peers[method] = p
 	gRpcManager.type2method[typeReq] = method
 	gRpcManager.type2method[typeRsp] = method
+	gRpcManager.method2type[method] = methodType{reqType: typeReq, rspType: typeRsp}
 	return p
-}
-
-func CheckPeer[REQ any, RSP any](req *REQ, rsp *RSP) bool {
-	typeReq := reflect.TypeOf(req)
-	methodReq, ok := gRpcManager.type2method[typeReq]
-	if !ok {
-		return false
-	}
-	typeRsp := reflect.TypeOf(rsp)
-	methodRsp, ok := gRpcManager.type2method[typeRsp]
-	if !ok {
-		return false
-	}
-	return methodReq == methodRsp
 }
 
 //----------------------------------------------------------------
@@ -145,5 +169,6 @@ func newOneWay[REQ any](method string) *OneWay[REQ] {
 	typeReq := reflect.TypeOf(&vReq)
 	gRpcManager.oneWays[method] = o
 	gRpcManager.type2method[typeReq] = method
+	gRpcManager.method2type[method] = methodType{reqType: typeReq, rspType: nil}
 	return o
 }
