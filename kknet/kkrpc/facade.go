@@ -1,7 +1,6 @@
 package kkrpc
 
 import (
-	"context"
 	"sync/atomic"
 	"time"
 
@@ -23,18 +22,12 @@ type IRpcClient interface {
 	SendBuffer(data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
-	Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error)
-	InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error)
-	InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error
 }
 
 type IRpcServer interface {
 	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
-	Invoke(connID kknet.CONN_ID, ctx context.Context, method string, data any, opts CallConfig) (any, error)
-	InvokeAsync(connID kknet.CONN_ID, ctx context.Context, method string, data any, opts CallConfig) (any, error)
-	InvokeNR(connID kknet.CONN_ID, ctx context.Context, method string, data any, opts CallConfig) error
 }
 
 type IGatewayTransport interface {

@@ -1,17 +1,15 @@
 package kkrpc
 
 import (
-	"context"
-
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
 type Client struct {
-	cli *kktcp.GnetClient
+	cli     *kktcp.GnetClient
+	pending map[uint64]func(Frame)
 }
 
 var _ IRpcClient = (*Client)(nil)
@@ -24,6 +22,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	cc.cli = kktcp.NewClient(addr, handler, opts)
+	cc.pending = make(map[uint64]func(Frame))
 	return cc
 }
 
@@ -37,30 +36,6 @@ func (c *Client) Start() error {
 
 func (c *Client) Stop() error {
 	return c.cli.Close()
-}
-
-// 同步调用（阻塞等待结果）
-func (c *Client) Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
-	bb, err := EncodeRpcFrame(FrameTypeRequest, genReqId(), method, data)
-	if err != nil {
-		kklog.Errorf("encode rpc frame: %v", err)
-		return nil, err
-	}
-	err = c.cli.SendBuffer(bb)
-	if err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
-// 异步调用（非阻塞等待结果）
-func (c *Client) InvokeAsync(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
-	return nil, nil
-}
-
-// 无响应调用（没有结果，单向调用）
-func (c *Client) InvokeNR(ctx context.Context, method string, data any, opts CallConfig) error {
-	return nil
 }
 
 //----------------------------------------------------------------
@@ -79,7 +54,7 @@ func (h *clientHandler) OnClose(_ kknet.IConn, _ error) {
 }
 
 func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	bb := h.rpcRouter.OnRaw(connId, data)
+	bb := h.rpcRouter.OnRaw(connId, data, h.cli.pending)
 	if bb != nil {
 		if h.cli == nil {
 			kkbuffer.Put(bb)

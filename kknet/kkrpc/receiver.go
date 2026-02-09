@@ -72,7 +72,7 @@ type RpcReceiver struct {
 	hdMap map[interface{}]IRpcHandler
 }
 
-func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kkbuffer.ByteBuffer {
+func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending map[uint64]func(Frame)) *kkbuffer.ByteBuffer {
 	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
 	if err != nil {
 		kkbuffer.Put(data)
@@ -89,6 +89,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kk
 	switch fr.T {
 	case FrameTypeResponse:
 		kklog.Debugf("远程方法返回: %v", fr)
+		pending[fr.ID](fr)
 		return nil
 	case FrameTypeTell:
 		kklog.Warnf("单向调用，不应该收到响应消息: %v", fr)

@@ -12,7 +12,7 @@ import (
 type SendFunc func(data *kkbuffer.ByteBuffer) error
 
 type RpcInvoker[T any, R any] struct {
-	sendFunc SendFunc
+	c *Client
 }
 
 func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opts CallConfig, rsp *R) error {
@@ -20,12 +20,21 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 	// 	kklog.Errorf("req resp type not match")
 	// 	return ErrInvalidReqResp
 	// }
-	bb, err := EncodeRpcFrame(FrameTypeRequest, genReqId(), method, req)
+	reqId := genReqId()
+	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	err = i.sendFunc(bb)
+	i.c.pending[reqId] = func(fr Frame) {
+		if fr.ID != reqId || fr.T != FrameTypeResponse {
+			return
+		}
+		payloadCodec.Unmarshal(fr.P, rsp)
+		delete(i.c.pending, reqId)
+		kklog.Infof("recv response: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, rsp)
+	}
+	err = i.c.SendBuffer(bb)
 	if err != nil {
 		return err
 	}

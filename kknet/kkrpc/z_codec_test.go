@@ -1,59 +1,11 @@
 package kkrpc
 
 import (
-	"context"
 	"fmt"
 	"testing"
-	"time"
-
-	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-func TestAll(t *testing.T) {
-	rpcRouter := NewRpcReceiver()
-	RegistRpcHandler(rpcRouter, "test", func(ctx context.Context, msg *testMsg, resp *testRsp) error {
-		fmt.Println("recv msg: ", msg)
-		resp.Code = 0
-		resp.Msg = "test success"
-		return nil
-	})
-
-	svr := NewServer("localhost:8080", kknet.DefaultOptions(), rpcRouter)
-	err := svr.Start()
-	if err != nil {
-		t.Fatalf("start server: %v", err)
-	}
-
-	cli := NewClient("localhost:8080", kknet.DefaultOptions(), rpcRouter)
-	err = cli.Start()
-	if err != nil {
-		t.Fatalf("start client: %v", err)
-	}
-
-	time.Sleep(2 * time.Second)
-
-	cli.Invoke(context.Background(), "test", &testMsg{
-		ID:   1,
-		Data: "test",
-	}, CallConfig{})
-
-	time.Sleep(2 * time.Second)
-
-	invoker := RpcInvoker[testMsg, testRsp]{
-		sendFunc: func(data *kkbuffer.ByteBuffer) error {
-			return cli.SendBuffer(data)
-		},
-	}
-	invoker.Invoke(context.Background(), "test", &testMsg{
-		ID:   1,
-		Data: "test",
-	}, CallConfig{}, &testRsp{})
-
-	time.Sleep(2 * time.Second)
-}
-
-func TestRpcRequest(t *testing.T) {
+func Test_FrameCodec(t *testing.T) {
 	request := &Frame{
 		T:  FrameTypeRequest,
 		ID: 1,
@@ -79,6 +31,8 @@ func TestRpcRequest(t *testing.T) {
 		t.Fatalf("unmarshal request: %v", err)
 	}
 }
+
+//----------------------------------------------------------------
 
 // 性能测试
 func Benchmark_Marshal_Unmarshal_RpcRequest(b *testing.B) {
