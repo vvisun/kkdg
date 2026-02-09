@@ -41,7 +41,7 @@ func (c *Client) Stop() error {
 
 // 同步调用（阻塞等待结果）
 func (c *Client) Invoke(ctx context.Context, method string, data any, opts CallConfig) (any, error) {
-	bb, err := EncodeRpcFrameEx(FrameTypeRequest, genReqId(), method, data)
+	bb, err := EncodeRpcFrame(FrameTypeRequest, genReqId(), method, data)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return nil, err

@@ -31,7 +31,7 @@ func (h *RpcHandler[T, R]) GetMsgID() any {
 func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, error) {
 	var data T
 	var resp R
-	if err := dataCodec.Unmarshal(payload, &data); err != nil {
+	if err := payloadCodec.Unmarshal(payload, &data); err != nil {
 		return nil, err
 	}
 	err := h.call(ctx, &data, &resp)
@@ -39,7 +39,7 @@ func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, e
 		return nil, err
 	}
 
-	respBytes, err := dataCodec.Marshal(&resp)
+	respBytes, err := payloadCodec.Marshal(&resp)
 	if err != nil {
 		return nil, err
 	}
@@ -79,11 +79,12 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kk
 		return nil
 	}
 	var fr Frame
-	if err := rpcCodec.Unmarshal(frameBytes, &fr); err != nil {
-		kkbuffer.Put(data)
+	err = frameCodec.Unmarshal(frameBytes, &fr)
+	kkbuffer.Put(data)
+	if err != nil {
+		kklog.Debugf("unmarshal frame: %v", err)
 		return nil
 	}
-	kkbuffer.Put(data)
 
 	switch fr.T {
 	case FrameTypeResponse:
@@ -134,7 +135,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) *kk
 	}
 
 	// encode response
-	rspBB, err := EncodeRpcFrame(FrameTypeResponse, fr.ID, method, respBytes)
+	rspBB, err := EncodeRpcFrameWithPayload(FrameTypeResponse, fr.ID, method, respBytes)
 	if err != nil {
 		return nil
 	}

@@ -3,6 +3,16 @@ package kkrpc
 import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
+)
+
+var (
+	// rpc用的编码器
+	frameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	// rpc消息里的Data字段编码器
+	payloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	// 网关消息使用的编码器. 需和客户端约定好编码器类型
+	// gatewayCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)
 )
 
 func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
@@ -12,7 +22,7 @@ func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
 	if frame.Err == "" {
 		frame.Err = "unknown error"
 	}
-	frameBytes, err := rpcCodec.Marshal(frame)
+	frameBytes, err := frameCodec.Marshal(frame)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +35,7 @@ func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
 	return bb, nil
 }
 
-func EncodeRpcFrame(ft FrameType, reqId uint64, method string, argBytes []byte) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payload []byte) (*kkbuffer.ByteBuffer, error) {
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
@@ -40,9 +50,9 @@ func EncodeRpcFrame(ft FrameType, reqId uint64, method string, argBytes []byte) 
 		T:  ft,
 		ID: reqId,
 		M:  method,
-		P:  argBytes,
+		P:  payload,
 	}
-	frameBytes, err := rpcCodec.Marshal(&request)
+	frameBytes, err := frameCodec.Marshal(&request)
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +66,8 @@ func EncodeRpcFrame(ft FrameType, reqId uint64, method string, argBytes []byte) 
 	return bb, nil
 }
 
-func EncodeRpcFrameEx(ft FrameType, reqId uint64, method string, msg any) (*kkbuffer.ByteBuffer, error) {
-	argBytes, err := dataCodec.Marshal(msg)
+func EncodeRpcFrame(ft FrameType, reqId uint64, method string, msg any) (*kkbuffer.ByteBuffer, error) {
+	payloadBytes, err := payloadCodec.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
@@ -76,9 +86,9 @@ func EncodeRpcFrameEx(ft FrameType, reqId uint64, method string, msg any) (*kkbu
 		T:  ft,
 		ID: reqId,
 		M:  method,
-		P:  argBytes,
+		P:  payloadBytes,
 	}
-	frameBytes, err := rpcCodec.Marshal(&request)
+	frameBytes, err := frameCodec.Marshal(&request)
 	if err != nil {
 		return nil, err
 	}
@@ -90,4 +100,25 @@ func EncodeRpcFrameEx(ft FrameType, reqId uint64, method string, msg any) (*kkbu
 		return nil, err
 	}
 	return bb, nil
+}
+
+func DecodeRpcFrame[T any](bb *kkbuffer.ByteBuffer) (*T, error) {
+	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(bb.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	var frame Frame
+	err = frameCodec.Unmarshal(frameBytes, &frame)
+	if err != nil {
+		return nil, err
+	}
+
+	payloadBytes := frame.P
+	var t T
+	err = payloadCodec.Unmarshal(payloadBytes, &t)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
 }

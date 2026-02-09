@@ -7,7 +7,6 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 var req_id uint64 = 0
@@ -15,16 +14,6 @@ var req_id uint64 = 0
 func genReqId() uint64 {
 	return atomic.AddUint64(&req_id, 1)
 }
-
-var (
-	// rpc用的编码器
-	rpcCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-	// rpc消息里的Data字段编码器
-	dataCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-
-	// 网关消息使用的编码器. 需和客户端约定好编码器类型
-	// gatewayCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)
-)
 
 type CallConfig struct {
 	timeout time.Duration

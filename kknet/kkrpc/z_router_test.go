@@ -29,11 +29,11 @@ func TestRouter(t *testing.T) {
 		ID:   1,
 		Data: "test",
 	}
-	msgBytes, err := dataCodec.Marshal(msg)
+	msgBytes, err := payloadCodec.Marshal(msg)
 	if err != nil {
 		t.Fatalf("marshal msg: %v", err)
 	}
-	bb, err := EncodeRpcFrame(FrameTypeRequest, 1, "test", msgBytes)
+	bb, err := EncodeRpcFrameWithPayload(FrameTypeRequest, 1, "test", msgBytes)
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
