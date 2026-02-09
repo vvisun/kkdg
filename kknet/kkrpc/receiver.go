@@ -34,6 +34,7 @@ func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, e
 	if err := payloadCodec.Unmarshal(payload, &data); err != nil {
 		return nil, err
 	}
+	kklog.Debugf("收到远程方法调用请求: %v", data)
 	err := h.call(ctx, &data, &resp)
 	if err != nil {
 		return nil, err
@@ -44,6 +45,91 @@ func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, e
 		return nil, err
 	}
 	return respBytes, nil
+}
+
+//---------------------------------------------------------------
+
+type RpcReceiver struct {
+	hdMap map[interface{}]IRpcHandler
+}
+
+func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending map[uint64]func(Frame)) *kkbuffer.ByteBuffer {
+	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	if err != nil {
+		kkbuffer.Put(data)
+		return nil
+	}
+	var fr Frame
+	err = frameCodec.Unmarshal(frameBytes, &fr)
+	kkbuffer.Put(data)
+	if err != nil {
+		kklog.Debugf("failed to unmarshal frame: %v", err)
+		return nil
+	}
+
+	switch fr.T {
+	case FrameTypeTell, FrameTypeRequest:
+		// 处理 FrameTypeRequest/FrameTypeTell 类型的请求
+	case FrameTypeResponse:
+		pending[fr.ID](fr)
+		return nil
+	default:
+		kklog.Warnf("收到未知类型的消息: %v", fr)
+		return nil
+	}
+
+	// 处理 FrameTypeRequest/FrameTypeTell 类型的请求
+	rspFrame := Frame{
+		T:    FrameTypeResponse,
+		ID:   fr.ID,
+		M:    fr.M,
+		Code: 0,
+		Err:  "",
+	}
+
+	method := fr.M
+	h, ok := r.hdMap[method]
+	if !ok || h == nil {
+		if fr.T == FrameTypeTell {
+			return nil
+		}
+		rspFrame.Code = 1
+		rspFrame.Err = "未找到远程方法" + method
+		rspBB, err := EncodeFailedResponse(&rspFrame)
+		if err != nil {
+			kklog.Errorf("encode failed response: %v", err)
+			return nil
+		}
+		return rspBB
+	}
+
+	// 处理 FrameTypeRequest/FrameTypeTell 类型的请求
+	respBytes, err := h.OnMsg(context.Background(), fr.P)
+	if err != nil {
+		if fr.T == FrameTypeTell {
+			return nil
+		}
+		rspFrame.Code = 1
+		rspFrame.Err = "远程方法执行失败: " + err.Error()
+		rspBB, err := EncodeFailedResponse(&rspFrame)
+		if err != nil {
+			kklog.Errorf("encode failed response: %v", err)
+			return nil
+		}
+		return rspBB
+	}
+
+	if fr.T == FrameTypeTell {
+		return nil
+	}
+
+	// encode response
+	rspBB, err := EncodeRpcFrameWithPayload(FrameTypeResponse, fr.ID, method, respBytes)
+	if err != nil {
+		return nil
+	}
+	//喂给上层函数发送回执
+	return rspBB
 }
 
 //---------------------------------------------------------------
@@ -64,82 +150,4 @@ func NewRpcReceiver() *RpcReceiver {
 func RegistRpcHandler[T any, R any](router *RpcReceiver, method any, call RpcHandlerFunc[T, R]) {
 	h := newRpcHandler(method, call)
 	router.hdMap[method] = h
-}
-
-//---------------------------------------------------------------
-
-type RpcReceiver struct {
-	hdMap map[interface{}]IRpcHandler
-}
-
-func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending map[uint64]func(Frame)) *kkbuffer.ByteBuffer {
-	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
-	if err != nil {
-		kkbuffer.Put(data)
-		return nil
-	}
-	var fr Frame
-	err = frameCodec.Unmarshal(frameBytes, &fr)
-	kkbuffer.Put(data)
-	if err != nil {
-		kklog.Debugf("unmarshal frame: %v", err)
-		return nil
-	}
-
-	switch fr.T {
-	case FrameTypeResponse:
-		kklog.Debugf("远程方法返回: %v", fr)
-		pending[fr.ID](fr)
-		return nil
-	case FrameTypeTell:
-		kklog.Warnf("单向调用，不应该收到响应消息: %v", fr)
-		return nil
-	case FrameTypeRequest:
-		kklog.Debugf("收到远程方法调用请求: %v", fr)
-	default:
-		kklog.Warnf("收到未知类型的消息: %v", fr)
-		return nil
-	}
-
-	// 处理 FrameTypeRequest 类型的请求
-	rspFrame := Frame{
-		T:    FrameTypeResponse,
-		ID:   fr.ID,
-		M:    fr.M,
-		Code: 0,
-		Err:  "",
-	}
-
-	method := fr.M
-	h, ok := r.hdMap[method]
-	if !ok || h == nil {
-		rspFrame.Code = 1
-		rspFrame.Err = "未找到远程方法" + method
-		rspBB, err := EncodeFailedResponse(&rspFrame)
-		if err != nil {
-			kklog.Errorf("encode failed response: %v", err)
-			return nil
-		}
-		return rspBB
-	}
-
-	respBytes, err := h.OnMsg(context.Background(), fr.P)
-	if err != nil {
-		rspFrame.Code = 1
-		rspFrame.Err = "远程方法执行失败: " + err.Error()
-		rspBB, err := EncodeFailedResponse(&rspFrame)
-		if err != nil {
-			kklog.Errorf("encode failed response: %v", err)
-			return nil
-		}
-		return rspBB
-	}
-
-	// encode response
-	rspBB, err := EncodeRpcFrameWithPayload(FrameTypeResponse, fr.ID, method, respBytes)
-	if err != nil {
-		return nil
-	}
-	//喂给上层函数发送回执
-	return rspBB
 }

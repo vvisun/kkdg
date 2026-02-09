@@ -32,7 +32,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		}
 		payloadCodec.Unmarshal(fr.P, rsp)
 		delete(i.c.pending, reqId)
-		kklog.Infof("recv response: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, rsp)
+		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, rsp)
 	}
 	err = i.c.SendBuffer(bb)
 	if err != nil {
