@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 func TestAll(t *testing.T) {
@@ -36,6 +37,18 @@ func TestAll(t *testing.T) {
 		ID:   1,
 		Data: "test",
 	}, CallConfig{})
+
+	time.Sleep(2 * time.Second)
+
+	invoker := RpcInvoker[testMsg, testRsp]{
+		sendFunc: func(data *kkbuffer.ByteBuffer) error {
+			return cli.SendBuffer(data)
+		},
+	}
+	invoker.Invoke(context.Background(), "test", &testMsg{
+		ID:   1,
+		Data: "test",
+	}, CallConfig{}, &testRsp{})
 
 	time.Sleep(2 * time.Second)
 }

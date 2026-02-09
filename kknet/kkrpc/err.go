@@ -26,4 +26,6 @@ var (
 	ErrInvalidRequestID = errors.New("invalid request id")
 	// 无效的帧类型
 	ErrInvalidFrameType = errors.New("invalid frame type")
+	// 无效的peer
+	ErrInvalidPeer = errors.New("invalid peer")
 )

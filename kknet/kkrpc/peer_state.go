@@ -1,7 +1,6 @@
 package kkrpc
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 )
@@ -60,27 +59,4 @@ func (s *peerState) closeAll() {
 		close(ch)
 	}
 	s.mu.Unlock()
-}
-
-//-------------------------------------------------------
-
-type peerKey struct{}
-
-func getPeerState(cctx context.Context) (*peerState, bool) {
-	if cctx == nil {
-		return nil, false
-	}
-	v := cctx.Value(peerKey{})
-	if v == nil {
-		return nil, false
-	}
-	ps, ok := v.(*peerState)
-	return ps, ok
-}
-
-func withPeerState(ctx context.Context, ps *peerState) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithValue(ctx, peerKey{}, ps)
 }
