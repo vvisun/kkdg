@@ -22,21 +22,13 @@ const (
 //
 // NOTE: Use short field names to reduce overhead.
 type Frame struct {
-	T  FrameType `json:"t" msgpack:"t"`            // type
-	ID uint64    `json:"id" msgpack:"id"`          // request id
-	M  string    `json:"m,omitempty" msgpack:"m"`  // method
-	DL int64     `json:"dl,omitempty" msgpack:"dl"`// deadline unix ms (0 means no deadline)
-	P  []byte    `json:"p,omitempty" msgpack:"p"`  // payload
-
-	// H is request headers (metadata). Optional.
-	H map[string]string `json:"h,omitempty" msgpack:"h"`
-
-	// RH/RT are response headers/trailers (metadata). Optional.
-	RH map[string]string `json:"rh,omitempty" msgpack:"rh"`
-	RT map[string]string `json:"rt,omitempty" msgpack:"rt"`
-
-	Code int32  `json:"c,omitempty" msgpack:"c"` // status code (0 ok)
-	Err  string `json:"e,omitempty" msgpack:"e"` // error message
+	T    FrameType `json:"t" msgpack:"t"`             // type
+	ID   uint64    `json:"id" msgpack:"id"`           // request id
+	M    string    `json:"m,omitempty" msgpack:"m"`   // method
+	DL   int64     `json:"dl,omitempty" msgpack:"dl"` // deadline unix ms (0 means no deadline)
+	P    []byte    `json:"p,omitempty" msgpack:"p"`   // payload
+	Code int32     `json:"c,omitempty" msgpack:"c"`   // status code (0 ok)
+	Err  string    `json:"e,omitempty" msgpack:"e"`   // error message
 }
 
 // Handler handles a unary RPC call.
@@ -69,4 +61,3 @@ func deadlineCtx(deadlineUnixMs int64) (context.Context, context.CancelFunc) {
 	dl := time.UnixMilli(deadlineUnixMs)
 	return context.WithDeadline(context.Background(), dl)
 }
-

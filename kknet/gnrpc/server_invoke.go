@@ -48,7 +48,6 @@ func (s *Server) InvokeConn(ctx context.Context, connID kknet.CONN_ID, method st
 		M:  method,
 		DL: ctxDeadlineUnixMs(ctx),
 		P:  req,
-		H:  cfg.headers,
 	}
 	b, err := s.codec.Marshal(&fr)
 	if err != nil {
@@ -72,28 +71,6 @@ func (s *Server) InvokeConn(ctx context.Context, connID kknet.CONN_ID, method st
 			return nil, ErrClientClosed
 		}
 		// capture response metadata if requested
-		if cfg.respHeaders != nil {
-			if resp.RH == nil {
-				*cfg.respHeaders = nil
-			} else {
-				md := make(MD, len(resp.RH))
-				for k, v := range resp.RH {
-					md[k] = v
-				}
-				*cfg.respHeaders = md
-			}
-		}
-		if cfg.respTrailers != nil {
-			if resp.RT == nil {
-				*cfg.respTrailers = nil
-			} else {
-				md := make(MD, len(resp.RT))
-				for k, v := range resp.RT {
-					md[k] = v
-				}
-				*cfg.respTrailers = md
-			}
-		}
 		if resp.Code != 0 {
 			return nil, Status(Code(resp.Code), resp.Err)
 		}
@@ -130,7 +107,6 @@ func (s *Server) InvokeConnNoResponse(ctx context.Context, connID kknet.CONN_ID,
 		M:  method,
 		DL: ctxDeadlineUnixMs(ctx),
 		P:  req,
-		H:  cfg.headers,
 	}
 	b, err := s.codec.Marshal(&fr)
 	if err != nil {

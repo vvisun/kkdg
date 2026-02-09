@@ -309,12 +309,7 @@ func (h *serverHandler) onPacket(c kknet.IConn, data *kkbuffer.ByteBuffer) {
 
 	ctx, cancel := deadlineCtx(fr.DL)
 	defer cancel()
-	// Attach incoming metadata (headers) to context.
-	if fr.H != nil {
-		ctx = NewIncomingContext(ctx, MD(fr.H))
-	}
-	// Prepare response metadata container.
-	ctx, meta := withServerMeta(ctx)
+
 	// NOTE: for any early-return after this point (incl. limiter rejects),
 	// we must ensure method inFlight is released via ms.onProcessed/onDropped.
 	// Apply server interceptor chain.
@@ -340,8 +335,6 @@ func (h *serverHandler) onPacket(c kknet.IConn, data *kkbuffer.ByteBuffer) {
 			resp := Frame{
 				T:    FrameTypeResponse,
 				ID:   fr.ID,
-				RH:   meta.headers,
-				RT:   meta.trailers,
 				Code: int32(CodeOf(callErr)),
 				Err:  MsgOf(callErr),
 			}
@@ -463,8 +456,6 @@ func (h *serverHandler) onPacket(c kknet.IConn, data *kkbuffer.ByteBuffer) {
 		T:  FrameTypeResponse,
 		ID: fr.ID,
 		P:  respPayload,
-		RH: meta.headers,
-		RT: meta.trailers,
 	}
 	if callErr != nil {
 		resp.Code = int32(CodeOf(callErr))

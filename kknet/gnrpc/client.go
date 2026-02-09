@@ -169,17 +169,11 @@ func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		// handle peer-initiated request and respond
 		ctx, cancel := deadlineCtx(fr.DL)
 		defer cancel()
-		if fr.H != nil {
-			ctx = NewIncomingContext(ctx, MD(fr.H))
-		}
-		ctx, meta := withServerMeta(ctx)
 		respPayload, callErr := h.c.router.Call(ctx, fr.M, fr.P)
 		resp := Frame{
 			T:  FrameTypeResponse,
 			ID: fr.ID,
 			P:  respPayload,
-			RH: meta.headers,
-			RT: meta.trailers,
 		}
 		if callErr != nil {
 			resp.Code = int32(CodeOf(callErr))
@@ -203,9 +197,6 @@ func (h *clientHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		}
 		ctx, cancel := deadlineCtx(fr.DL)
 		defer cancel()
-		if fr.H != nil {
-			ctx = NewIncomingContext(ctx, MD(fr.H))
-		}
 		_, _ = h.c.router.Call(ctx, fr.M, fr.P)
 	default:
 		return
