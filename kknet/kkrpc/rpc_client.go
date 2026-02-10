@@ -13,6 +13,7 @@ type Client struct {
 }
 
 var _ IRpcClient = (*Client)(nil)
+var _ ISender = (*Client)(nil)
 
 func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
 	cc := &Client{}
@@ -36,6 +37,10 @@ func (c *Client) Start() error {
 
 func (c *Client) Stop() error {
 	return c.cli.Close()
+}
+
+func (c *Client) GetPending() *pendingMap {
+	return c.pending
 }
 
 //----------------------------------------------------------------

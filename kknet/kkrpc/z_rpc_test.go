@@ -35,7 +35,7 @@ func Test_Client_Request(t *testing.T) {
 		Data: "test",
 	}
 	var resp testRsp
-	invoker := RpcInvoker[testMsg, testRsp]{c: cli}
+	invoker := NewRpcInvoker[testMsg, testRsp](cli)
 	err = invoker.Invoke(context.Background(), "test", &req, CallConfig{}, &resp)
 	if err != nil {
 		t.Fatalf("invoke: %v", err)

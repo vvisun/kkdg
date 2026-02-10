@@ -5,14 +5,24 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-type SendFunc func(data *kkbuffer.ByteBuffer) error
+type ISender interface {
+	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
+	GetPending() *pendingMap
+}
 
 type RpcInvoker[T any, R any] struct {
-	c *Client
+	sender ISender
+}
+
+func NewRpcInvoker[T any, R any](sender ISender) RpcInvoker[T, R] {
+	return RpcInvoker[T, R]{
+		sender: sender,
+	}
 }
 
 // 同步调用（阻塞等待结果）
@@ -27,15 +37,15 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	i.c.pending.addCallback(reqId, func(fr Frame) {
+	i.sender.GetPending().addCallback(reqId, func(fr Frame) {
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
 		payloadCodec.Unmarshal(fr.P, rsp)
-		i.c.pending.delCallback(reqId)
+		i.sender.GetPending().delCallback(reqId)
 		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, rsp)
 	})
-	err = i.c.SendBuffer(0, bb)
+	err = i.sender.SendBuffer(0, bb)
 	if err != nil {
 		return err
 	}
@@ -55,16 +65,16 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 		return err
 	}
 	var respInfo R
-	i.c.pending.addCallback(reqId, func(fr Frame) {
+	i.sender.GetPending().addCallback(reqId, func(fr Frame) {
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
 		payloadCodec.Unmarshal(fr.P, &respInfo)
-		i.c.pending.delCallback(reqId)
+		i.sender.GetPending().delCallback(reqId)
 		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, respInfo)
 		callback(&respInfo)
 	})
-	err = i.c.SendBuffer(0, bb)
+	err = i.sender.SendBuffer(0, bb)
 	if err != nil {
 		return err
 	}
@@ -82,7 +92,7 @@ func (i RpcInvoker[T, R]) InvokeNR(ctx context.Context, method string, req *T, o
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	err = i.c.SendBuffer(0, bb)
+	err = i.sender.SendBuffer(0, bb)
 	if err != nil {
 		return err
 	}

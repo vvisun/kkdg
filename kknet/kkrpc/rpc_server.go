@@ -13,6 +13,7 @@ type Server struct {
 }
 
 var _ IRpcServer = (*Server)(nil)
+var _ ISender = (*Server)(nil)
 
 func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
 	s := &Server{}
@@ -36,6 +37,10 @@ func (s *Server) Start() error {
 
 func (s *Server) Stop() error {
 	return s.tcp.Stop()
+}
+
+func (s *Server) GetPending() *pendingMap {
+	return s.pending
 }
 
 //----------------------------------------------------------------
