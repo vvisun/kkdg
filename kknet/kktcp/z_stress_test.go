@@ -119,7 +119,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numConns := 16
-	msgsPerConn := 6666
+	msgsPerConn := 66666
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
@@ -147,7 +147,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		}
 	}()
 
-	payload := make([]byte, 64)
+	payload := make([]byte, 512)
 	for i := range payload {
 		payload[i] = 0x01
 	}
