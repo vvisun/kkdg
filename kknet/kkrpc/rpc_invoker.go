@@ -147,6 +147,7 @@ type methodType struct {
 }
 
 type rpcManager struct {
+	mu          sync.Mutex
 	peers       map[string]interface{}
 	oneWays     map[string]interface{}
 	type2method map[reflect.Type]string
@@ -212,6 +213,8 @@ func newReqResp[REQ any, RSP any](method string) *ReqResp[REQ, RSP] {
 		kklog.Errorf("method is empty")
 		return nil
 	}
+	gRpcManager.mu.Lock()
+	defer gRpcManager.mu.Unlock()
 	if gRpcManager.peers[method] != nil {
 		kklog.Errorf("method %s already registered", method)
 		return nil
@@ -253,6 +256,8 @@ func newOneWay[REQ any](method string) *OneWay[REQ] {
 		kklog.Errorf("method is empty")
 		return nil
 	}
+	gRpcManager.mu.Lock()
+	defer gRpcManager.mu.Unlock()
 	if gRpcManager.oneWays[method] != nil {
 		kklog.Errorf("method %s already registered", method)
 		return nil

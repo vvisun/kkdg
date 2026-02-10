@@ -36,6 +36,7 @@ func (c *Client) Start() error {
 }
 
 func (c *Client) Stop() error {
+	c.pending.closeAll()
 	return c.cli.Close()
 }
 

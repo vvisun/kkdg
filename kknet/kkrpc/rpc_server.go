@@ -36,6 +36,7 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop() error {
+	s.pending.closeAll()
 	return s.tcp.Stop()
 }
 
