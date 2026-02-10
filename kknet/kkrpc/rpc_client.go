@@ -26,7 +26,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 	return cc
 }
 
-func (c *Client) SendBuffer(data *kkbuffer.ByteBuffer) error {
+func (c *Client) SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error {
 	return c.cli.SendBuffer(data)
 }
 
@@ -60,7 +60,7 @@ func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			kkbuffer.Put(bb)
 			return
 		}
-		h.cli.SendBuffer(bb)
+		h.cli.SendBuffer(0, bb)
 	}
 }
 

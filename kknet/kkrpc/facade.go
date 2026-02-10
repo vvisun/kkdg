@@ -19,7 +19,7 @@ type CallConfig struct {
 }
 
 type IRpcClient interface {
-	SendBuffer(data *kkbuffer.ByteBuffer) error
+	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
 }

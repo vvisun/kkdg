@@ -15,6 +15,7 @@ type RpcInvoker[T any, R any] struct {
 	c *Client
 }
 
+// 同步调用（阻塞等待结果）
 func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opts CallConfig, rsp *R) error {
 	// if !CheckReqResp(req, rsp) {
 	// 	kklog.Errorf("req resp type not match")
@@ -34,13 +35,14 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		i.c.pending.delCallback(reqId)
 		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, rsp)
 	})
-	err = i.c.SendBuffer(bb)
+	err = i.c.SendBuffer(0, bb)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+// 异步调用（非阻塞等待结果）
 func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T, opts CallConfig, callback func(rsp *R)) error {
 	// if !CheckReqResp(req, rsp) {
 	// 	kklog.Errorf("req resp type not match")
@@ -62,13 +64,14 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, respInfo)
 		callback(&respInfo)
 	})
-	err = i.c.SendBuffer(bb)
+	err = i.c.SendBuffer(0, bb)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+// 无响应调用（没有结果，单向调用）
 func (i RpcInvoker[T, R]) InvokeNR(ctx context.Context, method string, req *T, opts CallConfig) error {
 	// if !CheckReqResp(req, rsp) {
 	// 	kklog.Errorf("req resp type not match")
@@ -79,7 +82,7 @@ func (i RpcInvoker[T, R]) InvokeNR(ctx context.Context, method string, req *T, o
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	err = i.c.SendBuffer(bb)
+	err = i.c.SendBuffer(0, bb)
 	if err != nil {
 		return err
 	}

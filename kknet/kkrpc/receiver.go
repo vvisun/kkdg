@@ -71,10 +71,11 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	case FrameTypeOneway, FrameTypeRequest:
 		// 处理 FrameTypeRequest/FrameTypeTell 类型的请求
 	case FrameTypeResponse:
+		// 收到了远程方法的返回结果
 		pending[fr.ID](fr)
 		return nil
 	default:
-		kklog.Warnf("收到未知类型的消息: %v", fr)
+		kklog.Debugf("收到未知类型的消息: %v, %v", fr.T, fr.M)
 		return nil
 	}
 
