@@ -71,7 +71,11 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		if err != nil {
 			return err
 		}
-		return payloadCodec.Unmarshal(fr.P, rsp)
+		err = payloadCodec.Unmarshal(fr.P, rsp)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	if timer != nil {
@@ -128,6 +132,8 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 	})
 	err = i.sender.SendBuffer(0, bb)
 	if err != nil {
+		callback(nil, err)
+		i.sender.getPending().delCallback(reqId)
 		return err
 	}
 	return nil
