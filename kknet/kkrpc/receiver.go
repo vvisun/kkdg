@@ -16,7 +16,7 @@ type IRpcHandler interface {
 	// 获取消息ID
 	GetMsgID() any
 	// 消息回调
-	OnMsg(ctx context.Context, payload []byte) ([]byte, error)
+	OnMsg(ctx context.Context, payload []byte, frameType FrameType) ([]byte, error)
 }
 
 type RpcHandler[T any, R any] struct {
@@ -28,7 +28,7 @@ func (h *RpcHandler[T, R]) GetMsgID() any {
 	return h.msgID
 }
 
-func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, error) {
+func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameType FrameType) ([]byte, error) {
 	var data T
 	var resp R
 	if err := payloadCodec.Unmarshal(payload, &data); err != nil {
@@ -38,6 +38,10 @@ func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, e
 	err := h.call(ctx, &data, &resp)
 	if err != nil {
 		return nil, err
+	}
+
+	if frameType == FrameTypeOneway {
+		return nil, nil
 	}
 
 	respBytes, err := payloadCodec.Marshal(&resp)
@@ -107,7 +111,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	}
 
 	// 处理 FrameTypeRequest/FrameTypeTell 类型的请求
-	respBytes, err := h.OnMsg(context.Background(), fr.P)
+	respBytes, err := h.OnMsg(context.Background(), fr.P, fr.T)
 	if err != nil {
 		if fr.T == FrameTypeOneway {
 			return nil

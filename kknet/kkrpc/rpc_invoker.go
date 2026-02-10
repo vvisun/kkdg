@@ -26,6 +26,16 @@ func NewRpcInvoker[T any, R any](sender ISender) RpcInvoker[T, R] {
 	}
 }
 
+type OneWayInvoker[T any] struct {
+	sender ISender
+}
+
+func NewOneWayInvoker[T any](sender ISender) OneWayInvoker[T] {
+	return OneWayInvoker[T]{
+		sender: sender,
+	}
+}
+
 // Invoke 同步调用，阻塞直到收到响应或 ctx 取消/超时
 func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opts CallConfig, rsp *R) error {
 	if i.sender.getPending().IsClosed() {
@@ -140,7 +150,7 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 }
 
 // 无响应调用（没有结果，单向调用）
-func (i RpcInvoker[T, R]) InvokeNR(ctx context.Context, method string, req *T, opts CallConfig) error {
+func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, method string, req *T, opts CallConfig) error {
 	if i.sender.getPending().IsClosed() {
 		return ErrConnClosed
 	}

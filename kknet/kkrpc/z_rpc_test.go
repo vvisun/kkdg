@@ -208,7 +208,7 @@ func Test_InvokeNR(t *testing.T) {
 	})
 
 	req := testReq{ID: 1, Data: "oneway"}
-	invoker := NewRpcInvoker[testReq, testRsp](cli)
+	invoker := NewOneWayInvoker[testReq](cli)
 	if err := invoker.InvokeNR(context.Background(), "test", &req, CallConfig{}); err != nil {
 		t.Fatalf("InvokeNR: %v", err)
 	}
