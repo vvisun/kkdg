@@ -9,7 +9,7 @@ import (
 
 type Server struct {
 	tcp     *kktcp.Server
-	pending map[uint64]func(Frame)
+	pending *pendingMap
 }
 
 var _ IRpcServer = (*Server)(nil)
@@ -22,7 +22,7 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	s.tcp = kktcp.NewServer(addr, handler, opts)
-	s.pending = make(map[uint64]func(Frame))
+	s.pending = newPendingMap()
 	return s
 }
 
@@ -54,7 +54,7 @@ func (h *serverHandler) OnClose(conn kknet.IConn, _ error) {
 }
 
 func (h *serverHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	bb := h.rpcRouter.OnRaw(connId, data, h.svr.pending)
+	bb := h.rpcRouter.OnRaw(connId, data, h.svr.pending.cbMap)
 	if bb != nil {
 		if h.svr == nil {
 			kkbuffer.Put(bb)

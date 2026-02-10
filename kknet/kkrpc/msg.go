@@ -6,7 +6,7 @@ const (
 	FrameTypeUnknown       FrameType = 0
 	FrameTypeRequest       FrameType = 1
 	FrameTypeResponse      FrameType = 2
-	FrameTypeTell          FrameType = 3
+	FrameTypeOneway        FrameType = 3
 	FrameTypeTransMsg      FrameType = 4
 	FrameTypeTransBroadMsg FrameType = 5
 )

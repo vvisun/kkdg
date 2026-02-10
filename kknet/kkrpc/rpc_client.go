@@ -9,7 +9,7 @@ import (
 
 type Client struct {
 	cli     *kktcp.GnetClient
-	pending map[uint64]func(Frame)
+	pending *pendingMap
 }
 
 var _ IRpcClient = (*Client)(nil)
@@ -22,7 +22,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	cc.cli = kktcp.NewClient(addr, handler, opts)
-	cc.pending = make(map[uint64]func(Frame))
+	cc.pending = newPendingMap()
 	return cc
 }
 
@@ -54,7 +54,7 @@ func (h *clientHandler) OnClose(_ kknet.IConn, _ error) {
 }
 
 func (h *clientHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	bb := h.rpcRouter.OnRaw(connId, data, h.cli.pending)
+	bb := h.rpcRouter.OnRaw(connId, data, h.cli.pending.cbMap)
 	if bb != nil {
 		if h.cli == nil {
 			kkbuffer.Put(bb)

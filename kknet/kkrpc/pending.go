@@ -6,16 +6,16 @@ import (
 )
 
 type pendingMap struct {
-	closed  atomic.Bool
-	mu      sync.Mutex
-	pending map[uint64]func(Frame)
-	chMap   map[uint64]chan Frame
+	closed atomic.Bool
+	mu     sync.Mutex
+	cbMap  map[uint64]func(Frame)
+	chMap  map[uint64]chan Frame
 }
 
 func newPendingMap() *pendingMap {
 	return &pendingMap{
-		pending: make(map[uint64]func(Frame)),
-		chMap:   make(map[uint64]chan Frame),
+		cbMap: make(map[uint64]func(Frame)),
+		chMap: make(map[uint64]chan Frame),
 	}
 }
 
@@ -51,20 +51,20 @@ func (p *pendingMap) addCallback(id uint64, fn func(Frame)) {
 		return
 	}
 	p.mu.Lock()
-	p.pending[id] = fn
+	p.cbMap[id] = fn
 	p.mu.Unlock()
 }
 
 func (p *pendingMap) delCallback(id uint64) {
 	p.mu.Lock()
-	delete(p.pending, id)
+	delete(p.cbMap, id)
 	p.mu.Unlock()
 }
 
 func (p *pendingMap) deliverCallback(id uint64, fr Frame) {
 	p.mu.Lock()
-	fn := p.pending[fr.ID]
-	delete(p.pending, fr.ID)
+	fn := p.cbMap[fr.ID]
+	delete(p.cbMap, fr.ID)
 	p.mu.Unlock()
 	if fn == nil {
 		return
@@ -78,8 +78,8 @@ func (p *pendingMap) closeAll() {
 	}
 	p.mu.Lock()
 	p.closed.Store(true)
-	for id := range p.pending {
-		delete(p.pending, id)
+	for id := range p.cbMap {
+		delete(p.cbMap, id)
 	}
 	for id := range p.chMap {
 		delete(p.chMap, id)

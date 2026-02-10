@@ -26,14 +26,14 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	i.c.pending[reqId] = func(fr Frame) {
+	i.c.pending.addCallback(reqId, func(fr Frame) {
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
 		payloadCodec.Unmarshal(fr.P, rsp)
-		delete(i.c.pending, reqId)
+		i.c.pending.delCallback(reqId)
 		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, rsp)
-	}
+	})
 	err = i.c.SendBuffer(bb)
 	if err != nil {
 		return err
@@ -53,15 +53,15 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 		return err
 	}
 	var respInfo R
-	i.c.pending[reqId] = func(fr Frame) {
+	i.c.pending.addCallback(reqId, func(fr Frame) {
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
 		payloadCodec.Unmarshal(fr.P, &respInfo)
-		delete(i.c.pending, reqId)
+		i.c.pending.delCallback(reqId)
 		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, respInfo)
 		callback(&respInfo)
-	}
+	})
 	err = i.c.SendBuffer(bb)
 	if err != nil {
 		return err
@@ -70,6 +70,19 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 }
 
 func (i RpcInvoker[T, R]) InvokeNR(ctx context.Context, method string, req *T, opts CallConfig) error {
+	// if !CheckReqResp(req, rsp) {
+	// 	kklog.Errorf("req resp type not match")
+	// 	return ErrInvalidReqResp
+	// }
+	bb, err := EncodeRpcFrame(FrameTypeOneway, 0, method, req)
+	if err != nil {
+		kklog.Errorf("encode rpc frame: %v", err)
+		return err
+	}
+	err = i.c.SendBuffer(bb)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

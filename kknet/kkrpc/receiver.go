@@ -68,7 +68,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	}
 
 	switch fr.T {
-	case FrameTypeTell, FrameTypeRequest:
+	case FrameTypeOneway, FrameTypeRequest:
 		// 处理 FrameTypeRequest/FrameTypeTell 类型的请求
 	case FrameTypeResponse:
 		pending[fr.ID](fr)
@@ -90,7 +90,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	method := fr.M
 	h, ok := r.hdMap[method]
 	if !ok || h == nil {
-		if fr.T == FrameTypeTell {
+		if fr.T == FrameTypeOneway {
 			return nil
 		}
 		rspFrame.Code = 1
@@ -106,7 +106,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	// 处理 FrameTypeRequest/FrameTypeTell 类型的请求
 	respBytes, err := h.OnMsg(context.Background(), fr.P)
 	if err != nil {
-		if fr.T == FrameTypeTell {
+		if fr.T == FrameTypeOneway {
 			return nil
 		}
 		rspFrame.Code = 1
@@ -119,7 +119,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 		return rspBB
 	}
 
-	if fr.T == FrameTypeTell {
+	if fr.T == FrameTypeOneway {
 		return nil
 	}
 
