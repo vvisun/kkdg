@@ -19,6 +19,10 @@ func newPendingMap() *pendingMap {
 	}
 }
 
+func (p *pendingMap) IsClosed() bool {
+	return p.closed.Load()
+}
+
 func (p *pendingMap) addCh(reqId uint64) (chan Frame, bool) {
 	if p.closed.Load() {
 		return nil, false
@@ -35,17 +39,6 @@ func (p *pendingMap) delCh(reqId uint64) {
 	p.mu.Unlock()
 }
 
-func (p *pendingMap) deliverCh(reqId uint64, fr Frame) {
-	p.mu.Lock()
-	ch := p.chMap[reqId]
-	delete(p.chMap, reqId)
-	p.mu.Unlock()
-	if ch == nil {
-		return
-	}
-	ch <- fr
-}
-
 func (p *pendingMap) addCallback(reqId uint64, fn func(Frame)) {
 	if p.closed.Load() {
 		return
@@ -59,6 +52,17 @@ func (p *pendingMap) delCallback(reqId uint64) {
 	p.mu.Lock()
 	delete(p.cbMap, reqId)
 	p.mu.Unlock()
+}
+
+func (p *pendingMap) deliverCh(reqId uint64, fr Frame) {
+	p.mu.Lock()
+	ch := p.chMap[reqId]
+	delete(p.chMap, reqId)
+	p.mu.Unlock()
+	if ch == nil {
+		return
+	}
+	ch <- fr
 }
 
 func (p *pendingMap) deliverCallback(reqId uint64, fr Frame) {

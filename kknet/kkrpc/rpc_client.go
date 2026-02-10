@@ -40,7 +40,7 @@ func (c *Client) Stop() error {
 	return c.cli.Close()
 }
 
-func (c *Client) GetPending() *pendingMap {
+func (c *Client) getPending() *pendingMap {
 	return c.pending
 }
 

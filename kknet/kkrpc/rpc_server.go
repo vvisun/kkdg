@@ -40,7 +40,7 @@ func (s *Server) Stop() error {
 	return s.tcp.Stop()
 }
 
-func (s *Server) GetPending() *pendingMap {
+func (s *Server) getPending() *pendingMap {
 	return s.pending
 }
 

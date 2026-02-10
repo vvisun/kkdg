@@ -2,6 +2,7 @@ package kkrpc
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ func Test_Client_Request(t *testing.T) {
 	var resp testRsp
 	invoker := NewRpcInvoker[testMsg, testRsp](cli)
 	err = invoker.Invoke(context.Background(), "test", &req, CallConfig{}, &resp)
+	fmt.Printf("resp: %+v\n", resp)
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
 	}

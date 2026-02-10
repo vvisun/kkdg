@@ -14,7 +14,7 @@ import (
 
 type ISender interface {
 	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
-	GetPending() *pendingMap
+	getPending() *pendingMap
 }
 
 type RpcInvoker[T any, R any] struct {
@@ -29,14 +29,17 @@ func NewRpcInvoker[T any, R any](sender ISender) RpcInvoker[T, R] {
 
 // Invoke 同步调用，阻塞直到收到响应或 ctx 取消/超时
 func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opts CallConfig, rsp *R) error {
+	if i.sender.getPending().IsClosed() {
+		return ErrConnClosed
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	pending := i.sender.GetPending()
+	pending := i.sender.getPending()
 	reqId := genReqId()
 	ch, ok := pending.addCh(reqId)
 	if !ok {
-		return ErrClientClosed
+		return ErrConnClosed
 	}
 	defer pending.delCh(reqId)
 
@@ -94,6 +97,9 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 
 // 异步调用（非阻塞等待结果）
 func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T, opts CallConfig, callback func(rsp *R)) error {
+	if i.sender.getPending().IsClosed() {
+		return ErrConnClosed
+	}
 	// if !CheckReqResp(req, rsp) {
 	// 	kklog.Errorf("req resp type not match")
 	// 	return ErrInvalidReqResp
@@ -105,12 +111,12 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 		return err
 	}
 	var respInfo R
-	i.sender.GetPending().addCallback(reqId, func(fr Frame) {
+	i.sender.getPending().addCallback(reqId, func(fr Frame) {
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
 		payloadCodec.Unmarshal(fr.P, &respInfo)
-		i.sender.GetPending().delCallback(reqId)
+		i.sender.getPending().delCallback(reqId)
 		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, respInfo)
 		callback(&respInfo)
 	})
@@ -123,6 +129,9 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 
 // 无响应调用（没有结果，单向调用）
 func (i RpcInvoker[T, R]) InvokeNR(ctx context.Context, method string, req *T, opts CallConfig) error {
+	if i.sender.getPending().IsClosed() {
+		return ErrConnClosed
+	}
 	// if !CheckReqResp(req, rsp) {
 	// 	kklog.Errorf("req resp type not match")
 	// 	return ErrInvalidReqResp

@@ -7,9 +7,9 @@ import (
 
 var (
 	// 客户端未连接
-	ErrClientNotConnected = errors.New("kkrpc: client not connected")
+	ErrNotConnected = errors.New("kkrpc: not connected")
 	// 客户端已关闭
-	ErrClientClosed = errors.New("kkrpc: client closed")
+	ErrConnClosed = errors.New("kkrpc: conn closed")
 	// 方法未找到
 	ErrMethodNotFound = errors.New("kkrpc: method not found")
 	// 无效的帧
