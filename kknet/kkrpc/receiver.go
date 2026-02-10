@@ -34,7 +34,7 @@ func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte) ([]byte, e
 	if err := payloadCodec.Unmarshal(payload, &data); err != nil {
 		return nil, err
 	}
-	kklog.Debugf("收到远程方法调用请求: %v", data)
+	// kklog.Debugf("收到远程方法调用请求: %v", data)
 	err := h.call(ctx, &data, &resp)
 	if err != nil {
 		return nil, err

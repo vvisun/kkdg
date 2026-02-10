@@ -2,6 +2,7 @@ package kkrpc
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -9,6 +10,13 @@ import (
 )
 
 func Benchmark_InvokeUnary(b *testing.B) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		b.Fatalf("listen: %v", err)
+	}
+	addr := ln.Addr().String()
+	ln.Close()
+
 	rpcRouter := NewRpcReceiver()
 	RegistRpcHandler(rpcRouter, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
 		resp.Code = 0
@@ -16,17 +24,19 @@ func Benchmark_InvokeUnary(b *testing.B) {
 		return nil
 	})
 
-	svr := NewServer("localhost:8080", kknet.DefaultOptions(), rpcRouter)
-	err := svr.Start()
+	svr := NewServer(addr, kknet.DefaultOptions(), rpcRouter)
+	err = svr.Start()
 	if err != nil {
 		b.Fatalf("start server: %v", err)
 	}
+	defer svr.Stop()
 
-	cli := NewClient("localhost:8080", kknet.DefaultOptions(), rpcRouter)
+	cli := NewClient(addr, kknet.DefaultOptions(), rpcRouter)
 	err = cli.Start()
 	if err != nil {
 		b.Fatalf("start client: %v", err)
 	}
+	defer cli.Stop()
 
 	time.Sleep(500 * time.Millisecond)
 
