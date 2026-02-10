@@ -130,6 +130,7 @@ func (c *GnetClient) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	conn := c.conn
 	c.connMu.Unlock()
 	if conn == nil {
+		kkbuffer.Put(buffer)
 		return kkerrors.ErrClientNotConnected
 	}
 	return conn.SendBuffer(buffer)
