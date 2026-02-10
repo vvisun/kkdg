@@ -2,7 +2,6 @@ package kkrpc
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"sync"
 	"time"
@@ -68,11 +67,9 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		if fr.T != FrameTypeResponse {
 			return ErrInvalidFrameType
 		}
-		if fr.Code != 0 {
-			if fr.Err != "" {
-				return fmt.Errorf("%w: %s", ErrMethodNotFound, fr.Err)
-			}
-			return ErrMethodNotFound
+		err := ErrRpc(fr.Code, fr.Err)
+		if err != nil {
+			return err
 		}
 		return payloadCodec.Unmarshal(fr.P, rsp)
 	}
@@ -96,7 +93,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 }
 
 // 异步调用（非阻塞等待结果）
-func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T, opts CallConfig, callback func(rsp *R)) error {
+func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
 	if i.sender.getPending().IsClosed() {
 		return ErrConnClosed
 	}
@@ -115,10 +112,19 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
-		payloadCodec.Unmarshal(fr.P, &respInfo)
 		i.sender.getPending().delCallback(reqId)
-		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, respInfo)
-		callback(&respInfo)
+
+		err := ErrRpc(fr.Code, fr.Err)
+		if err != nil {
+			callback(nil, err)
+			return
+		}
+		err = payloadCodec.Unmarshal(fr.P, &respInfo)
+		if err != nil {
+			callback(nil, err)
+			return
+		}
+		callback(&respInfo, nil)
 	})
 	err = i.sender.SendBuffer(0, bb)
 	if err != nil {

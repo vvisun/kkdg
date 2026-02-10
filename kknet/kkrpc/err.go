@@ -3,6 +3,7 @@ package kkrpc
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 var (
@@ -29,3 +30,13 @@ var (
 	// 无效的请求响应类型
 	ErrInvalidReqResp = errors.New("kkrpc: invalid req resp type")
 )
+
+func ErrRpc(code int32, msg string) error {
+	if code == 0 {
+		return nil
+	}
+	if msg == "" {
+		return fmt.Errorf("rpc error: code=%d", code)
+	}
+	return errors.New(msg)
+}

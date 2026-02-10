@@ -2,7 +2,6 @@ package kkrpc
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 
 func Test_Client_Request(t *testing.T) {
 	rpcRouter := NewRpcReceiver()
-	RegistRpcHandler(rpcRouter, "test", func(ctx context.Context, msg *testMsg, resp *testRsp) error {
+	RegistRpcHandler(rpcRouter, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
 		resp.Code = 0
 		resp.Msg = "test success"
 		return nil
@@ -31,14 +30,13 @@ func Test_Client_Request(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 
-	var req testMsg = testMsg{
+	var req testReq = testReq{
 		ID:   1,
 		Data: "test",
 	}
 	var resp testRsp
-	invoker := NewRpcInvoker[testMsg, testRsp](cli)
+	invoker := NewRpcInvoker[testReq, testRsp](cli)
 	err = invoker.Invoke(context.Background(), "test", &req, CallConfig{}, &resp)
-	fmt.Printf("resp: %+v\n", resp)
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
 	}

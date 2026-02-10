@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-type testMsg struct {
+type testReq struct {
 	ID   int
 	Data string
 }
@@ -18,14 +18,14 @@ type testRsp struct {
 
 func TestRouter(t *testing.T) {
 	router := NewRpcReceiver()
-	RegistRpcHandler(router, "test", func(ctx context.Context, msg *testMsg, resp *testRsp) error {
-		fmt.Println(msg)
+	RegistRpcHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+		fmt.Println("remote call testReq", msg)
 		resp.Code = 0
 		resp.Msg = "success"
 		return nil
 	})
 
-	msg := &testMsg{
+	msg := &testReq{
 		ID:   1,
 		Data: "test",
 	}
