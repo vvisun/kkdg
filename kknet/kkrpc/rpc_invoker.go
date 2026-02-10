@@ -2,8 +2,10 @@ package kkrpc
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -25,31 +27,69 @@ func NewRpcInvoker[T any, R any](sender ISender) RpcInvoker[T, R] {
 	}
 }
 
-// 同步调用（阻塞等待结果）
+// Invoke 同步调用，阻塞直到收到响应或 ctx 取消/超时
 func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opts CallConfig, rsp *R) error {
-	// if !CheckReqResp(req, rsp) {
-	// 	kklog.Errorf("req resp type not match")
-	// 	return ErrInvalidReqResp
-	// }
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	pending := i.sender.GetPending()
 	reqId := genReqId()
+	ch, ok := pending.addCh(reqId)
+	if !ok {
+		return ErrClientClosed
+	}
+	defer pending.delCh(reqId)
+
 	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	i.sender.GetPending().addCallback(reqId, func(fr Frame) {
-		if fr.ID != reqId || fr.T != FrameTypeResponse {
-			return
-		}
-		payloadCodec.Unmarshal(fr.P, rsp)
-		i.sender.GetPending().delCallback(reqId)
-		kklog.Infof("远程方法返回: %v, %v, %v, %v", fr.M, fr.ID, fr.Code, rsp)
-	})
-	err = i.sender.SendBuffer(0, bb)
-	if err != nil {
+	if err = i.sender.SendBuffer(0, bb); err != nil {
 		return err
 	}
-	return nil
+
+	timeout := opts.timeout
+	if dl, ok := ctx.Deadline(); ok {
+		if d := time.Until(dl); d > 0 && (timeout <= 0 || d < timeout) {
+			timeout = d
+		}
+	}
+	var timer *time.Timer
+	if timeout > 0 {
+		timer = time.NewTimer(timeout)
+		defer timer.Stop()
+	}
+
+	doReturn := func(fr Frame) error {
+		if fr.T != FrameTypeResponse {
+			return ErrInvalidFrameType
+		}
+		if fr.Code != 0 {
+			if fr.Err != "" {
+				return fmt.Errorf("%w: %s", ErrMethodNotFound, fr.Err)
+			}
+			return ErrMethodNotFound
+		}
+		return payloadCodec.Unmarshal(fr.P, rsp)
+	}
+
+	if timer != nil {
+		select {
+		case fr := <-ch:
+			return doReturn(fr)
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+			return ErrTimeout
+		}
+	}
+	select {
+	case fr := <-ch:
+		return doReturn(fr)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // 异步调用（非阻塞等待结果）

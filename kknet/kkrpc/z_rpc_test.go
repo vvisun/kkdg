@@ -28,7 +28,7 @@ func Test_Client_Request(t *testing.T) {
 		t.Fatalf("start client: %v", err)
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(500 * time.Millisecond)
 
 	var req testMsg = testMsg{
 		ID:   1,
@@ -40,6 +40,7 @@ func Test_Client_Request(t *testing.T) {
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
 	}
-
-	time.Sleep(2 * time.Second)
+	if resp.Code != 0 || resp.Msg != "test success" {
+		t.Fatalf("unexpected response: code=%d msg=%s", resp.Code, resp.Msg)
+	}
 }

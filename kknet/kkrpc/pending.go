@@ -72,6 +72,26 @@ func (p *pendingMap) deliverCallback(reqId uint64, fr Frame) {
 	fn(fr)
 }
 
+// deliver 将响应投递给同步等待者（channel）或异步回调，同一 reqId 只会有其一
+func (p *pendingMap) deliver(id uint64, fr Frame) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	ch := p.chMap[id]
+	delete(p.chMap, id)
+	fn := p.cbMap[id]
+	delete(p.cbMap, id)
+	p.mu.Unlock()
+	if ch != nil {
+		ch <- fr
+		return
+	}
+	if fn != nil {
+		fn(fr)
+	}
+}
+
 func (p *pendingMap) closeAll() {
 	if p.closed.Load() {
 		return
