@@ -271,6 +271,7 @@ func (s *Server) SendMsg(connId kknet.CONN_ID, msg any) error {
 func (s *Server) SendBuffer(connId kknet.CONN_ID, buffer *kkbuffer.ByteBuffer) error {
 	conn := s.connMgr.GetConn(connId)
 	if conn == nil {
+		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnNotFound
 	}
 	return conn.SendBuffer(buffer)

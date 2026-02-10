@@ -55,8 +55,12 @@ func (m *serverConnMgr) GetAllConns() map[kknet.CONN_ID]kknet.IConn {
 // GetConn returns a connection by id.
 func (m *serverConnMgr) GetConn(id kknet.CONN_ID) kknet.IConn {
 	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.conns[id]
+	c := m.conns[id]
+	m.mu.RUnlock()
+	if c == nil {
+		return nil
+	}
+	return c
 }
 
 // KickConn closes and removes a connection.
