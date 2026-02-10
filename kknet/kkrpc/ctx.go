@@ -40,7 +40,7 @@ func contextCanceled() error { return context.Canceled }
 
 type peerKey struct{}
 
-func getPeerState(cctx context.Context) (*peerState, bool) {
+func getPeerState(cctx context.Context) (*pendingMap, bool) {
 	if cctx == nil {
 		return nil, false
 	}
@@ -48,11 +48,11 @@ func getPeerState(cctx context.Context) (*peerState, bool) {
 	if v == nil {
 		return nil, false
 	}
-	ps, ok := v.(*peerState)
+	ps, ok := v.(*pendingMap)
 	return ps, ok
 }
 
-func withPeerState(ctx context.Context, ps *peerState) context.Context {
+func withPeerState(ctx context.Context, ps *pendingMap) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
