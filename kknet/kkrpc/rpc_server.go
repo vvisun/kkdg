@@ -59,7 +59,7 @@ func (h *serverHandler) OnClose(conn kknet.IConn, _ error) {
 }
 
 func (h *serverHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	bb := h.rpcRouter.OnRaw(connId, data, h.svr.pending.cbMap)
+	bb := h.rpcRouter.OnRaw(connId, data, h.svr.pending)
 	if bb != nil {
 		if h.svr == nil {
 			kkbuffer.Put(bb)

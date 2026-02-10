@@ -19,26 +19,26 @@ func newPendingMap() *pendingMap {
 	}
 }
 
-func (p *pendingMap) addCh(id uint64) (chan Frame, bool) {
+func (p *pendingMap) addCh(reqId uint64) (chan Frame, bool) {
 	if p.closed.Load() {
 		return nil, false
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.chMap[id] = make(chan Frame, 1)
-	return p.chMap[id], true
+	p.chMap[reqId] = make(chan Frame, 1)
+	return p.chMap[reqId], true
 }
 
-func (p *pendingMap) delCh(id uint64) {
+func (p *pendingMap) delCh(reqId uint64) {
 	p.mu.Lock()
-	delete(p.chMap, id)
+	delete(p.chMap, reqId)
 	p.mu.Unlock()
 }
 
-func (p *pendingMap) deliverCh(id uint64, fr Frame) {
+func (p *pendingMap) deliverCh(reqId uint64, fr Frame) {
 	p.mu.Lock()
-	ch := p.chMap[id]
-	delete(p.chMap, id)
+	ch := p.chMap[reqId]
+	delete(p.chMap, reqId)
 	p.mu.Unlock()
 	if ch == nil {
 		return
@@ -46,25 +46,25 @@ func (p *pendingMap) deliverCh(id uint64, fr Frame) {
 	ch <- fr
 }
 
-func (p *pendingMap) addCallback(id uint64, fn func(Frame)) {
+func (p *pendingMap) addCallback(reqId uint64, fn func(Frame)) {
 	if p.closed.Load() {
 		return
 	}
 	p.mu.Lock()
-	p.cbMap[id] = fn
+	p.cbMap[reqId] = fn
 	p.mu.Unlock()
 }
 
-func (p *pendingMap) delCallback(id uint64) {
+func (p *pendingMap) delCallback(reqId uint64) {
 	p.mu.Lock()
-	delete(p.cbMap, id)
+	delete(p.cbMap, reqId)
 	p.mu.Unlock()
 }
 
-func (p *pendingMap) deliverCallback(id uint64, fr Frame) {
+func (p *pendingMap) deliverCallback(reqId uint64, fr Frame) {
 	p.mu.Lock()
-	fn := p.cbMap[fr.ID]
-	delete(p.cbMap, fr.ID)
+	fn := p.cbMap[reqId]
+	delete(p.cbMap, reqId)
 	p.mu.Unlock()
 	if fn == nil {
 		return

@@ -37,5 +37,5 @@ func TestRouter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
-	router.OnRaw(1, bb, make(map[uint64]func(Frame)))
+	router.OnRaw(1, bb, newPendingMap())
 }

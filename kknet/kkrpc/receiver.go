@@ -53,7 +53,7 @@ type RpcReceiver struct {
 	hdMap map[interface{}]IRpcHandler
 }
 
-func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending map[uint64]func(Frame)) *kkbuffer.ByteBuffer {
+func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
 	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
 	if err != nil {
 		kkbuffer.Put(data)
@@ -72,7 +72,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 		// 处理 FrameTypeRequest/FrameTypeTell 类型的请求
 	case FrameTypeResponse:
 		// 收到了远程方法的返回结果
-		pending[fr.ID](fr)
+		pending.deliverCallback(fr.ID, fr)
 		return nil
 	default:
 		kklog.Debugf("收到未知类型的消息: %v, %v", fr.T, fr.M)

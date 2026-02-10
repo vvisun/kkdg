@@ -102,7 +102,7 @@ func EncodeRpcFrame(ft FrameType, reqId uint64, method string, msg any) (*kkbuff
 	return bb, nil
 }
 
-func DecodeRpcFrame[T any](bb *kkbuffer.ByteBuffer) (*T, error) {
+func DecodeRpcPayload[T any](bb *kkbuffer.ByteBuffer) (*T, error) {
 	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(bb.Bytes())
 	if err != nil {
 		return nil, err
