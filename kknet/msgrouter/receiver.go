@@ -12,7 +12,7 @@ type MetaParser func(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error)
 // MsgReceiver 消息接收器
 type MsgReceiver struct {
 	messagePacket *kkpacket.MessagePacket
-	hdMap         map[interface{}]IMsgHandler // 消息ID到消息处理器的映射
+	hdMap         map[kkpacket.MSGID]IMsgHandler // 消息ID到消息处理器的映射
 	metaParser    MetaParser
 }
 
@@ -64,7 +64,7 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 func NewMsgReceiver(messagePacket *kkpacket.MessagePacket) *MsgReceiver {
 	return &MsgReceiver{
 		messagePacket: messagePacket,
-		hdMap:         make(map[interface{}]IMsgHandler),
+		hdMap:         make(map[kkpacket.MSGID]IMsgHandler),
 		metaParser:    nil,
 	}
 }
@@ -73,7 +73,7 @@ func NewMsgReceiver(messagePacket *kkpacket.MessagePacket) *MsgReceiver {
 func NewMsgReceiverWithParser(messagePacket *kkpacket.MessagePacket, metaParser MetaParser) *MsgReceiver {
 	return &MsgReceiver{
 		messagePacket: messagePacket,
-		hdMap:         make(map[interface{}]IMsgHandler),
+		hdMap:         make(map[kkpacket.MSGID]IMsgHandler),
 		metaParser:    metaParser,
 	}
 }
