@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/kkpool"
 )
 
 type ISender interface {
@@ -70,8 +71,9 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 	}
 	var timer *time.Timer
 	if timeout > 0 {
-		timer = time.NewTimer(timeout)
-		defer timer.Stop()
+		timerPool := kkpool.GetGlobalTimerPool()
+		timer = timerPool.Get(timeout)
+		defer timerPool.Put(timer)
 	}
 
 	doReturn := func(fr Frame) error {
@@ -156,11 +158,15 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 		}
 	}
 	if timeout > 0 {
-		time.AfterFunc(timeout, func() {
+		timerPool := kkpool.GetGlobalTimerPool()
+		t := timerPool.Get(timeout)
+		go func() {
+			<-t.C
 			if _, ok := pending.takeCallback(reqId); ok {
 				callback(nil, kkerrors.ErrTimeout)
 			}
-		})
+			timerPool.Put(t)
+		}()
 	}
 	return nil
 }
