@@ -114,7 +114,6 @@ func (s *Server) Start() error {
 			defer s.connWg.Done()
 			err := wsConn.readLoop()
 			wsConn.closeWithError(s.handler, err)
-			// Remove from tracking
 			s.connMgr.removeConn(wsConn.id)
 			s.opts.Logger.Debugf("kkws server OnClose: connId=%d, count=%d", wsConn.id, s.connMgr.GetCount())
 		}()

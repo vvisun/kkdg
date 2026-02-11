@@ -91,16 +91,14 @@ func (q *NNQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int
 		return 0 // 队列空，直接返回0
 	}
 
-	// 参数检查
-	if count < 1 {
-		count = 1 // 至少弹出1个
-	}
 	recvLen := len(recv)
 	if recvLen == 0 {
 		panic("recv is empty")
 	}
 
-	// 实际最多能弹出的数量
+	if count < 1 {
+		count = 1 // 至少弹出1个
+	}
 	if count > recvLen {
 		count = recvLen
 	}

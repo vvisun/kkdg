@@ -94,7 +94,8 @@ func TestQueue_PopMany(t *testing.T) {
 	}
 
 	// Pop many
-	items, ok := q.PopMany(3)
+	buffer := make([]interface{}, 3)
+	items, ok := q.PopMany(3, buffer)
 	if !ok {
 		t.Error("PopMany(3) should return true")
 	}
@@ -121,7 +122,8 @@ func TestQueue_PopManyAll(t *testing.T) {
 	}
 
 	// Pop more than available
-	items, ok := q.PopMany(10)
+	buffer := make([]interface{}, 10)
+	items, ok := q.PopMany(10, buffer)
 	if !ok {
 		t.Error("PopMany(10) should return true")
 	}
@@ -137,7 +139,8 @@ func TestQueue_PopManyAll(t *testing.T) {
 func TestQueue_PopManyEmpty(t *testing.T) {
 	q := New(4)
 
-	items, ok := q.PopMany(5)
+	buffer := make([]interface{}, 5)
+	items, ok := q.PopMany(5, buffer)
 	if ok {
 		t.Error("PopMany() on empty queue should return false")
 	}

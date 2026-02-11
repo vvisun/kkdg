@@ -79,26 +79,32 @@ func (q *Queue) Pop() (interface{}, bool) {
 	return res, true
 }
 
-func (q *Queue) PopMany(count int64) ([]interface{}, bool) {
-	if q.Empty() {
+func (q *Queue) PopMany(count int64, buffer []interface{}) ([]interface{}, bool) {
+	if q.Empty() || count <= 0 {
 		return nil, false
 	}
 
 	q.lock.Lock()
 	c := q.content
 
-	if count >= q.len {
+	if count > q.len {
 		count = q.len
 	}
 	atomic.AddInt64(&q.len, -count)
 
-	buffer := make([]interface{}, count)
+	if len(buffer) < int(count) {
+		buffer = make([]interface{}, count)
+	} else {
+		buffer = buffer[:count]
+	}
+
+	md := c.mod
 	for i := int64(0); i < count; i++ {
-		pos := (c.head + 1 + i) % c.mod
+		pos := (c.head + 1 + i) % md
 		buffer[i] = c.buffer[pos]
 		c.buffer[pos] = nil
 	}
-	c.head = (c.head + count) % c.mod
+	c.head = (c.head + count) % md
 
 	q.lock.Unlock()
 	return buffer, true
