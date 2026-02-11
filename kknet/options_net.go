@@ -204,8 +204,8 @@ func WithPingInterval(interval time.Duration) Option {
 	return func(o *Options) {
 		if interval >= 0 {
 			o.PingInterval = interval
-			if o.PingInterval > 0 && o.PingInterval < 3*time.Second {
-				o.PingInterval = 3 * time.Second
+			if o.PingInterval > 0 && o.PingInterval < 2*time.Second {
+				o.PingInterval = 2 * time.Second
 			}
 		}
 	}

@@ -19,7 +19,7 @@ func TestHeartbeat_OnlyPing_NoAppData(t *testing.T) {
 	// 服务端：读超时 4s，Ping 间隔 1.5s（内部会被钳到 >=3s），只要心跳正常就不会因读超时关闭。
 	srvOpts := kknet.ApplyOptions(
 		kknet.WithReadTimeout(4*time.Second),
-		kknet.WithPingInterval(1500*time.Millisecond),
+		kknet.WithPingInterval(2*time.Second),
 	)
 	s := NewServer(addr, nil, srvOpts)
 	if err := s.Start(); err != nil {
@@ -30,7 +30,7 @@ func TestHeartbeat_OnlyPing_NoAppData(t *testing.T) {
 	// 客户端同样配置心跳
 	cliOpts := kknet.ApplyOptions(
 		kknet.WithReadTimeout(4*time.Second),
-		kknet.WithPingInterval(1500*time.Millisecond),
+		kknet.WithPingInterval(2*time.Second),
 	)
 	client := NewClient("ws://"+addr+"/ws", nil, cliOpts)
 	if err := client.Connect(); err != nil {
