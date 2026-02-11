@@ -43,6 +43,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrConnClosed
 	}
+	CheckCallConfig(&opts)
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -115,6 +116,7 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrConnClosed
 	}
+	CheckCallConfig(&opts)
 	if ctx == nil {
 		ctx = context.Background()
 	}

@@ -18,6 +18,24 @@ type CallConfig struct {
 	Timeout time.Duration
 }
 
+func DefaultCallConfig() CallConfig {
+	return CallConfig{
+		Timeout: 1 * time.Second,
+	}
+}
+
+func CheckCallConfig(opts *CallConfig) {
+	if opts == nil {
+		return
+	}
+	if opts.Timeout <= 0 {
+		opts.Timeout = 1 * time.Second
+	}
+	if opts.Timeout < 100*time.Microsecond {
+		opts.Timeout = 100 * time.Microsecond
+	}
+}
+
 type IRpcClient interface {
 	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
 	Start() error
