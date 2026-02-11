@@ -54,26 +54,19 @@ func (p *pendingMap) delCallback(reqId uint64) {
 	p.mu.Unlock()
 }
 
-func (p *pendingMap) deliverCh(reqId uint64, fr Frame) {
-	p.mu.Lock()
-	ch := p.chMap[reqId]
-	delete(p.chMap, reqId)
-	p.mu.Unlock()
-	if ch == nil {
+func (p *pendingMap) closeAll() {
+	if p.closed.Load() {
 		return
 	}
-	ch <- fr
-}
-
-func (p *pendingMap) deliverCallback(reqId uint64, fr Frame) {
 	p.mu.Lock()
-	fn := p.cbMap[reqId]
-	delete(p.cbMap, reqId)
-	p.mu.Unlock()
-	if fn == nil {
-		return
+	p.closed.Store(true)
+	for id := range p.cbMap {
+		delete(p.cbMap, id)
 	}
-	fn(fr)
+	for id := range p.chMap {
+		delete(p.chMap, id)
+	}
+	p.mu.Unlock()
 }
 
 // deliver 将响应投递给同步等待者（channel）或异步回调，同一 reqId 只会有其一
@@ -94,19 +87,4 @@ func (p *pendingMap) deliver(id uint64, fr Frame) {
 	if fn != nil {
 		fn(fr)
 	}
-}
-
-func (p *pendingMap) closeAll() {
-	if p.closed.Load() {
-		return
-	}
-	p.mu.Lock()
-	p.closed.Store(true)
-	for id := range p.cbMap {
-		delete(p.cbMap, id)
-	}
-	for id := range p.chMap {
-		delete(p.chMap, id)
-	}
-	p.mu.Unlock()
 }

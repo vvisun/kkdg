@@ -97,12 +97,13 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		case <-timer.C:
 			return ErrTimeout
 		}
-	}
-	select {
-	case fr := <-ch:
-		return doReturn(fr)
-	case <-ctx.Done():
-		return ctx.Err()
+	} else {
+		select {
+		case fr := <-ch:
+			return doReturn(fr)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 

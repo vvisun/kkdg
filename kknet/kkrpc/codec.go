@@ -66,7 +66,7 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 	return bb, nil
 }
 
-func EncodeRpcFrame(ft FrameType, reqId uint64, method string, msg any) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T) (*kkbuffer.ByteBuffer, error) {
 	payloadBytes, err := payloadCodec.Marshal(msg)
 	if err != nil {
 		return nil, err
