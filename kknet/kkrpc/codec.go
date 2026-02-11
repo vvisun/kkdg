@@ -1,6 +1,7 @@
 package kkrpc
 
 import (
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
@@ -39,7 +40,7 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
-			return nil, ErrInvalidRequestID
+			return nil, kkerrors.ErrInvalidRequestID
 		}
 	case FrameTypeOneway:
 		reqId = 0
@@ -75,7 +76,7 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T) (*
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
-			return nil, ErrInvalidRequestID
+			return nil, kkerrors.ErrInvalidRequestID
 		}
 	case FrameTypeOneway:
 		reqId = 0

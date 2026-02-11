@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -77,7 +78,7 @@ func Test_Invoke_Timeout(t *testing.T) {
 	var resp testRsp
 	invoker := NewRpcInvoker[testReq, testRsp](cli)
 	err := invoker.Invoke(context.Background(), "test", &req, CallConfig{timeout: 100 * time.Millisecond}, &resp)
-	if !errors.Is(err, ErrTimeout) {
+	if !errors.Is(err, kkerrors.ErrTimeout) {
 		t.Fatalf("expected ErrTimeout, got %v", err)
 	}
 }
@@ -117,7 +118,7 @@ func Test_Invoke_OnClosedClient(t *testing.T) {
 	var resp testRsp
 	invoker := NewRpcInvoker[testReq, testRsp](cli)
 	err := invoker.Invoke(context.Background(), "test", &req, CallConfig{}, &resp)
-	if !errors.Is(err, ErrConnClosed) {
+	if !errors.Is(err, kkerrors.ErrConnClosed) {
 		t.Fatalf("expected ErrConnClosed, got %v", err)
 	}
 }

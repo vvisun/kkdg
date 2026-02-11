@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -39,7 +40,7 @@ func NewOneWayInvoker[T any](sender ISender) OneWayInvoker[T] {
 // Invoke 同步调用，阻塞直到收到响应或 ctx 取消/超时
 func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opts CallConfig, rsp *R) error {
 	if i.sender.getPending().IsClosed() {
-		return ErrConnClosed
+		return kkerrors.ErrConnClosed
 	}
 	if ctx == nil {
 		ctx = context.Background()
@@ -48,7 +49,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 	reqId := genReqId()
 	ch, ok := pending.addCh(reqId)
 	if !ok {
-		return ErrConnClosed
+		return kkerrors.ErrConnClosed
 	}
 	defer pending.delCh(reqId)
 
@@ -75,7 +76,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 
 	doReturn := func(fr Frame) error {
 		if fr.T != FrameTypeResponse {
-			return ErrInvalidFrameType
+			return kkerrors.ErrInvalidFrameType
 		}
 		err := ErrRpc(fr.Code, fr.Err)
 		if err != nil {
@@ -95,7 +96,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:
-			return ErrTimeout
+			return kkerrors.ErrTimeout
 		}
 	} else {
 		select {
@@ -110,7 +111,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 // 异步调用（非阻塞等待结果）
 func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
 	if i.sender.getPending().IsClosed() {
-		return ErrConnClosed
+		return kkerrors.ErrConnClosed
 	}
 	// if !CheckReqResp(req, rsp) {
 	// 	kklog.Errorf("req resp type not match")
@@ -153,7 +154,7 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 // 无响应调用（没有结果，单向调用）
 func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, method string, req *T, opts CallConfig) error {
 	if i.sender.getPending().IsClosed() {
-		return ErrConnClosed
+		return kkerrors.ErrConnClosed
 	}
 	// if !CheckReqResp(req, rsp) {
 	// 	kklog.Errorf("req resp type not match")
