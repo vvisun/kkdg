@@ -18,7 +18,7 @@ func NewGameComponent() *gameComponent {
 // 业务服：游戏服
 type gameComponent struct {
 	component.Component
-	pid      *actor.PID
+	pid       *actor.PID
 	discovery kkdiscovery.IDiscovery
 	cluster   kkcluster.ICluster
 }
@@ -96,7 +96,7 @@ func (slf *gameComponent) onClusterPublish(sourceNodeID string, packet *kkcluste
 	resp := &kkcluster.ClusterPacket{
 		FuncName: packet.FuncName,
 		ArgBytes: append([]byte(nil), packet.ArgBytes...),
-		Session:  packet.Session,
+		Sid:      packet.Sid,
 	}
 	if err := slf.cluster.PublishRemote(sourceNodeID, resp); err != nil {
 		kklog.Errorf("[ccgame] publish response to %s error: %v", sourceNodeID, err)

@@ -1,5 +1,7 @@
 package ccgate
 
+import "github.com/vvisun/kkdg/kknet/kkpacket"
+
 // Option configures the gate component.
 type Option struct {
 	TCPAddr string
@@ -12,4 +14,7 @@ type Option struct {
 	// LogicNodeType is the target node type for game logic nodes.
 	// If empty, defaults to "logic".
 	LogicNodeType string
+
+	// MsgRouter for resolving msgID to route. If nil, uses NewMsgRouter().
+	MsgRouter *kkpacket.MsgRouter
 }

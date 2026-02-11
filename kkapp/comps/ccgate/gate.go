@@ -42,7 +42,8 @@ var _ component.IComponent = (*gateComponent)(nil)
 // NewGateComponent creates a new gate component.
 func NewGateComponent(opt Option) *gateComponent {
 	return &gateComponent{
-		opt: opt,
+		opt:       opt,
+		msgRouter: opt.MsgRouter,
 	}
 }
 
@@ -55,6 +56,9 @@ func (slf *gateComponent) Init() error {
 		if v, ok := slf.GetApplication().GetNodeInfo().GetSetting("nats_url"); ok {
 			slf.opt.NatsURL = v
 		}
+	}
+	if slf.msgRouter == nil {
+		slf.msgRouter = kkpacket.NewMsgRouter()
 	}
 
 	// 创建 handler
@@ -145,20 +149,18 @@ func (slf *gateComponent) ForwardToLogic(sessionID string, msgRoute string, msgB
 		return nil
 	}
 
-	pkt := kkcluster.NewClusterPacket()
+	pkt := kkcluster.ClusterPacket{}
 	pkt.FuncName = msgRoute
 	pkt.ArgBytes = append([]byte(nil), msgBytes...)
-	pkt.Session = &kkcluster.Session{
-		Sid: sessionID,
-	}
-	return slf.cluster.PublishRemoteType(slf.opt.LogicNodeType, pkt)
+	pkt.Sid = sessionID
+	return slf.cluster.PublishRemoteType(slf.opt.LogicNodeType, &pkt)
 }
 
 func (slf *gateComponent) onClusterPublish(_ string, packet *kkcluster.ClusterPacket) {
-	if packet == nil || packet.Session == nil || packet.Session.Sid == "" {
+	if packet == nil || packet.Sid == "" {
 		return
 	}
-	v, ok := slf.connMap.Load(packet.Session.Sid)
+	v, ok := slf.connMap.Load(packet.Sid)
 	if !ok {
 		return
 	}
@@ -254,8 +256,8 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 
 	// server handler gives us a frame [length,message]. unpack to [message].
 	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
-	kkbuffer.Put(data)
 	if err != nil {
+		kkbuffer.Put(data)
 		kklog.Errorf("[ccgate] unpack stream packet error: %v", err)
 		return
 	}
@@ -271,4 +273,5 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if err := h.gate.ForwardToLogic(sessionID, route, msgBytes); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}
+	kkbuffer.Put(data)
 }
