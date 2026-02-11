@@ -13,19 +13,19 @@ type RpcHandlerFunc[T any, R any] func(ctx context.Context, msg *T, resp *R) err
 
 // 消息接收器
 type IRpcHandler interface {
-	// 获取消息ID
-	GetMsgID() any
+	// GetMethod 返回 RPC 方法名
+	GetMethod() string
 	// 消息回调
 	OnMsg(ctx context.Context, payload []byte, frameType FrameType) ([]byte, error)
 }
 
 type RpcHandler[T any, R any] struct {
-	call  RpcHandlerFunc[T, R]
-	msgID any
+	call   RpcHandlerFunc[T, R]
+	method string
 }
 
-func (h *RpcHandler[T, R]) GetMsgID() any {
-	return h.msgID
+func (h *RpcHandler[T, R]) GetMethod() string {
+	return h.method
 }
 
 func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameType FrameType) ([]byte, error) {
@@ -54,7 +54,7 @@ func (h *RpcHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameType 
 //---------------------------------------------------------------
 
 type RpcReceiver struct {
-	hdMap map[interface{}]IRpcHandler
+	hdMap map[string]IRpcHandler
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
@@ -141,20 +141,20 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 
 //---------------------------------------------------------------
 
-func newRpcHandler[T any, R any](method any, call RpcHandlerFunc[T, R]) *RpcHandler[T, R] {
-	var handler RpcHandler[T, R]
-	handler.call = call
-	handler.msgID = method
-	return &handler
+func newRpcHandler[T any, R any](method string, call RpcHandlerFunc[T, R]) *RpcHandler[T, R] {
+	return &RpcHandler[T, R]{
+		call:   call,
+		method: method,
+	}
 }
 
 func NewRpcReceiver() *RpcReceiver {
 	return &RpcReceiver{
-		hdMap: make(map[interface{}]IRpcHandler),
+		hdMap: make(map[string]IRpcHandler),
 	}
 }
 
-func RegistRpcHandler[T any, R any](router *RpcReceiver, method any, call RpcHandlerFunc[T, R]) {
+func RegistRpcHandler[T any, R any](router *RpcReceiver, method string, call RpcHandlerFunc[T, R]) {
 	h := newRpcHandler(method, call)
 	router.hdMap[method] = h
 }
