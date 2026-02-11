@@ -15,7 +15,7 @@ func genReqId() uint64 {
 }
 
 type CallConfig struct {
-	timeout time.Duration
+	Timeout time.Duration
 }
 
 type IRpcClient interface {

@@ -77,7 +77,7 @@ func Test_Invoke_Timeout(t *testing.T) {
 	req := testReq{ID: 1, Data: "timeout"}
 	var resp testRsp
 	invoker := NewRpcInvoker[testReq, testRsp](cli)
-	err := invoker.Invoke(context.Background(), "test", &req, CallConfig{timeout: 100 * time.Millisecond}, &resp)
+	err := invoker.Invoke(context.Background(), "test", &req, CallConfig{Timeout: 100 * time.Millisecond}, &resp)
 	if !errors.Is(err, kkerrors.ErrTimeout) {
 		t.Fatalf("expected ErrTimeout, got %v", err)
 	}
@@ -194,6 +194,45 @@ func Test_InvokeAsync_Error(t *testing.T) {
 	}
 	if gotErr == nil || !strings.Contains(gotErr.Error(), "远程方法执行失败") {
 		t.Fatalf("unexpected error: %v", gotErr)
+	}
+}
+
+// 异步调用超时：handler 长时间不返回，设置较短超时，期望 callback 收到 ErrTimeout 且只回调一次
+func Test_InvokeAsync_Timeout(t *testing.T) {
+	_, cli := newTestServerClient(t, func(ctx context.Context, msg *testReq, resp *testRsp) error {
+		time.Sleep(300 * time.Millisecond)
+		resp.Code = 0
+		resp.Msg = "late"
+		return nil
+	})
+
+	req := testReq{ID: 1, Data: "async-timeout"}
+	invoker := NewRpcInvoker[testReq, testRsp](cli)
+
+	done := make(chan struct{})
+	var callCount int
+	var gotErr error
+
+	err := invoker.InvokeAsync(context.Background(), "test", &req, CallConfig{Timeout: 80 * time.Millisecond}, func(r *testRsp, e error) {
+		callCount++
+		gotErr = e
+		close(done)
+	})
+	if err != nil {
+		t.Fatalf("InvokeAsync: %v", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("InvokeAsync timeout waiting for callback")
+	}
+
+	if callCount != 1 {
+		t.Fatalf("expected callback once, got %d", callCount)
+	}
+	if !errors.Is(gotErr, kkerrors.ErrTimeout) {
+		t.Fatalf("expected ErrTimeout, got %v", gotErr)
 	}
 }
 

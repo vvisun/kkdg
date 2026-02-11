@@ -54,6 +54,15 @@ func (p *pendingMap) delCallback(reqId uint64) {
 	p.mu.Unlock()
 }
 
+// takeCallback 移除并返回指定 reqId 的 callback，用于超时等场景下保证只回调一次。
+func (p *pendingMap) takeCallback(reqId uint64) (fn func(Frame), ok bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	fn, ok = p.cbMap[reqId]
+	delete(p.cbMap, reqId)
+	return fn, ok && fn != nil
+}
+
 func (p *pendingMap) closeAll() {
 	if p.closed.Load() {
 		return

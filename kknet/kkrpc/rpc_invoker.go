@@ -62,7 +62,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		return err
 	}
 
-	timeout := opts.timeout
+	timeout := opts.Timeout
 	if dl, ok := ctx.Deadline(); ok {
 		if d := time.Until(dl); d > 0 && (timeout <= 0 || d < timeout) {
 			timeout = d
@@ -108,27 +108,27 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 	}
 }
 
-// 异步调用（非阻塞等待结果）
+// 异步调用（非阻塞等待结果）。若 opts 或 ctx 设置了超时，超时未收到响应会调用 callback(nil, ErrTimeout)，且仅回调一次。
 func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrConnClosed
 	}
-	// if !CheckReqResp(req, rsp) {
-	// 	kklog.Errorf("req resp type not match")
-	// 	return ErrInvalidReqResp
-	// }
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	reqId := genReqId()
 	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
+	pending := i.sender.getPending()
 	var respInfo R
-	i.sender.getPending().addCallback(reqId, func(fr Frame) {
+	pending.addCallback(reqId, func(fr Frame) {
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
-		i.sender.getPending().delCallback(reqId)
+		pending.delCallback(reqId)
 
 		err := ErrRpc(fr.Code, fr.Err)
 		if err != nil {
@@ -145,8 +145,22 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 	err = i.sender.SendBuffer(0, bb)
 	if err != nil {
 		callback(nil, err)
-		i.sender.getPending().delCallback(reqId)
+		pending.delCallback(reqId)
 		return err
+	}
+
+	timeout := opts.Timeout
+	if dl, ok := ctx.Deadline(); ok {
+		if d := time.Until(dl); d > 0 && (timeout <= 0 || d < timeout) {
+			timeout = d
+		}
+	}
+	if timeout > 0 {
+		time.AfterFunc(timeout, func() {
+			if _, ok := pending.takeCallback(reqId); ok {
+				callback(nil, kkerrors.ErrTimeout)
+			}
+		})
 	}
 	return nil
 }
