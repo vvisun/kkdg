@@ -26,4 +26,6 @@ var (
 	ErrConnNotSet = errors.New("connection is not set")
 	// 重连尝试次数超出。重连失败。
 	ErrReconnectAttemptsExceeded = errors.New("reconnect attempts exceeded")
+	// 连接未找到
+	ErrConnNotFound = errors.New("conn not found")
 )
