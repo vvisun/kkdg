@@ -23,6 +23,8 @@ type NatsCluster struct {
 	requestSub *nats.Subscription
 	requestMap map[string]chan *kkcluster.ClusterResponse
 	requestMu  sync.RWMutex
+	reqMap     map[string]*asyncReq
+	reqMu      sync.Mutex
 
 	// 发布消息订阅
 	publishSub *nats.Subscription
@@ -49,6 +51,12 @@ type NatsCluster struct {
 
 var _ kkcluster.ICluster = (*NatsCluster)(nil)
 
+// asyncReq 异步请求，直接用 callback 避免 channel 分配
+type asyncReq struct {
+	cb  func(data []byte, errCode kkcluster.ClusterErrorCode)
+	sub *nats.Subscription
+}
+
 // NewNatsCluster 创建新的NATS集群
 func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options ...nats.Option) kkcluster.ICluster {
 	return &NatsCluster{
@@ -56,6 +64,7 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 		nodeType:   nodeType,
 		discovery:  discovery,
 		requestMap: make(map[string]chan *kkcluster.ClusterResponse),
+		reqMap:     make(map[string]*asyncReq),
 		stopCh:     make(chan struct{}),
 		options:    options,
 	}
@@ -241,7 +250,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	return nil
 }
 
-// RequestRemoteAsync 异步请求（不阻塞），结果通过 callback 回调
+// RequestRemoteAsync 异步请求（不阻塞），结果通过 callback 回调。使用 reqMap 避免 channel 分配
 func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.ClusterPacket, callback func(data []byte, errCode kkcluster.ClusterErrorCode), timeout ...time.Duration) error {
 	if packet == nil {
 		return kkerrors.ErrInvalidPacket
@@ -263,10 +272,10 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 
 	requestID := c.generateRequestID()
 
-	responseCh := make(chan *kkcluster.ClusterResponse, 1)
-	c.requestMu.Lock()
-	c.requestMap[requestID] = responseCh
-	c.requestMu.Unlock()
+	pending := &asyncReq{cb: callback}
+	c.reqMu.Lock()
+	c.reqMap[requestID] = pending
+	c.reqMu.Unlock()
 
 	reqMsg := &kkcluster.ClusterRequest{
 		RequestID:    requestID,
@@ -277,9 +286,9 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 	data, err := msgCodec.Marshal(reqMsg)
 	kkcluster.PutClusterPacket(packet)
 	if err != nil {
-		c.requestMu.Lock()
-		delete(c.requestMap, requestID)
-		c.requestMu.Unlock()
+		c.reqMu.Lock()
+		delete(c.reqMap, requestID)
+		c.reqMu.Unlock()
 		c.stats.AddError()
 		return err
 	}
@@ -291,25 +300,39 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 			kklog.Errorf("NatsCluster unmarshal response failed: %v", err)
 			return
 		}
-		select {
-		case responseCh <- &resp:
-		default:
+		c.reqMu.Lock()
+		p := c.reqMap[requestID]
+		delete(c.reqMap, requestID)
+		c.reqMu.Unlock()
+		if p != nil && p.sub != nil {
+			_ = p.sub.Unsubscribe()
+			c.stats.AddResponseReceived(len(resp.Data))
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						c.stats.AddError()
+						kklog.Errorf("NatsCluster RequestRemoteAsync callback panic: %v", r)
+					}
+				}()
+				p.cb(resp.Data, kkcluster.ClusterErrorCode(resp.Code))
+			}()
 		}
 	})
 	if err != nil {
-		c.requestMu.Lock()
-		delete(c.requestMap, requestID)
-		c.requestMu.Unlock()
+		c.reqMu.Lock()
+		delete(c.reqMap, requestID)
+		c.reqMu.Unlock()
 		c.stats.AddError()
 		return kkcluster.ErrFromCode(kkcluster.ClusterErrorCodeSubscribeFailed)
 	}
+	pending.sub = responseSub
 
 	requestSubject := c.getRequestSubjectForNode(nodeID)
 	if err := c.conn.Publish(requestSubject, data); err != nil {
 		_ = responseSub.Unsubscribe()
-		c.requestMu.Lock()
-		delete(c.requestMap, requestID)
-		c.requestMu.Unlock()
+		c.reqMu.Lock()
+		delete(c.reqMap, requestID)
+		c.reqMu.Unlock()
 		c.stats.AddError()
 		return err
 	}
@@ -317,24 +340,23 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 	c.stats.AddRequestSent(len(data))
 
 	go func() {
-		defer func() {
-			_ = responseSub.Unsubscribe()
-			c.requestMu.Lock()
-			delete(c.requestMap, requestID)
-			c.requestMu.Unlock()
-			if r := recover(); r != nil {
-				c.stats.AddError()
-				kklog.Errorf("NatsCluster RequestRemoteAsync callback panic: %v", r)
-			}
-		}()
-
-		select {
-		case resp := <-responseCh:
-			c.stats.AddResponseReceived(len(resp.Data))
-			callback(resp.Data, kkcluster.ClusterErrorCode(resp.Code))
-		case <-time.After(reqTimeout):
+		time.Sleep(reqTimeout)
+		c.reqMu.Lock()
+		p := c.reqMap[requestID]
+		delete(c.reqMap, requestID)
+		c.reqMu.Unlock()
+		if p != nil && p.sub != nil {
+			_ = p.sub.Unsubscribe()
 			c.stats.AddError()
-			callback(nil, kkcluster.ClusterErrorCodeTimeout)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						c.stats.AddError()
+						kklog.Errorf("NatsCluster RequestRemoteAsync callback panic: %v", r)
+					}
+				}()
+				p.cb(nil, kkcluster.ClusterErrorCodeTimeout)
+			}()
 		}
 	}()
 
