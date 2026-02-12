@@ -5,16 +5,14 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-/*
-编码包。
-注意：外部需记得释放*kkbuffer.ByteBuffer！！！否则*kkbuffer.ByteBuffer得不到回收，性能反而更低！！！
-
-	@param v *T 消息对象（object）
-	@param stream IPacket 流包类型
-	@param messagePacket *MessagePacket 消息包
-	@return *kkbuffer.ByteBuffer 包数据[length,message]
-	@return error 错误
-*/
+/**编码包。
+ *注意：外部需记得释放*kkbuffer.ByteBuffer！！！否则*kkbuffer.ByteBuffer得不到回收，性能反而更低！！！
+ *@param v *T 消息对象（object）
+ *@param stream IPacket 流包类型
+ *@param messagePacket *MessagePacket 消息包
+ *@return *kkbuffer.ByteBuffer 包数据[length,message]
+ *@return error 错误
+ */
 func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffer.ByteBuffer, error) {
 	msgID := messagePacket.GetRouter().GetMsgID(v)
 	if msgID == 0 {

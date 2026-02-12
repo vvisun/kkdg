@@ -39,7 +39,7 @@ type (
 		@param connId CONN_ID 连接ID
 		@param data *kkbuffer.ByteBuffer 原始数据
 		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
-		@note 外部自行用解码器解码（内置的解码器见kkpacket/parser.go）
+		@note 外部自行用解码器解码（内置的解码器见kkpacket）
 		*/
 		OnRaw(connId CONN_ID, data *kkbuffer.ByteBuffer)
 	}

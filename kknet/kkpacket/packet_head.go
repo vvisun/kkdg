@@ -37,6 +37,9 @@ func (h *PacketHead) Marshal(headBytes []byte, endian binary.ByteOrder, valueLis
 	if len(headBytes) < h.size {
 		return kkerrors.ErrDataTooShortToMarshal
 	}
+	if len(valueList) < len(h.partList) {
+		return kkerrors.ErrValueListTooShortToMarshal
+	}
 	offset := 0
 	for i, part := range h.partList {
 		if err := part.Marshal(headBytes[offset:offset+part.GetSize()], endian, valueList[i]); err != nil {

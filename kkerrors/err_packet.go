@@ -26,6 +26,10 @@ var (
 	ErrDataTooShortToMarshal = errors.New("data too short to marshal")
 	// 数据太短，无法解码
 	ErrDataTooShortToUnmarshal = errors.New("data too short to unmarshal")
+	// 值列表太短，无法编码
+	ErrValueListTooShortToMarshal = errors.New("value list too short to marshal")
+	// 值列表太短，无法解码
+	ErrValueListTooShortToUnmarshal = errors.New("value list too short to unmarshal")
 )
 
 // -------------- for kkcodec -------------------
