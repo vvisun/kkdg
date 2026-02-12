@@ -17,6 +17,8 @@ type ICluster interface {
 	PublishRemoteType(nodeType string, packet *ClusterPacket) error
 	// 向指定节点发送请求，有response
 	RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, ClusterErrorCode)
+	// 向指定节点发送请求，有response，异步不阻塞
+	RequestRemoteAsync(nodeID string, packet *ClusterPacket, callback func(data []byte, errCode ClusterErrorCode), timeout ...time.Duration) error
 
 	// 设置发布消息处理器
 	SetPublishHandler(handler FunPublishHandler)

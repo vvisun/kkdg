@@ -1,5 +1,7 @@
 package kkcluster
 
+import "fmt"
+
 type ClusterErrorCode int32
 
 const (
@@ -24,3 +26,11 @@ const (
 	// 超时
 	ClusterErrorCodeTimeout
 )
+
+// ErrFromCode 将 ClusterErrorCode 转为 error，code 为 0 时返回 nil
+func ErrFromCode(code ClusterErrorCode) error {
+	if code == ClusterErrorCodeSuccess {
+		return nil
+	}
+	return fmt.Errorf("cluster error: code=%d", code)
+}

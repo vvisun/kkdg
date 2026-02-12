@@ -337,6 +337,108 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 	}
 }
 
+// TestNatsCluster_RequestRemoteAsync 测试异步请求
+func TestNatsCluster_RequestRemoteAsync(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Skipf("NATS not available: %v", err)
+	}
+
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "type1", "127.0.0.1:8081", "", nil)
+	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, nil, dnats.WithUrl(natsURL))
+	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, nil, dnats.WithUrl(natsURL))
+
+	if err := discovery1.Start(); err != nil {
+		t.Fatalf("discovery1.Start() failed: %v", err)
+	}
+	defer discovery1.Stop()
+
+	if err := discovery2.Start(); err != nil {
+		t.Fatalf("discovery2.Start() failed: %v", err)
+	}
+	defer discovery2.Stop()
+
+	if !waitForMembers(discovery1, 1, 3*time.Second) {
+		t.Fatal("discovery1 did not discover node2")
+	}
+
+	cluster1 := cnats.NewNatsCluster("node1", "type1", discovery1, cnats.WithUrl(natsURL))
+	cluster2 := cnats.NewNatsCluster("node2", "type1", discovery2, cnats.WithUrl(natsURL))
+
+	if err := cluster1.Init(); err != nil {
+		t.Fatalf("cluster1.Init() failed: %v", err)
+	}
+	defer cluster1.Stop()
+
+	if err := cluster2.Init(); err != nil {
+		t.Fatalf("cluster2.Init() failed: %v", err)
+	}
+	defer cluster2.Stop()
+
+	time.Sleep(200 * time.Millisecond)
+
+	// 测试 nil callback 返回错误
+	packet := &kkcluster.ClusterPacket{FuncName: "test", ArgBytes: []byte("req")}
+	err = cluster1.RequestRemoteAsync("node2", packet, nil, 2*time.Second)
+	if err == nil {
+		t.Error("RequestRemoteAsync with nil callback should return error")
+	}
+
+	// 测试异步回调（与 RequestRemote 类似，无 handler 时收到 Fail 响应）
+	packet = &kkcluster.ClusterPacket{FuncName: "test", ArgBytes: []byte("req")}
+	done := make(chan struct{})
+	var gotData []byte
+	var gotCode kkcluster.ClusterErrorCode
+
+	err = cluster1.RequestRemoteAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
+		gotData = data
+		gotCode = code
+		close(done)
+	}, 2*time.Second)
+	if err != nil {
+		t.Fatalf("RequestRemoteAsync() failed: %v", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("RequestRemoteAsync callback timeout")
+	}
+
+	// 无 handler 时收到 Fail
+	if gotCode != kkcluster.ClusterErrorCodeFail {
+		t.Errorf("RequestRemoteAsync expected ClusterErrorCodeFail, got %v", gotCode)
+	}
+	_ = gotData
+}
+
+// TestNatsCluster_RequestRemoteAsync_NotFound 测试异步请求到不存在的节点
+func TestNatsCluster_RequestRemoteAsync_NotFound(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Skipf("NATS not available: %v", err)
+	}
+
+	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
+	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil, dnats.WithUrl(natsURL))
+	cluster := cnats.NewNatsCluster("node1", "type1", discovery, cnats.WithUrl(natsURL))
+
+	if err := cluster.Init(); err != nil {
+		t.Fatalf("Init() failed: %v", err)
+	}
+	defer cluster.Stop()
+
+	packet := &kkcluster.ClusterPacket{FuncName: "test", ArgBytes: []byte("hello")}
+	err = cluster.RequestRemoteAsync("nonexistent", packet, func([]byte, kkcluster.ClusterErrorCode) {}, 2*time.Second)
+	if err == nil {
+		t.Error("RequestRemoteAsync should return error for nonexistent node")
+	}
+	if err != kkerrors.ErrMemberNotFound {
+		t.Errorf("RequestRemoteAsync error = %v, want ErrMemberNotFound", err)
+	}
+}
+
 // TestNatsCluster_Stop 测试停止
 func TestNatsCluster_Stop(t *testing.T) {
 	_, natsURL, err := startTestNatsServer()
