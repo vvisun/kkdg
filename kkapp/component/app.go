@@ -88,6 +88,7 @@ func (slf *Application) Stop() error {
 
 func (slf *Application) AddComponent(comp IComponent) error {
 	if slf.HasComponent(comp) {
+		kklog.Errorf("[kkapp] application %s add component %s repeat: %v", slf.GetNodeId(), comp.GetID(), kkerrors.ErrComponentAlreadyAdded)
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	comp.SetApplication(slf)

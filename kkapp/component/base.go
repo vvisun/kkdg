@@ -9,9 +9,6 @@ type IComponentLifecycle interface {
 	Init() error  //初始化组件
 	Start() error //启动组件
 	Stop() error  //停止组件
-	//OnInit() error  //初始化组件时调用
-	//OnStart() error //启动组件时调用
-	//OnStop() error  //停止组件时调用
 }
 
 type IComponentContainer interface {
@@ -105,27 +102,12 @@ func (slf *Component) Init() error {
 	return nil
 }
 
-// OnInit was called to initialize the component.
-func (slf *Component) OnInit() error {
-	return nil
-}
-
 // Start was called to start the component.
 func (slf *Component) Start() error {
 	return nil
 }
 
-// OnStart was called to start the component.
-func (slf *Component) OnStart() error {
-	return nil
-}
-
 // Stop was called to stop the component.
 func (slf *Component) Stop() error {
-	return nil
-}
-
-// OnStop was called to stop the component.
-func (slf *Component) OnStop() error {
 	return nil
 }
