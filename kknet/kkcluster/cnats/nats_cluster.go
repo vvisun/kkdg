@@ -487,13 +487,15 @@ func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 	}
 }
 
+const maxUint64 = ^uint64(0)
+
 // generateRequestID 生成请求ID
 func (c *NatsCluster) generateRequestID() string {
 	seq := atomic.AddUint64(&c.requestSeq, 1)
-	if seq > 900000000 {
-		// 防止溢出。这时候为1的请求必然已经失效，所以是安全的。
+	if seq >= maxUint64 {
+		// 如果超过uint64最大值，则重置为1。这时候为1的请求必然已经失效，所以是安全的。
+		atomic.StoreUint64(&c.requestSeq, 1)
 		seq = 1
-		atomic.StoreUint64(&c.requestSeq, seq)
 	}
 	return c.nodeID + "." + strconv.FormatUint(seq, 10)
 }
