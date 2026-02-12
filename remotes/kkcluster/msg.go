@@ -1,5 +1,11 @@
 package kkcluster
 
+import (
+	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/kkpool"
+)
+
 type (
 	// ClusterPacket 集群消息包
 	ClusterPacket struct {
@@ -34,18 +40,27 @@ type (
 	}
 )
 
-// var gClusterPacketPool = kkpool.NewSfxPool(func() *ClusterPacket {
-// 	return &ClusterPacket{}
-// })
+const max_size_for_pool = 4096
 
-// func NewClusterPacket() *ClusterPacket {
-// 	return gClusterPacketPool.Get()
-// }
+var gPoolSize atomic.Int64 //池中对象数量
+var gClusterPacketPool = kkpool.NewSfxPool(func() *ClusterPacket { return &ClusterPacket{} })
 
-// func PutClusterPacket(packet *ClusterPacket) {
-// 	if packet == nil {
-// 		return
-// 	}
-// 	*packet = ClusterPacket{}
-// 	gClusterPacketPool.Put(packet)
-// }
+func NewClusterPacket() *ClusterPacket {
+	if gPoolSize.Load() > 0 {
+		gPoolSize.Add(-1)
+	}
+	return gClusterPacketPool.Get()
+}
+
+var emptyClusterPacket = ClusterPacket{}
+
+func PutClusterPacket(packet *ClusterPacket) {
+	if packet == nil {
+		return
+	}
+	if gPoolSize.Load() > max_size_for_pool {
+		return // 直接丢弃，防止池过大耗尽内存
+	}
+	*packet = emptyClusterPacket // 清空数据
+	gClusterPacketPool.Put(packet)
+}

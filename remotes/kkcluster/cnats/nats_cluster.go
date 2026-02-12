@@ -183,7 +183,7 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 
 	// 序列化消息
 	data, err := msgCodec.Marshal(packet)
-	// kkcluster.PutClusterPacket(packet)
+	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return err
@@ -222,7 +222,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 
 	// 序列化消息（只序列化一次）
 	data, err := msgCodec.Marshal(packet)
-	// kkcluster.PutClusterPacket(packet)
+	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return err
@@ -285,7 +285,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 
 	// 序列化请求
 	data, err := msgCodec.Marshal(reqMsg)
-	// kkcluster.PutClusterPacket(packet)
+	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return nil, kkcluster.ClusterErrorCodeMarshalFailed

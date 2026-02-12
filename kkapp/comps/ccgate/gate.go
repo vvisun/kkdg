@@ -149,11 +149,11 @@ func (slf *gateComponent) ForwardToLogic(sessionID string, msgRoute string, msgB
 		return nil
 	}
 
-	pkt := kkcluster.ClusterPacket{}
+	pkt := kkcluster.NewClusterPacket()
 	pkt.FuncName = msgRoute
 	pkt.ArgBytes = append([]byte(nil), msgBytes...)
 	pkt.Sid = sessionID
-	return slf.cluster.PublishRemoteType(slf.opt.LogicNodeType, &pkt)
+	return slf.cluster.PublishRemoteType(slf.opt.LogicNodeType, pkt)
 }
 
 func (slf *gateComponent) onClusterPublish(_ string, packet *kkcluster.ClusterPacket) {
