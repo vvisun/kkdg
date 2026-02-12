@@ -12,8 +12,10 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 )
 
-func init() {
-	// 统一注册，避免多测试重复注册导致 panic。testReq/testRsp 只能注册一次。
+// setupTestRpcManager 测试前清理并注册 testReq/testRsp 相关方法
+func setupTestRpcManager(t *testing.T) {
+	t.Helper()
+	clearRpcManager()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 	RegisterOneWayMethod[testReq]("testOneway")
 }
@@ -59,6 +61,7 @@ func newTestServerClient(t *testing.T, rpcRouter *RpcReceiver) (*Server, *Client
 }
 
 func Test_RpcProcessor(t *testing.T) {
+	setupTestRpcManager(t)
 	rpcRouter := NewRpcReceiver()
 	rp := &rpcProcessor{}
 	RegistReqRspHandler(rpcRouter, "testReqRsp", rp.onTestReqTestRsp)
@@ -90,6 +93,7 @@ func Test_RpcProcessor(t *testing.T) {
 // newTestServerClientWithHandler 创建带自定义 handler 的 Server/Client，用于测试超时、错误等场景
 func newTestServerClientWithHandler(t *testing.T, handler ReqRspHandlerFunc[testReq, testRsp]) (*Server, *Client) {
 	t.Helper()
+	setupTestRpcManager(t)
 	rpcRouter := NewRpcReceiver()
 	RegistReqRspHandler(rpcRouter, "testReqRsp", handler)
 	return newTestServerClient(t, rpcRouter)
@@ -260,6 +264,7 @@ func Test_InvokeAsync_Timeout(t *testing.T) {
 }
 
 func Test_InvokeNR(t *testing.T) {
+	setupTestRpcManager(t)
 	called := make(chan struct{}, 1)
 	rpcRouter := NewRpcReceiver()
 	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq) error {

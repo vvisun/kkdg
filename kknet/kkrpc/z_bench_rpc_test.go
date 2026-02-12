@@ -11,6 +11,9 @@ import (
 )
 
 func Benchmark_InvokeUnary(b *testing.B) {
+	clearRpcManager()
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		b.Fatalf("listen: %v", err)
@@ -52,6 +55,9 @@ func Benchmark_InvokeUnary(b *testing.B) {
 }
 
 func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
+	clearRpcManager()
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		b.Fatalf("listen: %v", err)
@@ -94,6 +100,9 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 }
 
 func Benchmark_EncodeRpcFrame(b *testing.B) {
+	clearRpcManager()
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
+
 	msg := &testReq{ID: 1, Data: "benchmark"}
 	b.ResetTimer()
 	b.ReportAllocs()
