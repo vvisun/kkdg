@@ -88,6 +88,7 @@ func (wp *WriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		//发送队列已满，返回错误。
 		//暂时直接返回，后续可以考虑丢弃/阻塞/...。
 		kkbuffer.Put(buffer)
+		// todo: 回调失败通知
 		return kkerrors.ErrSendQueueFull
 	}
 	if wasEmpty && !nowEmpty {

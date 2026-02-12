@@ -108,6 +108,7 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 		ok := rp.recvQueue.Push(bb)
 		if !ok {
 			kkbuffer.Put(bb)
+			// todo: 回调失败通知
 		}
 	}
 	nowEmpty := rp.recvQueue.IsEmpty()
@@ -169,6 +170,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 			ok := rp.recvQueue.Push(bb)
 			if !ok {
 				kkbuffer.Put(bb)
+				// todo: 回调失败通知
 			}
 		}
 	}

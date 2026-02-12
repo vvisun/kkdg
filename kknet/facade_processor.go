@@ -49,8 +49,7 @@ type (
 		/*OnNoneCopy is called when a raw data is received.
 		如果同步调用已经快过拷贝，可以直接同步消费数据，实现0拷贝优化。
 		@param connId CONN_ID 连接ID
-		@param data *kkbuffer.ByteBuffer 原始数据
-		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
+		@param data 为 slice，调用方不 Put，handler 不得保存 slice 引用. 如需保存，请自行拷贝。
 		*/
 		OnNoneCopy(connId CONN_ID, data []byte)
 	}
