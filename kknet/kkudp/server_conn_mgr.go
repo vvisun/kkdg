@@ -54,6 +54,15 @@ func (m *serverConnMgr) GetAllConns() map[kknet.CONN_ID]kknet.IConn {
 	return out
 }
 
+// RangeAllConns ranges all connections.
+func (m *serverConnMgr) RangeAllConns(fn func(id kknet.CONN_ID, conn kknet.IConn)) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for id, conn := range m.conns {
+		fn(id, conn)
+	}
+}
+
 // GetConn returns a connection by id.
 func (m *serverConnMgr) GetConn(id kknet.CONN_ID) kknet.IConn {
 	m.mu.RLock()
