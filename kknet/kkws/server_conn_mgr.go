@@ -2,7 +2,6 @@ package kkws
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
 )
@@ -10,13 +9,11 @@ import (
 type serverConnMgr struct {
 	mu    sync.RWMutex
 	conns map[kknet.CONN_ID]*wsConn
-	count int64
 }
 
 func newServerConnMgr() *serverConnMgr {
 	return &serverConnMgr{
 		conns: make(map[kknet.CONN_ID]*wsConn),
-		count: 0,
 	}
 }
 
@@ -30,18 +27,13 @@ func (m *serverConnMgr) addConn(c *wsConn) {
 	m.mu.Lock()
 	m.conns[c.ID()] = c
 	m.mu.Unlock()
-	atomic.AddInt64(&m.count, 1)
 }
 
 // removeConn removes a connection from manager.
 func (m *serverConnMgr) removeConn(id kknet.CONN_ID) {
-	if m.GetConn(id) == nil {
-		return
-	}
 	m.mu.Lock()
 	delete(m.conns, id)
 	m.mu.Unlock()
-	atomic.AddInt64(&m.count, -1)
 }
 
 // GetAllConns returns a snapshot of all connections.
@@ -85,6 +77,8 @@ func (m *serverConnMgr) KickConn(id kknet.CONN_ID) {
 }
 
 // GetCount returns the number of connections.
-func (m *serverConnMgr) GetCount() int64 {
-	return atomic.LoadInt64(&m.count)
+func (m *serverConnMgr) GetCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.conns)
 }

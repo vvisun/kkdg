@@ -60,7 +60,7 @@ type IConnManager interface {
 	RangeAllConns(fn func(id CONN_ID, conn IConn)) //遍历所有连接
 	GetConn(id CONN_ID) IConn                      //获取指定连接
 	KickConn(id CONN_ID)                           //踢出指定连接
-	GetCount() int64                               //获取连接数量
+	GetCount() int                                 //获取连接数量
 }
 
 // IServer represents a server.
