@@ -2,7 +2,6 @@ package ccgame
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
@@ -36,18 +35,14 @@ func (slf *gameComponent) Init() error {
 		natsURL = v
 	}
 
-	var opts []nats.Option
-	if natsURL != "" {
-		opts = append(opts, dnats.WithUrl(natsURL))
-	}
-
 	// discovery + cluster for receiving forwarded messages from gate
-	slf.discovery = dnats.NewNatsDiscovery("logic."+slf.GetApplication().GetNodeId(), nodeInfo, nil, opts...)
+	opts := dnats.ApplyNatsOptions(dnats.WithUrl(natsURL))
+	slf.discovery = dnats.NewNatsDiscovery("logic."+slf.GetApplication().GetNodeId(), nodeInfo, nil, opts)
 	slf.cluster = cnats.NewNatsCluster(
 		slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeType(),
 		slf.discovery,
-		opts...,
+		opts,
 	)
 	slf.cluster.SetPublishHandler(slf.onClusterPublish)
 	return nil

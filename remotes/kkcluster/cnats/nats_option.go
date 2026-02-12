@@ -16,7 +16,7 @@ func defaultNatsOptions() nats.Options {
 	return opts
 }
 
-func applyNatsOptions(options ...nats.Option) nats.Options {
+func ApplyNatsOptions(options ...nats.Option) nats.Options {
 	opts := defaultNatsOptions()
 	for _, option := range options {
 		option(&opts)

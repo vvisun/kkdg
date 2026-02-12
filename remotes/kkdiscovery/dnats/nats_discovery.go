@@ -51,11 +51,10 @@ type NatsDiscovery struct {
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
-func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string]string, options ...nats.Option) kkdiscovery.IDiscovery {
+func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string]string, opts nats.Options) kkdiscovery.IDiscovery {
 	if settings == nil {
 		settings = make(map[string]string)
 	}
-	opts := applyNatsOptions(options...)
 	return &NatsDiscovery{
 		name:        name,
 		nodeID:      nodeInfo.GetNodeId(),

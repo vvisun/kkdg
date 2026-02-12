@@ -47,7 +47,7 @@ type NatsCluster struct {
 
 	stopCh chan struct{}
 
-	options []nats.Option
+	options nats.Options
 }
 
 var _ kkcluster.ICluster = (*NatsCluster)(nil)
@@ -59,7 +59,7 @@ type asyncReq struct {
 }
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options ...nats.Option) kkcluster.ICluster {
+func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options nats.Options) kkcluster.ICluster {
 	return &NatsCluster{
 		nodeID:     nodeID,
 		nodeType:   nodeType,
@@ -78,8 +78,7 @@ func (c *NatsCluster) Init() error {
 
 // connectAndSubscribe 连接NATS并订阅主题
 func (c *NatsCluster) connectAndSubscribe() error {
-	// 配置NATS连接选项，启用自动重连
-	opts := applyNatsOptions(c.options...)
+	opts := &c.options
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {

@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -66,22 +65,16 @@ func (slf *gateComponent) Init() error {
 
 	// 初始化 discovery
 	nodeInfo1 := slf.GetApplication().GetNodeInfo()
-	var discoveryOpts []nats.Option
-	if slf.opt.NatsURL != "" {
-		discoveryOpts = append(discoveryOpts, dnats.WithUrl(slf.opt.NatsURL))
-	}
-	slf.discovery = dnats.NewNatsDiscovery("gate."+slf.GetApplication().GetNodeId(), nodeInfo1, nil, discoveryOpts...)
+	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.NatsURL))
+	slf.discovery = dnats.NewNatsDiscovery("gate."+slf.GetApplication().GetNodeId(), nodeInfo1, nil, discoveryOpts)
 
 	// 初始化 cluster（用于 gate <-> logic 转发）
-	var clusterOpts []nats.Option
-	if slf.opt.NatsURL != "" {
-		clusterOpts = append(clusterOpts, cnats.WithUrl(slf.opt.NatsURL))
-	}
+	clusterOpts := cnats.ApplyNatsOptions(cnats.WithUrl(slf.opt.NatsURL))
 	slf.cluster = cnats.NewNatsCluster(
 		slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeType(),
 		slf.discovery,
-		clusterOpts...,
+		clusterOpts,
 	)
 	slf.cluster.SetPublishHandler(slf.onClusterPublish)
 

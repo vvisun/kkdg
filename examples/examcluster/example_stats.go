@@ -13,7 +13,7 @@ import (
 func ExampleStats() {
 	// 创建服务发现
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil)
+	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil, dnats.ApplyNatsOptions())
 
 	// 启动服务发现
 	if err := discovery.Start(); err != nil {
@@ -23,7 +23,7 @@ func ExampleStats() {
 	defer discovery.Stop()
 
 	// 创建集群
-	cluster := cnats.NewNatsCluster("node1", "type1", discovery, nil)
+	cluster := cnats.NewNatsCluster("node1", "type1", discovery, cnats.ApplyNatsOptions())
 	if err := cluster.Init(); err != nil {
 		fmt.Printf("Failed to init cluster: %v\n", err)
 		return

@@ -12,7 +12,7 @@ import (
 // TestNatsDiscovery_New 测试创建NatsDiscovery
 func TestNatsDiscovery_New(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery := NewNatsDiscovery("test", nodeInfo, nil)
+	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions())
 
 	if discovery == nil {
 		t.Fatal("NewNatsDiscovery returned nil")
@@ -36,7 +36,7 @@ func TestNatsDiscovery_StartStop(t *testing.T) {
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery := NewNatsDiscovery("test", nodeInfo, nil, WithUrl(natsURL))
+	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions(WithUrl(natsURL)))
 
 	if err := discovery.Start(); err != nil {
 		t.Fatalf("Start() failed: %v", err)
@@ -61,9 +61,9 @@ func TestNatsDiscovery_Discovery(t *testing.T) {
 
 	// 创建两个节点
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery1 := NewNatsDiscovery("test1", nodeInfo1, nil, WithUrl(natsURL))
+	discovery1 := NewNatsDiscovery("test1", nodeInfo1, nil, ApplyNatsOptions(WithUrl(natsURL)))
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "type1", "127.0.0.1:8081", "", nil)
-	discovery2 := NewNatsDiscovery("test2", nodeInfo2, nil, WithUrl(natsURL))
+	discovery2 := NewNatsDiscovery("test2", nodeInfo2, nil, ApplyNatsOptions(WithUrl(natsURL)))
 
 	// 启动两个节点
 	if err := discovery1.Start(); err != nil {
@@ -108,7 +108,7 @@ func TestNatsDiscovery_ListByType(t *testing.T) {
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery := NewNatsDiscovery("test", nodeInfo, nil, WithUrl(natsURL))
+	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions(WithUrl(natsURL)))
 
 	// 手动添加成员
 	member1 := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
@@ -143,7 +143,7 @@ func TestNatsDiscovery_ListByType(t *testing.T) {
 // TestNatsDiscovery_Random 测试随机获取成员
 func TestNatsDiscovery_Random(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery := NewNatsDiscovery("test", nodeInfo, nil)
+	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions())
 
 	// 空列表
 	member, found := discovery.Random("type1")
@@ -173,7 +173,7 @@ func TestNatsDiscovery_Random(t *testing.T) {
 // TestNatsDiscovery_GetType 测试获取节点类型
 func TestNatsDiscovery_GetType(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery := NewNatsDiscovery("test", nodeInfo, nil)
+	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions())
 
 	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.(*NatsDiscovery).addMember(member)
@@ -196,7 +196,7 @@ func TestNatsDiscovery_GetType(t *testing.T) {
 // TestNatsDiscovery_AddRemoveMember 测试添加和移除成员
 func TestNatsDiscovery_AddRemoveMember(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery := NewNatsDiscovery("test", nodeInfo, nil)
+	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions())
 
 	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.(*NatsDiscovery).addMember(member)
@@ -215,7 +215,7 @@ func TestNatsDiscovery_AddRemoveMember(t *testing.T) {
 // TestNatsDiscovery_Listeners 测试监听器
 func TestNatsDiscovery_Listeners(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery := NewNatsDiscovery("test", nodeInfo, nil)
+	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions())
 
 	addCalled := false
 	removeCalled := false
@@ -258,9 +258,9 @@ func TestNatsDiscovery_MemberTimeout(t *testing.T) {
 	}
 
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	discovery1 := NewNatsDiscovery("test1", nodeInfo1, nil, WithUrl(natsURL))
+	discovery1 := NewNatsDiscovery("test1", nodeInfo1, nil, ApplyNatsOptions(WithUrl(natsURL)))
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "type1", "127.0.0.1:8081", "", nil)
-	discovery2 := NewNatsDiscovery("test2", nodeInfo2, nil, WithUrl(natsURL))
+	discovery2 := NewNatsDiscovery("test2", nodeInfo2, nil, ApplyNatsOptions(WithUrl(natsURL)))
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
