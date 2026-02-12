@@ -14,9 +14,7 @@ type StatsSnapshot struct {
 	ClosedConns int64
 	RecvMsgs    int64
 	SentMsgs    int64
-	// RecvBytes   int64
-	// SentBytes   int64
-	Errors int64
+	Errors      int64
 }
 
 // Stats tracks connection and traffic counters.
@@ -26,9 +24,7 @@ type Stats struct {
 	closedConns int64 // 累计关闭连接数
 	recvMsgs    int64 // 累计接收消息数
 	sentMsgs    int64 // 累计发送消息数
-	// recvBytes   int64 // 累计接收字节数
-	// sentBytes   int64 // 累计发送字节数
-	errors int64 // 累计错误数
+	errors      int64 // 累计错误数
 }
 
 // OnConnect updates connection counters.
@@ -96,8 +92,6 @@ func PrintStress(stats *StatsSnapshot) {
 	kklog.Debugf("并发连接数：%d", stats.ActiveConns)
 	kklog.Debugf("累计接收消息量：%d", stats.RecvMsgs)
 	kklog.Debugf("累计发送消息量：%d", stats.SentMsgs)
-	// kklog.Debugf("累计接收字节数：%d", stats.RecvBytes)
-	// kklog.Debugf("累计发送字节数：%d", stats.SentBytes)
 	kklog.Debugf("累计错误数：%d", stats.Errors)
 	kklog.Debugf("堆内存占用：%d MB", heapUsed)
 	kklog.Debugf("单连接内存：%.2f KB/conn", perConnMem)

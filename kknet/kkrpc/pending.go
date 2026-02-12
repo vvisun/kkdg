@@ -72,7 +72,8 @@ func (p *pendingMap) closeAll() {
 	for id := range p.cbMap {
 		delete(p.cbMap, id)
 	}
-	for id := range p.chMap {
+	for id, ch := range p.chMap {
+		close(ch)
 		delete(p.chMap, id)
 	}
 	p.mu.Unlock()

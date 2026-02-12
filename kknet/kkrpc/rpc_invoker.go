@@ -105,7 +105,10 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 
 	if timer != nil {
 		select {
-		case fr := <-ch:
+		case fr, ok := <-ch:
+			if !ok {
+				return kkerrors.ErrConnClosed
+			}
 			return doReturn(fr)
 		case <-ctx.Done():
 			return ctx.Err()
@@ -114,7 +117,10 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		}
 	} else {
 		select {
-		case fr := <-ch:
+		case fr, ok := <-ch:
+			if !ok {
+				return kkerrors.ErrConnClosed
+			}
 			return doReturn(fr)
 		case <-ctx.Done():
 			return ctx.Err()
