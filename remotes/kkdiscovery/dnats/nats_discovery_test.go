@@ -6,7 +6,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kknet/kkdiscovery"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 )
 
 // TestNatsDiscovery_New 测试创建NatsDiscovery

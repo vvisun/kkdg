@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/vvisun/kkdg/kknet/kkdiscovery"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 )
 
 // startTestNatsServer 返回测试用的NATS服务器地址

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kknet/kkdiscovery"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 )
 
 // TestMember_NewMember 测试创建成员

@@ -6,9 +6,9 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/kknet/kkcluster"
-	"github.com/vvisun/kkdg/kknet/kkcluster/cnats"
-	"github.com/vvisun/kkdg/kknet/kkdiscovery/dnats"
+	"github.com/vvisun/kkdg/remotes/kkcluster"
+	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 )
 
 // TestNatsCluster_New 测试创建NatsCluster

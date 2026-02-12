@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kknet/kkcluster/cnats"
-	"github.com/vvisun/kkdg/kknet/kkdiscovery/dnats"
+	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 )
 
 // ExampleStats 统计信息使用示例

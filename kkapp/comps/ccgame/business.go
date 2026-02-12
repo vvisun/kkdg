@@ -4,10 +4,10 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kknet/kkcluster"
-	"github.com/vvisun/kkdg/kknet/kkcluster/cnats"
-	"github.com/vvisun/kkdg/kknet/kkdiscovery"
-	"github.com/vvisun/kkdg/kknet/kkdiscovery/dnats"
+	"github.com/vvisun/kkdg/remotes/kkcluster"
+	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
