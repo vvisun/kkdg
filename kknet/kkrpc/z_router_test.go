@@ -51,7 +51,4 @@ func TestRouter_OneWay(t *testing.T) {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
 	router.OnRaw(1, bb, newPendingMap())
-	if err != nil {
-		t.Fatalf("on raw: %v", err)
-	}
 }
