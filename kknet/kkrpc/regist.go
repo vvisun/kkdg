@@ -1,6 +1,7 @@
 package kkrpc
 
 import (
+	"fmt"
 	"reflect"
 	"sync"
 
@@ -22,13 +23,19 @@ func RegistOneWayHandler[T any](router *RpcReceiver, method string, call OneWayH
 // RegisterReqRspMethod 注册请求响应方法。method的参数类型和返回类型必须为REQ和RSP。
 // 相当于函数签名: func method(REQ) RSP
 func RegisterReqRspMethod[REQ any, RSP any](method string) {
-	newReqResp[REQ, RSP](method)
+	_, ok := newReqResp[REQ, RSP](method)
+	if !ok {
+		panic(fmt.Sprintf("register reqrsp method %s failed", method))
+	}
 }
 
 // RegisterOneWayMethod 注册单向方法。method的参数类型必须为REQ。
 // 相当于函数签名: func method(REQ)
 func RegisterOneWayMethod[REQ any](method string) {
-	newOneWay[REQ](method)
+	_, ok := newOneWay[REQ](method)
+	if !ok {
+		panic(fmt.Sprintf("register oneway method %s failed", method))
+	}
 }
 
 func newReqRspHandler[T any, R any](method string, call ReqRspHandlerFunc[T, R]) *ReqRspHandler[T, R] {
@@ -117,10 +124,10 @@ func (p *ReqResp[REQ, RSP]) GetMethod() string {
 	return p.method
 }
 
-func newReqResp[REQ any, RSP any](method string) *ReqResp[REQ, RSP] {
+func newReqResp[REQ any, RSP any](method string) (*ReqResp[REQ, RSP], bool) {
 	if method == "" {
 		kklog.Errorf("method is empty")
-		return nil
+		return nil, false
 	}
 
 	var vReq REQ
@@ -132,15 +139,15 @@ func newReqResp[REQ any, RSP any](method string) *ReqResp[REQ, RSP] {
 	defer gRpcManager.mu.Unlock()
 	if gRpcManager.peers[method] != nil {
 		kklog.Errorf("method %s already registered", method)
-		return nil
+		return nil, false
 	}
 	if gRpcManager.type2methodReqRsp[typeReq] != "" {
 		kklog.Errorf("type %s already registered", typeReq)
-		return nil
+		return nil, false
 	}
 	if gRpcManager.type2methodReqRsp[typeRsp] != "" {
 		kklog.Errorf("type %s already registered", typeRsp)
-		return nil
+		return nil, false
 	}
 
 	p := &ReqResp[REQ, RSP]{
@@ -150,7 +157,7 @@ func newReqResp[REQ any, RSP any](method string) *ReqResp[REQ, RSP] {
 	gRpcManager.type2methodReqRsp[typeReq] = method
 	gRpcManager.type2methodReqRsp[typeRsp] = method
 	gRpcManager.method2typeReqRsp[method] = methodType{reqType: typeReq, rspType: typeRsp}
-	return p
+	return p, true
 }
 
 //----------------------------------------------------------------
@@ -163,10 +170,10 @@ func (o *OneWay[REQ]) GetMethod() string {
 	return o.method
 }
 
-func newOneWay[REQ any](method string) *OneWay[REQ] {
+func newOneWay[REQ any](method string) (*OneWay[REQ], bool) {
 	if method == "" {
 		kklog.Errorf("method is empty")
-		return nil
+		return nil, false
 	}
 
 	var vReq REQ
@@ -176,11 +183,11 @@ func newOneWay[REQ any](method string) *OneWay[REQ] {
 	defer gRpcManager.mu.Unlock()
 	if gRpcManager.oneWays[method] != nil {
 		kklog.Errorf("method %s already registered", method)
-		return nil
+		return nil, false
 	}
 	if gRpcManager.type2methodOneWay[typeReq] != "" {
 		kklog.Errorf("type %s already registered", typeReq)
-		return nil
+		return nil, false
 	}
 
 	o := &OneWay[REQ]{
@@ -189,5 +196,5 @@ func newOneWay[REQ any](method string) *OneWay[REQ] {
 	gRpcManager.oneWays[method] = o
 	gRpcManager.type2methodOneWay[typeReq] = method
 	gRpcManager.method2typeOneWay[method] = methodType{reqType: typeReq}
-	return o
+	return o, true
 }
