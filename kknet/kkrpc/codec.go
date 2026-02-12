@@ -16,6 +16,20 @@ var (
 	// gatewayCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)
 )
 
+func SetFrameCodec(codec kkcodec.ICodec) {
+	if codec == nil {
+		panic("codec is nil")
+	}
+	frameCodec = codec
+}
+
+func SetPayloadCodec(codec kkcodec.ICodec) {
+	if codec == nil {
+		panic("codec is nil")
+	}
+	payloadCodec = codec
+}
+
 func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
 	if frame.Code == 0 {
 		frame.Code = 1
