@@ -366,7 +366,8 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 		d.membersMu.Unlock()
 		d.addMember(member)
 	} else {
-		// 只更新时间，不触发通知
+		// 更新成员信息（地址/配置可能变更）及时间，不触发 Add/Remove 通知
+		d.members[memberInfo.NodeID] = member
 		d.memberTimes[memberInfo.NodeID] = time.Now()
 		d.membersMu.Unlock()
 	}
