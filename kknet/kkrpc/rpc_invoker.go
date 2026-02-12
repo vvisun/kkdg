@@ -236,7 +236,7 @@ func newRpcManager() *rpcManager {
 }
 
 var (
-	gRpcManager    = newRpcManager()
+	gRpcManager    *rpcManager
 	onceRpcManager = sync.Once{}
 )
 
