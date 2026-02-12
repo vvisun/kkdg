@@ -8,14 +8,15 @@ import (
 type ICluster interface {
 	// 初始化
 	Init() error
+	// 停止
+	Stop()
+
 	// 向指定节点发布消息
 	PublishRemote(nodeID string, packet *ClusterPacket) error
 	// 向同类型节点发布消息
 	PublishRemoteType(nodeType string, packet *ClusterPacket) error
 	// 向指定节点发送请求，有response
 	RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, ClusterErrorCode)
-	// 停止
-	Stop()
 
 	// 设置发布消息处理器
 	SetPublishHandler(handler FunPublishHandler)
