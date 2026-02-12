@@ -2,6 +2,7 @@ package kknet
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -11,6 +12,14 @@ type CONN_ID = uint64
 
 // USER_ID is the type of user ID.
 type USER_ID = int64
+
+// counter for connection ID. unique id for the connection.
+var connIDCounter atomic.Uint64
+
+// NextConnID returns a unique connection ID.
+func NextConnID() CONN_ID {
+	return connIDCounter.Add(1)
+}
 
 // IConn represents a network connection.
 type IConn interface {
