@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/panjf2000/ants/v2"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -47,6 +48,16 @@ func SafeCall(fn func()) {
 	}()
 
 	fn()
+}
+
+// AntsGo 使用 ants 提交协程，提交失败时，退避到普通协程
+// @param fn 要执行的函数
+func AntsGo(fn func()) {
+	err := ants.Submit(fn)
+	// 提交失败时，退避到普通协程
+	if err != nil {
+		go fn()
+	}
 }
 
 // Go 执行单个协程

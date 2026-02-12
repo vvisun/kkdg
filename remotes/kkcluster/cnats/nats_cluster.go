@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 // NatsCluster 基于NATS的集群实现
@@ -307,15 +308,19 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		if p != nil && p.sub != nil {
 			_ = p.sub.Unsubscribe()
 			c.stats.AddResponseReceived(len(resp.Data))
-			func() {
+			data := make([]byte, len(resp.Data))
+			copy(data, resp.Data)
+			code := kkcluster.ClusterErrorCode(resp.Code)
+			cb := p.cb
+			xcall.AntsGo(func() {
 				defer func() {
 					if r := recover(); r != nil {
 						c.stats.AddError()
 						kklog.Errorf("NatsCluster RequestRemoteAsync callback panic: %v", r)
 					}
 				}()
-				p.cb(resp.Data, kkcluster.ClusterErrorCode(resp.Code))
-			}()
+				cb(data, code)
+			})
 		}
 	})
 	if err != nil {
@@ -348,15 +353,16 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		if p != nil && p.sub != nil {
 			_ = p.sub.Unsubscribe()
 			c.stats.AddError()
-			func() {
+			cb := p.cb
+			xcall.AntsGo(func() {
 				defer func() {
 					if r := recover(); r != nil {
 						c.stats.AddError()
 						kklog.Errorf("NatsCluster RequestRemoteAsync callback panic: %v", r)
 					}
 				}()
-				p.cb(nil, kkcluster.ClusterErrorCodeTimeout)
-			}()
+				cb(nil, kkcluster.ClusterErrorCodeTimeout)
+			})
 		}
 	}()
 
