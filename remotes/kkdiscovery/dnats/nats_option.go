@@ -6,7 +6,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func DefaultNatsOptions() nats.Options {
+func defaultNatsOptions() nats.Options {
 	opts := nats.GetDefaultOptions()
 	opts.Url = "nats://127.0.0.1:4222"
 	opts.AllowReconnect = true
@@ -16,8 +16,8 @@ func DefaultNatsOptions() nats.Options {
 	return opts
 }
 
-func ApplyNatsOptions(options ...nats.Option) nats.Options {
-	opts := DefaultNatsOptions()
+func applyNatsOptions(options ...nats.Option) nats.Options {
+	opts := defaultNatsOptions()
 	for _, option := range options {
 		option(&opts)
 	}

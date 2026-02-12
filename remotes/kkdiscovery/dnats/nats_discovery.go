@@ -43,16 +43,17 @@ type NatsDiscovery struct {
 	stopCh chan struct{}
 	doneCh chan struct{}
 
-	options []nats.Option
+	options nats.Options
 }
 
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
-func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string]string, options ...nats.Option) *NatsDiscovery {
+func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string]string, options ...nats.Option) kkdiscovery.IDiscovery {
 	if settings == nil {
 		settings = make(map[string]string)
 	}
+	opts := applyNatsOptions(options...)
 	return &NatsDiscovery{
 		name:        name,
 		nodeID:      nodeInfo.GetNodeId(),
@@ -63,7 +64,7 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 		memberTimes: make(map[string]time.Time),           // key: nodeID, value: last update time
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
-		options:     options,
+		options:     opts,
 	}
 }
 
@@ -231,7 +232,7 @@ func (d *NatsDiscovery) Start() error {
 // connectAndSubscribe 连接NATS并订阅主题
 func (d *NatsDiscovery) connectAndSubscribe() error {
 	// 配置NATS连接选项，启用自动重连
-	opts := ApplyNatsOptions(d.options...)
+	opts := &d.options
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {

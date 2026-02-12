@@ -52,7 +52,7 @@ type NatsCluster struct {
 var _ kkcluster.ICluster = (*NatsCluster)(nil)
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options ...nats.Option) *NatsCluster {
+func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options ...nats.Option) kkcluster.ICluster {
 	return &NatsCluster{
 		nodeID:     nodeID,
 		nodeType:   nodeType,
@@ -71,7 +71,7 @@ func (c *NatsCluster) Init() error {
 // connectAndSubscribe 连接NATS并订阅主题
 func (c *NatsCluster) connectAndSubscribe() error {
 	// 配置NATS连接选项，启用自动重连
-	opts := ApplyNatsOptions(c.options...)
+	opts := applyNatsOptions(c.options...)
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {

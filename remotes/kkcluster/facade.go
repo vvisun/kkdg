@@ -22,6 +22,9 @@ type ICluster interface {
 	SetPublishHandler(handler FunPublishHandler)
 	// 设置请求处理器
 	SetRequestHandler(handler FunRequestHandler)
+
+	// 获取统计信息
+	Stats() ClusterStatsSnapshot
 }
 
 type (

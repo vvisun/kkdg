@@ -115,9 +115,9 @@ func TestNatsDiscovery_ListByType(t *testing.T) {
 	member2 := kkdiscovery.NewMember("node3", "type2", "127.0.0.1:8082", nil)
 	member3 := kkdiscovery.NewMember("node4", "type1", "127.0.0.1:8083", nil)
 
-	discovery.addMember(member1)
-	discovery.addMember(member2)
-	discovery.addMember(member3)
+	discovery.(*NatsDiscovery).addMember(member1)
+	discovery.(*NatsDiscovery).addMember(member2)
+	discovery.(*NatsDiscovery).addMember(member3)
 
 	// 测试按类型列出
 	type1Members := discovery.ListByType("type1")
@@ -156,7 +156,7 @@ func TestNatsDiscovery_Random(t *testing.T) {
 
 	// 添加成员
 	member1 := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
-	discovery.addMember(member1)
+	discovery.(*NatsDiscovery).addMember(member1)
 
 	member, found = discovery.Random("type1")
 	if !found {
@@ -176,7 +176,7 @@ func TestNatsDiscovery_GetType(t *testing.T) {
 	discovery := NewNatsDiscovery("test", nodeInfo, nil)
 
 	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
-	discovery.addMember(member)
+	discovery.(*NatsDiscovery).addMember(member)
 
 	nodeType, err := discovery.GetType("node2")
 	if err != nil {
@@ -199,13 +199,13 @@ func TestNatsDiscovery_AddRemoveMember(t *testing.T) {
 	discovery := NewNatsDiscovery("test", nodeInfo, nil)
 
 	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
-	discovery.addMember(member)
+	discovery.(*NatsDiscovery).addMember(member)
 
 	if len(discovery.Map()) != 1 {
 		t.Errorf("Map() length = %d, want 1", len(discovery.Map()))
 	}
 
-	discovery.removeMember("node2")
+	discovery.(*NatsDiscovery).removeMember("node2")
 
 	if len(discovery.Map()) != 0 {
 		t.Errorf("Map() length = %d, want 0", len(discovery.Map()))
@@ -235,13 +235,13 @@ func TestNatsDiscovery_Listeners(t *testing.T) {
 	})
 
 	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
-	discovery.addMember(member)
+	discovery.(*NatsDiscovery).addMember(member)
 
 	if !addCalled {
 		t.Error("OnAddMember listener was not called")
 	}
 
-	discovery.removeMember("node2")
+	discovery.(*NatsDiscovery).removeMember("node2")
 
 	if !removeCalled {
 		t.Error("OnRemoveMember listener was not called")
