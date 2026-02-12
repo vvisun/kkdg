@@ -91,10 +91,17 @@ var (
 	gRpcManager *rpcManager = newRpcManager()
 )
 
-// clearRpcManager 清空 gRpcManager 中所有注册信息。
+// ClearRpcManagerForTest 清空 gRpcManager 中所有注册信息。
 // 仅用于测试场景，便于多测试重复注册。生产环境请勿调用。
-func clearRpcManager() {
-	gRpcManager = newRpcManager()
+func ClearRpcManagerForTest() {
+	gRpcManager.mu.Lock()
+	defer gRpcManager.mu.Unlock()
+	gRpcManager.peers = make(map[string]interface{})
+	gRpcManager.oneWays = make(map[string]interface{})
+	gRpcManager.type2methodReqRsp = make(map[reflect.Type]string)
+	gRpcManager.method2typeReqRsp = make(map[string]methodType)
+	gRpcManager.type2methodOneWay = make(map[reflect.Type]string)
+	gRpcManager.method2typeOneWay = make(map[string]methodType)
 }
 
 func CheckReqResp[REQ any, RSP any](req *REQ, rsp *RSP) bool {

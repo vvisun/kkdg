@@ -15,7 +15,7 @@ import (
 // setupTestRpcManager 测试前清理并注册 testReq/testRsp 相关方法
 func setupTestRpcManager(t *testing.T) {
 	t.Helper()
-	clearRpcManager()
+	ClearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 	RegisterOneWayMethod[testReq]("testOneway")
 }
