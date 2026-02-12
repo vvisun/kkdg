@@ -1,0 +1,272 @@
+package testcluster
+
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/remotes/kkcluster"
+	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
+)
+
+// setupBenchCluster 创建两个节点的 discovery 和 cluster，供 benchmark 使用
+// 需要 NATS 在 127.0.0.1:4222 运行，否则 b.Skip
+func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cleanup func()) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		b.Skipf("NATS not available: %v", err)
+	}
+
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "type1", "127.0.0.1:8081", "", nil)
+	discovery1 := dnats.NewNatsDiscovery("bench1", nodeInfo1, nil, dnats.WithUrl(natsURL))
+	discovery2 := dnats.NewNatsDiscovery("bench2", nodeInfo2, nil, dnats.WithUrl(natsURL))
+
+	if err := discovery1.Start(); err != nil {
+		b.Fatalf("discovery1.Start() failed: %v", err)
+	}
+	if err := discovery2.Start(); err != nil {
+		discovery1.Stop()
+		b.Fatalf("discovery2.Start() failed: %v", err)
+	}
+
+	if !waitForMembers(discovery1, 1, 3*time.Second) {
+		discovery1.Stop()
+		discovery2.Stop()
+		b.Fatal("discovery1 did not discover node2")
+	}
+
+	cluster1 = cnats.NewNatsCluster("node1", "type1", discovery1, cnats.WithUrl(natsURL))
+	cluster2 = cnats.NewNatsCluster("node2", "type1", discovery2, cnats.WithUrl(natsURL))
+
+	if err := cluster1.Init(); err != nil {
+		discovery1.Stop()
+		discovery2.Stop()
+		b.Fatalf("cluster1.Init() failed: %v", err)
+	}
+	if err := cluster2.Init(); err != nil {
+		cluster1.Stop()
+		discovery1.Stop()
+		discovery2.Stop()
+		b.Fatalf("cluster2.Init() failed: %v", err)
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	cleanup = func() {
+		cluster1.Stop()
+		cluster2.Stop()
+		discovery1.Stop()
+		discovery2.Stop()
+	}
+	return cluster1, cluster2, cleanup
+}
+
+// setupBenchClusterWithType 创建三个节点（两个 type1、一个 type2），供 PublishRemoteType benchmark
+func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkcluster.ICluster, cleanup func()) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		b.Skipf("NATS not available: %v", err)
+	}
+
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "type1", "127.0.0.1:8081", "", nil)
+	nodeInfo3 := kkapp.NewNodeInfo("node3", "type2", "127.0.0.1:8082", "", nil)
+	discovery1 := dnats.NewNatsDiscovery("bench1", nodeInfo1, nil, dnats.WithUrl(natsURL))
+	discovery2 := dnats.NewNatsDiscovery("bench2", nodeInfo2, nil, dnats.WithUrl(natsURL))
+	discovery3 := dnats.NewNatsDiscovery("bench3", nodeInfo3, nil, dnats.WithUrl(natsURL))
+
+	if err := discovery1.Start(); err != nil {
+		b.Fatalf("discovery1.Start() failed: %v", err)
+	}
+	if err := discovery2.Start(); err != nil {
+		b.Fatalf("discovery2.Start() failed: %v", err)
+	}
+	if err := discovery3.Start(); err != nil {
+		b.Fatalf("discovery3.Start() failed: %v", err)
+	}
+
+	if !waitForMembers(discovery1, 2, 3*time.Second) {
+		discovery1.Stop()
+		discovery2.Stop()
+		discovery3.Stop()
+		b.Fatal("discovery1 did not discover other nodes")
+	}
+
+	cluster1 = cnats.NewNatsCluster("node1", "type1", discovery1, cnats.WithUrl(natsURL))
+	cluster2 = cnats.NewNatsCluster("node2", "type1", discovery2, cnats.WithUrl(natsURL))
+	cluster3 = cnats.NewNatsCluster("node3", "type2", discovery3, cnats.WithUrl(natsURL))
+
+	if err := cluster1.Init(); err != nil {
+		b.Fatalf("cluster1.Init() failed: %v", err)
+	}
+	if err := cluster2.Init(); err != nil {
+		b.Fatalf("cluster2.Init() failed: %v", err)
+	}
+	if err := cluster3.Init(); err != nil {
+		b.Fatalf("cluster3.Init() failed: %v", err)
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	cleanup = func() {
+		cluster1.Stop()
+		cluster2.Stop()
+		cluster3.Stop()
+		discovery1.Stop()
+		discovery2.Stop()
+		discovery3.Stop()
+	}
+	return cluster1, cluster2, cluster3, cleanup
+}
+
+func BenchmarkRequestRemote(b *testing.B) {
+	cluster1, cluster2, cleanup := setupBenchCluster(b)
+	defer cleanup()
+
+	// 设置请求处理器，返回成功响应
+	cluster2.SetRequestHandler(func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeSuccess),
+			Data:      []byte("ok"),
+		}, nil
+	})
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		packet := kkcluster.NewClusterPacket()
+		packet.FuncName = "test"
+		packet.ArgBytes = []byte("bench")
+		data, code := cluster1.RequestRemote("node2", packet, 5*time.Second)
+		if code != kkcluster.ClusterErrorCodeSuccess {
+			b.Fatalf("RequestRemote code = %v, want Success", code)
+		}
+		if string(data) != "ok" {
+			b.Fatalf("RequestRemote data = %q, want ok", string(data))
+		}
+	}
+}
+
+func BenchmarkRequestRemoteAsync(b *testing.B) {
+	cluster1, cluster2, cleanup := setupBenchCluster(b)
+	defer cleanup()
+
+	cluster2.SetRequestHandler(func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeSuccess),
+			Data:      []byte("ok"),
+		}, nil
+	})
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		packet := kkcluster.NewClusterPacket()
+		packet.FuncName = "test"
+		packet.ArgBytes = []byte("bench")
+		done := make(chan struct{})
+		err := cluster1.RequestRemoteAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
+			if code != kkcluster.ClusterErrorCodeSuccess {
+				b.Errorf("RequestRemoteAsync code = %v", code)
+			}
+			close(done)
+		}, 5*time.Second)
+		if err != nil {
+			b.Fatalf("RequestRemoteAsync: %v", err)
+		}
+		<-done
+	}
+}
+
+func BenchmarkPublishRemote(b *testing.B) {
+	cluster1, cluster2, cleanup := setupBenchCluster(b)
+	defer cleanup()
+
+	// 使用无操作 handler，避免接收端阻塞影响发送性能
+	cluster2.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {})
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		packet := kkcluster.NewClusterPacket()
+		packet.FuncName = "test"
+		packet.ArgBytes = []byte("bench")
+		if err := cluster1.PublishRemote("node2", packet); err != nil {
+			b.Fatalf("PublishRemote: %v", err)
+		}
+	}
+}
+
+func BenchmarkPublishRemoteType(b *testing.B) {
+	cluster1, cluster2, cluster3, cleanup := setupBenchClusterWithType(b)
+	defer cleanup()
+
+	cluster2.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {})
+	cluster3.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {})
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		packet := kkcluster.NewClusterPacket()
+		packet.FuncName = "test"
+		packet.ArgBytes = []byte("bench")
+		if err := cluster1.PublishRemoteType("type1", packet); err != nil {
+			b.Fatalf("PublishRemoteType: %v", err)
+		}
+	}
+}
+
+// BenchmarkPublishRemoteParallel 并行 PublishRemote
+func BenchmarkPublishRemoteParallel(b *testing.B) {
+	cluster1, cluster2, cleanup := setupBenchCluster(b)
+	defer cleanup()
+
+	cluster2.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {})
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			packet := kkcluster.NewClusterPacket()
+			packet.FuncName = "test"
+			packet.ArgBytes = []byte("bench")
+			_ = cluster1.PublishRemote("node2", packet)
+		}
+	})
+}
+
+// BenchmarkRequestRemoteParallel 并行 RequestRemote
+func BenchmarkRequestRemoteParallel(b *testing.B) {
+	cluster1, cluster2, cleanup := setupBenchCluster(b)
+	defer cleanup()
+
+	var mu sync.Mutex
+	cluster2.SetRequestHandler(func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeSuccess),
+			Data:      []byte("ok"),
+		}, nil
+	})
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			packet := kkcluster.NewClusterPacket()
+			packet.FuncName = "test"
+			packet.ArgBytes = []byte("bench")
+			_, code := cluster1.RequestRemote("node2", packet, 5*time.Second)
+			if code != kkcluster.ClusterErrorCodeSuccess {
+				b.Errorf("RequestRemote code = %v", code)
+			}
+		}
+	})
+}

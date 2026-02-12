@@ -1,7 +1,6 @@
 package dnats
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
 
@@ -342,7 +341,7 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 	d.stats.AddHeartbeatReceived()
 
 	var memberInfo kkdiscovery.MemberInfo
-	if err := json.Unmarshal(msg.Data, &memberInfo); err != nil {
+	if err := msgCodec.Unmarshal(msg.Data, &memberInfo); err != nil {
 		kklog.Errorf("NatsDiscovery unmarshal member info failed: %v", err)
 		d.stats.AddError()
 		return
@@ -382,7 +381,7 @@ func (d *NatsDiscovery) publishSelf() error {
 		Settings: d.settings,
 	}
 
-	data, err := json.Marshal(&memberInfo)
+	data, err := msgCodec.Marshal(&memberInfo)
 	if err != nil {
 		d.stats.AddError()
 		return err
@@ -426,7 +425,7 @@ func (d *NatsDiscovery) requestAllMembers() {
 		RequesterID: d.nodeID,
 	}
 
-	data, err := json.Marshal(&reqMsg)
+	data, err := msgCodec.Marshal(&reqMsg)
 	if err != nil {
 		kklog.Errorf("NatsDiscovery marshal request failed: %v", err)
 		d.stats.AddError()
@@ -443,7 +442,7 @@ func (d *NatsDiscovery) requestAllMembers() {
 // handleDiscoveryRequest 处理服务发现请求
 func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 	var req kkdiscovery.DiscoveryRequest
-	if err := json.Unmarshal(msg.Data, &req); err != nil {
+	if err := msgCodec.Unmarshal(msg.Data, &req); err != nil {
 		kklog.Errorf("NatsDiscovery unmarshal request failed: %v", err)
 		d.stats.AddError()
 		return
