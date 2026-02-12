@@ -56,11 +56,11 @@ type IConnLifecycleHandler interface {
 
 // IConnManager manages server connections.
 type IConnManager interface {
-	GetAllConns() map[CONN_ID]IConn                //获取所有连接
-	RangeAllConns(fn func(id CONN_ID, conn IConn)) //遍历所有连接
-	GetConn(id CONN_ID) IConn                      //获取指定连接
-	KickConn(id CONN_ID)                           //踢出指定连接
-	GetCount() int                                 //获取连接数量
+	GetAllConns() map[CONN_ID]IConn                     //获取所有连接
+	RangeAllConns(fn func(id CONN_ID, conn IConn) bool) //遍历所有连接, fn返回false时停止遍历
+	GetConn(id CONN_ID) IConn                           //获取指定连接
+	KickConn(id CONN_ID)                                //踢出指定连接
+	GetCount() int                                      //获取连接数量
 }
 
 // IServer represents a server.
