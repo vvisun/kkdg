@@ -75,16 +75,22 @@ func (d *NatsDiscovery) Name() string {
 	return d.name
 }
 
-// Map 获取成员列表
-func (d *NatsDiscovery) Map() map[string]kkdiscovery.IMember {
+// MemberCount 获取成员数量
+func (d *NatsDiscovery) MemberCount() int {
 	d.membersMu.RLock()
 	defer d.membersMu.RUnlock()
+	return len(d.members)
+}
 
-	result := make(map[string]kkdiscovery.IMember, len(d.members))
-	for k, v := range d.members {
-		result[k] = v
+// Range 遍历成员, fn 返回 false 时停止遍历
+func (d *NatsDiscovery) Range(fn func(nodeID string, member kkdiscovery.IMember) bool) {
+	d.membersMu.RLock()
+	defer d.membersMu.RUnlock()
+	for nodeID, member := range d.members {
+		if !fn(nodeID, member) {
+			break
+		}
 	}
-	return result
 }
 
 // ListByType 根据节点类型获取列表

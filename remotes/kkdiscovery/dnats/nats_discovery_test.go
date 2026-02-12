@@ -22,9 +22,9 @@ func TestNatsDiscovery_New(t *testing.T) {
 		t.Errorf("Name() = %s, want test", discovery.Name())
 	}
 
-	members := discovery.Map()
-	if len(members) != 0 {
-		t.Errorf("Map() length = %d, want 0", len(members))
+	members := discovery.MemberCount()
+	if members != 0 {
+		t.Errorf("MemberCount() = %d, want 0", members)
 	}
 }
 
@@ -201,14 +201,14 @@ func TestNatsDiscovery_AddRemoveMember(t *testing.T) {
 	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", nil)
 	discovery.(*NatsDiscovery).addMember(member)
 
-	if len(discovery.Map()) != 1 {
-		t.Errorf("Map() length = %d, want 1", len(discovery.Map()))
+	if discovery.MemberCount() != 1 {
+		t.Errorf("MemberCount() = %d, want 1", discovery.MemberCount())
 	}
 
 	discovery.(*NatsDiscovery).removeMember("node2")
 
-	if len(discovery.Map()) != 0 {
-		t.Errorf("Map() length = %d, want 0", len(discovery.Map()))
+	if discovery.MemberCount() != 0 {
+		t.Errorf("MemberCount() = %d, want 0", discovery.MemberCount())
 	}
 }
 
@@ -284,8 +284,8 @@ func TestNatsDiscovery_MemberTimeout(t *testing.T) {
 	time.Sleep(20 * time.Second)
 
 	// 验证node2被移除
-	if len(discovery1.Map()) != 0 {
-		t.Errorf("discovery1 should have removed node2, but Map() length = %d", len(discovery1.Map()))
+	if discovery1.MemberCount() != 0 {
+		t.Errorf("discovery1 should have removed node2, but MemberCount() = %d", discovery1.MemberCount())
 	}
 }
 
@@ -307,8 +307,7 @@ func startTestNatsServer() (interface{}, string, error) {
 func waitForMembers(d kkdiscovery.IDiscovery, count int, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		members := d.Map()
-		if len(members) >= count {
+		if d.MemberCount() >= count {
 			return true
 		}
 		time.Sleep(100 * time.Millisecond)

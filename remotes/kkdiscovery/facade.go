@@ -6,7 +6,8 @@ type (
 		Name() string                                                 // 发现服务名称
 		Start() error                                                 // 启动
 		Stop() error                                                  // 停止
-		Map() map[string]IMember                                      // 获取成员列表
+		MemberCount() int                                             // 获取成员数量
+		Range(fn func(nodeID string, member IMember) bool)            // 遍历成员, fn 返回 false 时停止遍历
 		ListByType(nodeType string, filterNodeID ...string) []IMember // 根据节点类型获取列表
 		Random(nodeType string) (IMember, bool)                       // 根据节点类型随机一个
 		GetType(nodeID string) (nodeType string, err error)           // 根据节点id获取类型

@@ -25,8 +25,8 @@ func startTestNatsServer() (interface{}, string, error) {
 func waitForMembers(d kkdiscovery.IDiscovery, count int, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		members := d.Map()
-		if len(members) >= count {
+		members := d.MemberCount()
+		if members >= count {
 			return true
 		}
 		time.Sleep(100 * time.Millisecond)
