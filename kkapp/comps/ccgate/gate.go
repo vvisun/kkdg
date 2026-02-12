@@ -240,12 +240,12 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 }
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
-	h.gate.connMap.Store(strconv.FormatInt(c.ID(), 10), c)
+	h.gate.connMap.Store(strconv.FormatUint(c.ID(), 10), c)
 	kklog.Infof("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	h.gate.connMap.Delete(strconv.FormatInt(c.ID(), 10))
+	h.gate.connMap.Delete(strconv.FormatUint(c.ID(), 10))
 	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
 
@@ -269,7 +269,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		route = h.messagePacket.GetRouter().GetMsgRoute(msgID)
 	}
 
-	sessionID := strconv.FormatInt(connID, 10)
+	sessionID := strconv.FormatUint(connID, 10)
 	if err := h.gate.ForwardToLogic(sessionID, route, msgBytes); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}

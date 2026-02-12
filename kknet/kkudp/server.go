@@ -212,7 +212,7 @@ func (s *Server) pruneIdle() {
 	}
 }
 
-func (s *Server) removeConnByID(id int64) *udpConn {
+func (s *Server) removeConnByID(id kknet.CONN_ID) *udpConn {
 	s.connsMu.Lock()
 	defer s.connsMu.Unlock()
 	for key, conn := range s.conns {

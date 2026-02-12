@@ -14,7 +14,7 @@ type rawRecvHandler struct {
 	ch chan []byte
 }
 
-func (h *rawRecvHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
+func (h *rawRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data != nil {
 		b := append([]byte(nil), data.Bytes()...)
 		select {

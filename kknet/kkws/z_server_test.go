@@ -126,7 +126,7 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 	if len(all) != 1 {
 		t.Fatalf("GetAllConns() len = %d, want 1", len(all))
 	}
-	var connID int64
+	var connID kknet.CONN_ID
 	for id := range all {
 		connID = id
 		break
@@ -245,7 +245,7 @@ func (h *echoHandler) OnConnect(c kknet.IConn) {
 	}
 }
 func (h *echoHandler) OnClose(c kknet.IConn, err error) {}
-func (h *echoHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
+func (h *echoHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if h.onRaw != nil && data != nil {
 		b := append([]byte(nil), data.Bytes()...)
 		h.onRaw(b)
@@ -316,7 +316,7 @@ type rawRecvHandlerForPingTest struct {
 	ch chan []byte
 }
 
-func (h *rawRecvHandlerForPingTest) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
+func (h *rawRecvHandlerForPingTest) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data == nil {
 		return
 	}

@@ -125,7 +125,7 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 	if len(all) != 1 {
 		t.Fatalf("GetAllConns() len = %d, want 1", len(all))
 	}
-	var connID int64
+	var connID kknet.CONN_ID
 	for id := range all {
 		connID = id
 		break
@@ -225,7 +225,7 @@ func (h *tcpEchoHandler) OnConnect(c kknet.IConn) {
 	}
 }
 func (h *tcpEchoHandler) OnClose(c kknet.IConn, err error) {}
-func (h *tcpEchoHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
+func (h *tcpEchoHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if h.onRaw != nil && data != nil {
 		b := append([]byte(nil), data.Bytes()...)
 		h.onRaw(b)

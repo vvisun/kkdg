@@ -2,24 +2,15 @@ package kknet
 
 import (
 	"context"
-	"sync/atomic"
 
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // CONN_ID is the type of connection ID.
-type CONN_ID = int64
+type CONN_ID = uint64
 
 // USER_ID is the type of user ID.
 type USER_ID = int64
-
-// counter for connection ID. unique id for the connection.
-var connIDCounter atomic.Int64
-
-// NextConnID returns a unique connection ID.
-func NextConnID() CONN_ID {
-	return connIDCounter.Add(1)
-}
 
 // IConn represents a network connection.
 type IConn interface {
@@ -48,10 +39,10 @@ type IConnLifecycleHandler interface {
 
 // IConnManager manages server connections.
 type IConnManager interface {
-	GetAllConns() map[int64]IConn //获取所有连接
-	GetConn(id CONN_ID) IConn     //获取指定连接
-	KickConn(id CONN_ID)          //踢出指定连接
-	GetCount() int64              //获取连接数量
+	GetAllConns() map[CONN_ID]IConn //获取所有连接
+	GetConn(id CONN_ID) IConn       //获取指定连接
+	KickConn(id CONN_ID)            //踢出指定连接
+	GetCount() int64                //获取连接数量
 }
 
 // IServer represents a server.

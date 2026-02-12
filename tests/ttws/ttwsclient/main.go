@@ -83,7 +83,7 @@ type stressRecvHandler struct {
 	sendCount atomic.Int64
 }
 
-func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
+func (h *stressRecvHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
 	if data == nil {
 		return
 	}

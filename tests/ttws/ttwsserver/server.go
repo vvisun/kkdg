@@ -60,14 +60,14 @@ type stressRecvHandler struct {
 	sendCount atomic.Int64
 }
 
-func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
+func (h *stressRecvHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
 	if data == nil {
 		return
 	}
 	h.recvCount.Add(1)
 }
 
-func (h *stressRecvHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
+func (h *stressRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data == nil {
 		return
 	}

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -80,7 +80,7 @@ type stressRecvHandler struct {
 	sendCount atomic.Int64
 }
 
-func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
+func (h *stressRecvHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
 	if data == nil {
 		return
 	}
@@ -188,4 +188,3 @@ func (m *clientsMgr) removeClient(client *kktcp.GnetClient) {
 func (m *clientsMgr) getCount() int64 {
 	return m.count.Load()
 }
-

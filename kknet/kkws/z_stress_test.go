@@ -28,7 +28,7 @@ type stressRecvHandler struct {
 	closeOnce sync.Once
 }
 
-func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
+func (h *stressRecvHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
 	if data == nil {
 		return
 	}
@@ -38,7 +38,7 @@ func (h *stressRecvHandler) OnNoneCopy(connID int64, data []byte) {
 	}
 }
 
-func (h *stressRecvHandler) OnRaw(connID int64, data *kkbuffer.ByteBuffer) {
+func (h *stressRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data == nil {
 		return
 	}
