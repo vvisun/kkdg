@@ -183,7 +183,7 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 
 	// 序列化消息
 	data, err := msgCodec.Marshal(packet)
-	kkcluster.PutClusterPacket(packet)
+	// kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return err
@@ -222,7 +222,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 
 	// 序列化消息（只序列化一次）
 	data, err := msgCodec.Marshal(packet)
-	kkcluster.PutClusterPacket(packet)
+	// kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return err
@@ -263,9 +263,8 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	// 生成请求ID
 	requestID := c.generateRequestID()
 
-	// 创建响应通道
+	// 创建响应通道（不关闭，避免超时后晚到响应向已关闭 channel 发送导致 panic）
 	responseCh := make(chan *kkcluster.ClusterResponse, 1)
-	var closeOnce sync.Once
 	c.requestMu.Lock()
 	c.requestMap[requestID] = responseCh
 	c.requestMu.Unlock()
@@ -275,10 +274,6 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 		c.requestMu.Lock()
 		delete(c.requestMap, requestID)
 		c.requestMu.Unlock()
-		// 使用 sync.Once 确保 channel 只关闭一次，避免重复关闭导致 panic
-		closeOnce.Do(func() {
-			close(responseCh)
-		})
 	}()
 
 	// 创建请求消息
@@ -290,7 +285,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 
 	// 序列化请求
 	data, err := msgCodec.Marshal(reqMsg)
-	kkcluster.PutClusterPacket(packet)
+	// kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
 		return nil, kkcluster.ClusterErrorCodeMarshalFailed

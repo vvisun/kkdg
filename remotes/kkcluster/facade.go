@@ -28,7 +28,7 @@ type ICluster interface {
 }
 
 type (
-	// 向其他节点发送消消，no response
+	// 向其他节点发送消息，no response
 	FunPublishHandler func(nodeID string, packet *ClusterPacket)
 	// 向其他节点发送请求，有response
 	FunRequestHandler func(req *ClusterRequest) (*ClusterResponse, error)
