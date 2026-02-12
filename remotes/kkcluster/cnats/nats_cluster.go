@@ -3,7 +3,6 @@ package cnats
 import (
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -24,7 +23,6 @@ type NatsCluster struct {
 	requestSub *nats.Subscription
 	requestMap map[string]chan *kkcluster.ClusterResponse
 	requestMu  sync.RWMutex
-	requestSeq uint64
 
 	// 发布消息订阅
 	publishSub *nats.Subscription
@@ -487,16 +485,9 @@ func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 	}
 }
 
-const maxUint64 = ^uint64(0)
-
 // generateRequestID 生成请求ID
 func (c *NatsCluster) generateRequestID() string {
-	seq := atomic.AddUint64(&c.requestSeq, 1)
-	if seq >= maxUint64 {
-		// 如果超过uint64最大值，则重置为1。这时候为1的请求必然已经失效，所以是安全的。
-		atomic.StoreUint64(&c.requestSeq, 1)
-		seq = 1
-	}
+	seq := kkcluster.GenRequestID()
 	return c.nodeID + "." + strconv.FormatUint(seq, 10)
 }
 
