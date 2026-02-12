@@ -42,6 +42,15 @@ func NewClient(url string, handler kknet.IConnLifecycleHandler, opts kknet.Optio
 	}
 }
 
+func (c *Client) IsConnected() bool {
+	if !c.connected.Load() {
+		return false
+	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return c.conn != nil
+}
+
 // Connect connects to the server.
 func (c *Client) Connect() error {
 	if c.connected.Swap(true) {

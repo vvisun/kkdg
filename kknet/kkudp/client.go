@@ -36,6 +36,15 @@ func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Opti
 	}
 }
 
+func (c *Client) IsConnected() bool {
+	if !c.connected.Load() {
+		return false
+	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return c.conn != nil
+}
+
 // Connect connects to the server address.
 func (c *Client) Connect() error {
 	if c.connected.Swap(true) {

@@ -48,6 +48,15 @@ func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Opti
 	}
 }
 
+func (c *GnetClient) IsConnected() bool {
+	if !c.connected.Load() {
+		return false
+	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return c.conn != nil
+}
+
 // Connect connects to the server and starts the gnet client engine.
 func (c *GnetClient) Connect() error {
 	if c.connected.Swap(true) {

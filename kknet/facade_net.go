@@ -82,6 +82,7 @@ type IClient interface {
 	Addr() string
 	Stats() StatsSnapshot
 	SetContext(ctx context.Context)
+	IsConnected() bool
 
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 	SendMsg(msg any) error
