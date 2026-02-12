@@ -26,6 +26,9 @@ type OneWayInvoker[T any] struct {
 	connId kknet.CONN_ID
 }
 
+// 单向调用器.
+// 服务器端调用时，connId为连接ID。
+// 客户端调用时，connId为0或任意值，目前未使用。后续如果使用连接池，可以考虑使用池中的某个连接ID，也可以继续任意值，由底层选择真实connId。
 func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) OneWayInvoker[T] {
 	return OneWayInvoker[T]{
 		sender: sender,
@@ -33,6 +36,9 @@ func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) OneWayInvoker
 	}
 }
 
+// 请求响应调用器.
+// 服务器端调用时，connId为连接ID。
+// 客户端调用时，connId为0或任意值，目前未使用。后续如果使用连接池，可以考虑使用池中的某个连接ID，也可以继续任意值，由底层选择真实connId。
 func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) ReqRspInvoker[T, R] {
 	return ReqRspInvoker[T, R]{
 		sender: sender,
