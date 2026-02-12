@@ -2,6 +2,7 @@ package dnats
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -43,6 +44,8 @@ type NatsDiscovery struct {
 	doneCh chan struct{}
 
 	options nats.Options
+
+	closed atomic.Bool // 关闭标志
 }
 
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
@@ -206,6 +209,7 @@ func (d *NatsDiscovery) Stop() error {
 	case <-d.stopCh:
 		return nil
 	default:
+		d.closed.Store(true) // 先设置 closed，避免 goroutine 中请求时打 error log
 		close(d.stopCh)
 	}
 
@@ -235,6 +239,9 @@ func (d *NatsDiscovery) connectAndSubscribe() error {
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {
+		if d.closed.Load() {
+			return
+		}
 		kklog.Infof("NatsDiscovery reconnected to %s", nc.ConnectedUrl())
 		d.stats.AddReconnect()
 		// 重连后重新订阅
@@ -252,15 +259,15 @@ func (d *NatsDiscovery) connectAndSubscribe() error {
 	// 设置断开连接处理器
 	opts.DisconnectedErrCB = func(nc *nats.Conn, err error) {
 		if err != nil {
-			kklog.Warnf("NatsDiscovery disconnected: %v", err)
+			kklog.Warnf("NatsDiscovery disconnected: %s, %v", nc.Opts.Name, err)
 		} else {
-			kklog.Warnf("NatsDiscovery disconnected")
+			kklog.Warnf("NatsDiscovery disconnected: %s", nc.Opts.Name)
 		}
 	}
 
 	// 设置关闭处理器
 	opts.ClosedCB = func(nc *nats.Conn) {
-		kklog.Infof("NatsDiscovery connection closed")
+		kklog.Infof("NatsDiscovery connection closed: %s", nc.Opts.Name)
 	}
 
 	// 连接到NATS
@@ -374,6 +381,9 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 
 // publishSelf 发布自己的信息
 func (d *NatsDiscovery) publishSelf() error {
+	if d.closed.Load() {
+		return nil // 已关闭，静默返回
+	}
 	memberInfo := kkdiscovery.MemberInfo{
 		NodeID:   d.nodeID,
 		NodeType: d.nodeType,
@@ -407,6 +417,9 @@ func (d *NatsDiscovery) heartbeatLoop() {
 		case <-d.stopCh:
 			return
 		case <-ticker.C:
+			if d.closed.Load() {
+				return
+			}
 			if err := d.publishSelf(); err != nil {
 				d.stats.AddError()
 				kklog.Errorf("NatsDiscovery heartbeat failed: %v", err)
@@ -419,6 +432,9 @@ func (d *NatsDiscovery) heartbeatLoop() {
 func (d *NatsDiscovery) requestAllMembers() {
 	// 延迟一下，等待连接稳定
 	time.Sleep(1 * time.Second)
+	if d.closed.Load() {
+		return
+	}
 
 	// 发送请求消息
 	reqMsg := kkdiscovery.DiscoveryRequest{
@@ -433,9 +449,11 @@ func (d *NatsDiscovery) requestAllMembers() {
 	}
 
 	subject := d.getDiscoveryRequestSubject()
-	if err := d.conn.Publish(subject, data); err != nil {
-		kklog.Errorf("NatsDiscovery publish request failed: %v", err)
-		d.stats.AddError()
+	if d.conn != nil && !d.closed.Load() {
+		if err := d.conn.Publish(subject, data); err != nil {
+			kklog.Errorf("NatsDiscovery publish request failed: %v", err)
+			d.stats.AddError()
+		}
 	}
 }
 
