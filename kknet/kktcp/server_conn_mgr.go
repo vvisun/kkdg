@@ -35,6 +35,9 @@ func (m *serverConnMgr) addConn(c *tcpConn) {
 
 // removeConn removes a connection from manager.
 func (m *serverConnMgr) removeConn(id kknet.CONN_ID) {
+	if m.GetConn(id) == nil {
+		return
+	}
 	m.mu.Lock()
 	delete(m.conns, id)
 	m.mu.Unlock()
