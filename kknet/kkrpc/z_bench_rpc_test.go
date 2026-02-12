@@ -48,7 +48,7 @@ func Benchmark_InvokeUnary(b *testing.B) {
 			Data: "test",
 		}
 		var resp testRsp
-		invoker := NewRpcInvoker[testReq, testRsp](cli)
+		invoker := NewClientInvoker[testReq, testRsp](cli)
 		err = invoker.Invoke(context.Background(), "test", &req, CallConfig{}, &resp)
 		if err != nil {
 			b.Fatalf("invoke: %v", err)

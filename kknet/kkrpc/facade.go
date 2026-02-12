@@ -24,7 +24,7 @@ func DefaultCallConfig() CallConfig {
 	}
 }
 
-func CheckCallConfig(opts *CallConfig) {
+func fixCallConfig(opts *CallConfig) {
 	if opts == nil {
 		return
 	}

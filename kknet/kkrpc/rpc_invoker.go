@@ -20,21 +20,32 @@ type ISender interface {
 
 type RpcInvoker[T any, R any] struct {
 	sender ISender
+	connId kknet.CONN_ID
 }
 
-func NewRpcInvoker[T any, R any](sender ISender) RpcInvoker[T, R] {
+func NewClientInvoker[T any, R any](sender ISender) RpcInvoker[T, R] {
 	return RpcInvoker[T, R]{
 		sender: sender,
+		connId: 0,
+	}
+}
+
+func NewServerInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) RpcInvoker[T, R] {
+	return RpcInvoker[T, R]{
+		sender: sender,
+		connId: connId,
 	}
 }
 
 type OneWayInvoker[T any] struct {
 	sender ISender
+	connId kknet.CONN_ID
 }
 
-func NewOneWayInvoker[T any](sender ISender) OneWayInvoker[T] {
+func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) OneWayInvoker[T] {
 	return OneWayInvoker[T]{
 		sender: sender,
+		connId: connId,
 	}
 }
 
@@ -43,7 +54,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrConnClosed
 	}
-	CheckCallConfig(&opts)
+	fixCallConfig(&opts)
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -60,7 +71,7 @@ func (i RpcInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opt
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	if err = i.sender.SendBuffer(0, bb); err != nil {
+	if err = i.sender.SendBuffer(i.connId, bb); err != nil {
 		return err
 	}
 
@@ -116,7 +127,7 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrConnClosed
 	}
-	CheckCallConfig(&opts)
+	fixCallConfig(&opts)
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -146,7 +157,7 @@ func (i RpcInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T
 		}
 		callback(&respInfo, nil)
 	})
-	err = i.sender.SendBuffer(0, bb)
+	err = i.sender.SendBuffer(i.connId, bb)
 	if err != nil {
 		callback(nil, err)
 		pending.delCallback(reqId)
@@ -187,7 +198,7 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, method string, req *T, o
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	err = i.sender.SendBuffer(0, bb)
+	err = i.sender.SendBuffer(i.connId, bb)
 	if err != nil {
 		return err
 	}
