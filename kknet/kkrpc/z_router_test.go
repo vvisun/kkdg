@@ -16,9 +16,9 @@ type testRsp struct {
 	Msg  string
 }
 
-func TestRouter(t *testing.T) {
+func TestRouter_ReqRsp(t *testing.T) {
 	router := NewRpcReceiver()
-	RegistRpcHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
 		fmt.Println("remote call testReq", msg)
 		resp.Code = 0
 		resp.Msg = "success"
@@ -34,4 +34,24 @@ func TestRouter(t *testing.T) {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
 	router.OnRaw(1, bb, newPendingMap())
+}
+
+func TestRouter_OneWay(t *testing.T) {
+	router := NewRpcReceiver()
+	RegistOneWayHandler(router, "test", func(ctx context.Context, msg *testReq) error {
+		fmt.Println("remote call testReq", msg)
+		return nil
+	})
+	msg := &testReq{
+		ID:   1,
+		Data: "test",
+	}
+	bb, err := EncodeRpcFrame(FrameTypeOneway, 1, "test", msg)
+	if err != nil {
+		t.Fatalf("encode rpc frame: %v", err)
+	}
+	router.OnRaw(1, bb, newPendingMap())
+	if err != nil {
+		t.Fatalf("on raw: %v", err)
+	}
 }

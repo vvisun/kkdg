@@ -3,6 +3,7 @@ package kkrpc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"testing"
@@ -12,8 +13,79 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 )
 
+type rpcProcessor struct{}
+
+func (rp *rpcProcessor) onTestReqTestRsp(ctx context.Context, msg *testReq, resp *testRsp) error {
+	fmt.Println("remote reqrsp testReq", msg)
+	resp.Code = 0
+	resp.Msg = "test success"
+	return nil
+}
+
+func (rp *rpcProcessor) onTestReq(ctx context.Context, msg *testReq) error {
+	fmt.Println("remote oneway testReq", msg)
+	return nil
+}
+
+func Test_RpcProcessor(t *testing.T) {
+	rpcRouter := NewRpcReceiver()
+	rp := &rpcProcessor{}
+	RegistReqRspHandler(rpcRouter, "testReqRsp", rp.onTestReqTestRsp)
+	RegistOneWayHandler(rpcRouter, "testOneway", rp.onTestReq)
+	RegisterOneWayMethod[testReq]("testOneway")
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
+
+	_, cli := newTestServerClientEx(t, rpcRouter)
+
+	var req testReq = testReq{
+		ID:   1,
+		Data: "test",
+	}
+	var resp testRsp
+	invoker := NewClientInvoker[testReq, testRsp](cli)
+	err := invoker.Invoke(context.Background(), "testReqRsp", &req, CallConfig{}, &resp)
+	if err != nil {
+		t.Fatalf("invoke: %v", err)
+	}
+	if resp.Code != 0 || resp.Msg != "test success" {
+		t.Fatalf("unexpected response: code=%d msg=%s", resp.Code, resp.Msg)
+	}
+
+	oneWayInvoker := NewOneWayInvoker[testReq](cli, 0)
+	err = oneWayInvoker.InvokeNR(context.Background(), "testOneway", &req, CallConfig{})
+	if err != nil {
+		t.Fatalf("invoke: %v", err)
+	}
+}
+
+func newTestServerClientEx(t *testing.T, rpcRouter *RpcReceiver) (*Server, *Client) {
+	t.Helper()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	addr := ln.Addr().String()
+	_ = ln.Close()
+
+	svr := NewServer(addr, kknet.DefaultOptions(), rpcRouter)
+	if err := svr.Start(); err != nil {
+		t.Fatalf("start server: %v", err)
+	}
+	t.Cleanup(func() { _ = svr.Stop() })
+
+	cli := NewClient(addr, kknet.DefaultOptions(), rpcRouter)
+	if err := cli.Start(); err != nil {
+		t.Fatalf("start client: %v", err)
+	}
+	t.Cleanup(func() { _ = cli.Stop() })
+
+	time.Sleep(100 * time.Millisecond)
+	return svr, cli
+}
+
 // newTestServerClient 创建一个临时地址的 kkrpc Server/Client，用于单测。
-func newTestServerClient(t *testing.T, handler RpcHandlerFunc[testReq, testRsp]) (*Server, *Client) {
+func newTestServerClient(t *testing.T, handler ReqRspHandlerFunc[testReq, testRsp]) (*Server, *Client) {
 	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -24,7 +96,7 @@ func newTestServerClient(t *testing.T, handler RpcHandlerFunc[testReq, testRsp])
 	_ = ln.Close()
 
 	rpcRouter := NewRpcReceiver()
-	RegistRpcHandler(rpcRouter, "test", handler)
+	RegistReqRspHandler(rpcRouter, "test", handler)
 
 	svr := NewServer(addr, kknet.DefaultOptions(), rpcRouter)
 	if err := svr.Start(); err != nil {

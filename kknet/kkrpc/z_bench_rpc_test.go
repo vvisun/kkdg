@@ -18,7 +18,7 @@ func Benchmark_InvokeUnary(b *testing.B) {
 	ln.Close()
 
 	rpcRouter := NewRpcReceiver()
-	RegistRpcHandler(rpcRouter, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(rpcRouter, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
 		resp.Code = 0
 		resp.Msg = "test success"
 		return nil

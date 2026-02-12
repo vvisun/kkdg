@@ -219,42 +219,38 @@ type methodType struct {
 }
 
 type rpcManager struct {
-	mu          sync.Mutex
-	peers       map[string]interface{}
-	oneWays     map[string]interface{}
-	type2method map[reflect.Type]string
-	method2type map[string]methodType
+	mu                sync.Mutex
+	peers             map[string]interface{}
+	oneWays           map[string]interface{}
+	type2methodReqRsp map[reflect.Type]string
+	method2typeReqRsp map[string]methodType
+	type2methodOneWay map[reflect.Type]string
+	method2typeOneWay map[string]methodType
 }
 
 func newRpcManager() *rpcManager {
 	return &rpcManager{
-		peers:       make(map[string]interface{}),
-		oneWays:     make(map[string]interface{}),
-		type2method: make(map[reflect.Type]string),
-		method2type: make(map[string]methodType),
+		peers:             make(map[string]interface{}),
+		oneWays:           make(map[string]interface{}),
+		type2methodReqRsp: make(map[reflect.Type]string),
+		method2typeReqRsp: make(map[string]methodType),
+		type2methodOneWay: make(map[reflect.Type]string),
+		method2typeOneWay: make(map[string]methodType),
 	}
 }
 
 var (
-	gRpcManager    *rpcManager
-	onceRpcManager sync.Once
+	gRpcManager *rpcManager = newRpcManager()
 )
-
-func DefaultRpcManager() *rpcManager {
-	onceRpcManager.Do(func() {
-		gRpcManager = newRpcManager()
-	})
-	return gRpcManager
-}
 
 func CheckReqResp[REQ any, RSP any](req *REQ, rsp *RSP) bool {
 	typeReq := reflect.TypeOf(req)
-	methodReq, ok := gRpcManager.type2method[typeReq]
+	methodReq, ok := gRpcManager.type2methodReqRsp[typeReq]
 	if !ok {
 		return false
 	}
 	typeRsp := reflect.TypeOf(rsp)
-	methodRsp, ok := gRpcManager.type2method[typeRsp]
+	methodRsp, ok := gRpcManager.type2methodReqRsp[typeRsp]
 	if !ok {
 		return false
 	}
@@ -263,7 +259,7 @@ func CheckReqResp[REQ any, RSP any](req *REQ, rsp *RSP) bool {
 
 func CheckOneWay[REQ any](req *REQ) bool {
 	typeReq := reflect.TypeOf(req)
-	methodReq, ok := gRpcManager.type2method[typeReq]
+	methodReq, ok := gRpcManager.type2methodOneWay[typeReq]
 	if !ok {
 		return false
 	}
@@ -291,11 +287,11 @@ func newReqResp[REQ any, RSP any](method string) *ReqResp[REQ, RSP] {
 		kklog.Errorf("method %s already registered", method)
 		return nil
 	}
-	if gRpcManager.type2method[reflect.TypeOf((*REQ)(nil))] != "" {
+	if gRpcManager.type2methodReqRsp[reflect.TypeOf((*REQ)(nil))] != "" {
 		kklog.Errorf("type %s already registered", reflect.TypeOf((*REQ)(nil)))
 		return nil
 	}
-	if gRpcManager.type2method[reflect.TypeOf((*RSP)(nil))] != "" {
+	if gRpcManager.type2methodReqRsp[reflect.TypeOf((*RSP)(nil))] != "" {
 		kklog.Errorf("type %s already registered", reflect.TypeOf((*RSP)(nil)))
 		return nil
 	}
@@ -307,9 +303,9 @@ func newReqResp[REQ any, RSP any](method string) *ReqResp[REQ, RSP] {
 	typeReq := reflect.TypeOf(&vReq)
 	typeRsp := reflect.TypeOf(&vRSP)
 	gRpcManager.peers[method] = p
-	gRpcManager.type2method[typeReq] = method
-	gRpcManager.type2method[typeRsp] = method
-	gRpcManager.method2type[method] = methodType{reqType: typeReq, rspType: typeRsp}
+	gRpcManager.type2methodReqRsp[typeReq] = method
+	gRpcManager.type2methodReqRsp[typeRsp] = method
+	gRpcManager.method2typeReqRsp[method] = methodType{reqType: typeReq, rspType: typeRsp}
 	return p
 }
 
@@ -334,7 +330,7 @@ func newOneWay[REQ any](method string) *OneWay[REQ] {
 		kklog.Errorf("method %s already registered", method)
 		return nil
 	}
-	if gRpcManager.type2method[reflect.TypeOf((*REQ)(nil))] != "" {
+	if gRpcManager.type2methodOneWay[reflect.TypeOf((*REQ)(nil))] != "" {
 		kklog.Errorf("type %s already registered", reflect.TypeOf((*REQ)(nil)))
 		return nil
 	}
@@ -344,7 +340,7 @@ func newOneWay[REQ any](method string) *OneWay[REQ] {
 	var vReq REQ
 	typeReq := reflect.TypeOf(&vReq)
 	gRpcManager.oneWays[method] = o
-	gRpcManager.type2method[typeReq] = method
-	gRpcManager.method2type[method] = methodType{reqType: typeReq, rspType: nil}
+	gRpcManager.type2methodOneWay[typeReq] = method
+	gRpcManager.method2typeOneWay[method] = methodType{reqType: typeReq}
 	return o
 }

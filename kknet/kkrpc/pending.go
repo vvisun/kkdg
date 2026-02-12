@@ -5,11 +5,12 @@ import (
 	"sync/atomic"
 )
 
+// pendingMap 用于管理请求的响应和回调
 type pendingMap struct {
 	closed atomic.Bool
 	mu     sync.Mutex
-	cbMap  map[uint64]func(Frame)
-	chMap  map[uint64]chan Frame
+	cbMap  map[uint64]func(Frame) //异步回调
+	chMap  map[uint64]chan Frame  //同步等待
 }
 
 func newPendingMap() *pendingMap {
