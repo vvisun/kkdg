@@ -11,3 +11,8 @@ const (
 	ConnStatusClosing                        //关闭中
 	ConnStatusClosed                         //已关闭
 )
+
+// IsConnected 判断连接状态是否为连接已建立
+func IsConnected(status ConnStatus) bool {
+	return status == ConnStatusConnected || status == ConnStatusReconnected
+}

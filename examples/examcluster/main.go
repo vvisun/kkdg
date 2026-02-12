@@ -1,4 +1,4 @@
-package examcluster
+package main
 
 import (
 	"fmt"
@@ -61,4 +61,8 @@ func ExampleStats() {
 	fmt.Printf("Errors: %d\n", discoveryStats.Errors)
 	fmt.Printf("Reconnects: %d\n", discoveryStats.Reconnects)
 	fmt.Printf("Is Connected: %v\n", discoveryStats.IsConnected)
+}
+
+func main() {
+	ExampleStats()
 }
