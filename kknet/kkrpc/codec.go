@@ -16,6 +16,7 @@ var (
 	// gatewayCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)
 )
 
+// 注意，msgpack有并发安全问题，不要使用
 func SetFrameCodec(codec kkcodec.ICodec) {
 	if codec == nil {
 		panic("codec is nil")
@@ -23,6 +24,7 @@ func SetFrameCodec(codec kkcodec.ICodec) {
 	frameCodec = codec
 }
 
+// 注意，msgpack有并发安全问题，不要使用
 func SetPayloadCodec(codec kkcodec.ICodec) {
 	if codec == nil {
 		panic("codec is nil")

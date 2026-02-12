@@ -8,7 +8,7 @@ import (
 )
 
 type Server struct {
-	tcp     *kktcp.Server
+	tcp     kknet.IServer
 	pending *pendingMap
 }
 
@@ -23,6 +23,18 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	s.tcp = kktcp.NewServer(addr, handler, opts)
+	s.pending = newPendingMap()
+	return s
+}
+
+func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
+	s := &Server{}
+	handler := &serverHandler{
+		svr:       s,
+		rpcRouter: rpcRouter,
+	}
+	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
+	s.tcp = svrCreator(handler, opts)
 	s.pending = newPendingMap()
 	return s
 }

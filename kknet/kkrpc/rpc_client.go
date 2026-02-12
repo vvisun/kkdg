@@ -8,7 +8,7 @@ import (
 )
 
 type Client struct {
-	cli     *kktcp.GnetClient
+	cli     kknet.IClient
 	pending *pendingMap
 }
 
@@ -23,6 +23,18 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	cc.cli = kktcp.NewClient(addr, handler, opts)
+	cc.pending = newPendingMap()
+	return cc
+}
+
+func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
+	cc := &Client{}
+	handler := &clientHandler{
+		cli:       cc,
+		rpcRouter: rpcRouter,
+	}
+	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
+	cc.cli = cliCreator(handler, opts)
 	cc.pending = newPendingMap()
 	return cc
 }
