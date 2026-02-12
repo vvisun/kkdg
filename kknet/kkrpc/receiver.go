@@ -153,8 +153,3 @@ func NewRpcReceiver() *RpcReceiver {
 		hdMap: make(map[string]IRpcHandler),
 	}
 }
-
-func RegistRpcHandler[T any, R any](router *RpcReceiver, method string, call RpcHandlerFunc[T, R]) {
-	h := newRpcHandler(method, call)
-	router.hdMap[method] = h
-}

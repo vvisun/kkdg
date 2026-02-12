@@ -237,7 +237,7 @@ func newRpcManager() *rpcManager {
 
 var (
 	gRpcManager    *rpcManager
-	onceRpcManager = sync.Once{}
+	onceRpcManager sync.Once
 )
 
 func DefaultRpcManager() *rpcManager {

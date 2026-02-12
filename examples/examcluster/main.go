@@ -9,8 +9,8 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 )
 
-// ExampleStats 统计信息使用示例
-func ExampleStats() {
+// exampleStats 统计信息使用示例
+func exampleStats() {
 	// 创建服务发现
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil, dnats.ApplyNatsOptions())
@@ -64,5 +64,5 @@ func ExampleStats() {
 }
 
 func main() {
-	ExampleStats()
+	exampleStats()
 }
