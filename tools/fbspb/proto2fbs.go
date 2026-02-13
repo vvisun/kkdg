@@ -6,10 +6,19 @@ import (
 	"strings"
 )
 
+// fbNamespace 将 proto package 转为 flatbuffer namespace，pbXXX -> fbXXX
+func fbNamespace(pkg string) string {
+	if strings.HasPrefix(pkg, "pb") && len(pkg) > 2 {
+		return "fb" + pkg[2:]
+	}
+	return pkg
+}
+
 // Proto2FBS 将 .proto Schema 转换为 .fbs 并写入 w
 func Proto2FBS(sc *Schema, w io.Writer) error {
 	if sc.Package != "" {
-		_, err := fmt.Fprintf(w, "namespace %s;\n\n", sc.Package)
+		ns := fbNamespace(sc.Package)
+		_, err := fmt.Fprintf(w, "namespace %s;\n\n", ns)
 		if err != nil {
 			return err
 		}

@@ -1,4 +1,4 @@
-namespace pbbase;
+namespace fbbase;
 
 table RawInputArgs {
   MsgType: uint;

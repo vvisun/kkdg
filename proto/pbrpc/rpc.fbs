@@ -1,4 +1,4 @@
-namespace pbrpc;
+namespace fbrpc;
 
 table Frame {
   T: uint;

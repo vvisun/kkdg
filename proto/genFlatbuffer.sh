@@ -1,7 +1,8 @@
 #!/bin/bash
 for d in pbbase pbcluster pbrpc; do
-    if ls ./"$d"/*.fbs 1>/dev/null 2>&1; then
+    fbs_files=(./"$d"/*.fbs)
+    if [ -f "${fbs_files[0]}" ]; then
         echo "Generating Go from $d/*.fbs"
-        flatc --go -o "./$d" ./"$d"/*.fbs
+        flatc --go -o "./$d" "${fbs_files[@]}"
     fi
 done
