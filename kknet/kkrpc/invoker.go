@@ -6,6 +6,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkpool"
@@ -98,6 +99,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, 
 			return err
 		}
 		err = payloadCodec.Unmarshal(fr.P, rsp)
+		byteslice.Put(fr.P)
 		if err != nil {
 			return err
 		}
@@ -166,6 +168,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req
 			return
 		}
 		err = payloadCodec.Unmarshal(fr.P, respInfo)
+		byteslice.Put(fr.P)
 		if err != nil {
 			callback(nil, err)
 			return

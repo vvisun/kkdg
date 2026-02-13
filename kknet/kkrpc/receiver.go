@@ -5,6 +5,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -45,6 +46,7 @@ func (h *OneWayHandler[T]) OnMsg(ctx context.Context, payload []byte, frameType 
 		return err
 	}
 	err := h.call(ctx, &data)
+	byteslice.Put(payload)
 	if err != nil {
 		return err
 	}
@@ -105,25 +107,34 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 		kkbuffer.Put(data)
 		return nil
 	}
-	// fr.P 指向 data.B 内部，必须在 Put 前拷贝，否则 buffer 被池复用会覆盖 payload（并发时必现）
-	if fr.P != nil {
-		fr.P = append([]byte(nil), fr.P...)
-	}
-	kkbuffer.Put(data)
 
 	switch fr.T {
 	case FrameTypeOneway:
 		r.dealOneWay(&fr)
+		kkbuffer.Put(data)
 		return nil
 	case FrameTypeRequest:
-		return r.dealReqResp(&fr)
+		bb := r.dealReqResp(&fr)
+		kkbuffer.Put(data)
+		return bb
 	case FrameTypeResponse:
+		// fr.P 指向 data.B 内部，必须在 Put 前拷贝，否则 buffer 被池复用会覆盖 payload（并发时必现）
+		if fr.P != nil {
+			pLen := len(fr.P)
+			if pLen > 0 {
+				oldP := fr.P
+				fr.P = byteslice.GetWithLenCap(pLen, pLen)
+				copy(fr.P, oldP)
+			}
+		}
+		kkbuffer.Put(data)
 		// 收到了远程方法的返回结果（同步 Invoke 或异步 callback）
 		if pending != nil {
 			pending.deliver(fr.ID, fr)
 		}
 		return nil
 	default:
+		kkbuffer.Put(data)
 		kklog.Debugf("收到未知类型的消息: %v, %v", fr.T, fr.M)
 		return nil
 	}

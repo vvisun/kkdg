@@ -107,6 +107,12 @@ func GetZero(capacity int) []byte {
 	return ret
 }
 
+func GetWithLenCap(len int, cap int) []byte {
+	ret := builtinPool.Get(cap)
+	ret = ret[:len]
+	return ret
+}
+
 // Put returns the byte slice to the built-in pool.
 func Put(buf []byte) {
 	builtinPool.Put(buf)
