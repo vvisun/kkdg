@@ -18,6 +18,11 @@ type FlatBufferTable interface {
 	Init(buf []byte, i flatbuffers.UOffsetT)
 }
 
+// FlatBufferUnmarshaler 可从 bytes 反序列化填充自身的结构体（由 fbs2struct 生成）
+type FlatBufferUnmarshaler interface {
+	UnmarshalFlatBuffer(data []byte) error
+}
+
 type codec struct{}
 
 // Name 编解码器名称
@@ -83,4 +88,24 @@ func Unmarshal(data []byte, v any) error {
 // MarshalAppend 编码
 func MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 	return DefaultCodec.MarshalAppend(v, offset)
+}
+
+// MarshalStruct 泛型：将实现 FlatBufferPackable 的结构体编码为 bytes
+func MarshalStruct[T FlatBufferPackable](v T) ([]byte, error) {
+	return DefaultCodec.Marshal(v)
+}
+
+// UnmarshalStruct 泛型：将 bytes 解码到实现 FlatBufferUnmarshaler 的结构体
+func UnmarshalStruct[T FlatBufferUnmarshaler](data []byte, v T) error {
+	return v.UnmarshalFlatBuffer(data)
+}
+
+// DecodeToStruct 泛型便捷方法：解码并返回新分配的结构体（v 作为模板，需提供 NewT()）
+// 若 T 支持指针接收的 UnmarshalFlatBuffer，可传入 &T{} 并通过返回值获取
+func DecodeToStruct[T FlatBufferUnmarshaler](data []byte, newFunc func() T) (T, error) {
+	v := newFunc()
+	if err := v.UnmarshalFlatBuffer(data); err != nil {
+		return v, err
+	}
+	return v, nil
 }
