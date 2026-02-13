@@ -30,15 +30,12 @@ message ClusterPacket {
 	string TargetPath = 4; 	// 目标节点路径
 	string FuncName = 5;	// 函数名
 	bytes ArgBytes = 6;		// 函数参数
-	Session Session = 7;	// 会话(可选项，可以为空)
-}
-
-message Session {
-	string Sid = 1;				// session unique id
-	int64 Uid = 2;				// user id
-	string AgentPath = 3;		// frontend actor agent path
-	string Ip = 4;				// ip address
-	map<string, string> ExtendData = 5;   // extend data
+	
+	string Sid = 7;				// session unique id
+	int64 Uid = 8;				// user id
+	string AgentPath = 9;		// frontend actor agent path
+	string Ip = 10;				// ip address
+	map<string, string> ExtendData = 11;   // extend data
 }
 
 message ClusterRequest {

@@ -29,7 +29,7 @@ type IPacket interface {
 	 *@param packet []byte 整包数据 [length,message] 或 一部分
 	 *@param size int 包体[message]的长度
 	 */
-	writeMessageSize(packet []byte, size int)
+	WriteMessageSize(packet []byte, size int)
 
 	/**check packet is valid.
 	 *@param packet []byte 整包数据 [length,message]

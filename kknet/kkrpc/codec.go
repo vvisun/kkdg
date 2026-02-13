@@ -9,7 +9,7 @@ import (
 
 var (
 	// rpc用的编码器
-	frameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
+	frameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)
 	// rpc消息里的Data字段编码器
 	payloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	// 网关消息使用的编码器. 需和客户端约定好编码器类型
@@ -39,17 +39,15 @@ func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
 	if frame.Err == "" {
 		frame.Err = "unknown error"
 	}
-	frameBytes, err := frameCodec.Marshal(frame)
-	if err != nil {
-		return nil, err
+
+	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
+	bb1, err1 := frameCodec.MarshalAppend(frame, lfbCount)
+	if err1 != nil {
+		kkbuffer.Put(bb1)
+		return nil, err1
 	}
-	// encode stream
-	bb, err := kkpacket.DefaultStreamPacket().Pack(frameBytes)
-	if err != nil {
-		kkbuffer.Put(bb)
-		return nil, err
-	}
-	return bb, nil
+	kkpacket.DefaultStreamPacket().WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
+	return bb1, nil
 }
 
 func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payload []byte) (*kkbuffer.ByteBuffer, error) {
@@ -69,18 +67,15 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 		M:  method,
 		P:  payload,
 	}
-	frameBytes, err := frameCodec.Marshal(&request)
-	if err != nil {
-		return nil, err
-	}
 
-	// encode stream
-	bb, err := kkpacket.DefaultStreamPacket().Pack(frameBytes)
-	if err != nil {
-		kkbuffer.Put(bb)
-		return nil, err
+	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
+	bb1, err1 := frameCodec.MarshalAppend(&request, lfbCount)
+	if err1 != nil {
+		kkbuffer.Put(bb1)
+		return nil, err1
 	}
-	return bb, nil
+	kkpacket.DefaultStreamPacket().WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
+	return bb1, nil
 }
 
 func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T) (*kkbuffer.ByteBuffer, error) {
@@ -105,18 +100,15 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T) (*
 		M:  method,
 		P:  payloadBytes,
 	}
-	frameBytes, err := frameCodec.Marshal(&request)
-	if err != nil {
-		return nil, err
-	}
 
-	// encode stream
-	bb, err := kkpacket.DefaultStreamPacket().Pack(frameBytes)
-	if err != nil {
-		kkbuffer.Put(bb)
-		return nil, err
+	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
+	bb1, err1 := frameCodec.MarshalAppend(&request, lfbCount)
+	if err1 != nil {
+		kkbuffer.Put(bb1)
+		return nil, err1
 	}
-	return bb, nil
+	kkpacket.DefaultStreamPacket().WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
+	return bb1, nil
 }
 
 func DecodeRpcPayload[T any](bb *kkbuffer.ByteBuffer) (*T, error) {

@@ -74,7 +74,7 @@ func (slf *LengthFieldStreamPacket) ReadMessageSize(packet []byte) (int, error) 
  *@param packet []byte 整包数据 [length,message] 或 一部分
  *@param size int 包体[message]的长度
  */
-func (slf *LengthFieldStreamPacket) writeMessageSize(packet []byte, size int) {
+func (slf *LengthFieldStreamPacket) WriteMessageSize(packet []byte, size int) {
 	switch slf.lfbCount {
 	case 4:
 		GetByteOrder().PutUint32(packet[:4], uint32(size))
@@ -132,7 +132,7 @@ func (slf *LengthFieldStreamPacket) Pack(messageBytes []byte) (*kkbuffer.ByteBuf
 	totalLen := lfb + messageLen
 	bb := kkbuffer.GetWithCapacity(totalLen)
 	bb.B = bb.B[:totalLen]
-	slf.writeMessageSize(bb.B[:lfb], messageLen)
+	slf.WriteMessageSize(bb.B[:lfb], messageLen)
 	copy(bb.B[lfb:], messageBytes)
 
 	return bb, nil

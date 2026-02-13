@@ -28,7 +28,7 @@ func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffe
 		return nil, kkerrors.ErrEncodeFailed
 	}
 
-	stream.writeMessageSize(bb.B, len(bb.B)-lfbCount)
+	stream.WriteMessageSize(bb.B, len(bb.B)-lfbCount)
 
 	messageBytes, err := stream.MessageBytes(bb.B)
 	if err != nil {

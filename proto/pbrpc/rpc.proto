@@ -1,0 +1,24 @@
+syntax = "proto3";
+package pbrpc;
+option go_package = ".;pbrpc";
+
+message Frame {
+	uint32 T = 1; // FrameType
+	uint64 ID = 2; // request id. 0 means no response required
+	int64 DL = 3; // deadline unix ms (0 means no deadline)
+	string M = 4; // method（远程方法名）
+	bytes P = 5; // payload（远程方法参数）
+	int32 Code = 6; // status code (0 ok) 错误码
+	string Err = 7; // error message 错误信息
+}
+
+message TransMsg {
+	uint64 ClientId = 1; // 客户端id(connID)
+	bytes Data = 2; // 转发数据
+}
+
+message TransBroadMsg {
+	repeated uint64 ClientIdList = 1; // 客户端id列表(connID列表)
+	bytes Data = 2; // 转发数据
+}
+
