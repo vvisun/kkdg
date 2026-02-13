@@ -3,8 +3,6 @@ package kkrpc
 import (
 	"context"
 	"net"
-	"runtime"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -117,7 +115,7 @@ func Benchmark_EncodeRpcFrame(b *testing.B) {
 	}
 }
 
-// Benchmark_InvokeUnary_Parallel 多连接并发调用。每个 goroutine 独占一个 client，无共享连接。
+// Benchmark_InvokeUnary_Parallel 单连接并发调用，多个 goroutine 共享同一 client，测试真实并发下的 req/resp 匹配与编解码。
 func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 	ClearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
@@ -142,40 +140,19 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 	}
 	defer svr.Stop()
 
-	numConns := runtime.GOMAXPROCS(0)
-	if numConns < 4 {
-		numConns = 4
+	cli := NewClient(addr, kknet.DefaultOptions(), rpcRouter)
+	if err := cli.Start(); err != nil {
+		b.Fatalf("start client: %v", err)
 	}
-	if numConns > 32 {
-		numConns = 32
-	}
+	defer cli.Stop()
 
-	clients := make([]*Client, numConns)
-	invokers := make([]ReqRspInvoker[testReq, testRsp], numConns)
-
-	for i := 0; i < numConns; i++ {
-		cli := NewClient(addr, kknet.DefaultOptions(), rpcRouter)
-		if err := cli.Start(); err != nil {
-			b.Fatalf("start client: %v", err)
-		}
-		clients[i] = cli
-		invokers[i] = NewReqRspInvoker[testReq, testRsp](cli, 0)
-	}
-	defer func() {
-		for _, c := range clients {
-			c.Stop()
-		}
-	}()
+	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
 
 	time.Sleep(200 * time.Millisecond)
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	var parallelLaneIdx uint32
 	b.RunParallel(func(pb *testing.PB) {
-		// 每个 goroutine 绑定到固定 client，避免共享连接
-		myLane := int(atomic.AddUint32(&parallelLaneIdx, 1)-1) % numConns
-		invoker := invokers[myLane]
 		i := 0
 		for pb.Next() {
 			req := testReq{ID: i, Data: "test"}
