@@ -5,7 +5,6 @@ import (
 
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -36,8 +35,7 @@ func (codec) Name() string {
 var (
 	poolBuilder = sync.Pool{
 		New: func() interface{} {
-			bd := flatbuffers.NewBuilder(0)
-			return bd
+			return flatbuffers.NewBuilder(0)
 		},
 	}
 )
@@ -47,6 +45,11 @@ func GetBuilder() *flatbuffers.Builder {
 }
 
 func PutBuilder(builder *flatbuffers.Builder) {
+	capacity := cap(builder.Bytes)
+	if capacity < 256 {
+		capacity = 256
+	}
+	builder.Bytes = make([]byte, capacity) //替换掉原来的bytes，避免put后被重新使用污染返回的bytes
 	builder.Reset()
 	poolBuilder.Put(builder)
 }
@@ -61,7 +64,6 @@ func (codec) Marshal(v any) ([]byte, error) {
 	offset := packable.Pack(builder)
 	builder.Finish(offset)
 	bytes := builder.FinishedBytes()
-	builder.Bytes = byteslice.Get(cap(bytes)) //替换掉原来的bytes，避免put后被重新使用污染返回的bytes
 	PutBuilder(builder)
 	return bytes, nil
 }
