@@ -1,6 +1,8 @@
 package flatbuffer
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	flatbuffers "github.com/google/flatbuffers/go"
@@ -74,6 +76,154 @@ func TestFlatBuffer_Unmarshal_InvalidType(t *testing.T) {
 	err := DefaultCodec.Unmarshal(data, 123)
 	if err == nil {
 		t.Fatal("Unmarshal: expected error for invalid type")
+	}
+}
+
+//----------------------------------------------------------------
+// 并发安全测试 (go test -race 可检测 data race)
+
+func TestFlatBuffer_Concurrent_Marshal_Unmarshal_Int32(t *testing.T) {
+	const n = 200
+	var wg sync.WaitGroup
+	errCount := atomic.Int32{}
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(id int32) {
+			defer wg.Done()
+			obj := &packableInt32{value: id}
+			data, err := DefaultCodec.Marshal(obj)
+			if err != nil {
+				errCount.Add(1)
+				return
+			}
+			var result fbbase.Int32
+			if err := DefaultCodec.Unmarshal(data, &result); err != nil {
+				errCount.Add(1)
+				return
+			}
+			if result.Value() != id {
+				errCount.Add(1)
+			}
+		}(int32(i))
+	}
+	wg.Wait()
+	if errCount.Load() != 0 {
+		t.Errorf("concurrent Marshal/Unmarshal Int32: %d errors", errCount.Load())
+	}
+}
+
+func TestFlatBuffer_Concurrent_Marshal_Unmarshal_FrameStruct(t *testing.T) {
+	const n = 200
+	var wg sync.WaitGroup
+	errCount := atomic.Int32{}
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(id uint64) {
+			defer wg.Done()
+			obj := &fbrpc.FrameStruct{T: 1, ID: id, M: "method", P: []byte("payload")}
+			data, err := DefaultCodec.Marshal(obj)
+			if err != nil {
+				errCount.Add(1)
+				return
+			}
+			var result fbrpc.FrameStruct
+			if err := DefaultCodec.Unmarshal(data, &result); err != nil {
+				errCount.Add(1)
+				return
+			}
+			if result.ID != id || result.M != "method" || string(result.P) != "payload" {
+				errCount.Add(1)
+			}
+		}(uint64(i))
+	}
+	wg.Wait()
+	if errCount.Load() != 0 {
+		t.Errorf("concurrent Marshal/Unmarshal FrameStruct: %d errors", errCount.Load())
+	}
+}
+
+func TestFlatBuffer_Concurrent_MarshalAppend(t *testing.T) {
+	const n = 200
+	offset := 4
+	var wg sync.WaitGroup
+	errCount := atomic.Int32{}
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(id int32) {
+			defer wg.Done()
+			obj := &packableInt32{value: id}
+			bb, err := DefaultCodec.MarshalAppend(obj, offset)
+			if err != nil {
+				errCount.Add(1)
+				return
+			}
+			defer kkbuffer.Put(bb)
+			var result fbbase.Int32
+			if err := DefaultCodec.Unmarshal(bb.B[offset:], &result); err != nil {
+				errCount.Add(1)
+				return
+			}
+			if result.Value() != id {
+				errCount.Add(1)
+			}
+		}(int32(i))
+	}
+	wg.Wait()
+	if errCount.Load() != 0 {
+		t.Errorf("concurrent MarshalAppend: %d errors", errCount.Load())
+	}
+}
+
+func TestFlatBuffer_Concurrent_Mixed(t *testing.T) {
+	const n = 100
+	var wg sync.WaitGroup
+	errCount := atomic.Int32{}
+	wg.Add(n * 3)
+	for i := 0; i < n; i++ {
+		id := int32(i)
+		// Marshal + Unmarshal (Int32)
+		go func() {
+			defer wg.Done()
+			obj := &packableInt32{value: id}
+			data, err := DefaultCodec.Marshal(obj)
+			if err != nil {
+				errCount.Add(1)
+				return
+			}
+			var result fbbase.Int32
+			if err := DefaultCodec.Unmarshal(data, &result); err != nil || result.Value() != id {
+				errCount.Add(1)
+			}
+		}()
+		// MarshalAppend
+		go func() {
+			defer wg.Done()
+			obj := &fbrpc.FrameStruct{T: 2, ID: uint64(id), M: "m"}
+			bb, err := DefaultCodec.MarshalAppend(obj, 4)
+			if err != nil {
+				errCount.Add(1)
+				return
+			}
+			kkbuffer.Put(bb)
+		}()
+		// Marshal + Unmarshal (FrameStruct)
+		go func() {
+			defer wg.Done()
+			obj := &fbrpc.FrameStruct{T: 3, ID: uint64(id + 1000), M: "mixed"}
+			data, err := DefaultCodec.Marshal(obj)
+			if err != nil {
+				errCount.Add(1)
+				return
+			}
+			var result fbrpc.FrameStruct
+			if err := DefaultCodec.Unmarshal(data, &result); err != nil || result.ID != uint64(id+1000) {
+				errCount.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if errCount.Load() != 0 {
+		t.Errorf("concurrent mixed: %d errors", errCount.Load())
 	}
 }
 
