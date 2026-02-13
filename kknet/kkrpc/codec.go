@@ -9,9 +9,9 @@ import (
 
 var (
 	// rpc用的编码器
-	frameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
+	frameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	// rpc消息里的Data字段编码器
-	payloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
+	payloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	// 网关消息使用的编码器. 需和客户端约定好编码器类型
 	// gatewayCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)
 )

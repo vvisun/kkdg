@@ -1,8 +1,11 @@
 package flatbuffer
 
 import (
+	"sync"
+
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -30,16 +33,37 @@ func (codec) Name() string {
 	return Name
 }
 
+var (
+	poolBuilder = sync.Pool{
+		New: func() interface{} {
+			bd := flatbuffers.NewBuilder(0)
+			return bd
+		},
+	}
+)
+
+func GetBuilder() *flatbuffers.Builder {
+	return poolBuilder.Get().(*flatbuffers.Builder)
+}
+
+func PutBuilder(builder *flatbuffers.Builder) {
+	builder.Reset()
+	poolBuilder.Put(builder)
+}
+
 // Marshal 编码
 func (codec) Marshal(v any) ([]byte, error) {
 	packable, ok := v.(FlatBufferPackable)
 	if !ok {
 		return nil, kkerrors.ErrCannotMarshalFlatBuffer
 	}
-	builder := flatbuffers.NewBuilder(0)
+	builder := GetBuilder()
 	offset := packable.Pack(builder)
 	builder.Finish(offset)
-	return builder.FinishedBytes(), nil
+	bytes := builder.FinishedBytes()
+	builder.Bytes = byteslice.Get(cap(bytes)) //替换掉原来的bytes，避免put后被重新使用污染返回的bytes
+	PutBuilder(builder)
+	return bytes, nil
 }
 
 // MarshalAppend 编码
@@ -48,7 +72,7 @@ func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 	if !ok {
 		return nil, kkerrors.ErrCannotMarshalFlatBuffer
 	}
-	builder := flatbuffers.NewBuilder(0)
+	builder := GetBuilder()
 	root := packable.Pack(builder)
 	builder.Finish(root)
 	fbBytes := builder.FinishedBytes()
@@ -56,6 +80,7 @@ func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 	bb := kkbuffer.GetWithCapacity(realLen)
 	bb.B = bb.B[:realLen]
 	copy(bb.B[offset:], fbBytes)
+	PutBuilder(builder)
 	return bb, nil
 }
 
