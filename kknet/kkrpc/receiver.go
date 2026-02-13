@@ -100,11 +100,16 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	}
 	var fr Frame
 	err = frameCodec.Unmarshal(frameBytes, &fr)
-	kkbuffer.Put(data)
 	if err != nil {
 		kklog.Debugf("failed to unmarshal frame: %v", err)
+		kkbuffer.Put(data)
 		return nil
 	}
+	// fr.P 指向 data.B 内部，必须在 Put 前拷贝，否则 buffer 被池复用会覆盖 payload（并发时必现）
+	if fr.P != nil {
+		fr.P = append([]byte(nil), fr.P...)
+	}
+	kkbuffer.Put(data)
 
 	switch fr.T {
 	case FrameTypeOneway:
