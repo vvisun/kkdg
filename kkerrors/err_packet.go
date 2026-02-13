@@ -36,4 +36,8 @@ var (
 var (
 	// 无法解码为 proto.Message 类型
 	ErrCannotUnmarshalToProtoMessage = errors.New("cannot unmarshal to a value that not implements proto.Buffer")
+	// 无法编码为 FlatBuffer 类型（需实现 FlatBufferPackable，即 *XxxT）
+	ErrCannotMarshalFlatBuffer = errors.New("cannot marshal to flatbuffer: value must implement FlatBufferPackable (*XxxT)")
+	// 无法解码为 FlatBuffer 类型（需实现 FlatBufferTable，即 *Xxx）
+	ErrCannotUnmarshalFlatBuffer = errors.New("cannot unmarshal to flatbuffer: value must implement FlatBufferTable (*Xxx)")
 )

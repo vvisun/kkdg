@@ -1,0 +1,22 @@
+namespace pbrpc;
+
+table Frame {
+  T: uint;
+  ID: ulong;
+  DL: long;
+  M: string;
+  P: [ubyte];
+  Code: int;
+  Err: string;
+}
+
+table TransMsg {
+  ClientId: ulong;
+  Data: [ubyte];
+}
+
+table TransBroadMsg {
+  ClientIdList: [ulong];
+  Data: [ubyte];
+}
+

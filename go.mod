@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/asynkron/protoactor-go v0.0.0-20260118094027-288962e52f3f
 	github.com/bytedance/sonic v1.14.2
+	github.com/google/flatbuffers v25.12.19+incompatible
 	github.com/gorilla/websocket v1.5.3
 	github.com/nats-io/nats.go v1.48.0
 	github.com/shamaton/msgpack/v2 v2.4.0
@@ -61,7 +62,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/lestrrat-go/strftime v1.1.1
-	github.com/panjf2000/ants/v2 v2.11.4 // indirect
+	github.com/panjf2000/ants/v2 v2.11.4
 	github.com/panjf2000/gnet/v2 v2.9.7
 	github.com/shirou/gopsutil v2.21.11+incompatible
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

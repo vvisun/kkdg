@@ -1,0 +1,31 @@
+syntax = "proto3";
+package MyGame;
+
+enum Color {
+  Red = 1;
+  Green = 2;
+  Blue = 8;
+}
+
+message Vec3 {
+  float x = 1;
+
+  float y = 2;
+
+  float z = 3;
+}
+
+message Monster {
+  Vec3 pos = 4;
+
+  int32 mana = 5;
+
+  int32 hp = 6;
+
+  string name = 7;
+
+  bytes inventory = 8;
+
+  Color color = 9;
+}
+

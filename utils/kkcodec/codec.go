@@ -2,6 +2,7 @@ package kkcodec
 
 import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec/flatbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec/json"
 	"github.com/vvisun/kkdg/utils/kkcodec/msgpack"
 	"github.com/vvisun/kkdg/utils/kkcodec/proto"
@@ -25,6 +26,7 @@ const (
 	CodecTypeJson CodecType = iota
 	CodecTypeProtoBuf
 	CodecTypeMsgpack
+	CodecTypeFlatBuffer
 	CodecTypeYaml
 	CodecTypeXml
 	CodecTypeToml
@@ -38,6 +40,8 @@ func GetCodec(codecType CodecType) ICodec {
 		return proto.DefaultCodec
 	case CodecTypeMsgpack:
 		return msgpack.DefaultCodec
+	case CodecTypeFlatBuffer:
+		return flatbuffer.DefaultCodec
 	case CodecTypeYaml:
 		return yaml.DefaultCodec
 	case CodecTypeXml:
