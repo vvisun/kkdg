@@ -7,7 +7,7 @@ import (
 
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/vvisun/kkdg/proto/pbbase/fbbase"
-	"github.com/vvisun/kkdg/proto/pbrpc/fbrpc"
+	"github.com/vvisun/kkdg/proto/pbrpc/fbtrpc"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -120,13 +120,13 @@ func TestFlatBuffer_Concurrent_Marshal_Unmarshal_FrameStruct(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(id uint64) {
 			defer wg.Done()
-			obj := &fbrpc.FrameStruct{T: 1, ID: id, M: "method", P: []byte("payload")}
+			obj := &fbtrpc.Frame{T: 1, ID: id, M: "method", P: []byte("payload")}
 			data, err := DefaultCodec.Marshal(obj)
 			if err != nil {
 				errCount.Add(1)
 				return
 			}
-			var result fbrpc.FrameStruct
+			var result fbtrpc.Frame
 			if err := DefaultCodec.Unmarshal(data, &result); err != nil {
 				errCount.Add(1)
 				return
@@ -198,7 +198,7 @@ func TestFlatBuffer_Concurrent_Mixed(t *testing.T) {
 		// MarshalAppend
 		go func() {
 			defer wg.Done()
-			obj := &fbrpc.FrameStruct{T: 2, ID: uint64(id), M: "m"}
+			obj := &fbtrpc.Frame{T: 2, ID: uint64(id), M: "m"}
 			bb, err := DefaultCodec.MarshalAppend(obj, 4)
 			if err != nil {
 				errCount.Add(1)
@@ -209,13 +209,13 @@ func TestFlatBuffer_Concurrent_Mixed(t *testing.T) {
 		// Marshal + Unmarshal (FrameStruct)
 		go func() {
 			defer wg.Done()
-			obj := &fbrpc.FrameStruct{T: 3, ID: uint64(id + 1000), M: "mixed"}
+			obj := &fbtrpc.Frame{T: 3, ID: uint64(id + 1000), M: "mixed"}
 			data, err := DefaultCodec.Marshal(obj)
 			if err != nil {
 				errCount.Add(1)
 				return
 			}
-			var result fbrpc.FrameStruct
+			var result fbtrpc.Frame
 			if err := DefaultCodec.Unmarshal(data, &result); err != nil || result.ID != uint64(id+1000) {
 				errCount.Add(1)
 			}
@@ -261,7 +261,7 @@ func Benchmark_Unmarshal_Int32Table(b *testing.B) {
 }
 
 func Benchmark_MarshalAppend_FrameStruct(b *testing.B) {
-	obj := &fbrpc.FrameStruct{T: 1, ID: 100, M: "test", P: []byte("payload")}
+	obj := &fbtrpc.Frame{T: 1, ID: 100, M: "test", P: []byte("payload")}
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {

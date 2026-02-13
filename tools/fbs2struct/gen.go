@@ -10,7 +10,8 @@ import (
 
 // GenOptions 生成选项
 type GenOptions struct {
-	Package string // Go 包名，默认取 schema namespace
+	Package      string // Go 包名，默认取 schema namespace
+	FlatcImport  string // flatc 生成代码的 import 路径，如 github.com/xxx/proto/pbbase/fbbase。非空则用其前缀调用 flatc 函数
 }
 
 // Generate 根据 fbs Schema 生成 Go struct 代码
@@ -27,7 +28,11 @@ func Generate(sc *fbspb.Schema, w io.Writer, opts GenOptions) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.WriteString(w, "import (\n\tflatbuffers \"github.com/google/flatbuffers/go\"\n)\n\n")
+	imports := "\tflatbuffers \"github.com/google/flatbuffers/go\"\n"
+	if opts.FlatcImport != "" {
+		imports += "\tfb \"" + opts.FlatcImport + "\"\n"
+	}
+	_, err = fmt.Fprintf(w, "import (\n%s)\n\n", imports)
 	if err != nil {
 		return err
 	}
@@ -36,16 +41,20 @@ func Generate(sc *fbspb.Schema, w io.Writer, opts GenOptions) error {
 		if m.IsStruct {
 			continue
 		}
-		if err := genTableStruct(w, sc, &m); err != nil {
+		if err := genTableStruct(w, sc, &m, opts.FlatcImport != ""); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func genTableStruct(w io.Writer, sc *fbspb.Schema, m *fbspb.Message) error {
-	structName := m.Name + "Struct"
+func genTableStruct(w io.Writer, sc *fbspb.Schema, m *fbspb.Message, useFlatcPkg bool) error {
+	structName := m.Name // 不再加 Struct 后缀，与 table 同名，通过包隔离（fbtXXX vs fbXXX）
 	tableName := m.Name
+	fbPrefix := ""
+	if useFlatcPkg {
+		fbPrefix = "fb."
+	}
 
 	_, err := fmt.Fprintf(w, "// %s 对应 table %s，用于 flatbuffer 编解码\n", structName, tableName)
 	if err != nil {
@@ -68,10 +77,10 @@ func genTableStruct(w io.Writer, sc *fbspb.Schema, m *fbspb.Message) error {
 		return err
 	}
 
-	if err := genPackMethod(w, m, structName, tableName); err != nil {
+	if err := genPackMethod(w, m, structName, tableName, fbPrefix); err != nil {
 		return err
 	}
-	if err := genUnmarshalMethod(w, m, structName, tableName); err != nil {
+	if err := genUnmarshalMethod(w, m, structName, tableName, fbPrefix); err != nil {
 		return err
 	}
 	return nil
@@ -85,7 +94,7 @@ func fbsFieldToGoType(f fbspb.Field) string {
 		if t, ok := fbsToGoType[f.Type]; ok && t != "[]byte" {
 			return "[]" + t
 		}
-		return "[]*" + f.Type + "Struct"
+		return "[]*" + f.Type
 	}
 	if f.Type == "bytes" {
 		return "[]byte"
@@ -93,7 +102,7 @@ func fbsFieldToGoType(f fbspb.Field) string {
 	if t, ok := fbsToGoType[f.Type]; ok {
 		return t
 	}
-	return "*" + f.Type + "Struct"
+	return "*" + f.Type
 }
 
 func toGoFieldName(name string) string {
@@ -125,7 +134,7 @@ func toFlatcFieldName(name string) string {
 	return name
 }
 
-func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) error {
+func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName, fbPrefix string) error {
 	_, err := fmt.Fprintf(w, "// Pack 实现 flatbuffer.FlatBufferPackable\n")
 	if err != nil {
 		return err
@@ -149,7 +158,7 @@ func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) 
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprintf(w, "\t\t%sStart%sVector(builder, len(s.%s))\n", tableName, fbName, fieldName)
+			_, err = fmt.Fprintf(w, "\t\t%s%sStart%sVector(builder, len(s.%s))\n", fbPrefix, tableName, fbName, fieldName)
 			if err != nil {
 				return err
 			}
@@ -197,7 +206,7 @@ func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) 
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprintf(w, "\t\t%sStart%sVector(builder, len(s.%s))\n", tableName, fbName, fieldName)
+			_, err = fmt.Fprintf(w, "\t\t%s%sStart%sVector(builder, len(s.%s))\n", fbPrefix, tableName, fbName, fieldName)
 			if err != nil {
 				return err
 			}
@@ -215,7 +224,7 @@ func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) 
 				return err
 			}
 			prepend := getPrependFunc(f.Type)
-			_, err = fmt.Fprintf(w, "\tif len(s.%s) > 0 {\n\t\t%sStart%sVector(builder, len(s.%s))\n", fieldName, tableName, fbName, fieldName)
+			_, err = fmt.Fprintf(w, "\tif len(s.%s) > 0 {\n\t\t%s%sStart%sVector(builder, len(s.%s))\n", fieldName, fbPrefix, tableName, fbName, fieldName)
 			if err != nil {
 				return err
 			}
@@ -231,7 +240,7 @@ func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) 
 	}
 
 	// 2. Start + Add + End
-	_, err = fmt.Fprintf(w, "\t%sStart(builder)\n", tableName)
+	_, err = fmt.Fprintf(w, "\t%s%sStart(builder)\n", fbPrefix, tableName)
 	if err != nil {
 		return err
 	}
@@ -240,13 +249,13 @@ func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) 
 		fbName := toFlatcFieldName(f.Name)
 		isBytesVec := (f.Repeated && (f.Type == "ubyte" || f.Type == "byte")) || f.Type == "bytes"
 		if isBytesVec {
-			_, err = fmt.Fprintf(w, "\t%sAdd%s(builder, p%s)\n", tableName, fbName, fbName)
+			_, err = fmt.Fprintf(w, "\t%s%sAdd%s(builder, p%s)\n", fbPrefix, tableName, fbName, fbName)
 		} else if !f.Repeated && (f.Type == "string" || f.Type == "ubyte" || f.Type == "byte") {
-			_, err = fmt.Fprintf(w, "\t%sAdd%s(builder, o%s)\n", tableName, fbName, fbName)
+			_, err = fmt.Fprintf(w, "\t%s%sAdd%s(builder, o%s)\n", fbPrefix, tableName, fbName, fbName)
 		} else if f.Repeated && (fbsToGoType[f.Type] != "" || f.Type == "string") {
-			_, err = fmt.Fprintf(w, "\t%sAdd%s(builder, p%s)\n", tableName, fbName, fbName)
+			_, err = fmt.Fprintf(w, "\t%s%sAdd%s(builder, p%s)\n", fbPrefix, tableName, fbName, fbName)
 		} else if _, ok := fbsToGoType[f.Type]; ok {
-			_, err = fmt.Fprintf(w, "\t%sAdd%s(builder, s.%s)\n", tableName, fbName, fieldName)
+			_, err = fmt.Fprintf(w, "\t%s%sAdd%s(builder, s.%s)\n", fbPrefix, tableName, fbName, fieldName)
 		} else {
 			_, err = fmt.Fprintf(w, "\t// TODO: %s %s\n", f.Type, fieldName)
 		}
@@ -254,12 +263,13 @@ func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) 
 			return err
 		}
 	}
-	_, err = fmt.Fprintf(w, "\treturn %sEnd(builder)\n}\n\n", tableName)
+	_, err = fmt.Fprintf(w, "\treturn %s%sEnd(builder)\n}\n\n", fbPrefix, tableName)
 	return err
 }
 
-func genUnmarshalMethod(w io.Writer, m *fbspb.Message, structName, tableName string) error {
-	getRoot := "GetRootAs" + tableName
+func genUnmarshalMethod(w io.Writer, m *fbspb.Message, structName, tableName, fbPrefix string) error {
+	getRoot := fbPrefix + "GetRootAs" + tableName
+	tableType := fbPrefix + tableName
 	_, err := fmt.Fprintf(w, "// UnmarshalFlatBuffer 实现 flatbuffer.FlatBufferUnmarshaler，从 bytes 填充结构体\n")
 	if err != nil {
 		return err
@@ -270,7 +280,7 @@ func genUnmarshalMethod(w io.Writer, m *fbspb.Message, structName, tableName str
 	}
 
 	// unpackFrom 从 table 填充到 struct
-	_, err = fmt.Fprintf(w, "func (s *%s) unpackFrom(t *%s) {\n", structName, tableName)
+	_, err = fmt.Fprintf(w, "func (s *%s) unpackFrom(t *%s) {\n", structName, tableType)
 	if err != nil {
 		return err
 	}

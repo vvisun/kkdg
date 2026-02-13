@@ -1,6 +1,6 @@
 package kkrpc
 
-import "github.com/vvisun/kkdg/proto/pbrpc/fbrpc"
+import "github.com/vvisun/kkdg/proto/pbrpc/fbtrpc"
 
 type FrameType = uint32
 
@@ -13,9 +13,9 @@ const (
 	FrameTypeTransBroadMsg FrameType = 5
 )
 
-type Frame = fbrpc.FrameStruct
-type TransMsg = fbrpc.TransMsgStruct
-type TransBroadMsg = fbrpc.TransBroadMsgStruct
+type Frame = fbtrpc.Frame
+type TransMsg = fbtrpc.TransMsg
+type TransBroadMsg = fbtrpc.TransBroadMsg
 
 // type Frame struct {
 // 	T    FrameType `json:"t" msgpack:"t"`             // FrameType

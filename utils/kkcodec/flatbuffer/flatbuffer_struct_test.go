@@ -3,11 +3,11 @@ package flatbuffer
 import (
 	"testing"
 
-	"github.com/vvisun/kkdg/proto/pbrpc/fbrpc"
+	"github.com/vvisun/kkdg/proto/pbrpc/fbtrpc"
 )
 
 func TestFlatBuffer_MarshalStruct_UnmarshalStruct(t *testing.T) {
-	obj := &fbrpc.FrameStruct{
+	obj := &fbtrpc.Frame{
 		T:    1,
 		ID:   100,
 		DL:   0,
@@ -25,7 +25,7 @@ func TestFlatBuffer_MarshalStruct_UnmarshalStruct(t *testing.T) {
 		t.Fatal("Marshal: empty output")
 	}
 
-	var result fbrpc.FrameStruct
+	var result fbtrpc.Frame
 	err = DefaultCodec.Unmarshal(data, &result)
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
@@ -38,10 +38,10 @@ func TestFlatBuffer_MarshalStruct_UnmarshalStruct(t *testing.T) {
 }
 
 func TestFlatBuffer_UnmarshalToNewStruct(t *testing.T) {
-	obj := &fbrpc.FrameStruct{T: 42, M: "test"}
+	obj := &fbtrpc.Frame{T: 42, M: "test"}
 	data, _ := DefaultCodec.Marshal(obj)
 
-	result := &fbrpc.FrameStruct{}
+	result := &fbtrpc.Frame{}
 	err := DefaultCodec.Unmarshal(data, result)
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
@@ -54,7 +54,7 @@ func TestFlatBuffer_UnmarshalToNewStruct(t *testing.T) {
 //----------------------------------------------------------------
 // 性能测试
 
-var benchFrameStruct = &fbrpc.FrameStruct{
+var benchFrameStruct = &fbtrpc.Frame{
 	T:    1,
 	ID:   100,
 	DL:   0,
@@ -85,7 +85,7 @@ func Benchmark_Unmarshal_FrameStruct(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		var result fbrpc.FrameStruct
+		var result fbtrpc.Frame
 		err := DefaultCodec.Unmarshal(benchFrameStructData, &result)
 		if err != nil {
 			b.Fatalf("Unmarshal: %v", err)
@@ -101,7 +101,7 @@ func Benchmark_Marshal_Unmarshal_FrameStruct(b *testing.B) {
 		if err != nil {
 			b.Fatalf("Marshal: %v", err)
 		}
-		var result fbrpc.FrameStruct
+		var result fbtrpc.Frame
 		err = DefaultCodec.Unmarshal(data, &result)
 		if err != nil {
 			b.Fatalf("Unmarshal: %v", err)
