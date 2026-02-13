@@ -77,14 +77,14 @@ type MemberStruct struct {
 
 // Pack 实现 flatbuffer.FlatBufferPackable
 func (s *MemberStruct) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
-	var oNodeID flatbuffers.UOffsetT
-	if s.NodeID != "" { oNodeID = builder.CreateString(s.NodeID) }
+	var oNodeId flatbuffers.UOffsetT
+	if s.NodeID != "" { oNodeId = builder.CreateString(s.NodeID) }
 	var oNodeType flatbuffers.UOffsetT
 	if s.NodeType != "" { oNodeType = builder.CreateString(s.NodeType) }
 	var oAddress flatbuffers.UOffsetT
 	if s.Address != "" { oAddress = builder.CreateString(s.Address) }
 	MemberStart(builder)
-	MemberAddNodeID(builder, oNodeID)
+	MemberAddNodeId(builder, oNodeId)
 	MemberAddNodeType(builder, oNodeType)
 	MemberAddAddress(builder, oAddress)
 	// TODO: MapSettingsEntry Settings
@@ -101,7 +101,7 @@ func (s *MemberStruct) UnmarshalFlatBuffer(data []byte) error {
 }
 
 func (s *MemberStruct) unpackFrom(t *Member) {
-	s.NodeID = string(t.NodeID())
+	s.NodeID = string(t.NodeId())
 	s.NodeType = string(t.NodeType())
 	s.Address = string(t.Address())
 	// TODO: vector MapSettingsEntry
@@ -139,10 +139,10 @@ type DiscoveryRequestStruct struct {
 
 // Pack 实现 flatbuffer.FlatBufferPackable
 func (s *DiscoveryRequestStruct) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
-	var oRequesterID flatbuffers.UOffsetT
-	if s.RequesterID != "" { oRequesterID = builder.CreateString(s.RequesterID) }
+	var oRequesterId flatbuffers.UOffsetT
+	if s.RequesterID != "" { oRequesterId = builder.CreateString(s.RequesterID) }
 	DiscoveryRequestStart(builder)
-	DiscoveryRequestAddRequesterID(builder, oRequesterID)
+	DiscoveryRequestAddRequesterId(builder, oRequesterId)
 	return DiscoveryRequestEnd(builder)
 }
 
@@ -154,7 +154,7 @@ func (s *DiscoveryRequestStruct) UnmarshalFlatBuffer(data []byte) error {
 }
 
 func (s *DiscoveryRequestStruct) unpackFrom(t *DiscoveryRequest) {
-	s.RequesterID = string(t.RequesterID())
+	s.RequesterID = string(t.RequesterId())
 }
 
 // ClusterPacketStruct 对应 table ClusterPacket，用于 flatbuffer 编解码
@@ -237,13 +237,13 @@ type ClusterRequestStruct struct {
 
 // Pack 实现 flatbuffer.FlatBufferPackable
 func (s *ClusterRequestStruct) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
-	var oRequestID flatbuffers.UOffsetT
-	if s.RequestID != "" { oRequestID = builder.CreateString(s.RequestID) }
-	var oSourceNodeID flatbuffers.UOffsetT
-	if s.SourceNodeID != "" { oSourceNodeID = builder.CreateString(s.SourceNodeID) }
+	var oRequestId flatbuffers.UOffsetT
+	if s.RequestID != "" { oRequestId = builder.CreateString(s.RequestID) }
+	var oSourceNodeId flatbuffers.UOffsetT
+	if s.SourceNodeID != "" { oSourceNodeId = builder.CreateString(s.SourceNodeID) }
 	ClusterRequestStart(builder)
-	ClusterRequestAddRequestID(builder, oRequestID)
-	ClusterRequestAddSourceNodeID(builder, oSourceNodeID)
+	ClusterRequestAddRequestId(builder, oRequestId)
+	ClusterRequestAddSourceNodeId(builder, oSourceNodeId)
 	// TODO: ClusterPacket Packet
 	return ClusterRequestEnd(builder)
 }
@@ -256,8 +256,8 @@ func (s *ClusterRequestStruct) UnmarshalFlatBuffer(data []byte) error {
 }
 
 func (s *ClusterRequestStruct) unpackFrom(t *ClusterRequest) {
-	s.RequestID = string(t.RequestID())
-	s.SourceNodeID = string(t.SourceNodeID())
+	s.RequestID = string(t.RequestId())
+	s.SourceNodeID = string(t.SourceNodeId())
 	// TODO: ClusterPacket
 }
 
@@ -270,8 +270,8 @@ type ClusterResponseStruct struct {
 
 // Pack 实现 flatbuffer.FlatBufferPackable
 func (s *ClusterResponseStruct) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
-	var oRequestID flatbuffers.UOffsetT
-	if s.RequestID != "" { oRequestID = builder.CreateString(s.RequestID) }
+	var oRequestId flatbuffers.UOffsetT
+	if s.RequestID != "" { oRequestId = builder.CreateString(s.RequestID) }
 	var pData flatbuffers.UOffsetT
 	if len(s.Data) > 0 {
 		ClusterResponseStartDataVector(builder, len(s.Data))
@@ -279,7 +279,7 @@ func (s *ClusterResponseStruct) Pack(builder *flatbuffers.Builder) flatbuffers.U
 		pData = builder.EndVector(len(s.Data))
 	}
 	ClusterResponseStart(builder)
-	ClusterResponseAddRequestID(builder, oRequestID)
+	ClusterResponseAddRequestId(builder, oRequestId)
 	ClusterResponseAddCode(builder, s.Code)
 	ClusterResponseAddData(builder, pData)
 	return ClusterResponseEnd(builder)
@@ -293,7 +293,7 @@ func (s *ClusterResponseStruct) UnmarshalFlatBuffer(data []byte) error {
 }
 
 func (s *ClusterResponseStruct) unpackFrom(t *ClusterResponse) {
-	s.RequestID = string(t.RequestID())
+	s.RequestID = string(t.RequestId())
 	s.Code = t.Code()
 	s.Data = t.DataBytes()
 }

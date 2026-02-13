@@ -43,8 +43,8 @@ func (s *RawInputArgsStruct) UnmarshalFlatBuffer(data []byte) error {
 func (s *RawInputArgsStruct) unpackFrom(t *RawInputArgs) {
 	s.MsgType = t.MsgType()
 	n := t.ClientIdListLength()
-		s.ClientIdList = make([]uint64, n)
-		for i := 0; i < n; i++ { s.ClientIdList[i] = t.ClientIdList(i) }
+	s.ClientIdList = make([]uint64, n)
+	for i := 0; i < n; i++ { s.ClientIdList[i] = t.ClientIdList(i) }
 	s.RawData = t.RawDataBytes()
 }
 

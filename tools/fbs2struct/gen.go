@@ -110,6 +110,10 @@ func toFlatcFieldName(name string) string {
 	if len(name) == 1 {
 		return strings.ToUpper(name)
 	}
+	// flatc: NodeID->NodeId, RequesterID->RequesterId 等，末尾 ID 转 Id
+	if strings.HasSuffix(name, "ID") {
+		return name[:len(name)-2] + "Id"
+	}
 	// flatc: 全大写缩写如 ID->Id, DL->Dl
 	if strings.ToUpper(name) == name {
 		return strings.ToUpper(name[:1]) + strings.ToLower(name[1:])
@@ -176,6 +180,35 @@ func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) 
 			if err != nil {
 				return err
 			}
+		} else if f.Repeated && f.Type == "string" {
+			_, err = fmt.Fprintf(w, "\tp%s := flatbuffers.UOffsetT(0)\n", fbName)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(w, "\tif len(s.%s) > 0 {\n", fieldName)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(w, "\t\toffs := make([]flatbuffers.UOffsetT, len(s.%s))\n", fieldName)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(w, "\t\tfor i, v := range s.%s { offs[i] = builder.CreateString(v) }\n", fieldName)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(w, "\t\t%sStart%sVector(builder, len(s.%s))\n", tableName, fbName, fieldName)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(w, "\t\tfor i := len(s.%s) - 1; i >= 0; i-- { builder.PrependUOffsetT(offs[i]) }\n", fieldName)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(w, "\t\tp%s = builder.EndVector(len(s.%s))\n\t}\n", fbName, fieldName)
+			if err != nil {
+				return err
+			}
 		} else if f.Repeated && fbsToGoType[f.Type] != "" {
 			_, err = fmt.Fprintf(w, "\tp%s := flatbuffers.UOffsetT(0)\n", fbName)
 			if err != nil {
@@ -210,7 +243,7 @@ func genPackMethod(w io.Writer, m *fbspb.Message, structName, tableName string) 
 			_, err = fmt.Fprintf(w, "\t%sAdd%s(builder, p%s)\n", tableName, fbName, fbName)
 		} else if !f.Repeated && (f.Type == "string" || f.Type == "ubyte" || f.Type == "byte") {
 			_, err = fmt.Fprintf(w, "\t%sAdd%s(builder, o%s)\n", tableName, fbName, fbName)
-		} else if f.Repeated && fbsToGoType[f.Type] != "" {
+		} else if f.Repeated && (fbsToGoType[f.Type] != "" || f.Type == "string") {
 			_, err = fmt.Fprintf(w, "\t%sAdd%s(builder, p%s)\n", tableName, fbName, fbName)
 		} else if _, ok := fbsToGoType[f.Type]; ok {
 			_, err = fmt.Fprintf(w, "\t%sAdd%s(builder, s.%s)\n", tableName, fbName, fieldName)
@@ -251,8 +284,10 @@ func genUnmarshalMethod(w io.Writer, m *fbspb.Message, structName, tableName str
 		if f.Repeated {
 			if f.Type == "ubyte" || f.Type == "byte" {
 				_, err = fmt.Fprintf(w, "\ts.%s = t.%s%s()\n", fieldName, getter, bytesSuffix)
+			} else if f.Type == "string" {
+				_, err = fmt.Fprintf(w, "\tn := t.%sLength()\n\ts.%s = make([]string, n)\n\tfor i := 0; i < n; i++ { s.%s[i] = string(t.%s(i)) }\n", getter, fieldName, fieldName, getter)
 			} else if fbsToGoType[f.Type] != "" {
-				_, err = fmt.Fprintf(w, "\tn := t.%sLength()\n\t\ts.%s = make([]%s, n)\n\t\tfor i := 0; i < n; i++ { s.%s[i] = t.%s(i) }\n", getter, fieldName, fbsToGoType[f.Type], fieldName, getter)
+				_, err = fmt.Fprintf(w, "\tn := t.%sLength()\n\ts.%s = make([]%s, n)\n\tfor i := 0; i < n; i++ { s.%s[i] = t.%s(i) }\n", getter, fieldName, fbsToGoType[f.Type], fieldName, getter)
 			} else {
 				_, err = fmt.Fprintf(w, "\t// TODO: vector %s\n", f.Type)
 			}

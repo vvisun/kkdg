@@ -123,8 +123,8 @@ func (s *TransBroadMsgStruct) UnmarshalFlatBuffer(data []byte) error {
 
 func (s *TransBroadMsgStruct) unpackFrom(t *TransBroadMsg) {
 	n := t.ClientIdListLength()
-		s.ClientIdList = make([]uint64, n)
-		for i := 0; i < n; i++ { s.ClientIdList[i] = t.ClientIdList(i) }
+	s.ClientIdList = make([]uint64, n)
+	for i := 0; i < n; i++ { s.ClientIdList[i] = t.ClientIdList(i) }
 	s.Data = t.DataBytes()
 }
 

@@ -224,8 +224,8 @@ func (s *Int64ListStruct) UnmarshalFlatBuffer(data []byte) error {
 
 func (s *Int64ListStruct) unpackFrom(t *Int64List) {
 	n := t.ValueListLength()
-		s.ValueList = make([]int64, n)
-		for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
+	s.ValueList = make([]int64, n)
+	for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
 }
 
 // UInt64ListStruct 对应 table UInt64List，用于 flatbuffer 编解码
@@ -255,8 +255,8 @@ func (s *UInt64ListStruct) UnmarshalFlatBuffer(data []byte) error {
 
 func (s *UInt64ListStruct) unpackFrom(t *UInt64List) {
 	n := t.ValueListLength()
-		s.ValueList = make([]uint64, n)
-		for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
+	s.ValueList = make([]uint64, n)
+	for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
 }
 
 // Int32ListStruct 对应 table Int32List，用于 flatbuffer 编解码
@@ -286,8 +286,8 @@ func (s *Int32ListStruct) UnmarshalFlatBuffer(data []byte) error {
 
 func (s *Int32ListStruct) unpackFrom(t *Int32List) {
 	n := t.ValueListLength()
-		s.ValueList = make([]int32, n)
-		for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
+	s.ValueList = make([]int32, n)
+	for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
 }
 
 // Uint32ListStruct 对应 table Uint32List，用于 flatbuffer 编解码
@@ -317,8 +317,8 @@ func (s *Uint32ListStruct) UnmarshalFlatBuffer(data []byte) error {
 
 func (s *Uint32ListStruct) unpackFrom(t *Uint32List) {
 	n := t.ValueListLength()
-		s.ValueList = make([]uint32, n)
-		for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
+	s.ValueList = make([]uint32, n)
+	for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
 }
 
 // StringListStruct 对应 table StringList，用于 flatbuffer 编解码
@@ -330,8 +330,10 @@ type StringListStruct struct {
 func (s *StringListStruct) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	pValueList := flatbuffers.UOffsetT(0)
 	if len(s.ValueList) > 0 {
+		offs := make([]flatbuffers.UOffsetT, len(s.ValueList))
+		for i, v := range s.ValueList { offs[i] = builder.CreateString(v) }
 		StringListStartValueListVector(builder, len(s.ValueList))
-		for i := len(s.ValueList) - 1; i >= 0; i-- { builder.PrependInt32(s.ValueList[i]) }
+		for i := len(s.ValueList) - 1; i >= 0; i-- { builder.PrependUOffsetT(offs[i]) }
 		pValueList = builder.EndVector(len(s.ValueList))
 	}
 	StringListStart(builder)
@@ -348,7 +350,7 @@ func (s *StringListStruct) UnmarshalFlatBuffer(data []byte) error {
 
 func (s *StringListStruct) unpackFrom(t *StringList) {
 	n := t.ValueListLength()
-		s.ValueList = make([]string, n)
-		for i := 0; i < n; i++ { s.ValueList[i] = t.ValueList(i) }
+	s.ValueList = make([]string, n)
+	for i := 0; i < n; i++ { s.ValueList[i] = string(t.ValueList(i)) }
 }
 
