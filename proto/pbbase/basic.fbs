@@ -1,0 +1,8 @@
+namespace pbbase;
+
+table RawInputArgs {
+  MsgType: uint;
+  clientIdList: [ulong];
+  RawData: [ubyte];
+}
+

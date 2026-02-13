@@ -1,0 +1,54 @@
+namespace pbbase;
+
+table Int32 {
+  value: int;
+}
+
+table Uint32 {
+  value: uint;
+}
+
+table Int64 {
+  value: long;
+}
+
+table UInt64 {
+  value: ulong;
+}
+
+table Bool {
+  value: bool;
+}
+
+table String {
+  value: string;
+}
+
+table Bytes {
+  value: [ubyte];
+}
+
+table BytesList {
+  valueList: [Bytes];
+}
+
+table Int64List {
+  valueList: [long];
+}
+
+table UInt64List {
+  valueList: [ulong];
+}
+
+table Int32List {
+  valueList: [int];
+}
+
+table Uint32List {
+  valueList: [uint];
+}
+
+table StringList {
+  valueList: [string];
+}
+

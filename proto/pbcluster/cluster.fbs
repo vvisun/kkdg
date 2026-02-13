@@ -1,0 +1,55 @@
+namespace pbcluster;
+
+table MapSettingsEntry {
+  key: string;
+  value: string;
+}
+
+table MapExtendDataEntry {
+  key: string;
+  value: string;
+}
+
+table Member {
+  NodeID: string;
+  NodeType: string;
+  Address: string;
+  Settings: [MapSettingsEntry];
+  LastAt: long;
+  HeartbeatTimeout: long;
+}
+
+table MemberList {
+  List: [Member];
+}
+
+table DiscoveryRequest {
+  RequesterID: string;
+}
+
+table ClusterPacket {
+  BuildTime: long;
+  Timeout: long;
+  SourcePath: string;
+  TargetPath: string;
+  FuncName: string;
+  ArgBytes: [ubyte];
+  Sid: string;
+  Uid: long;
+  AgentPath: string;
+  Ip: string;
+  ExtendData: [MapExtendDataEntry];
+}
+
+table ClusterRequest {
+  RequestID: string;
+  SourceNodeID: string;
+  Packet: ClusterPacket;
+}
+
+table ClusterResponse {
+  RequestID: string;
+  Code: int;
+  Data: [ubyte];
+}
+
