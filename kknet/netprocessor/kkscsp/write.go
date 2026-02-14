@@ -45,7 +45,7 @@ func NewWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	return &WriteProcessor{
 		opts:            opts,
 		sendQueue:       bbqueue.NewFIFOQueue(opts.SendQueueSize, opts.SendQueueStrict),
-		sendBatchBuffer: make([]*kkbuffer.ByteBuffer, opts.WriteBatchSize),
+		sendBatchBuffer: make([]*kkbuffer.ByteBuffer, opts.BatchWriteSize),
 		wakeCh:          make(chan struct{}, 1),
 		closeCh:         make(chan struct{}),
 		drainedCh:       make(chan struct{}),
@@ -155,6 +155,7 @@ func (wp *WriteProcessor) drainRelease(n int) {
 func (wp *WriteProcessor) writeLoop() {
 	defer close(wp.doneCh)
 
+	sbbLen := len(wp.sendBatchBuffer)
 	for {
 		select {
 		case <-wp.wakeCh:
@@ -162,7 +163,7 @@ func (wp *WriteProcessor) writeLoop() {
 			// stop: release everything left in queue
 			for {
 				wp.sendMu.Lock()
-				n := wp.sendQueue.PopMany(len(wp.sendBatchBuffer), wp.sendBatchBuffer, 0)
+				n := wp.sendQueue.PopMany(sbbLen, wp.sendBatchBuffer, 0)
 				wp.sendMu.Unlock()
 				if n <= 0 {
 					return
@@ -173,7 +174,7 @@ func (wp *WriteProcessor) writeLoop() {
 
 		for {
 			wp.sendMu.Lock()
-			n := wp.sendQueue.PopMany(len(wp.sendBatchBuffer), wp.sendBatchBuffer, wp.opts.WriteBatchLimitBytes)
+			n := wp.sendQueue.PopMany(sbbLen, wp.sendBatchBuffer, wp.opts.BatchWriteLimitBytes)
 			remain := wp.sendQueue.Len()
 			closing := wp.closing.Load()
 			wp.sendMu.Unlock()

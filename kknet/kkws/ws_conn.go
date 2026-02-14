@@ -49,8 +49,8 @@ func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *w
 		opts:            opts,
 		stats:           stats,
 		ctx:             context.Background(),
-		batchWriteBuf:   make([]byte, 0, opts.WpOptions.WriteBatchLimitBytes),
-		batchWriteLimit: opts.WpOptions.WriteBatchLimitBytes,
+		batchWriteBuf:   make([]byte, 0, opts.WpOptions.BatchWriteLimitBytes),
+		batchWriteLimit: opts.WpOptions.BatchWriteLimitBytes,
 	}
 
 	if c.opts.WpProvider != nil {

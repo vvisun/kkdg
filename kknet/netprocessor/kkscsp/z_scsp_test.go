@@ -29,8 +29,8 @@ func Test_Compare_KKChan_vs_KKSCSPSend_DrainNoLoss(t *testing.T) {
 			SendQueueStrict:           false,
 			SendQueueNeedFlushOver:    true,
 			SendQueueTimeoutFlushOver: 30 * time.Second,
-			WriteBatchSize:            64,
-			WriteBatchLimitBytes:      0,
+			BatchWriteSize:            64,
+			BatchWriteLimitBytes:      0,
 		}
 		wp := NewWriteProcessor(opts)
 

@@ -79,8 +79,8 @@ func CheckOptions(opts *Options) {
 	if opts.ReadBufferSize < 1024 {
 		opts.ReadBufferSize = 1024
 	}
-	if opts.ReadBufferSize > 8*1024 {
-		opts.ReadBufferSize = 8 * 1024
+	if opts.ReadBufferSize > 32*1024 {
+		opts.ReadBufferSize = 32 * 1024
 	}
 	if opts.WriteBufferSize < 1024 {
 		opts.WriteBufferSize = 1024

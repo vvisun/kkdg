@@ -7,23 +7,23 @@ import (
 )
 
 type WriteOptions struct {
-	//发送队列大小
+	// 发送队列大小
 	SendQueueSize int
-	//发送队列是否严格容量控制
+	// 发送队列是否严格容量控制
 	SendQueueStrict bool
-	//关闭时是否需要等待 flush 完成。
+	// 关闭时是否需要等待 flush 完成。
 	// 客户端没必要等待 flush 完成，因为实际中客户端会是web/app/小程序等，
 	// 服务端 以及 rpc中的client端一般需要等待 flush 完成。
 	SendQueueNeedFlushOver bool
-	//关闭时等待 flush 完成的超时时间
+	// 关闭时等待 flush 完成的超时时间
 	SendQueueTimeoutFlushOver time.Duration
-	//flush 超时回调
+	// flush 超时回调
 	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration)
-	//每轮持锁时最多 Pop 的帧数，减少 Lock 次数与 Send 竞争，同时会创建这个大小的缓存复用以减少内存分配
-	WriteBatchSize int
-	//单次批量写入的最大字节数(<=0 不限制)
-	WriteBatchLimitBytes int
-	//消息包解码器
+	// 单次批量写入的帧数。会创建这个大小的缓存数组以复用实现零分配
+	BatchWriteSize int
+	// 单次批量写入的最大字节数(<=0 不限制)
+	BatchWriteLimitBytes int
+	// 消息包解码器
 	MsgPacket *kkpacket.MessagePacket
 }
 
@@ -33,8 +33,8 @@ func DefaultWriteOptions() WriteOptions {
 		SendQueueStrict:           false,
 		SendQueueNeedFlushOver:    true,
 		SendQueueTimeoutFlushOver: 5 * time.Second,
-		WriteBatchSize:            32,
-		WriteBatchLimitBytes:      1024,
+		BatchWriteSize:            32,
+		BatchWriteLimitBytes:      1024,
 	}
 }
 
@@ -45,17 +45,17 @@ func CheckWriteOptions(opts *WriteOptions) {
 	if opts.SendQueueSize <= 0 {
 		opts.SendQueueSize = 256
 	}
-	if opts.WriteBatchSize < 1 {
-		opts.WriteBatchSize = 1
+	if opts.BatchWriteSize < 8 {
+		opts.BatchWriteSize = 8
 	}
-	if opts.WriteBatchSize > 32 {
-		opts.WriteBatchSize = 32
+	if opts.BatchWriteSize > 64 {
+		opts.BatchWriteSize = 64
 	}
-	if opts.WriteBatchLimitBytes < 512 {
-		opts.WriteBatchLimitBytes = 512
+	if opts.BatchWriteLimitBytes < 512 {
+		opts.BatchWriteLimitBytes = 512
 	}
-	if opts.WriteBatchLimitBytes > 2048 {
-		opts.WriteBatchLimitBytes = 2048
+	if opts.BatchWriteLimitBytes > 2048 {
+		opts.BatchWriteLimitBytes = 2048
 	}
 }
 
