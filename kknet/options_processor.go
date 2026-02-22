@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type WriteOptions struct {
@@ -43,18 +44,23 @@ func CheckWriteOptions(opts *WriteOptions) {
 		return
 	}
 	if opts.SendQueueSize <= 0 {
+		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 256)
 		opts.SendQueueSize = 256
 	}
 	if opts.BatchWriteSize < 8 {
+		kklog.Debugf("wp BatchWriteSize fixed from %d to %d", opts.BatchWriteSize, 8)
 		opts.BatchWriteSize = 8
 	}
 	if opts.BatchWriteSize > 64 {
+		kklog.Debugf("wp BatchWriteSize fixed from %d to %d", opts.BatchWriteSize, 64)
 		opts.BatchWriteSize = 64
 	}
 	if opts.BatchWriteLimitBytes < 512 {
+		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 512)
 		opts.BatchWriteLimitBytes = 512
 	}
 	if opts.BatchWriteLimitBytes > 2048 {
+		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 2048)
 		opts.BatchWriteLimitBytes = 2048
 	}
 }
@@ -68,7 +74,7 @@ type ReadOptions struct {
 	RecvQueueSize int
 	//接收队列是否严格容量控制
 	RecvQueueStrict bool
-	//每轮消费最多 Pop 的帧数，减少 Lock 次数与消费竞争，同时会创建这个大小的缓存复用以减少内存分配
+	//每轮消费最多 Pop 的帧数，减少 Lock 次数与消费竞争，同时会创建这个大小的缓存数组复用以实现0分配
 	RecvBatchSize int
 	//当 recvBuf cap 超过该值且当前为空时，缩容到默认值(<=0 使用默认值defaultRecvBufSize)
 	RecvBufShrinkCap int
@@ -88,15 +94,19 @@ func CheckReadOptions(opts *ReadOptions) {
 		return
 	}
 	if opts.RecvQueueSize <= 0 {
+		kklog.Debugf("rp RecvQueueSize fixed from %d to %d", opts.RecvQueueSize, 512)
 		opts.RecvQueueSize = 512
 	}
 	if opts.RecvBatchSize < 8 {
+		kklog.Debugf("rp RecvBatchSize fixed from %d to %d", opts.RecvBatchSize, 8)
 		opts.RecvBatchSize = 8 //太小影响性能
 	}
 	if opts.RecvBatchSize > 128 {
+		kklog.Debugf("rp RecvBatchSize fixed from %d to %d", opts.RecvBatchSize, 128)
 		opts.RecvBatchSize = 128 //太大占内存
 	}
 	if opts.RecvBufShrinkCap <= 0 || opts.RecvBufShrinkCap > 2*1024 {
+		kklog.Debugf("rp RecvBufShrinkCap fixed from %d to %d", opts.RecvBufShrinkCap, 2048)
 		// 空闲时如果 cap 过大则缩容，避免长期占用大内存。
 		opts.RecvBufShrinkCap = 2 * 1024 // 2KB
 	}

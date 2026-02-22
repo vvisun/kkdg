@@ -126,10 +126,10 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 		t.Fatalf("GetAllConns() len = %d, want 1", len(all))
 	}
 	var connID kknet.CONN_ID
-	for id := range all {
+	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
 		connID = id
-		break
-	}
+		return false
+	})
 	conn := mgr.GetConn(connID)
 	if conn == nil {
 		t.Fatal("GetConn(id) returned nil")

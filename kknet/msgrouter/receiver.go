@@ -61,7 +61,6 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 }
 
 // NewMsgReceiver 创建消息接收器
-// 非线程安全，一般在初始化时调用，故不考虑线程安全
 func NewMsgReceiver(messagePacket *kkpacket.MessagePacket) *MsgReceiver {
 	return &MsgReceiver{
 		messagePacket: messagePacket,
@@ -71,7 +70,6 @@ func NewMsgReceiver(messagePacket *kkpacket.MessagePacket) *MsgReceiver {
 }
 
 // NewMsgReceiverWithParser 创建消息接收器，使用自定义的元数据解析器
-// 非线程安全，一般在初始化时调用，故不考虑线程安全
 func NewMsgReceiverWithParser(messagePacket *kkpacket.MessagePacket, metaParser MetaParser) *MsgReceiver {
 	return &MsgReceiver{
 		messagePacket: messagePacket,
