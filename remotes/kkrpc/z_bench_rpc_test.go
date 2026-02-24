@@ -99,22 +99,6 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 	}
 }
 
-func Benchmark_EncodeRpcFrame(b *testing.B) {
-	ClearRpcManagerForTest()
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
-
-	msg := &testReq{ID: 1, Data: "benchmark"}
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		bb, err := EncodeRpcFrame(FrameTypeRequest, uint64(i+1), "testReqRsp", msg, 0)
-		if err != nil {
-			b.Fatalf("encode: %v", err)
-		}
-		kkbuffer.Put(bb)
-	}
-}
-
 // Benchmark_InvokeUnary_Parallel 单连接并发调用，多个 goroutine 共享同一 client，测试真实并发下的 req/resp 匹配与编解码。
 func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 	ClearRpcManagerForTest()
@@ -163,4 +147,20 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 			i++
 		}
 	})
+}
+
+func Benchmark_EncodeRpcFrame(b *testing.B) {
+	ClearRpcManagerForTest()
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
+
+	msg := &testReq{ID: 1, Data: "benchmark"}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		bb, err := EncodeRpcFrame(FrameTypeRequest, uint64(i+1), "testReqRsp", msg, 0)
+		if err != nil {
+			b.Fatalf("encode: %v", err)
+		}
+		kkbuffer.Put(bb)
+	}
 }
