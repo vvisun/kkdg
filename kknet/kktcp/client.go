@@ -195,13 +195,15 @@ func (c *GnetClient) startReconnect() {
 }
 
 func (c *GnetClient) reconnectLoop() {
-	interval := c.opts.ReconnectInterval
-	if interval < 500*time.Millisecond { // 最小间隔，防止频繁重连
-		interval = 500 * time.Millisecond
+	baseInterval := c.opts.ReconnectInterval
+	if baseInterval < 500*time.Millisecond {
+		baseInterval = 500 * time.Millisecond
 	}
+	maxInterval := c.opts.ReconnectMaxInterval
 	maxRetries := c.opts.ReconnectMaxRetries
 	cb := c.opts.ReconnectCallback
 	attempts := 0
+	consecutiveFails := 0
 	for {
 		if c.closing.Load() {
 			c.reconnecting.Store(false)
@@ -245,14 +247,17 @@ func (c *GnetClient) reconnectLoop() {
 				return
 			}
 		} else {
+			consecutiveFails++
 			if cb != nil {
 				cb(attempts, err)
 			}
 			c.opts.Logger.Warnf("gnetclient reconnect attempt %d failed: %v", attempts, err)
 		}
 
+		delay := kknet.ReconnectBackoff(baseInterval, maxInterval, consecutiveFails)
+		c.opts.Logger.Debugf("gnetclient reconnect backoff %v (consecutive fails: %d)", delay, consecutiveFails)
 		select {
-		case <-time.After(interval):
+		case <-time.After(delay):
 		case <-c.stopCh:
 			c.reconnecting.Store(false)
 			return

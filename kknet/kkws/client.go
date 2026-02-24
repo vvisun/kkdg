@@ -224,13 +224,15 @@ func (c *Client) startReconnectLoop(first chan<- error) {
 func (c *Client) reconnectLoop(first chan<- error) {
 	defer c.reconnecting.Store(false)
 
-	interval := c.opts.ReconnectInterval
-	if interval < 500*time.Millisecond {
-		interval = 500 * time.Millisecond
+	baseInterval := c.opts.ReconnectInterval
+	if baseInterval < 500*time.Millisecond {
+		baseInterval = 500 * time.Millisecond
 	}
+	maxInterval := c.opts.ReconnectMaxInterval
 	maxRetries := c.opts.ReconnectMaxRetries
 	cb := c.opts.ReconnectCallback
 	attempts := 0
+	consecutiveFails := 0
 	firstReported := false
 	reportFirst := func(err error) {
 		if firstReported || first == nil {
@@ -261,6 +263,7 @@ func (c *Client) reconnectLoop(first chan<- error) {
 		attempts++
 		wc, done, err := c.dialAndStart()
 		if err == nil {
+			consecutiveFails = 0
 			if cb != nil {
 				cb(attempts, nil)
 			}
@@ -285,11 +288,11 @@ func (c *Client) reconnectLoop(first chan<- error) {
 				return
 			}
 		} else {
+			consecutiveFails++
 			c.stats.AddError()
 			if cb != nil {
 				cb(attempts, err)
 			}
-			// only report error to Connect() if we've exhausted retries.
 			if maxRetries > 0 && attempts >= maxRetries {
 				c.opts.Logger.Warnf("kkws client reconnect failed. attempts exceeded. err: %v", err)
 				reportFirst(err)
@@ -297,8 +300,10 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			}
 		}
 
+		delay := kknet.ReconnectBackoff(baseInterval, maxInterval, consecutiveFails)
+		c.opts.Logger.Debugf("kkws client reconnect backoff %v (consecutive fails: %d)", delay, consecutiveFails)
 		select {
-		case <-time.After(interval):
+		case <-time.After(delay):
 		case <-c.stopCh:
 			reportFirst(kkerrors.ErrClientNotConnected)
 			return

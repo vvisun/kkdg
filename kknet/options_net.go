@@ -2,6 +2,7 @@ package kknet
 
 import (
 	"crypto/tls"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -18,9 +19,10 @@ type Options struct {
 	WriteBufferSize     int                          // 写缓冲区大小 1-64KB
 	ShutdownTimeout     time.Duration                // 服务关闭超时时间
 	IsNeedReconnect     bool                         // 是否需要重连
-	ReconnectInterval   time.Duration                // 重连间隔
-	ReconnectMaxRetries int                          // 重连最大次数(<=0为无限)
-	ReconnectCallback   func(attempt int, err error) // 重连回调(成功时 err 为 nil)
+	ReconnectInterval    time.Duration                // 重连基础间隔（指数退避的初始值）
+	ReconnectMaxInterval time.Duration                // 重连最大间隔（指数退避上限）
+	ReconnectMaxRetries  int                          // 重连最大次数(<=0为无限)
+	ReconnectCallback    func(attempt int, err error) // 重连回调(成功时 err 为 nil)
 	ReadTimeout         time.Duration                // 读超时时间（为0时，不启用读超时）
 	WriteTimeout        time.Duration                // 写超时时间（为0时，不启用写超时）
 	PingInterval        time.Duration                // Ping发送间隔（为0时，不发送 Ping）；配合 ReadTimeout 做保活，收到 Pong 会刷新读超时
@@ -52,10 +54,11 @@ func DefaultOptions() Options {
 		WriteBufferSize:     4 * 1024,
 		TLSConfig:           nil,
 		ShutdownTimeout:     10 * time.Second, // 10秒
-		IsNeedReconnect:     true,
-		ReconnectInterval:   1 * time.Second,
-		ReconnectMaxRetries: 5,
-		ReconnectCallback:   nil,
+		IsNeedReconnect:      true,
+		ReconnectInterval:    1 * time.Second,
+		ReconnectMaxInterval: 30 * time.Second,
+		ReconnectMaxRetries:  5,
+		ReconnectCallback:    nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
 		ReadTimeout:     20 * time.Second,
@@ -101,6 +104,12 @@ func CheckOptions(opts *Options) {
 
 	if opts.ReconnectInterval > 0 && opts.ReconnectInterval < 500*time.Millisecond {
 		opts.ReconnectInterval = 500 * time.Millisecond
+	}
+	if opts.ReconnectMaxInterval <= 0 {
+		opts.ReconnectMaxInterval = 30 * time.Second
+	}
+	if opts.ReconnectMaxInterval < opts.ReconnectInterval {
+		opts.ReconnectMaxInterval = opts.ReconnectInterval
 	}
 
 	if opts.ShutdownTimeout > 0 && opts.ShutdownTimeout < 500*time.Millisecond {
@@ -218,16 +227,26 @@ func WithIsNeedReconnect(isNeedReconnect bool) Option {
 	}
 }
 
-// WithReconnectInterval sets reconnect interval.
+// WithReconnectInterval sets the base reconnect interval and max retries.
+// Actual delay uses exponential backoff: base * 2^(consecutiveFails-1), capped at ReconnectMaxInterval.
 func WithReconnectInterval(interval time.Duration, maxRetries int) Option {
 	return func(o *Options) {
 		if interval > 0 {
 			o.ReconnectInterval = interval
-			if interval < 500*time.Millisecond { // 最小间隔，防止频繁重连
+			if interval < 500*time.Millisecond {
 				o.ReconnectInterval = 500 * time.Millisecond
 			}
 		}
 		o.ReconnectMaxRetries = maxRetries
+	}
+}
+
+// WithReconnectMaxInterval sets the maximum reconnect interval (exponential backoff cap).
+func WithReconnectMaxInterval(maxInterval time.Duration) Option {
+	return func(o *Options) {
+		if maxInterval > 0 {
+			o.ReconnectMaxInterval = maxInterval
+		}
 	}
 }
 
@@ -236,6 +255,25 @@ func WithReconnectCallback(cb func(attempt int, err error)) Option {
 	return func(o *Options) {
 		o.ReconnectCallback = cb
 	}
+}
+
+// ReconnectBackoff computes a reconnect delay with exponential backoff and jitter.
+//
+//	delay = base * 2^max(0, consecutiveFails-1), capped at maxInterval.
+//	Adds [0, 25%) of delay as jitter to spread out reconnect storms.
+func ReconnectBackoff(base, maxInterval time.Duration, consecutiveFails int) time.Duration {
+	delay := base
+	for i := 1; i < consecutiveFails; i++ {
+		delay *= 2
+		if delay >= maxInterval {
+			delay = maxInterval
+			break
+		}
+	}
+	if jitterRange := int64(delay) / 4; jitterRange > 0 {
+		delay += time.Duration(rand.Int63n(jitterRange))
+	}
+	return delay
 }
 
 // WithWsOriginChecker sets origin checker.
