@@ -63,9 +63,9 @@ func (m *serverConnMgr) RangeAllConns(fn func(id kknet.CONN_ID, conn kknet.IConn
 // GetConn returns a connection by id.
 func (m *serverConnMgr) GetConn(id kknet.CONN_ID) kknet.IConn {
 	m.mu.RLock()
-	c := m.conns[id]
+	c, ok := m.conns[id]
 	m.mu.RUnlock()
-	if c == nil {
+	if !ok || c == nil {
 		return nil
 	}
 	return c
