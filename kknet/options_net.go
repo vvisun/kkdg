@@ -391,6 +391,25 @@ func WithSendQueueRetryMaxCount(max int) Option {
 	}
 }
 
+// WithWriteFnRetryMaxCount 设置 writeFn 失败时的最大重试次数。
+// 0 表示不重试，失败后直接放弃并关闭写协程（默认行为）。
+func WithWriteFnRetryMaxCount(max int) Option {
+	return func(o *Options) {
+		if max >= 0 {
+			o.WpOptions.WriteFnRetryMaxCount = max
+		}
+	}
+}
+
+// WithWriteFnRetryInterval 设置 writeFn 失败时的重试间隔（默认 5ms）。
+func WithWriteFnRetryInterval(interval time.Duration) Option {
+	return func(o *Options) {
+		if interval > 0 {
+			o.WpOptions.WriteFnRetryInterval = interval
+		}
+	}
+}
+
 // WithSendQueueNeedFlushOver sets tcp client need flush over.
 func WithSendQueueNeedFlushOver(needFlushOver bool) Option {
 	return func(o *Options) {

@@ -40,6 +40,10 @@ type WriteOptions struct {
 	SendQueueRetryInterval time.Duration
 	// Retry 模式：最大重试次数（0 表示无限，默认 100）
 	SendQueueRetryMaxCount int
+	// writeFn 失败时的最大重试次数（0 表示不重试，直接放弃并关闭写协程）
+	WriteFnRetryMaxCount int
+	// writeFn 失败时的重试间隔（默认 5ms）
+	WriteFnRetryInterval time.Duration
 }
 
 func DefaultWriteOptions() WriteOptions {
@@ -53,6 +57,8 @@ func DefaultWriteOptions() WriteOptions {
 		SendQueueFullAction:       EWpQueueFullActionDrop,
 		SendQueueRetryInterval:    2 * time.Millisecond,
 		SendQueueRetryMaxCount:    100,
+		WriteFnRetryMaxCount:      0,
+		WriteFnRetryInterval:      5 * time.Millisecond,
 	}
 }
 
@@ -85,6 +91,12 @@ func CheckWriteOptions(opts *WriteOptions) {
 	}
 	if opts.SendQueueRetryMaxCount < 0 {
 		opts.SendQueueRetryMaxCount = 0
+	}
+	if opts.WriteFnRetryMaxCount < 0 {
+		opts.WriteFnRetryMaxCount = 0
+	}
+	if opts.WriteFnRetryInterval <= 0 {
+		opts.WriteFnRetryInterval = 5 * time.Millisecond
 	}
 }
 

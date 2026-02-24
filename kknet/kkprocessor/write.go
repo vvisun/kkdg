@@ -272,15 +272,60 @@ func (wp *WriteProcessor) writeLoop() {
 				break
 			}
 
-			// TODO: 失败目前直接丢弃，后续可以考虑重试/重新入队/...。
 			if err := wp.writeFn(wp.sendBatchBuffer, n); err != nil {
-				// 如果 writeFn 没有自己释放/清理，这里兜底释放，避免泄漏
-				wp.drainRelease(n)
-				if wp.onWriteError != nil {
-					wp.onWriteError(err)
+				if !wp.retryWriteFn(n) {
+					wp.drainRelease(n)
+					if wp.onWriteError != nil {
+						wp.onWriteError(err)
+					}
+					return
 				}
-				return
 			}
 		}
 	}
+}
+
+// retryWriteFn 重试 writeFn，仅对 batch 中剩余未释放的 buffer 重试。
+// writeFn 约定：成功发送的 buffer 由 writeFn 自行释放并置 nil，失败的保留在 batch 中。
+// 返回 true 表示重试成功（或无需重试），false 表示最终失败。
+func (wp *WriteProcessor) retryWriteFn(n int) bool {
+	maxRetry := wp.opts.WriteFnRetryMaxCount
+	if maxRetry <= 0 {
+		return false
+	}
+	interval := wp.opts.WriteFnRetryInterval
+	if interval <= 0 {
+		interval = 5 * time.Millisecond
+	}
+
+	for attempt := 1; attempt <= maxRetry; attempt++ {
+		if wp.closing.Load() {
+			return false
+		}
+		time.Sleep(interval)
+
+		remaining := wp.compactBatch(n)
+		if remaining <= 0 {
+			return true
+		}
+		if err := wp.writeFn(wp.sendBatchBuffer, remaining); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// compactBatch 将 batch[0:n] 中非 nil 的 buffer 紧凑到 batch 头部，返回剩余数量。
+func (wp *WriteProcessor) compactBatch(n int) int {
+	j := 0
+	for i := 0; i < n; i++ {
+		if wp.sendBatchBuffer[i] != nil {
+			if j != i {
+				wp.sendBatchBuffer[j] = wp.sendBatchBuffer[i]
+				wp.sendBatchBuffer[i] = nil
+			}
+			j++
+		}
+	}
+	return j
 }
