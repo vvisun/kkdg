@@ -410,6 +410,14 @@ func WithWriteFnRetryInterval(interval time.Duration) Option {
 	}
 }
 
+// WithWriteFnIsRetryable 设置 writeFn 失败时是否可重试的判断函数。
+// nil 时使用默认逻辑（ErrConnectionClosed、net.ErrClosed、io.ErrClosedPipe 等不重试）。
+func WithWriteFnIsRetryable(fn func(err error) bool) Option {
+	return func(o *Options) {
+		o.WpOptions.WriteFnIsRetryable = fn
+	}
+}
+
 // WithSendQueueNeedFlushOver sets tcp client need flush over.
 func WithSendQueueNeedFlushOver(needFlushOver bool) Option {
 	return func(o *Options) {

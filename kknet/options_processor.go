@@ -44,6 +44,8 @@ type WriteOptions struct {
 	WriteFnRetryMaxCount int
 	// writeFn 失败时的重试间隔（默认 5ms）
 	WriteFnRetryInterval time.Duration
+	// writeFn 失败时是否可重试。nil 时使用默认逻辑（连接已关闭等致命错误不重试）
+	WriteFnIsRetryable func(err error) bool
 }
 
 func DefaultWriteOptions() WriteOptions {

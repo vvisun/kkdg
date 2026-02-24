@@ -1,6 +1,9 @@
 package kkprocessor
 
 import (
+	"errors"
+	"io"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -273,6 +276,13 @@ func (wp *WriteProcessor) writeLoop() {
 			}
 
 			if err := wp.writeFn(wp.sendBatchBuffer, n); err != nil {
+				if !wp.isWriteFnRetryable(err) {
+					wp.drainRelease(n)
+					if wp.onWriteError != nil {
+						wp.onWriteError(err)
+					}
+					return
+				}
 				if !wp.retryWriteFn(n) {
 					wp.drainRelease(n)
 					if wp.onWriteError != nil {
@@ -283,6 +293,30 @@ func (wp *WriteProcessor) writeLoop() {
 			}
 		}
 	}
+}
+
+// isWriteFnRetryable 判断 writeFn 的 error 是否可重试。不可重试则立即放弃。
+func (wp *WriteProcessor) isWriteFnRetryable(err error) bool {
+	if wp.opts.WriteFnIsRetryable != nil {
+		return wp.opts.WriteFnIsRetryable(err)
+	}
+	return defaultIsWriteFnRetryable(err)
+}
+
+// defaultIsWriteFnRetryable 默认判断：连接已关闭等致命错误不重试。
+func defaultIsWriteFnRetryable(err error) bool {
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, kkerrors.ErrConnectionClosed) ||
+		errors.Is(err, kkerrors.ErrInvalidPacket) ||
+		errors.Is(err, kkerrors.ErrSendQueueFull) ||
+		errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, io.ErrClosedPipe) {
+		return false
+	}
+	// 其他错误（如临时 EAGAIN、超时等）允许重试
+	return true
 }
 
 // retryWriteFn 重试 writeFn，仅对 batch 中剩余未释放的 buffer 重试。
@@ -310,6 +344,8 @@ func (wp *WriteProcessor) retryWriteFn(n int) bool {
 		}
 		if err := wp.writeFn(wp.sendBatchBuffer, remaining); err == nil {
 			return true
+		} else if !wp.isWriteFnRetryable(err) {
+			return false
 		}
 	}
 	return false
