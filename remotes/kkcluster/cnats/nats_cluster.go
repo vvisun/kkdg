@@ -22,6 +22,7 @@ type NatsCluster struct {
 
 	// 请求响应处理
 	requestSub *nats.Subscription
+	responseSub *nats.Subscription
 	requestMap map[string]chan *kkcluster.ClusterResponse
 	requestMu  sync.RWMutex
 	reqMap     map[string]*asyncReq
@@ -54,8 +55,7 @@ var _ kkcluster.ICluster = (*NatsCluster)(nil)
 
 // asyncReq 异步请求，直接用 callback 避免 channel 分配
 type asyncReq struct {
-	cb  func(data []byte, errCode kkcluster.ClusterErrorCode)
-	sub *nats.Subscription
+	cb func(data []byte, errCode kkcluster.ClusterErrorCode)
 }
 
 // NewNatsCluster 创建新的NATS集群
@@ -130,6 +130,10 @@ func (c *NatsCluster) resubscribe() error {
 		_ = c.requestSub.Unsubscribe()
 		c.requestSub = nil
 	}
+	if c.responseSub != nil {
+		_ = c.responseSub.Unsubscribe()
+		c.responseSub = nil
+	}
 	if c.publishSub != nil {
 		_ = c.publishSub.Unsubscribe()
 		c.publishSub = nil
@@ -151,7 +155,7 @@ func (c *NatsCluster) resubscribe() error {
 	publishSubject := c.getPublishSubject(c.nodeID)
 	publishSub, err := c.conn.Subscribe(publishSubject, c.handlePublish)
 	if err != nil {
-		sub.Unsubscribe()
+		_ = sub.Unsubscribe()
 		return err
 	}
 	c.publishSub = publishSub
@@ -164,12 +168,26 @@ func (c *NatsCluster) resubscribe() error {
 		// 如果需要负载均衡（消息只被一个节点接收），应使用 QueueSubscribe
 		typePublishSub, err := c.conn.Subscribe(typeSubject, c.handleTypePublish)
 		if err != nil {
-			sub.Unsubscribe()
-			publishSub.Unsubscribe()
+			_ = sub.Unsubscribe()
+			_ = publishSub.Unsubscribe()
 			return err
 		}
 		c.typePublishSub = typePublishSub
 	}
+
+	// 单订阅响应主题：只订阅本节点发起请求的响应
+	responseSubject := c.getResponseSubjectPattern()
+	respSub, err := c.conn.Subscribe(responseSubject, c.handleResponse)
+	if err != nil {
+		_ = sub.Unsubscribe()
+		_ = publishSub.Unsubscribe()
+		if c.typePublishSub != nil {
+			_ = c.typePublishSub.Unsubscribe()
+			c.typePublishSub = nil
+		}
+		return err
+	}
+	c.responseSub = respSub
 
 	return nil
 }
@@ -293,47 +311,8 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		return err
 	}
 
-	responseSubject := c.getResponseSubject(requestID)
-	responseSub, err := c.conn.Subscribe(responseSubject, func(msg *nats.Msg) {
-		var resp kkcluster.ClusterResponse
-		if err := msgCodec.Unmarshal(msg.Data, &resp); err != nil {
-			kklog.Errorf("NatsCluster unmarshal response failed: %v", err)
-			return
-		}
-		c.reqMu.Lock()
-		p := c.reqMap[requestID]
-		delete(c.reqMap, requestID)
-		c.reqMu.Unlock()
-		if p != nil && p.sub != nil {
-			_ = p.sub.Unsubscribe()
-			c.stats.AddResponseReceived(len(resp.Data))
-			data := make([]byte, len(resp.Data))
-			copy(data, resp.Data)
-			code := kkcluster.ClusterErrorCode(resp.Code)
-			cb := p.cb
-			xcall.AntsGo(func() {
-				defer func() {
-					if r := recover(); r != nil {
-						c.stats.AddError()
-						kklog.Errorf("NatsCluster RequestRemoteAsync callback panic: %v", r)
-					}
-				}()
-				cb(data, code)
-			})
-		}
-	})
-	if err != nil {
-		c.reqMu.Lock()
-		delete(c.reqMap, requestID)
-		c.reqMu.Unlock()
-		c.stats.AddError()
-		return kkcluster.ErrFromCode(kkcluster.ClusterErrorCodeSubscribeFailed)
-	}
-	pending.sub = responseSub
-
 	requestSubject := c.getRequestSubjectForNode(nodeID)
 	if err := c.conn.Publish(requestSubject, data); err != nil {
-		_ = responseSub.Unsubscribe()
 		c.reqMu.Lock()
 		delete(c.reqMap, requestID)
 		c.reqMu.Unlock()
@@ -349,8 +328,7 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		p := c.reqMap[requestID]
 		delete(c.reqMap, requestID)
 		c.reqMu.Unlock()
-		if p != nil && p.sub != nil {
-			_ = p.sub.Unsubscribe()
+		if p != nil {
 			c.stats.AddError()
 			cb := p.cb
 			xcall.AntsGo(func() {
@@ -418,27 +396,6 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 		return nil, kkcluster.ClusterErrorCodeMarshalFailed
 	}
 
-	// 订阅响应主题
-	responseSubject := c.getResponseSubject(requestID)
-	responseSub, err := c.conn.Subscribe(responseSubject, func(msg *nats.Msg) {
-		var resp kkcluster.ClusterResponse
-		if err := msgCodec.Unmarshal(msg.Data, &resp); err != nil {
-			kklog.Errorf("NatsCluster unmarshal response failed: %v", err)
-			return
-		}
-
-		select {
-		case responseCh <- &resp:
-		default:
-		}
-	})
-	if err != nil {
-		return nil, kkcluster.ClusterErrorCodeSubscribeFailed
-	}
-	defer func() {
-		_ = responseSub.Unsubscribe()
-	}()
-
 	// 发布请求到目标节点的请求主题
 	requestSubject := c.getRequestSubjectForNode(nodeID)
 	if err := c.conn.Publish(requestSubject, data); err != nil {
@@ -473,6 +430,9 @@ func (c *NatsCluster) Stop() {
 	if c.requestSub != nil {
 		_ = c.requestSub.Unsubscribe()
 	}
+	if c.responseSub != nil {
+		_ = c.responseSub.Unsubscribe()
+	}
 	if c.publishSub != nil {
 		_ = c.publishSub.Unsubscribe()
 	}
@@ -498,6 +458,60 @@ func (c *NatsCluster) SetPublishHandler(handler kkcluster.FunPublishHandler) {
 func (c *NatsCluster) Stats() kkcluster.ClusterStatsSnapshot {
 	isConnected := c.conn != nil && c.conn.IsConnected()
 	return c.stats.Snapshot(isConnected)
+}
+
+// handleResponse 处理响应（单订阅分发）
+func (c *NatsCluster) handleResponse(msg *nats.Msg) {
+	var resp kkcluster.ClusterResponse
+	if err := msgCodec.Unmarshal(msg.Data, &resp); err != nil {
+		kklog.Errorf("NatsCluster unmarshal response failed: %v", err)
+		c.stats.AddError()
+		return
+	}
+	if resp.RequestID == "" {
+		// 防御：没有 requestID 的响应无法路由
+		c.stats.AddError()
+		return
+	}
+
+	// 1) 优先投递同步请求（如果还在等待）
+	c.requestMu.RLock()
+	ch := c.requestMap[resp.RequestID]
+	c.requestMu.RUnlock()
+	if ch != nil {
+		select {
+		case ch <- &resp:
+		default:
+		}
+		// 同步路径的 AddResponseReceived 在 RequestRemote 等待处统计
+		return
+	}
+
+	// 2) 投递异步请求（如果还在等待）
+	c.reqMu.Lock()
+	p := c.reqMap[resp.RequestID]
+	delete(c.reqMap, resp.RequestID)
+	c.reqMu.Unlock()
+	if p == nil || p.cb == nil {
+		return
+	}
+
+	// 记录接收响应统计（异步路径只有这里能统计）
+	c.stats.AddResponseReceived(len(resp.Data))
+
+	data := make([]byte, len(resp.Data))
+	copy(data, resp.Data)
+	code := kkcluster.ClusterErrorCode(resp.Code)
+	cb := p.cb
+	xcall.AntsGo(func() {
+		defer func() {
+			if r := recover(); r != nil {
+				c.stats.AddError()
+				kklog.Errorf("NatsCluster RequestRemoteAsync callback panic: %v", r)
+			}
+		}()
+		cb(data, code)
+	})
 }
 
 // handleRequest 处理请求
@@ -636,4 +650,11 @@ func (c *NatsCluster) getRequestSubjectForNode(nodeID string) string {
 // getResponseSubject 获取响应主题
 func (c *NatsCluster) getResponseSubject(requestID string) string {
 	return "kkcluster.response." + requestID
+}
+
+// getResponseSubjectPattern 返回本节点需要订阅的响应主题（通配）
+func (c *NatsCluster) getResponseSubjectPattern() string {
+	// requestID = <sourceNodeID>.<seq>，响应主题为 kkcluster.response.<requestID>
+	// 仅订阅本节点发起请求的响应：kkcluster.response.<nodeID>.>
+	return "kkcluster.response." + c.nodeID + ".>"
 }
