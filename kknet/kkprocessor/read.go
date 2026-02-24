@@ -27,7 +27,7 @@ type ReadProcessor struct {
 
 	recvQueue bbqueue.IFiFoQueue //接收队列
 	recvBuf   []byte             //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
-	splitBuf  [16][]byte         //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
+	splitBuf  [32][]byte         //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 
 	mu        sync.Mutex
 	closeOnce sync.Once
