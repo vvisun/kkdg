@@ -20,13 +20,13 @@ import (
  * 负责编码、然后将编码后的数据投入发送队列，供连接发送。
  */
 type WriteProcessor struct {
-	conn            kknet.IConn            //连接(用于 flush 超时回调传参)
-	connID          kknet.CONN_ID          //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
-	userID          kknet.USER_ID          //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
+	conn   kknet.IConn   //连接(用于 flush 超时回调传参)
+	connID kknet.CONN_ID //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
+	userID kknet.USER_ID //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
+	opts   kknet.WriteOptions
+
 	sendQueue       bbqueue.IFiFoQueue     //发送队列
 	sendBatchBuffer []*kkbuffer.ByteBuffer //批量发送缓冲区。as an array to reduce memory allocation.
-
-	opts kknet.WriteOptions
 
 	sendMu    sync.Mutex
 	cond      *sync.Cond // 用于 Block 模式：队列有空位时由 writeLoop 唤醒

@@ -1,2 +1,55 @@
 # kkdg
-server engine
+
+Go 语言实现的游戏/分布式服务端引擎，提供网络层、集群通信、应用框架等基础能力。
+
+## 模块结构
+
+| 模块 | 路径 | 说明 |
+|------|------|------|
+| **kkapp** | `kkapp/` | 应用框架：基于 ProtoActor 的组件化节点，支持 Gate、Game 等业务组件 |
+| **kknet** | `kknet/` | 网络层：TCP / WebSocket / TCP TLS 服务端与客户端，基于 gnet |
+| **kkprocessor** | `kknet/kkprocessor/` | 消息处理器：读/写队列、粘包拆包、批量发送 |
+| **kkpacket** | `kknet/kkpacket/` | 封包协议：流式封包、消息路由 |
+| **remotes** | `remotes/` | 远程能力：RPC、集群（NATS）、服务发现 |
+| **proto** | `proto/` | 协议定义：FlatBuffers、Protobuf |
+| **utils** | `utils/` | 工具库：buffer、codec、时间轮、队列、转换等 |
+
+## 架构概览
+
+- **连接层**：连接管理、心跳、断线重连
+- **处理器层**：编解码、粘包拆包、消息分发
+- **业务层**：监听消息并处理业务逻辑
+
+典型部署：**Gate（网关）** 接收客户端连接，通过 **NATS** 与 **Logic（业务服）** 互通。
+
+## 快速开始
+
+### 依赖
+
+- Go 1.21+
+- NATS（集群与服务发现）
+
+### 运行示例
+
+```bash
+# 集群示例（需先启动 NATS）
+cd other/examples/examcluster && go run main.go
+```
+
+### 测试
+
+```bash
+go test ./...
+go test -bench=. -benchmem ./...
+```
+
+## 核心能力
+
+- **网络**：TCP / WebSocket / TLS，支持多 Codec（JSON、ProtoBuf、MsgPack、FlatBuffer）
+- **集群**：基于 NATS 的 Publish/Request，支持服务发现与节点类型订阅
+- **队列**：BBQueue（环形数组）、NNQueue（链表，内存更省）
+- **应用**：`Application` + `Component` 生命周期管理
+
+## License
+
+见各子模块声明。
