@@ -1,3 +1,3 @@
-go run ./tests/ttws/ttwsserver
+go run ./other/tests/ttws/ttwsserver
 
 PAUSE

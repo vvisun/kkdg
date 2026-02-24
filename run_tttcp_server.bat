@@ -1,3 +1,3 @@
-go run ./tests/tttcp/tttcpserver
+go run ./other/tests/tttcp/tttcpserver
 
 PAUSE
