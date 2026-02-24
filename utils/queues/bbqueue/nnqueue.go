@@ -30,16 +30,40 @@ func putNNNode(node *nnNode) {
 type NNQueue struct {
 	head     *nnNode
 	tail     *nnNode
+	free     *nnNode // per-queue freelist (LIFO)
 	count    int  // 队列元素个数
 	maxCount int  // 队列最大元素个数
 	isStrict bool // 是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
+
+	freeCount int // freelist nodes count
+	freeMax   int // freelist cap; overflow returns to global pool
 }
 
 var _ IFiFoQueue = (*NNQueue)(nil)
 
 // 链表实现，内存占用更低，但性能不如BBQueue。
 func NewNNQueue(size int, isStrict bool) *NNQueue {
-	return &NNQueue{head: nil, tail: nil, count: 0, maxCount: size, isStrict: isStrict}
+	if size <= 0 {
+		size = defaultSize
+	}
+	// freelist cap: keep a small bounded cache per-queue to avoid sync.Pool overhead
+	// while still limiting retained nodes in low-memory mode.
+	freeMax := size
+	if freeMax < 64 {
+		freeMax = 64
+	}
+	if freeMax > 4096 {
+		freeMax = 4096
+	}
+	return &NNQueue{
+		head:     nil,
+		tail:     nil,
+		free:     nil,
+		count:    0,
+		maxCount: size,
+		isStrict: isStrict,
+		freeMax:  freeMax,
+	}
 }
 
 func (q *NNQueue) Len() int {
@@ -54,12 +78,38 @@ func (q *NNQueue) IsEmpty() bool {
 	return q.count == 0
 }
 
+func (q *NNQueue) acquireNode() *nnNode {
+	if q.free != nil {
+		n := q.free
+		q.free = n.next
+		q.freeCount--
+		n.next = nil
+		return n
+	}
+	return getNNNode()
+}
+
+func (q *NNQueue) recycleNode(node *nnNode) {
+	if node == nil {
+		return
+	}
+	node.data = nil
+	if q.freeCount < q.freeMax {
+		node.next = q.free
+		q.free = node
+		q.freeCount++
+		return
+	}
+	putNNNode(node)
+}
+
 func (q *NNQueue) Push(data *kkbuffer.ByteBuffer) bool {
 	if q.isStrict && q.count >= q.maxCount {
 		return false
 	}
-	node := getNNNode()
+	node := q.acquireNode()
 	node.data = data
+	node.next = nil
 	if q.head == nil {
 		q.head = node
 		q.tail = node
@@ -82,7 +132,7 @@ func (q *NNQueue) Pop() *kkbuffer.ByteBuffer {
 	}
 	q.count--
 	bb := node.data
-	putNNNode(node)
+	q.recycleNode(node)
 	return bb
 }
 
@@ -109,31 +159,37 @@ func (q *NNQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int
 	written := 0
 	totalBytes := 0
 
-	for written < count && q.count > 0 {
+	// Batch detach nodes from head, avoid per-item Pop() overhead.
+	node := q.head
+	for written < count && node != nil {
 		if limitBytes > 0 && written > 0 {
-			willPop := q.head.data
-			if willPop != nil {
-				if totalBytes+willPop.Len() > limitBytes {
-					break
-				}
+			willPop := node.data
+			if willPop != nil && totalBytes+willPop.Len() > limitBytes {
+				break
 			}
 		}
 
-		bb := q.Pop()
-		if bb == nil {
-			written++
-			continue
-		}
-
-		bbLen := bb.Len()
+		next := node.next
+		bb := node.data
 		recv[written] = bb
 		written++
-		totalBytes += bbLen
+		if bb != nil {
+			totalBytes += bb.Len()
+		}
+
+		q.count--
+		q.recycleNode(node)
+		node = next
 
 		// 当第一个元素就会超出 limitBytes 时，也允许弹出一个，防止 limitBytes 过小永远无法弹出。
 		if limitBytes > 0 && totalBytes >= limitBytes && written > 0 {
 			break
 		}
+	}
+
+	q.head = node
+	if q.head == nil {
+		q.tail = nil
 	}
 
 	return written
