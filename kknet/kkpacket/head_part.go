@@ -16,6 +16,34 @@ type IHeadPart interface {
 	GetSize() int
 }
 
+// ----------------------------------------------------
+
+type PartUint8 struct{}
+
+var _ IHeadPart = (*PartUint8)(nil)
+
+func (p *PartUint8) Marshal(data []byte, endian binary.ByteOrder, value int) error {
+	if len(data) < 1 {
+		return kkerrors.ErrDataTooShortToMarshal
+	}
+	if value < 0 || value > 255 {
+		return kkerrors.ErrValueOutOfRange
+	}
+	data[0] = uint8(value)
+	return nil
+}
+
+func (p *PartUint8) Unmarshal(data []byte, endian binary.ByteOrder) (int, error) {
+	if len(data) < 1 {
+		return 0, kkerrors.ErrDataTooShortToUnmarshal
+	}
+	return int(data[0]), nil
+}
+
+func (p *PartUint8) GetSize() int {
+	return 1
+}
+
 //----------------------------------------------------
 
 type PartUint16 struct{}

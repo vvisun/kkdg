@@ -30,6 +30,8 @@ var (
 	ErrValueListTooShortToMarshal = errors.New("value list too short to marshal")
 	// 值列表太短，无法解码
 	ErrValueListTooShortToUnmarshal = errors.New("value list too short to unmarshal")
+	// 值超出范围
+	ErrValueOutOfRange = errors.New("value out of range")
 )
 
 // -------------- for kkcodec -------------------
