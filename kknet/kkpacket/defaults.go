@@ -8,7 +8,7 @@ import (
 const maxHeadPathCount = 4
 
 // 整包[length,message]最大长度（字节数）
-var gMaxPacketSize = 2 * 1024
+var gMaxPacketSize = 4 * 1024
 
 // 默认解包器
 var defaultStreamPacket = NewLengthFieldStreamPacket(4)

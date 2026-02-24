@@ -15,7 +15,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/netprocessor/kkscsp"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -128,7 +128,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
 		kknet.WithNoneCopyHandler(recv),
-		kknet.WithRpProvider(kkscsp.NewSyncReadProcessor),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		kknet.WithRecvQueueSize(512),
 		kknet.WithBufferSizes(2*1024, 2*1024),
 	)
