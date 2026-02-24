@@ -1,4 +1,4 @@
-package kkpool
+package kktime
 
 import (
 	"sync"

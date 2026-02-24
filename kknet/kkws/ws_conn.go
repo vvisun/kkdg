@@ -13,6 +13,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kktime"
 	"github.com/vvisun/kkdg/utils/timingwheel"
 )
 
@@ -113,7 +114,7 @@ func (c *wsConn) startPingByTimingWheel() {
 		return c.conn.SetReadDeadline(time.Now().Add(c.opts.ReadTimeout))
 	})
 
-	tw := timingwheel.GetNetTimingWheel()
+	tw := kktime.GetNetTimingWheel()
 	t := tw.ScheduleFunc(&wsPingScheduler{c.opts.PingInterval}, func() {
 		if c.closing.Load() {
 			return

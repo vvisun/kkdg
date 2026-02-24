@@ -1,10 +1,12 @@
-package kkpool
+package kktime
 
 import (
 	"sync"
 	"sync/atomic"
 	"time"
 )
+
+const max_size_for_pool = 4096
 
 // global pool of *time.Timer's. can be used by multiple goroutines concurrently.
 var globalTimerPool timerPool

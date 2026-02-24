@@ -1,12 +1,14 @@
-package timingwheel
+package kktime
 
 import (
 	"sync"
 	"time"
+
+	"github.com/vvisun/kkdg/utils/timingwheel"
 )
 
 var (
-	netTW          *TimingWheel
+	netTW          *timingwheel.TimingWheel
 	onceNetTWStart sync.Once
 	onceNetTWStop  sync.Once
 	netTWTick            = 500 * time.Millisecond
@@ -14,16 +16,16 @@ var (
 )
 
 var (
-	gameTW          *TimingWheel
+	gameTW          *timingwheel.TimingWheel
 	onceGameTWStart sync.Once
 	onceGameTWStop  sync.Once
 	gameTWTick            = 1 * time.Millisecond
 	gameTWWheelSize int64 = 20
 )
 
-func GetNetTimingWheel() *TimingWheel {
+func GetNetTimingWheel() *timingwheel.TimingWheel {
 	onceNetTWStart.Do(func() {
-		netTW = NewTimingWheel(netTWTick, netTWWheelSize)
+		netTW = timingwheel.NewTimingWheel(netTWTick, netTWWheelSize)
 		netTW.Start()
 	})
 	return netTW
@@ -38,9 +40,9 @@ func StopNetTimingWheel() {
 	})
 }
 
-func GetGameTimingWheel() *TimingWheel {
+func GetGameTimingWheel() *timingwheel.TimingWheel {
 	onceGameTWStart.Do(func() {
-		gameTW = NewTimingWheel(gameTWTick, gameTWWheelSize)
+		gameTW = timingwheel.NewTimingWheel(gameTWTick, gameTWWheelSize)
 		gameTW.Start()
 	})
 	return gameTW

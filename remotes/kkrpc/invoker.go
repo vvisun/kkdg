@@ -9,7 +9,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/kkpool"
+	"github.com/vvisun/kkdg/utils/kktime"
 )
 
 type ISender interface {
@@ -90,7 +90,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, 
 
 	var timer *time.Timer
 	if timeout > 0 {
-		timerPool := kkpool.GetGlobalTimerPool()
+		timerPool := kktime.GetGlobalTimerPool()
 		timer = timerPool.Get(timeout)
 		defer timerPool.Put(timer)
 	}
@@ -208,7 +208,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req
 	}
 
 	if timeout > 0 {
-		timerPool := kkpool.GetGlobalTimerPool()
+		timerPool := kktime.GetGlobalTimerPool()
 		t := timerPool.Get(timeout)
 		go func() {
 			select {
