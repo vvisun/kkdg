@@ -163,8 +163,9 @@ func (r *RpcReceiver) dealReqResp(fr *Frame) *kkbuffer.ByteBuffer {
 		return rspBB
 	}
 
-	// 处理 FrameTypeRequest 类型的请求
-	respBytes, err := h.OnMsg(context.Background(), fr.P, fr.T)
+	ctx, cancel := deadlineCtx(fr.DL)
+	defer cancel()
+	respBytes, err := h.OnMsg(ctx, fr.P, fr.T)
 	if err != nil {
 		rspFrame.Code = 1
 		rspFrame.Err = "远程方法执行失败: " + err.Error()
@@ -177,7 +178,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame) *kkbuffer.ByteBuffer {
 	}
 
 	// encode response
-	rspBB, err := EncodeRpcFrameWithPayload(FrameTypeResponse, fr.ID, method, respBytes)
+	rspBB, err := EncodeRpcFrameWithPayload(FrameTypeResponse, fr.ID, method, respBytes, 0)
 	if err != nil {
 		return nil
 	}
@@ -191,5 +192,7 @@ func (r *RpcReceiver) dealOneWay(fr *Frame) error {
 	if !ok || h == nil {
 		return nil
 	}
-	return h.OnMsg(context.Background(), fr.P, fr.T)
+	ctx, cancel := deadlineCtx(fr.DL)
+	defer cancel()
+	return h.OnMsg(ctx, fr.P, fr.T)
 }

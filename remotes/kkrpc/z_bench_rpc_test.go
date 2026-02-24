@@ -107,7 +107,7 @@ func Benchmark_EncodeRpcFrame(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		bb, err := EncodeRpcFrame(FrameTypeRequest, uint64(i+1), "testReqRsp", msg)
+		bb, err := EncodeRpcFrame(FrameTypeRequest, uint64(i+1), "testReqRsp", msg, 0)
 		if err != nil {
 			b.Fatalf("encode: %v", err)
 		}

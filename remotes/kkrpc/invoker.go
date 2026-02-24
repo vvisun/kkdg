@@ -68,7 +68,18 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, 
 	}
 	defer pending.delCh(reqId)
 
-	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req)
+	timeout := opts.Timeout
+	if dl, ok := ctx.Deadline(); ok {
+		if d := time.Until(dl); d > 0 && (timeout <= 0 || d < timeout) {
+			timeout = d
+		}
+	}
+	var deadlineMs int64
+	if timeout > 0 {
+		deadlineMs = time.Now().Add(timeout).UnixMilli()
+	}
+
+	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
@@ -77,12 +88,6 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, 
 		return err
 	}
 
-	timeout := opts.Timeout
-	if dl, ok := ctx.Deadline(); ok {
-		if d := time.Until(dl); d > 0 && (timeout <= 0 || d < timeout) {
-			timeout = d
-		}
-	}
 	var timer *time.Timer
 	if timeout > 0 {
 		timerPool := kkpool.GetGlobalTimerPool()
@@ -148,19 +153,39 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
+	timeout := opts.Timeout
+	if dl, ok := ctx.Deadline(); ok {
+		if d := time.Until(dl); d > 0 && (timeout <= 0 || d < timeout) {
+			timeout = d
+		}
+	}
+	var deadlineMs int64
+	if timeout > 0 {
+		deadlineMs = time.Now().Add(timeout).UnixMilli()
+	}
+
 	reqId := genReqId()
-	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req)
+	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
 	pending := i.sender.getPending()
 
+	var doneCh chan struct{}
+	if timeout > 0 {
+		doneCh = make(chan struct{})
+	}
+
 	pending.addCallback(reqId, func(fr Frame) {
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
 		pending.delCallback(reqId)
+		if doneCh != nil {
+			close(doneCh)
+		}
 
 		err := ErrRpc(fr.Code, fr.Err)
 		if err != nil {
@@ -182,19 +207,22 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req
 		return err
 	}
 
-	timeout := opts.Timeout
-	if dl, ok := ctx.Deadline(); ok {
-		if d := time.Until(dl); d > 0 && (timeout <= 0 || d < timeout) {
-			timeout = d
-		}
-	}
 	if timeout > 0 {
 		timerPool := kkpool.GetGlobalTimerPool()
 		t := timerPool.Get(timeout)
 		go func() {
-			<-t.C
-			if _, ok := pending.takeCallback(reqId); ok {
-				callback(nil, kkerrors.ErrTimeout)
+			select {
+			case <-t.C:
+				if _, ok := pending.takeCallback(reqId); ok {
+					callback(nil, kkerrors.ErrTimeout)
+				}
+			case <-doneCh:
+				if !t.Stop() {
+					select {
+					case <-t.C:
+					default:
+					}
+				}
 			}
 			timerPool.Put(t)
 		}()
@@ -211,7 +239,7 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, method string, req *T, o
 		kklog.Errorf("req type not match")
 		return kkerrors.ErrInvalidReqResp
 	}
-	bb, err := EncodeRpcFrame(FrameTypeOneway, 0, method, req)
+	bb, err := EncodeRpcFrame(FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err

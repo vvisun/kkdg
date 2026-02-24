@@ -50,7 +50,7 @@ func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
 	return bb1, nil
 }
 
-func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payload []byte) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payload []byte, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
@@ -64,6 +64,7 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 	request := Frame{
 		T:  ft,
 		ID: reqId,
+		DL: deadlineMs,
 		M:  method,
 		P:  payload,
 	}
@@ -78,7 +79,7 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 	return bb1, nil
 }
 
-func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
 	payloadBytes, err := payloadCodec.Marshal(msg)
 	if err != nil {
 		return nil, err
@@ -97,6 +98,7 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T) (*
 	request := Frame{
 		T:  ft,
 		ID: reqId,
+		DL: deadlineMs,
 		M:  method,
 		P:  payloadBytes,
 	}
