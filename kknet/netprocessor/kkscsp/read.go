@@ -177,16 +177,12 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 
 	nowEmpty := rp.recvQueue.IsEmpty()
 
-	rp.mu.Unlock()
-
 	// shrink: if empty and cap too big, shrink to default.
 	if rp.opts.RecvBufShrinkCap > 0 && len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
-		rp.mu.Lock()
-		if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
-			rp.reRecvBuf(defaultRecvBufSize)
-		}
-		rp.mu.Unlock()
+		rp.reRecvBuf(defaultRecvBufSize)
 	}
+
+	rp.mu.Unlock()
 
 	// 唤醒消费携程，消费recvQueue中的数据。
 	if wasEmpty && !nowEmpty {

@@ -75,7 +75,7 @@ func CheckOptions(opts *Options) {
 		return
 	}
 
-	// 读写缓冲区大小。限制在 1KB - 8KB 之间。太大连接数一多内存消耗非常高。太小影响性能。
+	// 读写缓冲区大小。太大连接数一多内存消耗非常高。太小影响性能。
 	if opts.ReadBufferSize < 1024 {
 		opts.ReadBufferSize = 1024
 	}
@@ -85,8 +85,8 @@ func CheckOptions(opts *Options) {
 	if opts.WriteBufferSize < 1024 {
 		opts.WriteBufferSize = 1024
 	}
-	if opts.WriteBufferSize > 8*1024 {
-		opts.WriteBufferSize = 8 * 1024
+	if opts.WriteBufferSize > 32*1024 {
+		opts.WriteBufferSize = 32 * 1024
 	}
 
 	if opts.ReadTimeout > 0 && opts.ReadTimeout < 1*time.Second {

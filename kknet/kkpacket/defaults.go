@@ -8,13 +8,17 @@ import (
 const maxHeadPathCount = 4
 
 // 整包[length,message]最大长度（字节数）
-const gMaxPacketSize = 2 * 1024
+var gMaxPacketSize = 2 * 1024
 
 // 默认解包器
 var defaultStreamPacket = NewLengthFieldStreamPacket(4)
 
 func DefaultStreamPacket() IPacket {
 	return defaultStreamPacket
+}
+
+func SetMaxPacketSize(size int) {
+	gMaxPacketSize = size
 }
 
 // 整包[length,message]最大长度（字节数）

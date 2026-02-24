@@ -57,22 +57,26 @@ func (c *udpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
+		kkbuffer.Put(buffer)
 		return err
 	}
 	data := buffer.B
 	if !c.active.Load() {
+		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed
 	}
 	if len(data) > kkpacket.MaxPacketSize() {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
+		kkbuffer.Put(buffer)
 		return kkerrors.ErrMaxMessageSize
 	}
 	if c.conn == nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
+		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed
 	}
 	_, err := c.conn.Write(data)
@@ -80,8 +84,10 @@ func (c *udpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
+		kkbuffer.Put(buffer)
 		return err
 	}
+	kkbuffer.Put(buffer)
 	if c.stats != nil {
 		c.stats.AddSent(len(data))
 	}

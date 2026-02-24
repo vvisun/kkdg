@@ -107,7 +107,9 @@ func CheckReadOptions(opts *ReadOptions) {
 	}
 	if opts.RecvBufShrinkCap <= 0 || opts.RecvBufShrinkCap > 2*1024 {
 		kklog.Debugf("rp RecvBufShrinkCap fixed from %d to %d", opts.RecvBufShrinkCap, 2048)
-		// 空闲时如果 cap 过大则缩容，避免长期占用大内存。
 		opts.RecvBufShrinkCap = 2 * 1024 // 2KB
+	}
+	if opts.NoneCopyHandler != nil && opts.RawHandler != nil {
+		kklog.Warnf("rp NoneCopyHandler and RawHandler both set, RawHandler will be ignored")
 	}
 }
