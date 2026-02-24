@@ -92,8 +92,10 @@ func (wp *WriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 			kkbuffer.Put(buffer)
 			return nil
 		case kknet.EWpQueueFullActionBlock: // 阻塞
+			kkbuffer.Put(buffer)
 			return kkerrors.ErrSendQueueFull
 		case kknet.EWpQueueFullActionRetry: // 重试
+			kkbuffer.Put(buffer)
 			return kkerrors.ErrSendQueueFull
 		}
 	}

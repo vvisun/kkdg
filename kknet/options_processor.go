@@ -46,6 +46,7 @@ func DefaultWriteOptions() WriteOptions {
 		SendQueueTimeoutFlushOver: 5 * time.Second,
 		BatchWriteSize:            32,
 		BatchWriteLimitBytes:      1024,
+		SendQueueFullAction:       EWpQueueFullActionDrop,
 	}
 }
 
