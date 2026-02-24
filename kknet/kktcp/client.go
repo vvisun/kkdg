@@ -40,6 +40,10 @@ var _ kknet.IClient = (*GnetClient)(nil)
 // NewGnetClient creates a new gnet-based TCP client.
 func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *GnetClient {
 	kknet.CheckOptions(&opts)
+	if opts.TLSConfig != nil {
+		// panic as gnet client does not support TLS
+		panic("gnet client does not support TLS. use kktcptls instead.")
+	}
 	return &GnetClient{
 		addr:    addr,
 		handler: handler,

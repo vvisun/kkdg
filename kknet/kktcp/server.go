@@ -32,6 +32,10 @@ var _ kknet.IServer = (*Server)(nil)
 // NewServer creates a new TCP server.
 func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *Server {
 	kknet.CheckOptions(&opts)
+	if opts.TLSConfig != nil {
+		// panic as gnet server does not support TLS
+		panic("gnet server does not support TLS. use kktcptls instead.")
+	}
 	return &Server{
 		addr:    addr,
 		handler: handler,
