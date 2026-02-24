@@ -1,7 +1,7 @@
 package kknet
 
 import (
-	"runtime"
+	"runtime/metrics"
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -76,24 +76,38 @@ func (s *Stats) Snapshot() StatsSnapshot {
 	}
 }
 
+// 使用 runtime/metrics 读取的指标名称（Go 1.16+，无 stop-the-world）
+const metricHeapObjectsBytes = "/memory/classes/heap/objects:bytes"
+
 func PrintStress(stats *StatsSnapshot) {
-	var memStats runtime.MemStats
+	heapUsedMB, heapKBPerConn := readMetricsStress(stats.ActiveConns)
 
-	// 统计内存（堆分配）
-	runtime.ReadMemStats(&memStats)
-	heapUsed := memStats.Alloc / 1024 / 1024 // MB
-	perConnMem := 0.0
-	if stats.ActiveConns > 0 {
-		perConnMem = float64(memStats.Mallocs) / float64(stats.ActiveConns) / 1024 // KB/连接
-	}
-
-	// 打印指标
 	kklog.Debugf("=== kknet 指标 ===")
 	kklog.Debugf("并发连接数：%d", stats.ActiveConns)
 	kklog.Debugf("累计接收消息量：%d", stats.RecvMsgs)
 	kklog.Debugf("累计发送消息量：%d", stats.SentMsgs)
 	kklog.Debugf("累计错误数：%d", stats.Errors)
-	kklog.Debugf("堆内存占用：%d MB", heapUsed)
-	kklog.Debugf("单连接内存：%.2f KB/conn", perConnMem)
+	kklog.Debugf("堆内存占用：%d MB", heapUsedMB)
+	kklog.Debugf("单连接堆内存：%.2f KB/conn", heapKBPerConn)
 	kklog.Debugf("------------------------\n")
+}
+
+// readMetricsStress 通过 runtime/metrics 读取堆内存（无 stop-the-world）。
+// 返回 (堆对象占用 MB, 单连接堆内存 KB)。
+func readMetricsStress(activeConns int64) (heapUsedMB uint64, heapKBPerConn float64) {
+	samples := []metrics.Sample{
+		{Name: metricHeapObjectsBytes},
+	}
+	metrics.Read(samples)
+
+	var heapBytes uint64
+	if samples[0].Value.Kind() == metrics.KindUint64 {
+		heapBytes = samples[0].Value.Uint64()
+	}
+
+	heapUsedMB = heapBytes / 1024 / 1024
+	if activeConns > 0 && heapBytes > 0 {
+		heapKBPerConn = float64(heapBytes) / float64(activeConns) / 1024
+	}
+	return heapUsedMB, heapKBPerConn
 }
