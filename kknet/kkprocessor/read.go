@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -42,6 +43,13 @@ var _ kknet.IReadProcessor = (*ReadProcessor)(nil)
 
 func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
+	// 如果设置了 NoneCopyHandler，则使用 SyncReadProcessor 代替。
+	// 因为 NoneCopyHandler 无需唤醒消费协程，性能更好。
+	if opts.NoneCopyHandler != nil {
+		kklog.Warnf("ReadProcessor with NoneCopyHandler, use SyncReadProcessor instead")
+		return NewSyncReadProcessor(opts)
+	}
+
 	return &ReadProcessor{
 		recvBuf:   nil,
 		recvQueue: bbqueue.NewFIFOQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
