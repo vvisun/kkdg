@@ -14,19 +14,19 @@ type OriginCheckFunc func(r *http.Request) bool
 
 // Options are common network settings.
 type Options struct {
-	Logger              kklog.ILogger                // 日志记录器
-	ReadBufferSize      int                          // 读缓冲区大小 1-64KB
-	WriteBufferSize     int                          // 写缓冲区大小 1-64KB
-	ShutdownTimeout     time.Duration                // 服务关闭超时时间
-	IsNeedReconnect     bool                         // 是否需要重连
+	Logger               kklog.ILogger                // 日志记录器
+	ReadBufferSize       int                          // 读缓冲区大小 1-64KB
+	WriteBufferSize      int                          // 写缓冲区大小 1-64KB
+	ShutdownTimeout      time.Duration                // 服务关闭超时时间
+	IsNeedReconnect      bool                         // 是否需要重连
 	ReconnectInterval    time.Duration                // 重连基础间隔（指数退避的初始值）
 	ReconnectMaxInterval time.Duration                // 重连最大间隔（指数退避上限）
 	ReconnectMaxRetries  int                          // 重连最大次数(<=0为无限)
 	ReconnectCallback    func(attempt int, err error) // 重连回调(成功时 err 为 nil)
-	ReadTimeout         time.Duration                // 读超时时间（为0时，不启用读超时）
-	WriteTimeout        time.Duration                // 写超时时间（为0时，不启用写超时）
-	PingInterval        time.Duration                // Ping发送间隔（为0时，不发送 Ping）；配合 ReadTimeout 做保活，收到 Pong 会刷新读超时
-	TLSConfig           *tls.Config                  // TLS配置。use for wss or tcp with tls
+	ReadTimeout          time.Duration                // 读超时时间（为0时，不启用读超时）
+	WriteTimeout         time.Duration                // 写超时时间（为0时，不启用写超时）
+	PingInterval         time.Duration                // Ping发送间隔（为0时，不发送 Ping）；配合 ReadTimeout 做保活，收到 Pong 会刷新读超时
+	TLSConfig            *tls.Config                  // TLS配置。use for wss or tcp with tls
 
 	WpOptions  WriteOptions // 写处理器选项
 	RpOptions  ReadOptions  // 读处理器选项
@@ -49,11 +49,11 @@ type Option func(*Options)
 // DefaultOptions returns default settings.
 func DefaultOptions() Options {
 	return Options{
-		Logger:              kklog.GetConsoleLogger(),
-		ReadBufferSize:      4 * 1024,
-		WriteBufferSize:     4 * 1024,
-		TLSConfig:           nil,
-		ShutdownTimeout:     10 * time.Second, // 10秒
+		Logger:               kklog.GetConsoleLogger(),
+		ReadBufferSize:       4 * 1024,
+		WriteBufferSize:      4 * 1024,
+		TLSConfig:            nil,
+		ShutdownTimeout:      10 * time.Second, // 10秒
 		IsNeedReconnect:      true,
 		ReconnectInterval:    1 * time.Second,
 		ReconnectMaxInterval: 30 * time.Second,
@@ -301,32 +301,37 @@ func WithUDPCleanupInterval(interval time.Duration) Option {
 	}
 }
 
-//------------------------- read write processor -------------------------
+//------------------------- read/write processor options -------------------------
 
+// WithWpProvider sets write processor provider.
 func WithWpProvider(provider WpProvider) Option {
 	return func(o *Options) {
 		o.WpProvider = provider
 	}
 }
 
+// WithRpProvider sets read processor provider.
 func WithRpProvider(provider RpProvider) Option {
 	return func(o *Options) {
 		o.RpProvider = provider
 	}
 }
 
+// WithRawHandler sets raw handler.
 func WithRawHandler(handler IRawHandler) Option {
 	return func(o *Options) {
 		o.RpOptions.RawHandler = handler
 	}
 }
 
+// WithNoneCopyHandler sets none copy handler.
 func WithNoneCopyHandler(handler INoneCopyHandler) Option {
 	return func(o *Options) {
 		o.RpOptions.NoneCopyHandler = handler
 	}
 }
 
+// WithRecvQueueSize sets recv queue size.
 func WithRecvQueueSize(size int) Option {
 	return func(o *Options) {
 		if size > 0 {
@@ -335,9 +340,17 @@ func WithRecvQueueSize(size int) Option {
 	}
 }
 
+// WithRecvQueueStrict sets recv queue strict.
 func WithRecvQueueStrict(strict bool) Option {
 	return func(o *Options) {
 		o.RpOptions.RecvQueueStrict = strict
+	}
+}
+
+// WithRecvQueueFullCallback sets recv queue full callback.
+func WithRecvQueueFullCallback(callback func(conn IConn)) Option {
+	return func(o *Options) {
+		o.RpOptions.RecvQueueFullCallback = callback
 	}
 }
 
@@ -347,6 +360,13 @@ func WithSendQueueSize(size int) Option {
 		if size > 0 {
 			o.WpOptions.SendQueueSize = size
 		}
+	}
+}
+
+// WithSendQueueFullAction sets send queue full action.
+func WithSendQueueFullAction(action EWpQueueFullAction) Option {
+	return func(o *Options) {
+		o.WpOptions.SendQueueFullAction = action
 	}
 }
 

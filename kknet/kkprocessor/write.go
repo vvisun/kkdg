@@ -84,13 +84,21 @@ func (wp *WriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	ok := wp.sendQueue.Push(buffer)
 	nowEmpty := wp.sendQueue.IsEmpty()
 	wp.sendMu.Unlock()
+
 	if !ok {
-		//发送队列已满，返回错误。
-		//暂时直接返回，后续可以考虑丢弃/阻塞/...。
-		kkbuffer.Put(buffer)
-		// todo: 回调失败通知
-		return kkerrors.ErrSendQueueFull
+		//发送队列已满。根据配置决定如何处理。
+		switch wp.opts.SendQueueFullAction {
+		case kknet.EWpQueueFullActionDrop: // 丢弃
+			kkbuffer.Put(buffer)
+			return nil
+		case kknet.EWpQueueFullActionBlock: // 阻塞
+			return kkerrors.ErrSendQueueFull
+		case kknet.EWpQueueFullActionRetry: // 重试
+			return kkerrors.ErrSendQueueFull
+		}
 	}
+
+	// 如果发送队列从空变为非空，唤醒写携程，消费发送队列中的数据并发送。
 	if wasEmpty && !nowEmpty {
 		wp.wakeWriter()
 	}

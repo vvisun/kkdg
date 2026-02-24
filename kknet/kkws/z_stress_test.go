@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -122,13 +123,14 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 5000
-	msgsPerConn := 155
+	numConns := 12222  //连接数
+	msgsPerConn := 555 //每个连接发送的消息数
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		//kknet.WithRawHandler(recv),
 		kknet.WithNoneCopyHandler(recv),
 		kknet.WithRecvQueueSize(512),

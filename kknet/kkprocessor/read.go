@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -46,7 +45,7 @@ func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	// 如果设置了 NoneCopyHandler，则使用 SyncReadProcessor 代替。
 	// 因为 NoneCopyHandler 无需唤醒消费协程，性能更好。
 	if opts.NoneCopyHandler != nil {
-		kklog.Warnf("ReadProcessor with NoneCopyHandler, use SyncReadProcessor instead")
+		// kklog.Warnf("ReadProcessor with NoneCopyHandler, use SyncReadProcessor instead")
 		return NewSyncReadProcessor(opts)
 	}
 
@@ -116,7 +115,10 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 		ok := rp.recvQueue.Push(bb)
 		if !ok {
 			kkbuffer.Put(bb)
-			// todo: 回调失败通知
+			// 回调失败通知。丢弃并提示“服务器繁忙” 或 “客户端发送过于频繁”
+			if rp.opts.RecvQueueFullCallback != nil {
+				rp.opts.RecvQueueFullCallback(rp.conn)
+			}
 		}
 	}
 	nowEmpty := rp.recvQueue.IsEmpty()
@@ -178,7 +180,10 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 			ok := rp.recvQueue.Push(bb)
 			if !ok {
 				kkbuffer.Put(bb)
-				// todo: 回调失败通知
+				// 回调失败通知。丢弃并提示“服务器繁忙” 或 “客户端发送过于频繁”
+				if rp.opts.RecvQueueFullCallback != nil {
+					rp.opts.RecvQueueFullCallback(rp.conn)
+				}
 			}
 		}
 	}

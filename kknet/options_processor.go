@@ -7,6 +7,14 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+type EWpQueueFullAction int
+
+const (
+	EWpQueueFullActionDrop  EWpQueueFullAction = iota + 1 // 丢弃
+	EWpQueueFullActionBlock                               // 阻塞
+	EWpQueueFullActionRetry                               // 重试
+)
+
 type WriteOptions struct {
 	// 发送队列大小
 	SendQueueSize int
@@ -26,6 +34,8 @@ type WriteOptions struct {
 	BatchWriteLimitBytes int
 	// 消息包解码器
 	MsgPacket *kkpacket.MessagePacket
+	// SendQueue full 动作
+	SendQueueFullAction EWpQueueFullAction
 }
 
 func DefaultWriteOptions() WriteOptions {
@@ -65,6 +75,8 @@ func CheckWriteOptions(opts *WriteOptions) {
 	}
 }
 
+//--------------------------------------------------
+
 type ReadOptions struct {
 	//消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket）
 	RawHandler IRawHandler
@@ -78,6 +90,8 @@ type ReadOptions struct {
 	RecvBatchSize int
 	//当 recvBuf cap 超过该值且当前为空时，缩容到默认值(<=0 使用默认值defaultRecvBufSize)
 	RecvBufShrinkCap int
+	//RecvQueue full 回调
+	RecvQueueFullCallback func(conn IConn)
 }
 
 func DefaultReadOptions() ReadOptions {
