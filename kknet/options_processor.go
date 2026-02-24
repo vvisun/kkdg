@@ -30,7 +30,7 @@ type WriteOptions struct {
 
 func DefaultWriteOptions() WriteOptions {
 	return WriteOptions{
-		SendQueueSize:             256,
+		SendQueueSize:             128,
 		SendQueueStrict:           false,
 		SendQueueNeedFlushOver:    true,
 		SendQueueTimeoutFlushOver: 5 * time.Second,
@@ -44,8 +44,8 @@ func CheckWriteOptions(opts *WriteOptions) {
 		return
 	}
 	if opts.SendQueueSize <= 0 {
-		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 256)
-		opts.SendQueueSize = 256
+		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 128)
+		opts.SendQueueSize = 128
 	}
 	if opts.BatchWriteSize < 8 {
 		kklog.Debugf("wp BatchWriteSize fixed from %d to %d", opts.BatchWriteSize, 8)
@@ -59,9 +59,9 @@ func CheckWriteOptions(opts *WriteOptions) {
 		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 512)
 		opts.BatchWriteLimitBytes = 512
 	}
-	if opts.BatchWriteLimitBytes > 2048 {
+	if opts.BatchWriteLimitBytes > 4096 {
 		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 2048)
-		opts.BatchWriteLimitBytes = 2048
+		opts.BatchWriteLimitBytes = 4096
 	}
 }
 
@@ -82,7 +82,7 @@ type ReadOptions struct {
 
 func DefaultReadOptions() ReadOptions {
 	return ReadOptions{
-		RecvQueueSize:    512,
+		RecvQueueSize:    256,
 		RecvQueueStrict:  false,
 		RecvBatchSize:    32,
 		RecvBufShrinkCap: 2 * 1024, // 2KB
