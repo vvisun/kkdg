@@ -103,7 +103,7 @@ type ReadOptions struct {
 	RecvBatchSize int
 	//当 recvBuf cap 超过该值且当前为空时，缩容到默认值(<=0 使用默认值defaultRecvBufSize)
 	RecvBufShrinkCap int
-	//RecvQueue full 回调
+	// RecvQueue full 回调。当 Push 因队列满失败时调用（需 RecvQueueStrict=true 才会出现队列满）
 	RecvQueueFullCallback func(conn IConn)
 }
 

@@ -347,7 +347,10 @@ func WithRecvQueueStrict(strict bool) Option {
 	}
 }
 
-// WithRecvQueueFullCallback sets recv queue full callback.
+// WithRecvQueueFullCallback 设置 RecvQueue 满时的回调。
+// 回调在 Push 因队列满失败时触发，用于统计、限流或踢连接等。
+// 需配合 WithRecvQueueStrict(true) 使用，否则队列会自动扩容不会满。
+// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
 func WithRecvQueueFullCallback(callback func(conn IConn)) Option {
 	return func(o *Options) {
 		o.RpOptions.RecvQueueFullCallback = callback

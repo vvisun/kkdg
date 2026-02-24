@@ -115,9 +115,11 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 		ok := rp.recvQueue.Push(bb)
 		if !ok {
 			kkbuffer.Put(bb)
-			// 回调失败通知。丢弃并提示“服务器繁忙” 或 “客户端发送过于频繁”
-			if rp.opts.RecvQueueFullCallback != nil {
-				rp.opts.RecvQueueFullCallback(rp.conn)
+			// RecvQueue full：丢弃并回调通知（如统计、限流、踢连接等）
+			// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
+			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+				conn := rp.conn
+				xcall.SafeCall(func() { cb(conn) })
 			}
 		}
 	}
@@ -180,9 +182,11 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 			ok := rp.recvQueue.Push(bb)
 			if !ok {
 				kkbuffer.Put(bb)
-				// 回调失败通知。丢弃并提示“服务器繁忙” 或 “客户端发送过于频繁”
-				if rp.opts.RecvQueueFullCallback != nil {
-					rp.opts.RecvQueueFullCallback(rp.conn)
+				// RecvQueue full：丢弃并回调通知（如统计、限流、踢连接等）
+				// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
+				if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+					conn := rp.conn
+					xcall.SafeCall(func() { cb(conn) })
 				}
 			}
 		}
