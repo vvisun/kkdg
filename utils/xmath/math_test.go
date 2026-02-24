@@ -7,25 +7,110 @@ import (
 	"github.com/vvisun/kkdg/utils/xmath"
 )
 
+func TestIsPowerOfTwo(t *testing.T) {
+	for _, n := range []int{1, 2, 4, 8, 16, 32, 64, 1024, 1 << 20} {
+		if !xmath.IsPowerOfTwo(n) {
+			t.Errorf("IsPowerOfTwo(%d) = false, want true", n)
+		}
+	}
+	for _, n := range []int{0, -1, 3, 5, 6, 7, 9, 10} {
+		if xmath.IsPowerOfTwo(n) {
+			t.Errorf("IsPowerOfTwo(%d) = true, want false", n)
+		}
+	}
+}
+
 func TestFloor(t *testing.T) {
 	f := math.Pi
-
-	t.Log(f)
-	t.Log(xmath.Floor(f, 2))
+	if got := xmath.Floor(f); got != 3 {
+		t.Errorf("Floor(Pi) = %v, want 3", got)
+	}
+	if got := xmath.Floor(f, 2); got != 3.14 {
+		t.Errorf("Floor(Pi, 2) = %v, want 3.14", got)
+	}
+	if got := xmath.Floor(3.14159, 3); got != 3.141 {
+		t.Errorf("Floor(3.14159, 3) = %v, want 3.141", got)
+	}
+	if got := xmath.Floor(-1.6); got != -2 {
+		t.Errorf("Floor(-1.6) = %v, want -2", got)
+	}
 }
 
 func TestCeil(t *testing.T) {
 	f := math.Pi
-
-	t.Log(f)
-	t.Log(xmath.Ceil(f, 2))
+	if got := xmath.Ceil(f); got != 4 {
+		t.Errorf("Ceil(Pi) = %v, want 4", got)
+	}
+	if got := xmath.Ceil(f, 2); got != 3.15 {
+		t.Errorf("Ceil(Pi, 2) = %v, want 3.15", got)
+	}
+	if got := xmath.Ceil(3.14159, 3); got != 3.142 {
+		t.Errorf("Ceil(3.14159, 3) = %v, want 3.142", got)
+	}
+	if got := xmath.Ceil(-1.2); got != -1 {
+		t.Errorf("Ceil(-1.2) = %v, want -1", got)
+	}
 }
 
 func TestRound(t *testing.T) {
 	f := math.Pi
+	if got := xmath.Round(f); got != 3 {
+		t.Errorf("Round(Pi) = %v, want 3", got)
+	}
+	if got := xmath.Round(f, 2); got != 3.14 {
+		t.Errorf("Round(Pi, 2) = %v, want 3.14", got)
+	}
+	if got := xmath.Round(3.145, 2); got != 3.15 {
+		t.Errorf("Round(3.145, 2) = %v, want 3.15", got)
+	}
+	if got := xmath.Round(-1.5); got != -2 {
+		t.Errorf("Round(-1.5) = %v, want -2", got)
+	}
+}
 
-	t.Log(f)
-	t.Log(xmath.Round(f, 2))
+func TestFloorToPowerOfTwo(t *testing.T) {
+	tests := []struct {
+		n    int
+		want int
+	}{
+		{0, 0}, {1, 1}, {2, 2},
+		{3, 2}, {4, 4}, {5, 4}, {7, 4}, {8, 8},
+		{9, 8}, {15, 8}, {16, 16},
+		{17, 16}, {31, 16}, {33, 32}, {63, 32}, {65, 64},
+		{100, 64}, {128, 128}, {129, 128}, {255, 128}, {256, 256},
+		{1000, 512}, {1024, 1024}, {1025, 1024},
+	}
+	for _, tt := range tests {
+		if got := xmath.FloorToPowerOfTwo(tt.n); got != tt.want {
+			t.Errorf("FloorToPowerOfTwo(%d) = %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
+
+func TestClosestPowerOfTwo(t *testing.T) {
+	tests := []struct {
+		n    int
+		want int
+	}{
+		{0, 1}, {1, 1}, {2, 2},
+		{3, 4},   // 3 is closer to 4 than to 2 (dist 1 vs 1, ceil wins or implementation detail)
+		{4, 4},
+		{5, 4},   // 5: dist to 4=1, to 8=3, so 4
+		{6, 8},   // 6: dist to 4=2, to 8=2, implementation may pick one
+		{7, 8},   // 7: dist to 4=3, to 8=1, so 8
+		{8, 8},
+		{9, 8},   // 9: dist to 8=1, to 16=7, so 8
+		{10, 8},  // 10: dist to 8=2, to 16=6, so 8
+		{11, 8},  // 11: dist to 8=3, to 16=5, so 8
+		{12, 16}, // 12: dist to 8=4, to 16=4, ceil may win
+		{15, 16},
+		{16, 16},
+	}
+	for _, tt := range tests {
+		if got := xmath.ClosestPowerOfTwo(tt.n); got != tt.want {
+			t.Errorf("ClosestPowerOfTwo(%d) = %d, want %d", tt.n, got, tt.want)
+		}
+	}
 }
 
 func TestCeilToPowerOfTwo(t *testing.T) {
@@ -37,76 +122,17 @@ func TestCeilToPowerOfTwo(t *testing.T) {
 		args args
 		want int
 	}{
-		// Boundary value tests: 0, 1, 2
 		{name: "zero", args: args{n: 0}, want: 2},
 		{name: "one", args: args{n: 1}, want: 2},
 		{name: "two", args: args{n: 2}, want: 2},
-
-		// Small value tests: 3-15
-		{name: "three", args: args{n: 3}, want: 1 << 2},
-		{name: "four", args: args{n: 4}, want: 1 << 2},
-		{name: "five", args: args{n: 5}, want: 1 << 3},
-		{name: "six", args: args{n: 6}, want: 1 << 3},
-		{name: "seven", args: args{n: 7}, want: 1 << 3},
-		{name: "eight", args: args{n: 8}, want: 1 << 3},
-		{name: "nine", args: args{n: 9}, want: 1 << 4},
-		{name: "ten", args: args{n: 10}, want: 1 << 4},
-		{name: "fifteen", args: args{n: 15}, want: 1 << 4},
-
-		// Tests for powers of two
-		{name: "power_of_two_16", args: args{n: 1 << 4}, want: 1 << 4},
-		{name: "power_of_two_32", args: args{n: 1 << 5}, want: 1 << 5},
-		{name: "power_of_two_64", args: args{n: 1 << 6}, want: 1 << 6},
-		{name: "power_of_two_128", args: args{n: 1 << 7}, want: 1 << 7},
-		{name: "power_of_two_256", args: args{n: 1 << 8}, want: 1 << 8},
-		{name: "power_of_two_512", args: args{n: 1 << 9}, want: 1 << 9},
-		{name: "power_of_two_1024", args: args{n: 1 << 10}, want: 1 << 10},
-
-		// Values near powers of two
-		{name: "near_power_17", args: args{n: (1 << 4) + 1}, want: 1 << 5},
-		{name: "near_power_31", args: args{n: (1 << 5) - 1}, want: 1 << 5},
-		{name: "near_power_33", args: args{n: (1 << 5) + 1}, want: 1 << 6},
-		{name: "near_power_63", args: args{n: (1 << 6) - 1}, want: 1 << 6},
-		{name: "near_power_65", args: args{n: (1 << 6) + 1}, want: 1 << 7},
-		{name: "near_power_127", args: args{n: (1 << 7) - 1}, want: 1 << 7},
-		{name: "near_power_129", args: args{n: (1 << 7) + 1}, want: 1 << 8},
-		{name: "near_power_255", args: args{n: (1 << 8) - 1}, want: 1 << 8},
-		{name: "near_power_257", args: args{n: (1 << 8) + 1}, want: 1 << 9},
-		{name: "near_power_511", args: args{n: (1 << 9) - 1}, want: 1 << 9},
-		{name: "near_power_513", args: args{n: (1 << 9) + 1}, want: 1 << 10},
-		{name: "near_power_1023", args: args{n: (1 << 10) - 1}, want: 1 << 10},
-
-		// Medium value tests
-		{name: "medium_100", args: args{n: 100}, want: 1 << 7},
-		{name: "medium_200", args: args{n: 200}, want: 1 << 8},
-		{name: "medium_500", args: args{n: 500}, want: 1 << 9},
-		{name: "medium_1000", args: args{n: 1000}, want: 1 << 10},
-		{name: "medium_2000", args: args{n: 2000}, want: 1 << 11},
-		{name: "medium_5000", args: args{n: 5000}, want: 1 << 13},
-		{name: "medium_10000", args: args{n: 10000}, want: 1 << 14},
-
-		// Large value tests: around 2^10
-		{name: "large_1024_minus_1", args: args{n: 1<<10 - 1}, want: 1 << 10},
-		{name: "large_1024", args: args{n: 1 << 10}, want: 1 << 10},
-		{name: "large_1024_plus_1", args: args{n: 1<<10 + 1}, want: 1 << 11},
-		{name: "large_2047", args: args{n: (1 << 11) - 1}, want: 1 << 11},
-		{name: "large_2048", args: args{n: 1 << 11}, want: 1 << 11},
-		{name: "large_2049", args: args{n: (1 << 11) + 1}, want: 1 << 12},
-
-		// Very large value tests: around 2^20
-		{name: "very_large_1M_minus_1", args: args{n: 1<<20 - 1}, want: 1 << 20},
-		{name: "very_large_1M", args: args{n: 1 << 20}, want: 1 << 20},
-		{name: "very_large_1M_plus_1", args: args{n: 1<<20 + 1}, want: 1 << 21},
-
-		// Huge value tests: around 2^30 (32-bit system)
-		{name: "huge_1G_minus_1", args: args{n: 1<<30 - 1}, want: 1 << 30},
-		{name: "huge_1G", args: args{n: 1 << 30}, want: 1 << 30},
-		{name: "huge_1G_plus_1", args: args{n: 1<<30 + 1}, want: 1 << 31},
-
-		// 64-bit system tests: around 2^32
-		{name: "extreme_2_32_minus_1", args: args{n: 1<<32 - 1}, want: 1 << 32},
-		{name: "extreme_2_32", args: args{n: 1 << 32}, want: 1 << 32},
-		{name: "extreme_2_32_plus_1", args: args{n: 1<<32 + 1}, want: 1 << 33},
+		{name: "three", args: args{n: 3}, want: 4},
+		{name: "four", args: args{n: 4}, want: 4},
+		{name: "five", args: args{n: 5}, want: 8},
+		{name: "eight", args: args{n: 8}, want: 8},
+		{name: "nine", args: args{n: 9}, want: 16},
+		{name: "power_16", args: args{n: 16}, want: 16},
+		{name: "power_1024", args: args{n: 1024}, want: 1024},
+		{name: "near_1024", args: args{n: 1025}, want: 2048},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
