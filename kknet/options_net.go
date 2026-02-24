@@ -370,6 +370,24 @@ func WithSendQueueFullAction(action EWpQueueFullAction) Option {
 	}
 }
 
+// WithSendQueueRetryInterval sets retry interval for Retry mode.
+func WithSendQueueRetryInterval(interval time.Duration) Option {
+	return func(o *Options) {
+		if interval > 0 {
+			o.WpOptions.SendQueueRetryInterval = interval
+		}
+	}
+}
+
+// WithSendQueueRetryMaxCount sets max retry count for Retry mode (0 = infinite).
+func WithSendQueueRetryMaxCount(max int) Option {
+	return func(o *Options) {
+		if max >= 0 {
+			o.WpOptions.SendQueueRetryMaxCount = max
+		}
+	}
+}
+
 // WithSendQueueNeedFlushOver sets tcp client need flush over.
 func WithSendQueueNeedFlushOver(needFlushOver bool) Option {
 	return func(o *Options) {

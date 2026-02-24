@@ -10,9 +10,9 @@ import (
 type EWpQueueFullAction int
 
 const (
-	EWpQueueFullActionDrop  EWpQueueFullAction = iota + 1 // 丢弃
-	EWpQueueFullActionBlock                               // 阻塞
-	EWpQueueFullActionRetry                               // 重试
+	EWpQueueFullActionDrop  EWpQueueFullAction = iota // 丢弃
+	EWpQueueFullActionBlock                           // 阻塞
+	EWpQueueFullActionRetry                           // 重试
 )
 
 type WriteOptions struct {
@@ -36,6 +36,10 @@ type WriteOptions struct {
 	MsgPacket *kkpacket.MessagePacket
 	// SendQueue full 动作
 	SendQueueFullAction EWpQueueFullAction
+	// Retry 模式：重试间隔（默认 2ms）
+	SendQueueRetryInterval time.Duration
+	// Retry 模式：最大重试次数（0 表示无限，默认 100）
+	SendQueueRetryMaxCount int
 }
 
 func DefaultWriteOptions() WriteOptions {
@@ -47,6 +51,8 @@ func DefaultWriteOptions() WriteOptions {
 		BatchWriteSize:            32,
 		BatchWriteLimitBytes:      1024,
 		SendQueueFullAction:       EWpQueueFullActionDrop,
+		SendQueueRetryInterval:    2 * time.Millisecond,
+		SendQueueRetryMaxCount:    100,
 	}
 }
 
@@ -73,6 +79,12 @@ func CheckWriteOptions(opts *WriteOptions) {
 	if opts.BatchWriteLimitBytes > 4096 {
 		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 2048)
 		opts.BatchWriteLimitBytes = 4096
+	}
+	if opts.SendQueueRetryInterval <= 0 {
+		opts.SendQueueRetryInterval = 2 * time.Millisecond
+	}
+	if opts.SendQueueRetryMaxCount < 0 {
+		opts.SendQueueRetryMaxCount = 0
 	}
 }
 
