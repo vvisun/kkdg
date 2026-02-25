@@ -10,7 +10,9 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 // mockConn implements kknet.IConn for testing.
@@ -361,6 +363,127 @@ func TestWriteProcessor_WriteFnRetry_CustomIsRetryable(t *testing.T) {
 		t.Errorf("onWriteError should not be called on retryable success, got %v", onErr)
 	}
 
+	wp.Stop(nil)
+}
+
+func TestWriteProcessor_Pending(t *testing.T) {
+	opts := kknet.WriteOptions{
+		SendQueueSize:          8,
+		SendQueueStrict:        false,
+		SendQueueNeedFlushOver: false,
+		BatchWriteSize:         8,
+		BatchWriteLimitBytes:   1024,
+	}
+	wp := NewWriteProcessor(opts).(*WriteProcessor)
+
+	writeFn := func(batch []*kkbuffer.ByteBuffer, n int) error {
+		for i := 0; i < n; i++ {
+			if batch[i] != nil {
+				kkbuffer.Put(batch[i])
+				batch[i] = nil
+			}
+		}
+		return nil
+	}
+	wp.Start(&mockConn{id: 1}, writeFn, nil)
+
+	if p := wp.Pending(); p != 0 {
+		t.Errorf("Pending() before send = %d, want 0", p)
+	}
+
+	for i := 0; i < 3; i++ {
+		bb := kkbuffer.GetWithCapacity(8)
+		bb.B = bb.B[:8]
+		if err := wp.SendBuffer(bb); err != nil {
+			t.Fatalf("SendBuffer: %v", err)
+		}
+	}
+	wp.Stop(nil)
+	// Stop 后队列应已排空
+	if p := wp.Pending(); p != 0 {
+		t.Errorf("Pending() after Stop = %d, want 0", p)
+	}
+}
+
+func TestWriteProcessor_SendMsg_UnregisteredType(t *testing.T) {
+	router := kkpacket.NewMsgRouter()
+	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
+	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
+	// router 未注册 "string" 类型，GetMsgID 返回 0
+
+	opts := kknet.WriteOptions{
+		SendQueueSize:          8,
+		SendQueueNeedFlushOver: false,
+		BatchWriteSize:         8,
+		BatchWriteLimitBytes:   1024,
+		MsgPacket:              msgPacket,
+	}
+	wp := NewWriteProcessor(opts).(*WriteProcessor)
+	writeFn := func(batch []*kkbuffer.ByteBuffer, n int) error {
+		for i := 0; i < n; i++ {
+			if batch[i] != nil {
+				kkbuffer.Put(batch[i])
+				batch[i] = nil
+			}
+		}
+		return nil
+	}
+	wp.Start(&mockConn{id: 1}, writeFn, nil)
+	defer wp.Stop(nil)
+
+	err := wp.SendMsg("unregistered-string")
+	if err == nil {
+		t.Fatal("SendMsg with unregistered type should return error")
+	}
+	if !errors.Is(err, kkerrors.ErrMsgTypeNotRegistered) {
+		t.Errorf("SendMsg: got %v, want ErrMsgTypeNotRegistered", err)
+	}
+}
+
+func TestWriteProcessor_DefaultAction_Unknown(t *testing.T) {
+	opts := kknet.WriteOptions{
+		SendQueueSize:          2,
+		SendQueueStrict:        true,
+		SendQueueFullAction:    kknet.EWpQueueFullAction(99), // 未知 action
+		SendQueueNeedFlushOver: false,
+		BatchWriteSize:         8,
+		BatchWriteLimitBytes:   1024,
+	}
+	wp := NewWriteProcessor(opts).(*WriteProcessor)
+
+	blockFirst := make(chan struct{})
+	var firstDone atomic.Bool
+	writeFn := func(batch []*kkbuffer.ByteBuffer, n int) error {
+		for i := 0; i < n; i++ {
+			if batch[i] != nil {
+				kkbuffer.Put(batch[i])
+				batch[i] = nil
+			}
+		}
+		if !firstDone.Swap(true) {
+			<-blockFirst
+		}
+		return nil
+	}
+	wp.Start(&mockConn{id: 1}, writeFn, nil)
+
+	for i := 0; i < 4; i++ {
+		bb := kkbuffer.GetWithCapacity(8)
+		bb.B = bb.B[:8]
+		if err := wp.SendBuffer(bb); err != nil {
+			t.Fatalf("SendBuffer #%d: %v", i+1, err)
+		}
+	}
+	time.Sleep(5 * time.Millisecond)
+
+	bb := kkbuffer.GetWithCapacity(8)
+	bb.B = bb.B[:8]
+	err := wp.SendBuffer(bb)
+	if err != nil {
+		t.Errorf("default/unknown action: queue full should return nil (drop), got %v", err)
+	}
+
+	blockFirst <- struct{}{}
 	wp.Stop(nil)
 }
 
