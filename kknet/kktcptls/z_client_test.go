@@ -39,10 +39,20 @@ func TestClient_NewClient(t *testing.T) {
 	}
 }
 
+type tlsNoopRawHandler struct{}
+
+func (h *tlsNoopRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	kkbuffer.Put(data)
+}
+
 func TestClient_Connect_Close_TLS(t *testing.T) {
 	addr := freePort(t)
 	tlsCfg := genTestTLSConfig(t)
-	srvOpts := kknet.ApplyOptions(kknet.WithTLSConfig(tlsCfg))
+	noop := &tlsNoopRawHandler{}
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithTLSConfig(tlsCfg),
+		kknet.WithRawHandler(noop),
+	)
 	s := NewServer(addr, nil, srvOpts)
 	if err := s.Start(); err != nil {
 		t.Fatalf("Server Start: %v", err)
@@ -53,6 +63,7 @@ func TestClient_Connect_Close_TLS(t *testing.T) {
 	clientCfg.InsecureSkipVerify = true
 	cliOpts := kknet.ApplyOptions(
 		kknet.WithTLSConfig(clientCfg),
+		kknet.WithRawHandler(noop),
 		kknet.WithIsNeedReconnect(false),
 	)
 	client := NewClient(addr, nil, cliOpts)

@@ -138,13 +138,31 @@ func TestWSConn_SendQueueStrict_Full(t *testing.T) {
 
 	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(2))
 	opts.WpOptions.SendQueueStrict = true
+	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionRetry
+	opts.WpOptions.SendQueueRetryMaxCount = 3
+	opts.WpOptions.SendQueueRetryInterval = 2 * time.Millisecond
+	opts.WpOptions.SendQueueNeedFlushOver = false // avoid blocking on Close(); queue drains on Unlock
 	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
 	// Block actual writes so the queue can fill deterministically.
+	// First 2 messages: writeLoop will PopMany them and block in writeBatch on writeMu.
+	// Then 2 more to refill the queue (size=2). The 5th will fail with ErrSendQueueFull.
 	wc.writeMu.Lock()
 
 	for i := 0; i < 2; i++ {
+		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(fmt.Sprintf("x%d", i)))
+		if err != nil {
+			t.Fatalf("pack error: %v", err)
+		}
+		if err := wc.SendBuffer(bb); err != nil {
+			t.Fatalf("SendBuffer error: %v", err)
+		}
+	}
+	// Allow writeLoop to pop and block in writeBatch.
+	time.Sleep(20 * time.Millisecond)
+
+	for i := 2; i < 4; i++ {
 		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(fmt.Sprintf("x%d", i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
@@ -164,15 +182,15 @@ func TestWSConn_SendQueueStrict_Full(t *testing.T) {
 		t.Fatalf("expected ErrSendQueueFull, got %v", err)
 	}
 
-	// Unblock writer and ensure only 2 messages are delivered.
+	// Unblock writer and ensure exactly 4 messages are delivered (x0..x3), not overflow.
 	wc.writeMu.Unlock()
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 4; i++ {
 		_ = mustRecv(t, recv, 2*time.Second)
 	}
 	select {
 	case b := <-recv:
-		t.Fatalf("unexpected extra message: %v", b)
+		t.Fatalf("unexpected extra message (overflow was rejected): %v", b)
 	case <-time.After(150 * time.Millisecond):
 	}
 }

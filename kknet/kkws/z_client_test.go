@@ -25,6 +25,12 @@ func (h *rawRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 	}
 }
 
+type noopRawHandler struct{}
+
+func (h *noopRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	kkbuffer.Put(data)
+}
+
 func TestClient_NewClient(t *testing.T) {
 	c := NewClient("ws://127.0.0.1:8080/ws", nil, kknet.DefaultOptions())
 	if c == nil {
@@ -42,11 +48,12 @@ func TestClient_NewClient(t *testing.T) {
 
 func TestClient_Connect_Close(t *testing.T) {
 	addr := freePort(t)
-	s := NewServer(addr, nil, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	s := NewServer(addr, nil, opts)
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
+	client := NewClient("ws://"+addr+"/ws", nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
@@ -79,7 +86,7 @@ func TestClient_SendBuffer(t *testing.T) {
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
+	client := NewClient("ws://"+addr+"/ws", nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
@@ -119,12 +126,13 @@ func TestClient_SendBuffer_NotConnected(t *testing.T) {
 
 func TestClient_Conn_Stats_Addr(t *testing.T) {
 	addr := freePort(t)
-	s := NewServer(addr, nil, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	s := NewServer(addr, nil, opts)
 	s.Start()
 	defer s.Stop()
 
 	url := "ws://" + addr + "/ws"
-	client := NewClient(url, nil, kknet.DefaultOptions())
+	client := NewClient(url, nil, opts)
 	if client.Addr() != url {
 		t.Errorf("Addr() = %q, want %q", client.Addr(), url)
 	}

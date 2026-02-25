@@ -104,17 +104,24 @@ func (h *testHandler) OnClose(c kknet.IConn, err error) {
 	}
 }
 
+type noopRawHandlerForServer struct{}
+
+func (h *noopRawHandlerForServer) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	kkbuffer.Put(data)
+}
+
 func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 	addr := freePort(t)
 	handler := &testHandler{
 		onConnect: func(c kknet.IConn) {},
 		onClose:   func(c kknet.IConn, err error) {},
 	}
-	s := NewServer(addr, handler, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandlerForServer{}))
+	s := NewServer(addr, handler, opts)
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient(addr, nil, kknet.DefaultOptions())
+	client := NewClient(addr, nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client Connect: %v", err)
 	}
@@ -159,10 +166,11 @@ func TestServer_Stop_ClosesConnections(t *testing.T) {
 	handler := &testHandler{
 		onClose: func(c kknet.IConn, err error) { close(closed) },
 	}
-	s := NewServer(addr, handler, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandlerForServer{}))
+	s := NewServer(addr, handler, opts)
 	s.Start()
 
-	client := NewClient(addr, nil, kknet.DefaultOptions())
+	client := NewClient(addr, nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client Connect: %v", err)
 	}
@@ -191,7 +199,7 @@ func TestServerClient_Integration_Echo(t *testing.T) {
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient(addr, nil, kknet.DefaultOptions())
+	client := NewClient(addr, nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
@@ -239,5 +247,5 @@ func (h *tcpEchoHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 		b := append([]byte(nil), data.Bytes()...)
 		h.onRaw(b)
 	}
-	// ReadProcessor releases data after OnRaw returns
+	kkbuffer.Put(data)
 }

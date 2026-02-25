@@ -26,6 +26,13 @@ func (h *rawRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 	kkbuffer.Put(data)
 }
 
+// noopRawHandler satisfies RawHandler for tests that only need Connect/Close.
+type noopRawHandler struct{}
+
+func (h *noopRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	kkbuffer.Put(data)
+}
+
 func TestClient_NewClient(t *testing.T) {
 	c := NewClient("127.0.0.1:8080", nil, kknet.DefaultOptions())
 	if c == nil {
@@ -42,11 +49,12 @@ func TestClient_NewClient(t *testing.T) {
 
 func TestClient_Connect_Close(t *testing.T) {
 	addr := freePort(t)
-	s := NewServer(addr, nil, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	s := NewServer(addr, nil, opts)
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient(addr, nil, kknet.DefaultOptions())
+	client := NewClient(addr, nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
@@ -72,7 +80,7 @@ func TestClient_SendBuffer(t *testing.T) {
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient(addr, nil, kknet.DefaultOptions())
+	client := NewClient(addr, nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}

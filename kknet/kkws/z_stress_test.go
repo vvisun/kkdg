@@ -250,7 +250,8 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	connsPerRound := 20
 
 	addr := freePortStress(t)
-	srv := NewServer(addr, nil, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -263,7 +264,7 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
+				client := NewClient("ws://"+addr+"/ws", nil, opts)
 				_ = client.Connect()
 				time.Sleep(5 * time.Millisecond)
 				_ = client.Close()

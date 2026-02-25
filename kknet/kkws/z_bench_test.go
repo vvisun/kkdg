@@ -21,13 +21,14 @@ func freePortBench(b *testing.B) string {
 
 func BenchmarkWSConn_SendBuffer(b *testing.B) {
 	addr := freePortBench(b)
-	srv := NewServer(addr, nil, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
 		b.Fatalf("Start: %v", err)
 	}
 	defer srv.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
+	client := NewClient("ws://"+addr+"/ws", nil, opts)
 	if err := client.Connect(); err != nil {
 		b.Fatalf("Connect: %v", err)
 	}
@@ -49,7 +50,8 @@ func BenchmarkWSConn_SendBuffer(b *testing.B) {
 
 func BenchmarkServer_AcceptAndClose(b *testing.B) {
 	addr := freePortBench(b)
-	srv := NewServer(addr, nil, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
 		b.Fatalf("Start: %v", err)
 	}
@@ -58,7 +60,7 @@ func BenchmarkServer_AcceptAndClose(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
+		client := NewClient("ws://"+addr+"/ws", nil, opts)
 		_ = client.Connect()
 		_ = client.Close()
 	}

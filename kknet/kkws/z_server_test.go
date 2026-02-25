@@ -110,11 +110,12 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 		onConnect: func(c kknet.IConn) {},
 		onClose:   func(c kknet.IConn, err error) {},
 	}
-	s := NewServer(addr, handler, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	s := NewServer(addr, handler, opts)
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
+	client := NewClient("ws://"+addr+"/ws", nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client Connect: %v", err)
 	}
@@ -148,7 +149,7 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 	// after KickConn, connection is removed from manager
 	var countAfter int
 	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
-		count++
+		countAfter++
 		return true
 	})
 	if countAfter != 0 {
@@ -178,10 +179,11 @@ func TestServer_Stop_ClosesConnections(t *testing.T) {
 	handler := &testHandler{
 		onClose: func(c kknet.IConn, err error) { close(closed) },
 	}
-	s := NewServer(addr, handler, kknet.DefaultOptions())
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	s := NewServer(addr, handler, opts)
 	s.Start()
 
-	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
+	client := NewClient("ws://"+addr+"/ws", nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client Connect: %v", err)
 	}
@@ -210,7 +212,7 @@ func TestServerClient_Integration_Echo(t *testing.T) {
 	s.Start()
 	defer s.Stop()
 
-	client := NewClient("ws://"+addr+"/ws", nil, kknet.DefaultOptions())
+	client := NewClient("ws://"+addr+"/ws", nil, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
@@ -287,6 +289,7 @@ func TestPingPong_Keepalive(t *testing.T) {
 	clientOpts := kknet.ApplyOptions(
 		kknet.WithReadTimeout(4*time.Second),
 		kknet.WithPingInterval(1500*time.Millisecond),
+		kknet.WithRawHandler(&noopRawHandler{}),
 	)
 	client := NewClient("ws://"+addr+"/ws", nil, clientOpts)
 	if err := client.Connect(); err != nil {

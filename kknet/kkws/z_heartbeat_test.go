@@ -20,6 +20,7 @@ func TestHeartbeat_OnlyPing_NoAppData(t *testing.T) {
 	srvOpts := kknet.ApplyOptions(
 		kknet.WithReadTimeout(4*time.Second),
 		kknet.WithPingInterval(2*time.Second),
+		kknet.WithRawHandler(&noopRawHandler{}),
 	)
 	s := NewServer(addr, nil, srvOpts)
 	if err := s.Start(); err != nil {
@@ -31,6 +32,7 @@ func TestHeartbeat_OnlyPing_NoAppData(t *testing.T) {
 	cliOpts := kknet.ApplyOptions(
 		kknet.WithReadTimeout(4*time.Second),
 		kknet.WithPingInterval(2*time.Second),
+		kknet.WithRawHandler(&noopRawHandler{}),
 	)
 	client := NewClient("ws://"+addr+"/ws", nil, cliOpts)
 	if err := client.Connect(); err != nil {
