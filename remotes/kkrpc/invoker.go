@@ -72,7 +72,17 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 	if !ok {
 		return kkerrors.ErrConnClosed
 	}
-	defer pending.delCh(reqId)
+	defer func() {
+		removed := pending.delCh(reqId)
+		if removed == nil && ch != nil {
+			// deliver 已移除，channel 在本地，需归还池；若 timeout 与 response 竞态，可能 channel 内有值，先排空
+			select {
+			case <-ch:
+			default:
+			}
+			pending.putChBack(ch)
+		}
+	}()
 
 	timeout := opts.Timeout
 	if dl, ok := ctx.Deadline(); ok {
