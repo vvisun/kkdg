@@ -17,6 +17,7 @@ import (
 
 type tlsConn struct {
 	id    kknet.CONN_ID
+	uid   kknet.USER_ID
 	conn  net.Conn
 	opts  *kknet.Options
 	stats *kknet.Stats
@@ -59,6 +60,18 @@ func newTLSConn(conn net.Conn, opts *kknet.Options, stats *kknet.Stats) *tlsConn
 }
 
 func (c *tlsConn) ID() kknet.CONN_ID { return c.id }
+
+func (c *tlsConn) BindUser(uid kknet.USER_ID) {
+	c.uid = uid
+}
+
+func (c *tlsConn) UnbindUser() {
+	c.uid = kknet.NULL_USER_ID
+}
+
+func (c *tlsConn) GetUserId() kknet.USER_ID {
+	return c.uid
+}
 
 func (c *tlsConn) RemoteAddr() string {
 	if c.conn == nil {

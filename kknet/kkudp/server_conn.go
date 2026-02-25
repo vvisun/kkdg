@@ -15,6 +15,7 @@ import (
 
 type udpConn struct {
 	id         kknet.CONN_ID
+	uid        kknet.USER_ID
 	conn       gnet.Conn
 	remoteAddr string
 	opts       kknet.Options
@@ -42,6 +43,18 @@ func newUDPConn(c gnet.Conn, opts kknet.Options, stats *kknet.Stats, now time.Ti
 
 func (c *udpConn) ID() kknet.CONN_ID {
 	return c.id
+}
+
+func (c *udpConn) BindUser(uid kknet.USER_ID) {
+	c.uid = uid
+}
+
+func (c *udpConn) UnbindUser() {
+	c.uid = kknet.NULL_USER_ID
+}
+
+func (c *udpConn) GetUserId() kknet.USER_ID {
+	return c.uid
 }
 
 func (c *udpConn) RemoteAddr() string {
