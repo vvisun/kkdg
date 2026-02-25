@@ -12,7 +12,7 @@ import (
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
-const defaultRecvBufSize = 1 * 1024 // 接收缓冲区大小，1KB
+const defaultRecvBufSize int = 1 * 1024 // 接收缓冲区大小，1KB
 
 /**
  * 消息处理器-接收器。每个连接一个接收器。
@@ -154,7 +154,9 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	stream := kkpacket.DefaultStreamPacket()
 	packets, leftData, err := stream.Split(buf, rp.splitBuf[:0])
 	if err != nil {
-		rp.recvBuf = rp.recvBuf[:0]
+		if rp.recvBuf != nil {
+			rp.recvBuf = rp.recvBuf[:0]
+		}
 		rp.mu.Unlock()
 		return err
 	}
