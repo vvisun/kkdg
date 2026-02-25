@@ -173,12 +173,12 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 }
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
-	h.gate.transportor.AddConn(strconv.FormatUint(c.ID(), 10), c)
+	h.gate.transportor.GetSessionMgr().AddConn(strconv.FormatUint(c.ID(), 10), c)
 	kklog.Infof("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	h.gate.transportor.RemoveConn(strconv.FormatUint(c.ID(), 10))
+	h.gate.transportor.GetSessionMgr().RemoveConn(strconv.FormatUint(c.ID(), 10))
 	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
 
