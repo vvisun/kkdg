@@ -89,7 +89,7 @@ func PrintStress(stats *StatsSnapshot) {
 	kklog.Debugf("累计错误数：%d", stats.Errors)
 	kklog.Debugf("堆内存占用：%d MB", heapUsedMB)
 	kklog.Debugf("单连接堆内存：%.2f KB/conn", heapKBPerConn)
-	kklog.Debugf("------------------------\n")
+	kklog.Debugf("------------------------")
 }
 
 // readMetricsStress 通过 runtime/metrics 读取堆内存（无 stop-the-world）。
