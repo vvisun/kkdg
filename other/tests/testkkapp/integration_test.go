@@ -10,7 +10,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kknet"
@@ -47,12 +46,12 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	settings := map[string]string{"nats_url": natsURL}
 
 	// gate 节点
-	gateNode := kkapp.NewNodeInfo("gate1", comps.NodeTypeGate, tcpAddr, "", settings)
+	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", settings)
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
 		TCPAddr:       tcpAddr,
 		NatsURL:       natsURL,
-		LogicNodeType: comps.NodeTypeLogic,
+		LogicNodeType: kkapp.NodeTypeLogic,
 	}
 	gate := ccgate.NewGateComponent(gateOpt)
 	if err := gateApp.AddComponent(gate); err != nil {
@@ -64,7 +63,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	t.Cleanup(func() { _ = gateApp.Stop() })
 
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
-	gameNode := kkapp.NewNodeInfo("game1", comps.NodeTypeLogic, "127.0.0.1:0", "", settings)
+	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", settings)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent()
 	if err := gameApp.AddComponent(game); err != nil {

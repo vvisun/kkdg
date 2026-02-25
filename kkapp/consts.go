@@ -1,4 +1,4 @@
-package comps
+package kkapp
 
 const (
 	NodeTypeGate  = "gate"  // 网关服

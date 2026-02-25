@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -15,7 +15,6 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -29,8 +28,7 @@ type gateComponent struct {
 	cluster   kkcluster.ICluster
 
 	// sessionID(string) -> kknet.IConn
-	connMap   sync.Map
-	msgRouter *kkpacket.MsgRouter
+	connMap sync.Map
 }
 
 func (slf *gateComponent) GetID() string {
@@ -42,23 +40,19 @@ var _ component.IComponent = (*gateComponent)(nil)
 // NewGateComponent creates a new gate component.
 func NewGateComponent(opt Option) *gateComponent {
 	return &gateComponent{
-		opt:       opt,
-		msgRouter: opt.MsgRouter,
+		opt: opt,
 	}
 }
 
 func (slf *gateComponent) Init() error {
 	// defaults
 	if slf.opt.LogicNodeType == "" {
-		slf.opt.LogicNodeType = comps.NodeTypeLogic
+		slf.opt.LogicNodeType = kkapp.NodeTypeLogic
 	}
 	if slf.opt.NatsURL == "" {
 		if v, ok := slf.GetApplication().GetNodeInfo().GetSetting("nats_url"); ok {
 			slf.opt.NatsURL = v
 		}
-	}
-	if slf.msgRouter == nil {
-		slf.msgRouter = kkpacket.NewMsgRouter()
 	}
 
 	// 创建 handler
@@ -215,22 +209,15 @@ func (slf *gateComponent) startWSServer() error {
 //------------------------------------------------------------
 
 type gateHandler struct {
-	gate          *gateComponent
-	messagePacket *kkpacket.MessagePacket
+	gate *gateComponent
 }
 
 var _ kknet.IConnLifecycleHandler = (*gateHandler)(nil)
 var _ kknet.IRawHandler = (*gateHandler)(nil)
 
 func newGateHandler(gate *gateComponent) *gateHandler {
-	msgPacket := kkpacket.NewMessagePacket(
-		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-		kkcodec.GetCodec(kkcodec.CodecTypeJson),
-		gate.msgRouter,
-	)
 	return &gateHandler{
-		gate:          gate,
-		messagePacket: msgPacket,
+		gate: gate,
 	}
 }
 
@@ -259,10 +246,10 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	// Best-effort: derive route from msgID if it is registered.
-	msgID, err := h.messagePacket.GetMsgID(msgBytes)
+	msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
 	route := ""
 	if err == nil {
-		route = h.messagePacket.GetRouter().GetMsgRoute(msgID)
+		route = kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
 	}
 
 	sessionID := strconv.FormatUint(connID, 10)
