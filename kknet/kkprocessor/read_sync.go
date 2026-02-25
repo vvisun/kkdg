@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
@@ -24,10 +25,14 @@ type SyncReadProcessor struct {
 var _ kknet.IReadProcessor = (*SyncReadProcessor)(nil)
 
 func NewSyncReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
+	kknet.CheckReadOptions(&opts)
 	if opts.NoneCopyHandler == nil {
 		panic("NoneCopyHandler is required")
 	}
-	kknet.CheckReadOptions(&opts)
+	if opts.RawHandler != nil {
+		kklog.Warnf("SyncReadProcessor with RawHandler, RawHandler will be ignored")
+	}
+
 	return &SyncReadProcessor{
 		recvBuf: nil,
 		opts:    opts,

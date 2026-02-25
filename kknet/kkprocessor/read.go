@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -42,11 +43,11 @@ var _ kknet.IReadProcessor = (*ReadProcessor)(nil)
 
 func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
-	// 如果设置了 NoneCopyHandler，则使用 SyncReadProcessor 代替。
-	// 因为 NoneCopyHandler 无需唤醒消费协程，性能更好。
 	if opts.NoneCopyHandler != nil {
-		// kklog.Warnf("ReadProcessor with NoneCopyHandler, use SyncReadProcessor instead")
-		return NewSyncReadProcessor(opts)
+		kklog.Warnf("ReadProcessor with NoneCopyHandler, NoneCopyHandler will be ignored")
+	}
+	if opts.RawHandler == nil {
+		panic("RawHandler is required")
 	}
 
 	return &ReadProcessor{
@@ -104,25 +105,20 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 	rp.mu.Lock()
 	wasEmpty := rp.recvQueue.IsEmpty()
 
-	if rp.opts.NoneCopyHandler != nil {
-		xcall.SafeCall(func() {
-			rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
-		})
-	} else if rp.opts.RawHandler != nil {
-		bb := kkbuffer.GetWithCapacity(len(packet))
-		bb.B = bb.B[:len(packet)]
-		copy(bb.B, packet)
-		ok := rp.recvQueue.Push(bb)
-		if !ok {
-			kkbuffer.Put(bb)
-			// RecvQueue full：丢弃并回调通知（如统计、限流、踢连接等）
-			// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
-			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
-				conn := rp.conn
-				xcall.SafeCall(func() { cb(conn) })
-			}
+	bb := kkbuffer.GetWithCapacity(len(packet))
+	bb.B = bb.B[:len(packet)]
+	copy(bb.B, packet)
+	ok := rp.recvQueue.Push(bb)
+	if !ok {
+		kkbuffer.Put(bb)
+		// RecvQueue full：丢弃并回调通知（如统计、限流、踢连接等）
+		// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
+		if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+			conn := rp.conn
+			xcall.SafeCall(func() { cb(conn) })
 		}
 	}
+
 	nowEmpty := rp.recvQueue.IsEmpty()
 
 	rp.mu.Unlock()
@@ -169,27 +165,18 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		copy(rp.recvBuf, leftData)
 	}
 
-	if rp.opts.NoneCopyHandler != nil {
-		// 同步消费数据，实现0拷贝优化。
-		xcall.SafeCall(func() {
-			for _, packet := range packets {
-				rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
-			}
-		})
-	} else if rp.opts.RawHandler != nil {
-		for _, packet := range packets {
-			bb := kkbuffer.GetWithCapacity(len(packet))
-			bb.B = bb.B[:len(packet)]
-			copy(bb.B, packet)
-			ok := rp.recvQueue.Push(bb)
-			if !ok {
-				kkbuffer.Put(bb)
-				// RecvQueue full：丢弃并回调通知（如统计、限流、踢连接等）
-				// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
-				if cb := rp.opts.RecvQueueFullCallback; cb != nil {
-					conn := rp.conn
-					xcall.SafeCall(func() { cb(conn) })
-				}
+	for _, packet := range packets {
+		bb := kkbuffer.GetWithCapacity(len(packet))
+		bb.B = bb.B[:len(packet)]
+		copy(bb.B, packet)
+		ok := rp.recvQueue.Push(bb)
+		if !ok {
+			kkbuffer.Put(bb)
+			// RecvQueue full：丢弃并回调通知（如统计、限流、踢连接等）
+			// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
+			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+				conn := rp.conn
+				xcall.SafeCall(func() { cb(conn) })
 			}
 		}
 	}
@@ -249,11 +236,7 @@ func (rp *ReadProcessor) drainOnce() {
 				if packet == nil {
 					continue
 				}
-				if rp.opts.RawHandler != nil {
-					rp.dispatchRaw(packet)
-				} else {
-					kkbuffer.Put(packet)
-				}
+				rp.dispatchRaw(packet)
 			}
 		})
 	}

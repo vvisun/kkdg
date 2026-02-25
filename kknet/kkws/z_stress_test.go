@@ -13,13 +13,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
+
+type clientHandler struct {
+}
+
+func (h *clientHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
+
+}
 
 // stressRecvHandler counts received messages for stress tests.
 type stressRecvHandler struct {
@@ -123,7 +129,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 888     //连接数
+	numConns := 1000    //连接数
 	msgsPerConn := 2222 //每个连接发送的消息数
 	totalMsgs := int64(numConns * msgsPerConn)
 
@@ -163,6 +169,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}
 
 	clientOpts := []kknet.Option{
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
 		kknet.WithSendQueueNeedFlushOver(true),
 		kknet.WithSendQueueTimeoutFlushOver(5 * time.Second),
 		kknet.WithBufferSizes(2*1024, 2*1024),
@@ -267,67 +275,4 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	totalConns := rounds * connsPerRound
 	kklog.Debugf("connect/disconnect: %d rounds × %d conns = %d total in %v, ≈ %.0f conn/s",
 		rounds, connsPerRound, totalConns, elapsed, float64(totalConns)/elapsed.Seconds())
-}
-
-func runClients(addr string, connNum int, msgSize int, sendInterval time.Duration) {
-	u := "ws://" + addr + "/ws"
-
-	var wg sync.WaitGroup
-	wg.Add(connNum)
-
-	// 构造固定大小的测试消息（二进制）
-	msg := make([]byte, msgSize)
-	for i := range msg {
-		msg[i] = 0x01 // 填充固定内容
-	}
-	bb, err := kkpacket.DefaultStreamPacket().Pack(msg)
-	if err != nil {
-		println("pack error:", err.Error())
-		return
-	}
-	msg = bb.Bytes()
-
-	// 启动N个协程，每个协程对应1个WS连接
-	for i := 0; i < connNum; i++ {
-		go func() {
-			defer wg.Done()
-			// 建立WS连接
-			conn, _, err := websocket.DefaultDialer.Dial(u, nil)
-			if err != nil {
-				println("dial error:", err.Error())
-				return
-			}
-			defer conn.Close()
-
-			// 后台读消息（Echo返回的消息，防止读缓冲区满）
-			go func() {
-				for {
-					_, _, err := conn.ReadMessage()
-					if err != nil {
-						return
-					}
-				}
-			}()
-
-			// 定时发消息，模拟业务场景
-			ticker := time.NewTicker(sendInterval)
-			defer ticker.Stop()
-			for range ticker.C {
-				err := conn.WriteMessage(websocket.BinaryMessage, msg)
-				if err != nil {
-					return
-				}
-			}
-		}()
-		// 连接建立间隔1ms，避免瞬间压垮服务端
-		time.Sleep(1 * time.Millisecond)
-	}
-
-	println("=== 压测启动 ===")
-	println("目标地址：", addr)
-	println("并发连接：", connNum)
-	println("消息大小：", msgSize, "B")
-	println("发送间隔：", sendInterval)
-	println("================\n")
-	wg.Wait()
 }
