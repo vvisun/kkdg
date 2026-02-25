@@ -368,6 +368,7 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 		memberInfo.NodeID,
 		memberInfo.NodeType,
 		memberInfo.Address,
+		memberInfo.Weight,
 		memberInfo.Settings,
 	)
 

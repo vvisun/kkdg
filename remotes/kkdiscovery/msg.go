@@ -6,6 +6,7 @@ type (
 		NodeID   string            `json:"nodeID"`
 		NodeType string            `json:"nodeType"`
 		Address  string            `json:"address"`
+		Weight   int               `json:"weight"`
 		Settings map[string]string `json:"settings"`
 	}
 

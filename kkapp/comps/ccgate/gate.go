@@ -2,7 +2,6 @@ package ccgate
 
 import (
 	"strconv"
-	"sync"
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
@@ -25,10 +24,9 @@ type gateComponent struct {
 	server    kknet.IServer
 	handler   *gateHandler
 	discovery kkdiscovery.IDiscovery
-	cluster   kkcluster.ICluster
 
-	// sessionID(string) -> kknet.IConn
-	connMap sync.Map
+	transportor ITransportor
+	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
 }
 
 func (slf *gateComponent) GetID() string {
@@ -71,7 +69,7 @@ func (slf *gateComponent) Init() error {
 		slf.discovery,
 		clusterOpts,
 	)
-	slf.cluster.SetPublishHandler(slf.onClusterPublish)
+	slf.transportor = NewTransportorNats(slf.cluster)
 
 	return nil
 }
@@ -125,53 +123,6 @@ func (slf *gateComponent) Stop() error {
 	return nil
 }
 
-// ForwardToLogic 转发消息到逻辑节点
-func (slf *gateComponent) ForwardToLogic(sessionID string, msgRoute string, msgBytes []byte) error {
-	if slf.cluster == nil {
-		return ErrClusterNotInitialized
-	}
-	if sessionID == "" {
-		return ErrEmptySessionID
-	}
-	if len(msgBytes) == 0 {
-		return nil
-	}
-
-	pkt := kkcluster.NewClusterPacket()
-	pkt.FuncName = msgRoute
-	pkt.ArgBytes = append([]byte(nil), msgBytes...)
-	pkt.Sid = sessionID
-	return slf.cluster.PublishRemoteType(slf.opt.LogicNodeType, pkt)
-}
-
-// onClusterPublish 收到来自其他节点的消息，转发给客户端
-func (slf *gateComponent) onClusterPublish(_ string, packet *kkcluster.ClusterPacket) {
-	if packet == nil || packet.Sid == "" {
-		return
-	}
-	v, ok := slf.connMap.Load(packet.Sid)
-	if !ok {
-		return
-	}
-	conn, ok := v.(kknet.IConn)
-	if !ok || conn == nil {
-		return
-	}
-	if len(packet.ArgBytes) == 0 {
-		return
-	}
-
-	// packet.ArgBytes is [message], pack it to [length,message] then send back to client.
-	bb, err := kkpacket.DefaultStreamPacket().Pack(packet.ArgBytes)
-	if err != nil {
-		kklog.Errorf("[ccgate] pack response error: %v", err)
-		return
-	}
-	if err := conn.SendBuffer(bb); err != nil {
-		kklog.Errorf("[ccgate] send response error: %v", err)
-	}
-}
-
 func (slf *gateComponent) startTCPServer() error {
 	// 创建 TCP 服务器
 	opts := kknet.ApplyOptions(
@@ -222,12 +173,12 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 }
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
-	h.gate.connMap.Store(strconv.FormatUint(c.ID(), 10), c)
+	h.gate.transportor.AddConn(strconv.FormatUint(c.ID(), 10), c)
 	kklog.Infof("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	h.gate.connMap.Delete(strconv.FormatUint(c.ID(), 10))
+	h.gate.transportor.RemoveConn(strconv.FormatUint(c.ID(), 10))
 	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
 
@@ -253,7 +204,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	sessionID := strconv.FormatUint(connID, 10)
-	if err := h.gate.ForwardToLogic(sessionID, route, msgBytes); err != nil {
+	if err := h.gate.transportor.ForwardToLogic(sessionID, route, msgBytes); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}
 	kkbuffer.Put(data)
