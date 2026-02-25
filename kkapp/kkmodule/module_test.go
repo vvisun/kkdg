@@ -386,7 +386,7 @@ func TestModule_NewModuleId(t *testing.T) {
 func TestModule_ReleaseModule_NonExistent(t *testing.T) {
 	root := NewTestModule()
 
-	// 释放不存在的模块会导致panic（当前实现的行为）
+	// 释放不存在的模块不应该导致panic
 	// 使用recover来捕获panic
 	func() {
 		defer func() {
