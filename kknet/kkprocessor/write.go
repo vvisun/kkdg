@@ -25,7 +25,7 @@ type WriteProcessor struct {
 	userID kknet.USER_ID //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
 	opts   kknet.WriteOptions
 
-	sendQueue       bbqueue.IFiFoQueue[*kkbuffer.ByteBuffer] //发送队列
+	sendQueue       bbqueue.IFiFoQueue     //发送队列
 	sendBatchBuffer []*kkbuffer.ByteBuffer //批量发送缓冲区。as an array to reduce memory allocation.
 
 	sendMu    sync.Mutex
@@ -48,7 +48,7 @@ func NewWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	kknet.CheckWriteOptions(&opts)
 	wp := &WriteProcessor{
 		opts:            opts,
-		sendQueue:       bbqueue.NewFIFOQueue[*kkbuffer.ByteBuffer](opts.SendQueueSize, opts.SendQueueStrict),
+		sendQueue:       bbqueue.NewFIFOQueue(opts.SendQueueSize, opts.SendQueueStrict),
 		sendBatchBuffer: make([]*kkbuffer.ByteBuffer, opts.BatchWriteSize),
 		wakeCh:          make(chan struct{}, 1),
 		closeCh:         make(chan struct{}),

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
@@ -140,4 +141,67 @@ func TestWSConn_SharedWP_MultiConn(t *testing.T) {
 	if wp := sharedWP.Load(); wp != nil {
 		wp.Stop(nil)
 	}
+}
+
+// TestWSConn_SharedWP_SendQueueFullAction_Block SharedWP 下 Block 模式：队列满时阻塞，UnregisterConn 唤醒返回 ErrConnectionClosed
+func TestWSConn_SharedWP_SendQueueFullAction_Block(t *testing.T) {
+	wp := kkprocessor.NewSharedWriteProcessor(kknet.WriteOptions{
+		SendQueueSize:         8,
+		SendQueueStrict:       true,
+		SendQueueFullAction:   kknet.EWpQueueFullActionBlock,
+		BatchWriteSize:        4,
+		BatchWriteLimitBytes:  4096,
+	})
+	wp.Start()
+
+	writeBlockCh := make(chan struct{})
+	writeStartedCh := make(chan struct{})
+	connID := kknet.CONN_ID(1)
+	wp.RegisterConn(connID, func(batch []*kkbuffer.ByteBuffer, n int) error {
+		close(writeStartedCh)
+		<-writeBlockCh
+		return nil
+	})
+
+	for i := 0; i < 4; i++ {
+		bb := kkbuffer.Get()
+		bb.B = append(bb.B, byte('a'+i))
+		if err := wp.SendBufferForConn(connID, bb); err != nil {
+			t.Fatalf("fill #%d: %v", i, err)
+		}
+	}
+	<-writeStartedCh
+
+	for i := 0; i < 8; i++ {
+		bb := kkbuffer.Get()
+		bb.B = append(bb.B, byte('e'+i))
+		if err := wp.SendBufferForConn(connID, bb); err != nil {
+			t.Fatalf("fill #%d: %v", i+4, err)
+		}
+	}
+
+	blockErrCh := make(chan error, 1)
+	go func() {
+		bb := kkbuffer.Get()
+		bb.B = append(bb.B, 'x')
+		blockErrCh <- wp.SendBufferForConn(connID, bb)
+	}()
+	select {
+	case err := <-blockErrCh:
+		t.Fatalf("Block mode should block when full, got %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(writeBlockCh)
+	wp.UnregisterConn(connID)
+	select {
+	case err := <-blockErrCh:
+		if err != kkerrors.ErrConnectionClosed {
+			t.Errorf("blocked SendBuffer after Unregister: got %v, want ErrConnectionClosed", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("blocked SendBuffer should unblock after UnregisterConn")
+	}
+
+	wp.Stop(nil)
 }

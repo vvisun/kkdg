@@ -14,7 +14,7 @@ func makeBufNN(s string) *kkbuffer.ByteBuffer {
 }
 
 func TestNNQueue_New(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](10, true)
+	q := NewNNQueue(10, true)
 	if q.Len() != 0 {
 		t.Errorf("New queue Len() = %d, want 0", q.Len())
 	}
@@ -27,7 +27,7 @@ func TestNNQueue_New(t *testing.T) {
 }
 
 func TestNNQueue_PushPop(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewNNQueue(4, false)
 
 	b := makeBufNN("hello")
 	ok := q.Push(b)
@@ -56,7 +56,7 @@ func TestNNQueue_PushPop(t *testing.T) {
 }
 
 func TestNNQueue_PushPopMultiple(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewNNQueue(4, false)
 
 	for i := 0; i < 10; i++ {
 		ok := q.Push(makeBufNN(fmt.Sprintf("%d", i)))
@@ -85,7 +85,7 @@ func TestNNQueue_PushPopMultiple(t *testing.T) {
 }
 
 func TestNNQueue_PopEmpty(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewNNQueue(4, false)
 	bb := q.Pop()
 	if bb != nil {
 		t.Errorf("Pop() on empty queue = %v, want nil", bb)
@@ -93,7 +93,7 @@ func TestNNQueue_PopEmpty(t *testing.T) {
 }
 
 func TestNNQueue_IsFull_Strict(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](2, true)
+	q := NewNNQueue(2, true)
 
 	if q.IsFull() {
 		t.Error("empty queue IsFull() = true, want false")
@@ -123,7 +123,7 @@ func TestNNQueue_IsFull_Strict(t *testing.T) {
 }
 
 func TestNNQueue_IsFull_NonStrict(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](2, false)
+	q := NewNNQueue(2, false)
 	for i := 0; i < 5; i++ {
 		q.Push(makeBufNN(fmt.Sprintf("%d", i)))
 	}
@@ -146,7 +146,7 @@ func TestNNQueue_IsFull_NonStrict(t *testing.T) {
 }
 
 func TestNNQueue_LenConsistency(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewNNQueue(4, false)
 	for i := 0; i < 20; i++ {
 		q.Push(makeBufNN(fmt.Sprintf("%d", i)))
 		if q.Len() != i+1 {
@@ -165,7 +165,7 @@ func TestNNQueue_LenConsistency(t *testing.T) {
 }
 
 func TestNNQueue_PopMany_Basic(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](16, false)
+	q := NewNNQueue(16, false)
 	for i := 0; i < 10; i++ {
 		q.Push(makeBufNN(fmt.Sprintf("%d", i)))
 	}
@@ -191,7 +191,7 @@ func TestNNQueue_PopMany_Basic(t *testing.T) {
 }
 
 func TestNNQueue_PopMany_Limits(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](8, false)
+	q := NewNNQueue(8, false)
 	for i := 0; i < 3; i++ {
 		q.Push(makeBufNN(fmt.Sprintf("%d", i)))
 	}
@@ -221,7 +221,7 @@ func TestNNQueue_PopMany_Limits(t *testing.T) {
 }
 
 func TestNNQueue_PopMany_EmptyRecvPanic(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewNNQueue(4, false)
 	q.Push(makeBufNN("x"))
 	recv := make([]*kkbuffer.ByteBuffer, 0)
 	defer func() {
@@ -233,7 +233,7 @@ func TestNNQueue_PopMany_EmptyRecvPanic(t *testing.T) {
 }
 
 func TestNNQueue_PopMany_LimitBytes(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](8, false)
+	q := NewNNQueue(8, false)
 
 	b0 := kkbuffer.GetWithCapacity(2)
 	b0.B = append(b0.B, []byte("aa")...)
@@ -284,7 +284,7 @@ func TestNNQueue_PopMany_LimitBytes(t *testing.T) {
 }
 
 func TestNNQueue_PopMany_CountZero(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewNNQueue(4, false)
 	q.Push(makeBufNN("a"))
 	recv := make([]*kkbuffer.ByteBuffer, 2)
 	n := q.PopMany(0, recv, 0)
@@ -298,7 +298,7 @@ func TestNNQueue_PopMany_CountZero(t *testing.T) {
 }
 
 func TestNNQueue_EmptyPopMany(t *testing.T) {
-	q := NewNNQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewNNQueue(4, false)
 	recv := make([]*kkbuffer.ByteBuffer, 2)
 	n := q.PopMany(2, recv, 0)
 	if n != 0 {

@@ -14,7 +14,7 @@ func makeBuf(s string) *kkbuffer.ByteBuffer {
 }
 
 func TestBBQueue_New(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](10, true)
+	q := NewBBQueue(10, true)
 	if q.Len() != 0 {
 		t.Errorf("New queue Len() = %d, want 0", q.Len())
 	}
@@ -23,9 +23,9 @@ func TestBBQueue_New(t *testing.T) {
 func TestBBQueue_NewZeroOrNegative(t *testing.T) {
 	// size <= 0 时使用默认 64
 	for _, size := range []int{0, -1} {
-		q := NewBBQueue[*kkbuffer.ByteBuffer](size, false)
+		q := NewBBQueue(size, false)
 		if q.Len() != 0 {
-			t.Errorf("NewBBQueue[*kkbuffer.ByteBuffer](%d) queue Len() = %d, want 0", size, q.Len())
+			t.Errorf("NewBBQueue(%d) queue Len() = %d, want 0", size, q.Len())
 		}
 		b := makeBuf("x")
 		q.Push(b)
@@ -41,7 +41,7 @@ func TestBBQueue_NewZeroOrNegative(t *testing.T) {
 }
 
 func TestBBQueue_PushPop(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewBBQueue(4, false)
 
 	b := makeBuf("hello")
 	q.Push(b)
@@ -64,7 +64,7 @@ func TestBBQueue_PushPop(t *testing.T) {
 }
 
 func TestBBQueue_PushPopMultiple(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewBBQueue(4, false)
 
 	for i := 0; i < 10; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
@@ -90,7 +90,7 @@ func TestBBQueue_PushPopMultiple(t *testing.T) {
 }
 
 func TestBBQueue_PopEmpty(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewBBQueue(4, false)
 	bb := q.Pop()
 	if bb != nil {
 		t.Errorf("Pop() on empty queue = %v, want nil", bb)
@@ -98,7 +98,7 @@ func TestBBQueue_PopEmpty(t *testing.T) {
 }
 
 func TestBBQueue_Grow(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewBBQueue(4, false)
 	// 超过初始容量以触发 grow
 	for i := 0; i < 20; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
@@ -126,7 +126,7 @@ func TestBBQueue_Shrink_AfterPop(t *testing.T) {
 		t.Skip("skipping shrink test")
 		return
 	}
-	q := NewBBQueue[*kkbuffer.ByteBuffer](4096, false)
+	q := NewBBQueue(4096, false)
 	if q.Cap() != 4096 {
 		t.Fatalf("Cap()=%d want=4096", q.Cap())
 	}
@@ -171,7 +171,7 @@ func TestBBQueue_Shrink_AfterPop(t *testing.T) {
 }
 
 func TestBBQueue_HeadTailReset(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewBBQueue(4, false)
 	// 先填满再弹空，触发 head/tail 回零
 	for i := 0; i < 6; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
@@ -204,7 +204,7 @@ func TestBBQueue_HeadTailReset(t *testing.T) {
 
 func TestBBQueue_ConcurrentPush(t *testing.T) {
 	// BBQueue 非并发安全，本测试仅验证并发 Push 不 panic；最终 Len 可能因竞态小于 1000
-	q := NewBBQueue[*kkbuffer.ByteBuffer](100, false)
+	q := NewBBQueue(100, false)
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func(id int) {
@@ -227,7 +227,7 @@ func TestBBQueue_ConcurrentPush(t *testing.T) {
 }
 
 func TestBBQueue_LenConsistency(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](4, false)
+	q := NewBBQueue(4, false)
 	for i := 0; i < 20; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
 		if q.Len() != i+1 {
@@ -246,7 +246,7 @@ func TestBBQueue_LenConsistency(t *testing.T) {
 }
 
 func TestBBQueue_PopMany_Basic(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](8, false)
+	q := NewBBQueue(8, false)
 	for i := 0; i < 10; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
 	}
@@ -272,7 +272,7 @@ func TestBBQueue_PopMany_Basic(t *testing.T) {
 }
 
 func TestBBQueue_PopMany_Limits(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](8, false)
+	q := NewBBQueue(8, false)
 	for i := 0; i < 3; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
 	}
@@ -301,7 +301,7 @@ func TestBBQueue_PopMany_Limits(t *testing.T) {
 }
 
 func TestBBQueue_PopMany_WrapAroundOrder(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](8, false)
+	q := NewBBQueue(8, false)
 	// 先填满
 	for i := 0; i < 8; i++ {
 		q.Push(makeBuf(fmt.Sprintf("%d", i)))
@@ -350,7 +350,7 @@ func TestBBQueue_PopMany_WrapAroundOrder(t *testing.T) {
 }
 
 func TestBBQueue_PopMany_LimitBytes(t *testing.T) {
-	q := NewBBQueue[*kkbuffer.ByteBuffer](8, false)
+	q := NewBBQueue(8, false)
 
 	// push three buffers: 2,2,10 bytes
 	b0 := kkbuffer.GetWithCapacity(2)
