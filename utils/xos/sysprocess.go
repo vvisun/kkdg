@@ -2,9 +2,19 @@ package xos
 
 import (
 	"os"
+	"runtime"
 
 	"github.com/shirou/gopsutil/process"
 )
+
+// num cpu
+func NumCPU() int {
+	n := runtime.NumCPU()
+	if n < 1 {
+		return 1
+	}
+	return n
+}
 
 func GetProcessNameByPID(pid int32) (string, error) {
 	proc, err := process.NewProcess(pid)
