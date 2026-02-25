@@ -1,6 +1,10 @@
 package kknet
 
-import "github.com/vvisun/kkdg/utils/kklog"
+import (
+	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/kklog"
+)
 
 type ConnStatus = int32 //连接状态
 
@@ -14,9 +18,14 @@ const (
 	ConnStatusClosed                         //已关闭
 )
 
+func ChangeConnStatus(status *ConnStatus, newStatus ConnStatus) {
+	atomic.StoreInt32(status, int32(newStatus))
+}
+
 // IsConnected 判断连接状态是否为连接已建立
-func IsConnected(status ConnStatus) bool {
-	return status == ConnStatusConnected || status == ConnStatusReconnected
+func IsConnected(status *ConnStatus) bool {
+	cur := atomic.LoadInt32(status)
+	return cur == ConnStatusConnected || cur == ConnStatusReconnected
 }
 
 // SafeHandlerCall runs fn and recovers from panics.
