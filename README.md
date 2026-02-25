@@ -35,6 +35,9 @@ Go 语言实现的游戏/分布式服务端引擎，提供网络层、集群通�
 # 集群示例（需先启动 NATS）
 cd other/examples/examcluster && go run main.go
 
+# 服务发现示例（需先启动 NATS）
+cd other/examples/examdiscovery && go run main.go
+
 # WebSocket Echo 示例
 cd other/examples/examws && go run main.go
 
@@ -46,6 +49,9 @@ cd other/examples/examtcptls && go run main.go
 
 # UDP Echo 示例
 cd other/examples/examudp && go run main.go
+
+# RPC 示例（请求响应 + 单向 + 异步）
+cd other/examples/examrpc && go run main.go
 ```
 
 ### 测试
