@@ -131,7 +131,7 @@ func (slf *gateComponent) Stop() error {
 	return nil
 }
 
-// ForwardToLogic implements ITransportor. It forwards the raw message bytes ([message]) to logic nodes.
+// ForwardToLogic 转发消息到逻辑节点
 func (slf *gateComponent) ForwardToLogic(sessionID string, msgRoute string, msgBytes []byte) error {
 	if slf.cluster == nil {
 		return ErrClusterNotInitialized
@@ -150,6 +150,7 @@ func (slf *gateComponent) ForwardToLogic(sessionID string, msgRoute string, msgB
 	return slf.cluster.PublishRemoteType(slf.opt.LogicNodeType, pkt)
 }
 
+// onClusterPublish 收到来自其他节点的消息，转发给客户端
 func (slf *gateComponent) onClusterPublish(_ string, packet *kkcluster.ClusterPacket) {
 	if packet == nil || packet.Sid == "" {
 		return
@@ -243,6 +244,7 @@ func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
 
+// OnRaw 收到客户端消息，转发给逻辑节点
 func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data == nil || len(data.Bytes()) == 0 {
 		return

@@ -168,10 +168,6 @@ func (slf *LengthFieldStreamPacket) Split(packets []byte, recvs [][]byte) ([][]b
 		return recvs[:0], nil, nil
 	}
 
-	if recvs == nil {
-		recvs = make([][]byte, 0, 8)
-	}
-
 	bufList := recvs[:0]
 
 	lfb := slf.lfbCount
