@@ -18,6 +18,9 @@ type IComponent interface {
 }
 
 func IsEqual(a, b IComponent) bool {
+	if a == nil || b == nil {
+		return false
+	}
 	return a == b || a.GetID() == b.GetID()
 }
 
