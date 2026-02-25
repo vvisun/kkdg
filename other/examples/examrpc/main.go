@@ -67,16 +67,16 @@ func runRpcDemo(addr string) {
 	// 请求-响应
 	req := &EchoReq{Msg: "hello examrpc"}
 	var rsp EchoRsp
-	invoker := kkrpc.NewReqRspInvoker[EchoReq, EchoRsp](cli, 0)
-	if err := invoker.Invoke(context.Background(), "Echo", req, kkrpc.CallConfig{}, &rsp); err != nil {
+	invoker := kkrpc.NewReqRspInvoker[EchoReq, EchoRsp](cli, 0, "Echo")
+	if err := invoker.Invoke(context.Background(), req, kkrpc.CallConfig{}, &rsp); err != nil {
 		panic(err)
 	}
 	fmt.Printf("Echo response: %q\n", rsp.Reply)
 
 	// 单向
 	pingReq := &PingReq{From: "examrpc"}
-	oneWayInvoker := kkrpc.NewOneWayInvoker[PingReq](cli, 0)
-	if err := oneWayInvoker.InvokeNR(context.Background(), "Ping", pingReq, kkrpc.CallConfig{}); err != nil {
+	oneWayInvoker := kkrpc.NewOneWayInvoker[PingReq](cli, 0, "Ping")
+	if err := oneWayInvoker.InvokeNR(context.Background(), pingReq, kkrpc.CallConfig{}); err != nil {
 		panic(err)
 	}
 	fmt.Println("Ping sent")
@@ -84,7 +84,7 @@ func runRpcDemo(addr string) {
 	// 异步调用
 	done := make(chan struct{})
 	asyncReq := &EchoReq{Msg: "async call"}
-	_ = invoker.InvokeAsync(context.Background(), "Echo", asyncReq, kkrpc.CallConfig{}, func(r *EchoRsp, e error) {
+	_ = invoker.InvokeAsync(context.Background(), asyncReq, kkrpc.CallConfig{}, func(r *EchoRsp, e error) {
 		if e != nil {
 			panic(e)
 		}

@@ -104,27 +104,27 @@ func ClearRpcManagerForTest() {
 	gRpcManager.method2typeOneWay = make(map[string]methodType)
 }
 
-func CheckReqResp[REQ any, RSP any](req *REQ, rsp *RSP) bool {
-	typeReq := reflect.TypeOf(req)
-	methodReq, ok := gRpcManager.type2methodReqRsp[typeReq]
-	if !ok {
-		return false
-	}
-	typeRsp := reflect.TypeOf(rsp)
-	methodRsp, ok := gRpcManager.type2methodReqRsp[typeRsp]
-	if !ok {
-		return false
-	}
-	return methodReq == methodRsp
+// verifyReqRespMethod verifies at init that REQ/RSP types are registered for method. No runtime reflect on hot path.
+func verifyReqRespMethod[REQ any, RSP any](method string) bool {
+	var vReq REQ
+	var vRsp RSP
+	typeReq := reflect.TypeOf(&vReq)
+	typeRsp := reflect.TypeOf(&vRsp)
+	gRpcManager.mu.Lock()
+	defer gRpcManager.mu.Unlock()
+	mReq, ok1 := gRpcManager.type2methodReqRsp[typeReq]
+	mRsp, ok2 := gRpcManager.type2methodReqRsp[typeRsp]
+	return ok1 && ok2 && mReq == method && mRsp == method
 }
 
-func CheckOneWay[REQ any](req *REQ) bool {
-	typeReq := reflect.TypeOf(req)
-	method, ok := gRpcManager.type2methodOneWay[typeReq]
-	if !ok {
-		return false
-	}
-	return method != ""
+// verifyOneWayMethod verifies at init that REQ type is registered for method. No runtime reflect on hot path.
+func verifyOneWayMethod[REQ any](method string) bool {
+	var vReq REQ
+	typeReq := reflect.TypeOf(&vReq)
+	gRpcManager.mu.Lock()
+	defer gRpcManager.mu.Unlock()
+	m, ok := gRpcManager.type2methodOneWay[typeReq]
+	return ok && m == method
 }
 
 //----------------------------------------------------------------

@@ -20,41 +20,47 @@ type ISender interface {
 type ReqRspInvoker[T any, R any] struct {
 	sender ISender
 	connId kknet.CONN_ID
+	method string // 构造时验证并缓存，调用时不再 CheckReqResp
 }
 
 type OneWayInvoker[T any] struct {
 	sender ISender
 	connId kknet.CONN_ID
+	method string // 构造时验证并缓存，调用时不再 CheckOneWay
 }
 
-// 单向调用器.
-// 服务器端调用时，connId为连接ID。
-// 客户端调用时，connId为0或任意值，目前未使用。后续如果使用连接池，可以考虑使用池中的某个连接ID，也可以继续任意值，由底层选择真实connId。
-func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) OneWayInvoker[T] {
+// NewOneWayInvoker 创建单向调用器。method 必须在 RegisterOneWayMethod 中已注册，否则 panic。
+// 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
+func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID, method string) OneWayInvoker[T] {
+	if !verifyOneWayMethod[T](method) {
+		kklog.Errorf("OneWayInvoker: method %q not registered for type %T", method, (*T)(nil))
+		panic("kkrpc: OneWayInvoker method not registered")
+	}
 	return OneWayInvoker[T]{
 		sender: sender,
 		connId: connId,
+		method: method,
 	}
 }
 
-// 请求响应调用器.
-// 服务器端调用时，connId为连接ID。
-// 客户端调用时，connId为0或任意值，目前未使用。后续如果使用连接池，可以考虑使用池中的某个连接ID，也可以继续任意值，由底层选择真实connId。
-func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) ReqRspInvoker[T, R] {
+// NewReqRspInvoker 创建请求响应调用器。method 必须在 RegisterReqRspMethod 中已注册，否则 panic。
+// 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
+func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID, method string) ReqRspInvoker[T, R] {
+	if !verifyReqRespMethod[T, R](method) {
+		kklog.Errorf("ReqRspInvoker: method %q not registered for types %T, %T", method, (*T)(nil), (*R)(nil))
+		panic("kkrpc: ReqRspInvoker method not registered")
+	}
 	return ReqRspInvoker[T, R]{
 		sender: sender,
 		connId: connId,
+		method: method,
 	}
 }
 
 // Invoke 同步调用，阻塞直到收到响应或 ctx 取消/超时
-func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, opts CallConfig, rsp *R) error {
+func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig, rsp *R) error {
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrConnClosed
-	}
-	if !CheckReqResp(req, rsp) {
-		kklog.Errorf("req resp type not match")
-		return kkerrors.ErrInvalidReqResp
 	}
 	fixCallConfig(&opts)
 	if ctx == nil {
@@ -79,7 +85,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, 
 		deadlineMs = time.Now().Add(timeout).UnixMilli()
 	}
 
-	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req, deadlineMs)
+	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
@@ -104,9 +110,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, 
 			return err
 		}
 		err = payloadCodec.Unmarshal(fr.P, rsp)
-		if fr.T == FrameTypeResponse {
-			byteslice.Put(fr.P)
-		}
+		byteslice.Put(fr.P)
 		if err != nil {
 			return err
 		}
@@ -138,19 +142,12 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, 
 	}
 }
 
-// 异步调用（非阻塞等待结果）。若 opts 或 ctx 设置了超时，超时未收到响应会调用 callback(nil, ErrTimeout)，且仅回调一次。
-func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
+// InvokeAsync 异步调用（非阻塞等待结果）。若 opts 或 ctx 设置了超时，超时未收到响应会调用 callback(nil, ErrTimeout)，且仅回调一次。
+func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrConnClosed
 	}
-
 	var respInfo *R = new(R)
-
-	if !CheckReqResp(req, respInfo) {
-		kklog.Errorf("req resp type not match")
-		return kkerrors.ErrInvalidReqResp
-	}
-
 	fixCallConfig(&opts)
 	if ctx == nil {
 		ctx = context.Background()
@@ -168,7 +165,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req
 	}
 
 	reqId := genReqId()
-	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, method, req, deadlineMs)
+	bb, err := EncodeRpcFrame(FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
@@ -195,9 +192,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req
 			return
 		}
 		err = payloadCodec.Unmarshal(fr.P, respInfo)
-		if fr.T == FrameTypeResponse {
-			byteslice.Put(fr.P)
-		}
+		byteslice.Put(fr.P)
 		if err != nil {
 			callback(nil, err)
 			return
@@ -234,16 +229,12 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req
 	return nil
 }
 
-// 无响应调用（没有结果，单向调用）
-func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, method string, req *T, opts CallConfig) error {
+// InvokeNR 无响应调用（单向调用）
+func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig) error {
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrConnClosed
 	}
-	if !CheckOneWay(req) {
-		kklog.Errorf("req type not match")
-		return kkerrors.ErrInvalidReqResp
-	}
-	bb, err := EncodeRpcFrame(FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
+	bb, err := EncodeRpcFrame(FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
