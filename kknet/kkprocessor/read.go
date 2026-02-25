@@ -236,13 +236,8 @@ func (rp *ReadProcessor) drainOnce() {
 				if packet == nil {
 					continue
 				}
-				rp.dispatchRaw(packet)
+				rp.opts.RawHandler.OnRaw(rp.connID, packet)
 			}
 		})
 	}
-}
-
-// 分发原始数据到业务逻辑层。异步投递避免阻塞消费循环，提高多连接下的接收吞吐。
-func (rp *ReadProcessor) dispatchRaw(data *kkbuffer.ByteBuffer) {
-	rp.opts.RawHandler.OnRaw(rp.connID, data)
 }
