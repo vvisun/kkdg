@@ -1,53 +1,32 @@
 package bbqueue
 
-import (
-	"sync"
+import "sync"
 
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-)
-
-type nnNode struct {
-	next *nnNode
-	data *kkbuffer.ByteBuffer
+type nnNode[T Sizable] struct {
+	next *nnNode[T]
+	data T
 }
 
-var nnNodePool = sync.Pool{
-	New: func() interface{} {
-		return &nnNode{next: nil, data: nil}
-	},
+// NNQueue 链表实现，泛型版本，内存占用更低，但性能不如BBQueue。
+type NNQueue[T Sizable] struct {
+	head     *nnNode[T]
+	tail     *nnNode[T]
+	free     *nnNode[T]
+	count    int
+	maxCount int
+	isStrict bool
+
+	freeCount int
+	freeMax   int
+
+	pool *sync.Pool
 }
 
-func getNNNode() *nnNode {
-	return nnNodePool.Get().(*nnNode)
-}
-
-func putNNNode(node *nnNode) {
-	node.next = nil
-	node.data = nil
-	nnNodePool.Put(node)
-}
-
-type NNQueue struct {
-	head     *nnNode
-	tail     *nnNode
-	free     *nnNode // per-queue freelist (LIFO)
-	count    int  // 队列元素个数
-	maxCount int  // 队列最大元素个数
-	isStrict bool // 是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
-
-	freeCount int // freelist nodes count
-	freeMax   int // freelist cap; overflow returns to global pool
-}
-
-var _ IFiFoQueue = (*NNQueue)(nil)
-
-// 链表实现，内存占用更低，但性能不如BBQueue。
-func NewNNQueue(size int, isStrict bool) *NNQueue {
+// NewNNQueue 创建泛型 NNQueue
+func NewNNQueue[T Sizable](size int, isStrict bool) *NNQueue[T] {
 	if size <= 0 {
 		size = defaultSize
 	}
-	// freelist cap: keep a small bounded cache per-queue to avoid sync.Pool overhead
-	// while still limiting retained nodes in low-memory mode.
 	freeMax := size
 	if freeMax < 64 {
 		freeMax = 64
@@ -55,7 +34,7 @@ func NewNNQueue(size int, isStrict bool) *NNQueue {
 	if freeMax > 4096 {
 		freeMax = 4096
 	}
-	return &NNQueue{
+	return &NNQueue[T]{
 		head:     nil,
 		tail:     nil,
 		free:     nil,
@@ -63,22 +42,29 @@ func NewNNQueue(size int, isStrict bool) *NNQueue {
 		maxCount: size,
 		isStrict: isStrict,
 		freeMax:  freeMax,
+		pool: &sync.Pool{
+			New: func() interface{} { return &nnNode[T]{} },
+		},
 	}
 }
 
-func (q *NNQueue) Len() int {
+func (q *NNQueue[T]) Cap() int {
+	return q.maxCount
+}
+
+func (q *NNQueue[T]) Len() int {
 	return q.count
 }
 
-func (q *NNQueue) IsFull() bool {
+func (q *NNQueue[T]) IsFull() bool {
 	return q.isStrict && q.count >= q.maxCount
 }
 
-func (q *NNQueue) IsEmpty() bool {
+func (q *NNQueue[T]) IsEmpty() bool {
 	return q.count == 0
 }
 
-func (q *NNQueue) acquireNode() *nnNode {
+func (q *NNQueue[T]) acquireNode() *nnNode[T] {
 	if q.free != nil {
 		n := q.free
 		q.free = n.next
@@ -86,29 +72,30 @@ func (q *NNQueue) acquireNode() *nnNode {
 		n.next = nil
 		return n
 	}
-	return getNNNode()
+	return q.pool.Get().(*nnNode[T])
 }
 
-func (q *NNQueue) recycleNode(node *nnNode) {
+func (q *NNQueue[T]) recycleNode(node *nnNode[T]) {
 	if node == nil {
 		return
 	}
-	node.data = nil
+	var zero T
+	node.data = zero
 	if q.freeCount < q.freeMax {
 		node.next = q.free
 		q.free = node
 		q.freeCount++
 		return
 	}
-	putNNNode(node)
+	q.pool.Put(node)
 }
 
-func (q *NNQueue) Push(data *kkbuffer.ByteBuffer) bool {
+func (q *NNQueue[T]) Push(v T) bool {
 	if q.isStrict && q.count >= q.maxCount {
 		return false
 	}
 	node := q.acquireNode()
-	node.data = data
+	node.data = v
 	node.next = nil
 	if q.head == nil {
 		q.head = node
@@ -121,9 +108,10 @@ func (q *NNQueue) Push(data *kkbuffer.ByteBuffer) bool {
 	return true
 }
 
-func (q *NNQueue) Pop() *kkbuffer.ByteBuffer {
+func (q *NNQueue[T]) Pop() T {
 	if q.head == nil {
-		return nil
+		var zero T
+		return zero
 	}
 	node := q.head
 	q.head = node.next
@@ -136,9 +124,9 @@ func (q *NNQueue) Pop() *kkbuffer.ByteBuffer {
 	return bb
 }
 
-func (q *NNQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int) int {
+func (q *NNQueue[T]) PopMany(count int, recv []T, limitBytes int) int {
 	if q.count == 0 {
-		return 0 // 队列空，直接返回0
+		return 0
 	}
 
 	recvLen := len(recv)
@@ -147,7 +135,7 @@ func (q *NNQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int
 	}
 
 	if count < 1 {
-		count = 1 // 至少弹出1个
+		count = 1
 	}
 	if count > recvLen {
 		count = recvLen
@@ -159,29 +147,25 @@ func (q *NNQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int
 	written := 0
 	totalBytes := 0
 
-	// Batch detach nodes from head, avoid per-item Pop() overhead.
 	node := q.head
 	for written < count && node != nil {
 		if limitBytes > 0 && written > 0 {
 			willPop := node.data
-			if willPop != nil && totalBytes+willPop.Len() > limitBytes {
+			if sizeOf(willPop) > 0 && totalBytes+sizeOf(willPop) > limitBytes {
 				break
 			}
 		}
 
 		next := node.next
-		bb := node.data
-		recv[written] = bb
+		v := node.data
+		recv[written] = v
 		written++
-		if bb != nil {
-			totalBytes += bb.Len()
-		}
+		totalBytes += sizeOf(v)
 
 		q.count--
 		q.recycleNode(node)
 		node = next
 
-		// 当第一个元素就会超出 limitBytes 时，也允许弹出一个，防止 limitBytes 过小永远无法弹出。
 		if limitBytes > 0 && totalBytes >= limitBytes && written > 0 {
 			break
 		}

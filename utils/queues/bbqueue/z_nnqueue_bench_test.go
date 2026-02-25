@@ -24,7 +24,7 @@ func nnBenchBufs(n int) []*kkbuffer.ByteBuffer {
 
 func BenchmarkNNQueue_Push(b *testing.B) {
 	bufs := nnBenchBufs(b.N)
-	q := NewNNQueue(1000, false)
+	q := NewNNQueue[*kkbuffer.ByteBuffer](1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		q.Push(bufs[i%len(bufs)])
@@ -33,7 +33,7 @@ func BenchmarkNNQueue_Push(b *testing.B) {
 
 func BenchmarkNNQueue_Pop(b *testing.B) {
 	bufs := nnBenchBufs(b.N)
-	q := NewNNQueue(1000, false)
+	q := NewNNQueue[*kkbuffer.ByteBuffer](1000, false)
 	for i := 0; i < b.N; i++ {
 		q.Push(bufs[i%len(bufs)])
 	}
@@ -45,7 +45,7 @@ func BenchmarkNNQueue_Pop(b *testing.B) {
 
 func BenchmarkNNQueue_PushPop(b *testing.B) {
 	bufs := nnBenchBufs(b.N)
-	q := NewNNQueue(1000, false)
+	q := NewNNQueue[*kkbuffer.ByteBuffer](1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		q.Push(bufs[i%len(bufs)])
@@ -55,7 +55,7 @@ func BenchmarkNNQueue_PushPop(b *testing.B) {
 
 func BenchmarkNNQueue_Len(b *testing.B) {
 	bufs := nnBenchBufs(1000)
-	q := NewNNQueue(1000, false)
+	q := NewNNQueue[*kkbuffer.ByteBuffer](1000, false)
 	for i := 0; i < 1000; i++ {
 		q.Push(bufs[i])
 	}
@@ -66,7 +66,7 @@ func BenchmarkNNQueue_Len(b *testing.B) {
 }
 
 func BenchmarkNNQueue_Push_WithPool(b *testing.B) {
-	q := NewNNQueue(1000, false)
+	q := NewNNQueue[*kkbuffer.ByteBuffer](1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bb := kkbuffer.Get()
@@ -78,7 +78,7 @@ func BenchmarkNNQueue_Push_WithPool(b *testing.B) {
 }
 
 func BenchmarkNNQueue_PushPop_WithPool(b *testing.B) {
-	q := NewNNQueue(1000, false)
+	q := NewNNQueue[*kkbuffer.ByteBuffer](1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bb := kkbuffer.Get()
@@ -92,7 +92,7 @@ func BenchmarkNNQueue_PushPop_WithPool(b *testing.B) {
 
 func BenchmarkNNQueue_PopMany(b *testing.B) {
 	bufs := nnBenchBufs(10000)
-	q := NewNNQueue(10000, false)
+	q := NewNNQueue[*kkbuffer.ByteBuffer](10000, false)
 	for i := 0; i < 10000; i++ {
 		q.Push(bufs[i])
 	}

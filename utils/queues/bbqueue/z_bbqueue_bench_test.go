@@ -24,7 +24,7 @@ func benchBufs(n int) []*kkbuffer.ByteBuffer {
 
 func BenchmarkBBQueue_Push(b *testing.B) {
 	bufs := benchBufs(b.N)
-	q := NewBBQueue(1000, false)
+	q := NewBBQueue[*kkbuffer.ByteBuffer](1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		q.Push(bufs[i%len(bufs)])
@@ -33,7 +33,7 @@ func BenchmarkBBQueue_Push(b *testing.B) {
 
 func BenchmarkBBQueue_Pop(b *testing.B) {
 	bufs := benchBufs(b.N)
-	q := NewBBQueue(1000, false)
+	q := NewBBQueue[*kkbuffer.ByteBuffer](1000, false)
 	for i := 0; i < b.N; i++ {
 		q.Push(bufs[i%len(bufs)])
 	}
@@ -45,7 +45,7 @@ func BenchmarkBBQueue_Pop(b *testing.B) {
 
 func BenchmarkBBQueue_PushPop(b *testing.B) {
 	bufs := benchBufs(b.N)
-	q := NewBBQueue(1000, false)
+	q := NewBBQueue[*kkbuffer.ByteBuffer](1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		q.Push(bufs[i%len(bufs)])
@@ -55,7 +55,7 @@ func BenchmarkBBQueue_PushPop(b *testing.B) {
 
 func BenchmarkBBQueue_Len(b *testing.B) {
 	bufs := benchBufs(1000)
-	q := NewBBQueue(1000, false)
+	q := NewBBQueue[*kkbuffer.ByteBuffer](1000, false)
 	for i := 0; i < 1000; i++ {
 		q.Push(bufs[i])
 	}
@@ -67,7 +67,7 @@ func BenchmarkBBQueue_Len(b *testing.B) {
 
 func BenchmarkBBQueue_Grow(b *testing.B) {
 	bufs := benchBufs(b.N)
-	q := NewBBQueue(4, false) // 小初始容量以触发多次 grow
+	q := NewBBQueue[*kkbuffer.ByteBuffer](4, false) // 小初始容量以触发多次 grow
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		q.Push(bufs[i%len(bufs)])
@@ -75,7 +75,7 @@ func BenchmarkBBQueue_Grow(b *testing.B) {
 }
 
 func BenchmarkBBQueue_Push_WithPool(b *testing.B) {
-	q := NewBBQueue(1000, false)
+	q := NewBBQueue[*kkbuffer.ByteBuffer](1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bb := kkbuffer.Get()
@@ -88,7 +88,7 @@ func BenchmarkBBQueue_Push_WithPool(b *testing.B) {
 }
 
 func BenchmarkBBQueue_PushPop_WithPool(b *testing.B) {
-	q := NewBBQueue(1000, false)
+	q := NewBBQueue[*kkbuffer.ByteBuffer](1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		bb := kkbuffer.Get()
@@ -102,7 +102,7 @@ func BenchmarkBBQueue_PushPop_WithPool(b *testing.B) {
 
 func BenchmarkBBQueue_PopMany(b *testing.B) {
 	bufs := nnBenchBufs(10000)
-	q := NewNNQueue(10000, false)
+	q := NewNNQueue[*kkbuffer.ByteBuffer](10000, false)
 	for i := 0; i < 10000; i++ {
 		q.Push(bufs[i])
 	}
