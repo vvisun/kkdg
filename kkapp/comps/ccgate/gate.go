@@ -1,8 +1,6 @@
 package ccgate
 
 import (
-	"strconv"
-
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kknet"
@@ -173,12 +171,12 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 }
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
-	h.gate.transportor.GetSessionMgr().AddConn(strconv.FormatUint(c.ID(), 10), c)
+	h.gate.transportor.GetSessionMgr().AddConn(getSessionId(c.ID()), c)
 	kklog.Infof("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	h.gate.transportor.GetSessionMgr().RemoveConn(strconv.FormatUint(c.ID(), 10))
+	h.gate.transportor.GetSessionMgr().RemoveConn(getSessionId(c.ID()))
 	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
 
@@ -203,7 +201,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		route = kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
 	}
 
-	sessionID := strconv.FormatUint(connID, 10)
+	sessionID := getSessionId(connID)
 	if err := h.gate.transportor.ForwardToLogic(sessionID, route, msgBytes); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}

@@ -1,6 +1,7 @@
 package ccgate
 
 import (
+	"strconv"
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp"
@@ -9,6 +10,11 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
+
+//go:inline
+func getSessionId(connID kknet.CONN_ID) string {
+	return strconv.FormatUint(connID, 10)
+}
 
 type ISessionManager interface {
 	// GetConn gets a client connection by sessionID

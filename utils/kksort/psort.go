@@ -17,7 +17,6 @@ func (pw vsortWrapper[T]) Less(i, j int) bool {
 	return pw.by(pw.people[i], pw.people[j])
 }
 
-//go:inline
 func newVWrapper[T any](arr []*T, call func(p, q *T) bool) *vsortWrapper[T] {
 	return &vsortWrapper[T]{
 		people: arr,
@@ -25,7 +24,6 @@ func newVWrapper[T any](arr []*T, call func(p, q *T) bool) *vsortWrapper[T] {
 	}
 }
 
-//go:inline
 func SortBy[T any](arr []*T, call func(p, q *T) bool) {
 	n := len(arr)
 	if n <= 1 {

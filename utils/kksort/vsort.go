@@ -19,7 +19,6 @@ func (pw xsortWrapper[T]) Less(i, j int) bool {
 	return pw.by(pw.people[i], pw.people[j])
 }
 
-//go:inline
 func newSWrapper[T any](arr []T, call func(p, q T) bool) *xsortWrapper[T] {
 	return &xsortWrapper[T]{
 		people: arr,
@@ -27,7 +26,6 @@ func newSWrapper[T any](arr []T, call func(p, q T) bool) *xsortWrapper[T] {
 	}
 }
 
-//go:inline
 func Sort[T any](arr []T, call func(p, q T) bool) {
 	n := len(arr)
 	if n <= 1 {
