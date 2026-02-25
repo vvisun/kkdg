@@ -38,17 +38,6 @@ func (m *serverConnMgr) removeConn(id kknet.CONN_ID) {
 	m.mu.Unlock()
 }
 
-// GetAllConns returns a snapshot of all connections.
-func (m *serverConnMgr) GetAllConns() map[kknet.CONN_ID]kknet.IConn {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make(map[kknet.CONN_ID]kknet.IConn, len(m.conns))
-	for id, c := range m.conns {
-		out[id] = c
-	}
-	return out
-}
-
 // RangeAllConns ranges all connections.
 func (m *serverConnMgr) RangeAllConns(fn func(id kknet.CONN_ID, conn kknet.IConn) bool) {
 	m.mu.RLock()

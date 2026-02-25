@@ -88,12 +88,13 @@ func TestServer_Addr_Stats_GetConnManager(t *testing.T) {
 	if mgr == nil {
 		t.Fatal("GetConnManager() returned nil")
 	}
-	all := mgr.GetAllConns()
-	if all == nil {
-		t.Fatal("GetAllConns() returned nil")
-	}
-	if len(all) != 0 {
-		t.Errorf("GetAllConns() len = %d, want 0", len(all))
+	var count int
+	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		count++
+		return true
+	})
+	if count != 0 {
+		t.Errorf("RangeAllConns() count = %d, want 0", count)
 	}
 	_ = s.Start()
 	defer s.Stop()
@@ -122,15 +123,19 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 	// wait for server to see the connection
 	time.Sleep(100 * time.Millisecond)
 	mgr := s.GetConnManager()
-	all := mgr.GetAllConns()
-	if len(all) != 1 {
-		t.Fatalf("GetAllConns() len = %d, want 1", len(all))
+	var count int
+	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		count++
+		return true
+	})
+	if count != 1 {
+		t.Fatalf("RangeAllConns() count = %d, want 1", count)
 	}
 	var connID kknet.CONN_ID
-	for id := range all {
+	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
 		connID = id
-		break
-	}
+		return false
+	})
 	conn := mgr.GetConn(connID)
 	if conn == nil {
 		t.Fatal("GetConn(id) returned nil")
@@ -141,9 +146,13 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 	// kick connection: Close and remove from manager
 	mgr.KickConn(connID)
 	// after KickConn, connection is removed from manager
-	allAfter := mgr.GetAllConns()
-	if _, stillPresent := allAfter[connID]; stillPresent {
-		t.Errorf("GetAllConns() still contains connID %d after KickConn", connID)
+	var countAfter int
+	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		count++
+		return true
+	})
+	if countAfter != 0 {
+		t.Fatalf("RangeAllConns() count = %d, want 0 after KickConn", count)
 	}
 }
 

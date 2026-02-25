@@ -72,12 +72,13 @@ func TestServer_Addr_Stats_GetConnManager(t *testing.T) {
 	if mgr == nil {
 		t.Fatal("GetConnManager() returned nil")
 	}
-	all := mgr.GetAllConns()
-	if all == nil {
-		t.Fatal("GetAllConns() returned nil")
-	}
-	if len(all) != 0 {
-		t.Errorf("GetAllConns() len = %d, want 0", len(all))
+	var count int
+	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		count++
+		return true
+	})
+	if count != 0 {
+		t.Errorf("RangeAllConns() count = %d, want 0", count)
 	}
 	_ = s.Start()
 	defer s.Stop()
@@ -121,9 +122,13 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 	mgr := s.GetConnManager()
-	all := mgr.GetAllConns()
-	if len(all) != 1 {
-		t.Fatalf("GetAllConns() len = %d, want 1", len(all))
+	var count int
+	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		count++
+		return false
+	})
+	if count != 1 {
+		t.Fatalf("RangeAllConns() count = %d, want 1", count)
 	}
 	var connID kknet.CONN_ID
 	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
@@ -138,9 +143,13 @@ func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
 		t.Errorf("GetConn(id).ID() = %d, want %d", conn.ID(), connID)
 	}
 	mgr.KickConn(connID)
-	allAfter := mgr.GetAllConns()
-	if _, ok := allAfter[connID]; ok {
-		t.Errorf("GetAllConns() still contains connID %d after KickConn", connID)
+	var countAfter int
+	mgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		countAfter++
+		return true
+	})
+	if countAfter != 0 {
+		t.Errorf("RangeAllConns() count = %d, want 0 after KickConn", countAfter)
 	}
 }
 
