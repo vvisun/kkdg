@@ -6,16 +6,6 @@ import (
 	"testing"
 )
 
-type testReq struct {
-	ID   int
-	Data string
-}
-
-type testRsp struct {
-	Code int
-	Msg  string
-}
-
 func TestRouter_ReqRsp(t *testing.T) {
 	router := NewRpcReceiver()
 	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
