@@ -81,9 +81,14 @@ func (m *Module) AddModule(module IModule) (uint32, error) {
 }
 
 func (m *Module) ReleaseModule(moduleId uint32) {
-	pModule := m.GetModule(moduleId).getBaseModule().(*Module)
+	curMod := m.GetModule(moduleId)
+	if curMod == nil {
+		kklog.Debugf("ReleaseModule %d not found", moduleId)
+		return
+	}
+	pModule := curMod.getBaseModule().(*Module)
 	pModule.self.OnRelease()
-	kklog.Debugf("Release module %s", pModule.GetModuleName())
+	kklog.Debugf("ReleaseModule %s", pModule.GetModuleName())
 
 	for i := len(pModule.childs) - 1; i >= 0; i-- {
 		m.ReleaseModule(pModule.childs[i].GetModuleId())

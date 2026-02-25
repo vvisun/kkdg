@@ -19,3 +19,21 @@ var gMsgPacket = kkpacket.NewMessagePacket(
 func GetMsgPacket() *kkpacket.MessagePacket {
 	return gMsgPacket
 }
+
+// SetMsgPacket 设置网关与客户端之间的消息编码解码器
+func SetMsgPacket(head *kkpacket.PacketHead, bodyCodec kkcodec.ICodec, router *kkpacket.MsgRouter) {
+	if head == nil {
+		panic("head is nil")
+	}
+	if bodyCodec == nil {
+		panic("bodyCodec is nil")
+	}
+	if router == nil {
+		panic("router is nil")
+	}
+	gMsgPacket = kkpacket.NewMessagePacket(
+		head,
+		bodyCodec,
+		router,
+	)
+}

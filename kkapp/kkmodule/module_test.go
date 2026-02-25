@@ -390,8 +390,8 @@ func TestModule_ReleaseModule_NonExistent(t *testing.T) {
 	// 使用recover来捕获panic
 	func() {
 		defer func() {
-			if r := recover(); r == nil {
-				t.Error("ReleaseModule(999) should panic when module does not exist")
+			if r := recover(); r != nil {
+				t.Errorf("ReleaseModule(999) should not panic when module does not exist, but got panic: %v", r)
 			}
 		}()
 		root.ReleaseModule(999)
