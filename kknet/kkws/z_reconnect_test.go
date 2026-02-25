@@ -96,6 +96,7 @@ func TestKKWS_Client_Reconnect(t *testing.T) {
 
 	var cbAttempts atomic.Int32
 	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&noopRawHandler{}),
 		kknet.WithIsNeedReconnect(true),
 		kknet.WithReconnectInterval(50*time.Millisecond, 20),
 		kknet.WithReconnectCallback(func(_ int, _ error) {
