@@ -1,4 +1,4 @@
-package msgrouter
+package msgreceiver
 
 import (
 	"fmt"
@@ -96,11 +96,11 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		msg := &testMsg{
+		msg := testMsg{
 			ID:   1,
 			Data: "test",
 		}
-		bb, err := kkpacket.EncodeStream(msg, stream, msgPacket)
+		bb, err := kkpacket.EncodeStream(&msg, stream, msgPacket)
 		if err != nil {
 			b.Fatalf("encode stream: %v", err)
 		}

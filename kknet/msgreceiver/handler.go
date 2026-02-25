@@ -1,4 +1,4 @@
-package msgrouter
+package msgreceiver
 
 import (
 	"github.com/vvisun/kkdg/kknet"
@@ -15,9 +15,9 @@ type IMsgHandler interface {
 }
 
 type MsgHandler[T any] struct {
-	call  MsgHandlerFunc[T]
-	msgID kkpacket.MSGID
-	codec kkcodec.ICodec
+	call  MsgHandlerFunc[T] // 消息回调
+	msgID kkpacket.MSGID    // 消息ID
+	codec kkcodec.ICodec    // 消息编码器
 }
 
 var _ IMsgHandler = (*MsgHandler[any])(nil)
@@ -31,7 +31,7 @@ func (h *MsgHandler[T]) OnRaw(connId kknet.CONN_ID, bodyBytes []byte) error {
 	if err := h.codec.Unmarshal(bodyBytes, &data); err != nil {
 		return err
 	}
-	err := h.call(connId, &data)
+	err := h.call(connId, &data) // 调用消息回调
 	if err != nil {
 		return err
 	}

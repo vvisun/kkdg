@@ -1,4 +1,4 @@
-package msgrouter
+package msgreceiver
 
 import (
 	"github.com/vvisun/kkdg/kknet"
@@ -18,7 +18,7 @@ type MsgReceiver struct {
 
 var _ kknet.IRawHandler = (*MsgReceiver)(nil)
 
-// 解析出 消息ID，消息二进制数据
+// 解析出: msgID-消息ID，bodyBytes-消息对象二进制数据
 func (r *MsgReceiver) parseMsgInfo(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error) {
 	if r.metaParser != nil {
 		return r.metaParser(data)
@@ -53,11 +53,8 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 
-	err = h.OnRaw(connId, bodyBytes)
+	h.OnRaw(connId, bodyBytes)
 	kkbuffer.Put(data)
-	if err != nil {
-		return
-	}
 }
 
 // NewMsgReceiver 创建消息接收器
