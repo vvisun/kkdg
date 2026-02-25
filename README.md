@@ -34,6 +34,18 @@ Go 语言实现的游戏/分布式服务端引擎，提供网络层、集群通�
 ```bash
 # 集群示例（需先启动 NATS）
 cd other/examples/examcluster && go run main.go
+
+# WebSocket Echo 示例
+cd other/examples/examws && go run main.go
+
+# TCP Echo 示例
+cd other/examples/examtcp && go run main.go
+
+# TCP TLS Echo 示例（使用自签名证书）
+cd other/examples/examtcptls && go run main.go
+
+# UDP Echo 示例
+cd other/examples/examudp && go run main.go
 ```
 
 ### 测试

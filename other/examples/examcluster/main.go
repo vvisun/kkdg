@@ -10,6 +10,8 @@ import (
 )
 
 // exampleStats 统计信息使用示例
+// cd other/examples/examcluster; go run main.go
+
 func exampleStats() {
 	// 创建服务发现
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
