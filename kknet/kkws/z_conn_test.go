@@ -298,7 +298,11 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(256), kknet.WithWriteTimeout(300*time.Millisecond))
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueSize(256),
+		kknet.WithWriteTimeout(300*time.Millisecond),
+		kknet.WithRawHandler(&noopRawHandler{}),
+	)
 	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
