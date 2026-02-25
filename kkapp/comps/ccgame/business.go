@@ -88,11 +88,10 @@ func (slf *gameComponent) onClusterPublish(sourceNodeID string, packet *kkcluste
 		return
 	}
 
-	resp := &kkcluster.ClusterPacket{
-		FuncName: packet.FuncName,
-		ArgBytes: append([]byte(nil), packet.ArgBytes...),
-		Sid:      packet.Sid,
-	}
+	resp := kkcluster.NewClusterPacket()
+	resp.FuncName = packet.FuncName
+	resp.ArgBytes = append([]byte(nil), packet.ArgBytes...)
+	resp.Sid = packet.Sid
 	if err := slf.cluster.PublishRemote(sourceNodeID, resp); err != nil {
 		kklog.Errorf("[ccgame] publish response to %s error: %v", sourceNodeID, err)
 	}

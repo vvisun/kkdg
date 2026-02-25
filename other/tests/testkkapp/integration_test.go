@@ -10,6 +10,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
+	"github.com/vvisun/kkdg/kkapp/comps"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kknet"
@@ -46,12 +47,12 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	settings := map[string]string{"nats_url": natsURL}
 
 	// gate 节点
-	gateNode := kkapp.NewNodeInfo("gate1", "gate", tcpAddr, "", settings)
+	gateNode := kkapp.NewNodeInfo("gate1", comps.NodeTypeGate, tcpAddr, "", settings)
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
 		TCPAddr:       tcpAddr,
 		NatsURL:       natsURL,
-		LogicNodeType: "logic",
+		LogicNodeType: comps.NodeTypeLogic,
 	}
 	gate := ccgate.NewGateComponent(gateOpt)
 	if err := gateApp.AddComponent(gate); err != nil {
@@ -63,7 +64,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	t.Cleanup(func() { _ = gateApp.Stop() })
 
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
-	gameNode := kkapp.NewNodeInfo("game1", "logic", "127.0.0.1:0", "", settings)
+	gameNode := kkapp.NewNodeInfo("game1", comps.NodeTypeLogic, "127.0.0.1:0", "", settings)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent()
 	if err := gameApp.AddComponent(game); err != nil {
@@ -103,7 +104,6 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	}
 
 	opts := kknet.ApplyOptions(
-		kknet.WithLogger(kklog.Stdout()),
 		kknet.WithRawHandler(handler),
 	)
 	client := kktcp.NewClient(tcpAddr, handler, opts)
@@ -127,6 +127,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		recvMu.Lock()
 		got := string(recvData)
 		recvMu.Unlock()
+		kklog.Infof("recv = %q, want %q", got, string(payload))
 		if got != string(payload) {
 			t.Errorf("recv = %q, want %q", got, string(payload))
 		}
@@ -139,7 +140,7 @@ type testRawHandler struct {
 	onRaw func(kknet.CONN_ID, *kkbuffer.ByteBuffer)
 }
 
-func (h *testRawHandler) OnConnect(kknet.IConn) {}
+func (h *testRawHandler) OnConnect(kknet.IConn)      {}
 func (h *testRawHandler) OnClose(kknet.IConn, error) {}
 
 func (h *testRawHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {

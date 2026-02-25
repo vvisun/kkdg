@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/component"
+	"github.com/vvisun/kkdg/kkapp/comps"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -49,7 +50,7 @@ func NewGateComponent(opt Option) *gateComponent {
 func (slf *gateComponent) Init() error {
 	// defaults
 	if slf.opt.LogicNodeType == "" {
-		slf.opt.LogicNodeType = "logic"
+		slf.opt.LogicNodeType = comps.NodeTypeLogic
 	}
 	if slf.opt.NatsURL == "" {
 		if v, ok := slf.GetApplication().GetNodeInfo().GetSetting("nats_url"); ok {
@@ -179,7 +180,6 @@ func (slf *gateComponent) onClusterPublish(_ string, packet *kkcluster.ClusterPa
 func (slf *gateComponent) startTCPServer() error {
 	// 创建 TCP 服务器
 	opts := kknet.ApplyOptions(
-		kknet.WithLogger(kklog.Stdout()),
 		kknet.WithRawHandler(slf.handler),
 	)
 	server := kktcp.NewServer(slf.opt.TCPAddr, slf.handler, opts)
@@ -197,7 +197,6 @@ func (slf *gateComponent) startTCPServer() error {
 func (slf *gateComponent) startWSServer() error {
 	// 创建 WebSocket 服务器
 	opts := kknet.ApplyOptions(
-		kknet.WithLogger(kklog.Stdout()),
 		kknet.WithRawHandler(slf.handler),
 	)
 	server := kkws.NewServer(slf.opt.WSAddr, slf.handler, opts)
@@ -211,6 +210,8 @@ func (slf *gateComponent) startWSServer() error {
 	kklog.Infof("[ccgate] ws server started on %s", slf.opt.WSAddr)
 	return nil
 }
+
+//------------------------------------------------------------
 
 type gateHandler struct {
 	gate          *gateComponent
