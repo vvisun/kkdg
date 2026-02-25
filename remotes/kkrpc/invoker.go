@@ -104,7 +104,9 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, method string, req *T, 
 			return err
 		}
 		err = payloadCodec.Unmarshal(fr.P, rsp)
-		byteslice.Put(fr.P)
+		if fr.T == FrameTypeResponse {
+			byteslice.Put(fr.P)
+		}
 		if err != nil {
 			return err
 		}
@@ -193,7 +195,9 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, method string, req
 			return
 		}
 		err = payloadCodec.Unmarshal(fr.P, respInfo)
-		byteslice.Put(fr.P)
+		if fr.T == FrameTypeResponse {
+			byteslice.Put(fr.P)
+		}
 		if err != nil {
 			callback(nil, err)
 			return

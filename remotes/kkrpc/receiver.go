@@ -46,7 +46,6 @@ func (h *OneWayHandler[T]) OnMsg(ctx context.Context, payload []byte, frameType 
 		return err
 	}
 	err := h.call(ctx, &data)
-	byteslice.Put(payload)
 	if err != nil {
 		return err
 	}

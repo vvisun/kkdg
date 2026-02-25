@@ -120,11 +120,11 @@ func CheckReqResp[REQ any, RSP any](req *REQ, rsp *RSP) bool {
 
 func CheckOneWay[REQ any](req *REQ) bool {
 	typeReq := reflect.TypeOf(req)
-	methodReq, ok := gRpcManager.type2methodOneWay[typeReq]
+	method, ok := gRpcManager.type2methodOneWay[typeReq]
 	if !ok {
 		return false
 	}
-	return methodReq != ""
+	return method != ""
 }
 
 //----------------------------------------------------------------
