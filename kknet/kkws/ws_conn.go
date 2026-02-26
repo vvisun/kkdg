@@ -31,10 +31,9 @@ type wsConn struct {
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp              kknet.IWriteProcessor       // 写处理器（每连接独立）
-	sharedWp        kknet.ISharedWriteProcessor // 共享写处理器（多连接共用），与 wp 二选一
-	batchWriteBuf   []byte                      // 批量写入缓冲区
-	batchWriteLimit int                         // 批量写入限制字节数
+	wp              kknet.IWriteProcessor // 写处理器（每连接独立）
+	batchWriteBuf   []byte                // 批量写入缓冲区
+	batchWriteLimit int                   // 批量写入限制字节数
 
 	readBB *kkbuffer.ByteBuffer // reused read buffer for NextReader
 
@@ -56,11 +55,7 @@ func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *w
 		batchWriteLimit: opts.WpOptions.BatchWriteLimitBytes,
 	}
 
-	if c.opts.SharedWpProvider != nil {
-		c.sharedWp = c.opts.SharedWpProvider(c.opts.WpOptions)
-		c.sharedWp.RegisterConn(c.id, c.writeBatch)
-		// Start 由 provider 在首次创建时调用，后续连接复用同一实例不再 Start
-	} else if c.opts.WpProvider != nil {
+	if c.opts.WpProvider != nil {
 		c.wp = c.opts.WpProvider(c.opts.WpOptions)
 		c.wp.Start(c, c.writeBatch, func(_ error) {
 			_ = c.conn.Close()
@@ -164,10 +159,7 @@ func (c *wsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) 
 	c.closeOnce.Do(func() {
 		c.closing.Store(true)
 		c.stopPingByTimingWheel()
-		if c.sharedWp != nil {
-			c.sharedWp.UnregisterConn(c.id)
-			// 不调用 sharedWp.Stop，其他连接可能仍在用
-		} else if c.wp != nil {
+		if c.wp != nil {
 			c.wp.Stop(err)
 		}
 		if c.readBB != nil {
@@ -275,9 +267,6 @@ func (c *wsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if c.closing.Load() {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed
-	}
-	if c.sharedWp != nil {
-		return c.sharedWp.SendBufferForConn(c.id, buffer)
 	}
 	if c.wp == nil {
 		kkbuffer.Put(buffer)

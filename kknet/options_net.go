@@ -28,11 +28,10 @@ type Options struct {
 	PingInterval         time.Duration                // Ping发送间隔（为0时，不发送 Ping）；配合 ReadTimeout 做保活，收到 Pong 会刷新读超时
 	TLSConfig            *tls.Config                  // TLS配置。use for wss or tcp with tls
 
-	WpOptions        WriteOptions           // 写处理器选项
-	RpOptions        ReadOptions            // 读处理器选项
-	WpProvider       WpProvider             // 写处理器提供者
-	RpProvider       RpProvider             // 读处理器提供者
-	SharedWpProvider func(opts WriteOptions) ISharedWriteProcessor // 共享 WP 提供者，非 nil 时多连接共用同一 WP
+	WpOptions  WriteOptions // 写处理器选项
+	RpOptions  ReadOptions  // 读处理器选项
+	WpProvider WpProvider   // 写处理器提供者
+	RpProvider RpProvider   // 读处理器提供者
 
 	UDPConnIdleTimeout time.Duration // UDP连接空闲超时时间（为0时，不启用空闲清理）
 	UDPCleanupInterval time.Duration // UDP清理间隔时间（为0时，不启用清理）
@@ -315,13 +314,6 @@ func WithWpProvider(provider WpProvider) Option {
 func WithRpProvider(provider RpProvider) Option {
 	return func(o *Options) {
 		o.RpProvider = provider
-	}
-}
-
-// WithSharedWpProvider 设置共享 WP 提供者，返回的实例被多个连接共用
-func WithSharedWpProvider(provider func(opts WriteOptions) ISharedWriteProcessor) Option {
-	return func(o *Options) {
-		o.SharedWpProvider = provider
 	}
 }
 
