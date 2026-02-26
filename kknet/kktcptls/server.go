@@ -18,7 +18,7 @@ type Server struct {
 	addr    string
 	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
-	connMgr *serverConnMgr
+	connMgr *kknet.ConnManager[*tlsConn]
 
 	listener net.Listener
 	started  atomic.Bool
@@ -38,7 +38,7 @@ func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Opti
 		addr:    addr,
 		handler: handler,
 		opts:    opts,
-		connMgr: newServerConnMgr(),
+		connMgr: kknet.NewConnManager[*tlsConn](),
 	}
 }
 
@@ -116,7 +116,7 @@ func (s *Server) acceptLoop() {
 		setTCPKeepAlive(conn)
 
 		c := newTLSConn(conn, &s.opts, &s.stats)
-		s.connMgr.addConn(c)
+		s.connMgr.AddConn(c)
 		s.connWg.Add(1)
 
 		s.stats.OnConnect()
@@ -131,19 +131,18 @@ func (s *Server) acceptLoop() {
 			defer s.connWg.Done()
 			err := c.readLoop()
 			c.closeWithError(s.handler, err)
-			s.connMgr.removeConn(c.id)
+			s.connMgr.RemoveConn(c.id)
 			s.opts.Logger.Debugf("kktcptls server OnClose: connId=%d, count=%d", c.id, s.connMgr.GetCount())
 		}()
 	}
 }
 
 func (s *Server) closeAllConnections(ctx context.Context) {
-	s.connMgr.mu.Lock()
-	conns := make([]*tlsConn, 0, len(s.connMgr.conns))
-	for _, c := range s.connMgr.conns {
-		conns = append(conns, c)
-	}
-	s.connMgr.mu.Unlock()
+	conns := make([]*tlsConn, 0, s.connMgr.GetCount())
+	s.connMgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		conns = append(conns, conn.(*tlsConn))
+		return true
+	})
 
 	for _, c := range conns {
 		select {

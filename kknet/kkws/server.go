@@ -31,7 +31,7 @@ type Server struct {
 	stats kknet.Stats
 
 	// Connection tracking for graceful shutdown
-	connMgr *serverConnMgr
+	connMgr *kknet.ConnManager[*wsConn]
 	connWg  sync.WaitGroup
 }
 
@@ -45,7 +45,7 @@ func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Opti
 		path:    "/ws",
 		handler: handler,
 		opts:    opts,
-		connMgr: newServerConnMgr(),
+		connMgr: kknet.NewConnManager[*wsConn](),
 	}
 }
 
@@ -99,7 +99,7 @@ func (s *Server) Start() error {
 		}
 
 		// Track connection
-		s.connMgr.addConn(wsConn)
+		s.connMgr.AddConn(wsConn)
 		s.connWg.Add(1)
 
 		s.stats.OnConnect()
@@ -114,7 +114,7 @@ func (s *Server) Start() error {
 			defer s.connWg.Done()
 			err := wsConn.readLoop()
 			wsConn.closeWithError(s.handler, err)
-			s.connMgr.removeConn(wsConn.id)
+			s.connMgr.RemoveConn(wsConn.id)
 			s.opts.Logger.Debugf("kkws server OnClose: connId=%d, count=%d", wsConn.id, s.connMgr.GetCount())
 		}()
 	})
@@ -213,12 +213,11 @@ func (s *Server) Stop() error {
 
 // closeAllConnections closes all active connections with context timeout.
 func (s *Server) closeAllConnections(ctx context.Context) {
-	s.connMgr.mu.Lock()
-	conns := make([]*wsConn, 0, len(s.connMgr.conns))
-	for _, conn := range s.connMgr.conns {
-		conns = append(conns, conn)
-	}
-	s.connMgr.mu.Unlock()
+	conns := make([]*wsConn, 0, s.connMgr.GetCount())
+	s.connMgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		conns = append(conns, conn.(*wsConn))
+		return true
+	})
 
 	// Close all connections
 	for _, conn := range conns {

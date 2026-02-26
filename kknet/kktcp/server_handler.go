@@ -25,7 +25,7 @@ func (h *tcpEventHandler) OnShutdown(eng gnet.Engine) {
 func (h *tcpEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	h.server.stats.OnConnect()
 	tconn := newTCPConn(c, &h.server.opts, &h.server.stats)
-	h.server.connMgr.addConn(tconn)
+	h.server.connMgr.AddConn(tconn)
 	c.SetContext(tconn)
 	if h.server.handler != nil {
 		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnConnect", func() {
@@ -49,7 +49,7 @@ func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 		if tc.wp != nil {
 			go tc.wp.Stop(err)
 		}
-		h.server.connMgr.removeConn(tc.id)
+		h.server.connMgr.RemoveConn(tc.id)
 	}
 	if h.server.handler == nil {
 		return gnet.None

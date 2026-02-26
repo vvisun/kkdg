@@ -17,7 +17,7 @@ type Server struct {
 	addr    string
 	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
-	connMgr *serverConnMgr
+	connMgr *kknet.ConnManager[*tcpConn]
 
 	engine  gnet.Engine
 	started atomic.Bool
@@ -40,7 +40,7 @@ func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Opti
 		addr:    addr,
 		handler: handler,
 		opts:    opts,
-		connMgr: newServerConnMgr(),
+		connMgr: kknet.NewConnManager[*tcpConn](),
 	}
 }
 
