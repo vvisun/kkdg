@@ -190,6 +190,16 @@ func (wp *SharedWriteProcessor) Done() <-chan struct{} {
 	return wp.doneCh
 }
 
+// Pending 返回待发送队列中的消息数量
+func (wp *SharedWriteProcessor) Pending() int {
+	wp.queueMu.Lock()
+	defer wp.queueMu.Unlock()
+	if wp.queue == nil {
+		return 0
+	}
+	return wp.queue.Len()
+}
+
 func (wp *SharedWriteProcessor) drainAndRelease() {
 	wp.queueMu.Lock()
 	wp.queue.DrainAndRelease(func(b *kkbuffer.ByteBuffer) { kkbuffer.Put(b) })

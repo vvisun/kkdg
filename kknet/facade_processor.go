@@ -40,6 +40,7 @@ type ISharedWriteProcessor interface {
 	Start()
 	Stop(err error)
 	Done() <-chan struct{}
+	Pending() int
 }
 
 type (
