@@ -21,7 +21,7 @@ type connBufRing struct {
 }
 
 func newConnBufRing(size int, strict bool) *connBufRing {
-	if size < 128 {
+	if size <= 0 {
 		size = 128
 	}
 	return &connBufRing{
