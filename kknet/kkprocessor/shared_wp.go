@@ -2,6 +2,9 @@
 package kkprocessor
 
 import (
+	"errors"
+	"io"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,6 +25,7 @@ type SharedWriteProcessor struct {
 	closeOnce sync.Once
 	closeCh   chan struct{}
 	doneCh    chan struct{}
+	drainedCh chan struct{}
 	wakeCh    chan struct{}
 
 	connMu  sync.RWMutex
@@ -45,6 +49,7 @@ func NewSharedWriteProcessor(opts kknet.WriteOptions) *SharedWriteProcessor {
 		batchConnBuf: make([]connBuf, opts.BatchWriteSize),
 		closeCh:      make(chan struct{}),
 		doneCh:       make(chan struct{}),
+		drainedCh:    make(chan struct{}),
 		wakeCh:       make(chan struct{}, 1),
 	}
 	wp.queueCond = sync.NewCond(&wp.queueMu)
@@ -150,14 +155,32 @@ func (wp *SharedWriteProcessor) Start() {
 	go wp.writeLoop()
 }
 
-// Stop 停止
+// Stop 停止。若 SendQueueNeedFlushOver 且 err==nil，则等待队列 flush 完成或超时
 func (wp *SharedWriteProcessor) Stop(err error) {
 	wp.closeOnce.Do(func() {
 		wp.closing.Store(true)
-		close(wp.closeCh)
 		wp.queueMu.Lock()
 		wp.queueCond.Broadcast()
 		wp.queueMu.Unlock()
+
+		flush := wp.opts.SendQueueNeedFlushOver && err == nil
+		if flush {
+			wp.wakeWriter()
+			timeout := wp.opts.SendQueueTimeoutFlushOver
+			if timeout <= 0 {
+				timeout = 10 * time.Second
+			}
+			select {
+			case <-wp.drainedCh:
+			case <-time.After(timeout):
+				if wp.opts.SendQueueFlushTimeoutCallback != nil {
+					wp.opts.SendQueueFlushTimeoutCallback(nil, timeout)
+				}
+				close(wp.closeCh)
+			}
+		} else {
+			close(wp.closeCh)
+		}
 	})
 	<-wp.doneCh
 }
@@ -184,70 +207,160 @@ func (wp *SharedWriteProcessor) writeLoop() {
 			return
 		}
 
-		wp.queueMu.Lock()
-		n := wp.queue.PopMany(wp.batchConnBuf, wp.opts.BatchWriteLimitBytes)
-		wp.queueCond.Broadcast() // 唤醒 Block 模式下等待空位的 SendBufferForConn
-		wp.queueMu.Unlock()
+		for {
+			wp.queueMu.Lock()
+			n := wp.queue.PopMany(wp.batchConnBuf, wp.opts.BatchWriteLimitBytes)
+			remain := wp.queue.Len()
+			wp.queueCond.Broadcast()
+			wp.queueMu.Unlock()
 
-		if n <= 0 {
-			if wp.closing.Load() {
-				wp.queueMu.Lock()
-				empty := wp.queue.IsEmpty()
-				wp.queueMu.Unlock()
-				if empty {
+			if n <= 0 {
+				if wp.closing.Load() && remain == 0 {
+					select {
+					case <-wp.drainedCh:
+					default:
+						close(wp.drainedCh)
+					}
 					return
 				}
+				break
 			}
-			continue
-		}
 
-		batch := wp.batchConnBuf[:n]
-		// 过滤已注销连接，释放其 buffer
-		j := 0
-		for i := 0; i < n; i++ {
-			cb := batch[i]
-			wp.connMu.RLock()
-			fn := wp.connFns[cb.connID]
-			wp.connMu.RUnlock()
-			if fn == nil {
-				if cb.buf != nil {
-					kkbuffer.Put(cb.buf)
+			batch := wp.batchConnBuf[:n]
+			j := 0
+			for i := 0; i < n; i++ {
+				cb := batch[i]
+				wp.connMu.RLock()
+				fn := wp.connFns[cb.connID]
+				wp.connMu.RUnlock()
+				if fn == nil {
+					if cb.buf != nil {
+						kkbuffer.Put(cb.buf)
+					}
+					continue
 				}
-				continue
-			}
-			batch[j] = cb
-			j++
-		}
-		batch = batch[:j]
-		n = j
-
-		if n == 0 {
-			continue
-		}
-
-		// 按 connID 分组调用
-		i := 0
-		for i < n {
-			curConn := batch[i].connID
-			wp.connMu.RLock()
-			fn := wp.connFns[curConn]
-			wp.connMu.RUnlock()
-			if fn == nil {
-				kkbuffer.Put(batch[i].buf)
-				i++
-				continue
-			}
-			j := i
-			for j < n && batch[j].connID == curConn {
-				wp.batchBuf[j-i] = batch[j].buf
-				batch[j].buf = nil
+				batch[j] = cb
 				j++
 			}
-			_ = fn(wp.batchBuf[:j-i], j-i)
-			for k := 0; k < j-i; k++ {
-				wp.batchBuf[k] = nil
+			batch = batch[:j]
+			n = j
+
+			if n == 0 {
+				continue
 			}
-			i = j
+
+			i := 0
+			for i < n {
+				curConn := batch[i].connID
+				wp.connMu.RLock()
+				fn := wp.connFns[curConn]
+				wp.connMu.RUnlock()
+				if fn == nil {
+					kkbuffer.Put(batch[i].buf)
+					i++
+					continue
+				}
+				j := i
+				for j < n && batch[j].connID == curConn {
+					wp.batchBuf[j-i] = batch[j].buf
+					batch[j].buf = nil
+					j++
+				}
+				count := j - i
+				if err := fn(wp.batchBuf[:count], count); err != nil {
+					if !wp.isWriteFnRetryable(err) {
+						wp.drainReleaseBatch(wp.batchBuf[:count])
+					} else if !wp.retryWriteFn(fn, curConn, count) {
+						wp.drainReleaseBatch(wp.batchBuf[:count])
+					}
+				}
+				for k := 0; k < count; k++ {
+					wp.batchBuf[k] = nil
+				}
+				i = j
+			}
 		}
 	}
+}
+
+func (wp *SharedWriteProcessor) isWriteFnRetryable(err error) bool {
+	if wp.opts.WriteFnIsRetryable != nil {
+		return wp.opts.WriteFnIsRetryable(err)
+	}
+	return sharedWpDefaultIsWriteFnRetryable(err)
+}
+
+func sharedWpDefaultIsWriteFnRetryable(err error) bool {
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, kkerrors.ErrConnectionClosed) ||
+		errors.Is(err, kkerrors.ErrInvalidPacket) ||
+		errors.Is(err, kkerrors.ErrSendQueueFull) ||
+		errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, io.ErrClosedPipe) {
+		return false
+	}
+	return true
+}
+
+func (wp *SharedWriteProcessor) drainReleaseBatch(batch []*kkbuffer.ByteBuffer) {
+	for i := range batch {
+		if batch[i] != nil {
+			kkbuffer.Put(batch[i])
+			batch[i] = nil
+		}
+	}
+}
+
+func (wp *SharedWriteProcessor) compactBatchBuf(batch []*kkbuffer.ByteBuffer, n int) int {
+	j := 0
+	for i := 0; i < n; i++ {
+		if batch[i] != nil {
+			if j != i {
+				batch[j] = batch[i]
+				batch[i] = nil
+			}
+			j++
+		}
+	}
+	return j
+}
+
+// retryWriteFn 重试 writeFn，仅对 batch 中剩余未释放的 buffer 重试。
+// writeFn 约定：成功发送的 buffer 由 writeFn 自行释放并置 nil，失败的保留在 batch 中。
+func (wp *SharedWriteProcessor) retryWriteFn(fn kknet.WriteFunc, connID kknet.CONN_ID, n int) bool {
+	maxRetry := wp.opts.WriteFnRetryMaxCount
+	if maxRetry <= 0 {
+		return false
+	}
+	interval := wp.opts.WriteFnRetryInterval
+	if interval <= 0 {
+		interval = 5 * time.Millisecond
+	}
+
+	for attempt := 1; attempt <= maxRetry; attempt++ {
+		if wp.closing.Load() {
+			return false
+		}
+		time.Sleep(interval)
+
+		wp.connMu.RLock()
+		stillFn := wp.connFns[connID]
+		wp.connMu.RUnlock()
+		if stillFn == nil {
+			return false
+		}
+
+		remaining := wp.compactBatchBuf(wp.batchBuf, n)
+		if remaining <= 0 {
+			return true
+		}
+		if err := fn(wp.batchBuf, remaining); err == nil {
+			return true
+		} else if !wp.isWriteFnRetryable(err) {
+			return false
+		}
+	}
+	return false
 }

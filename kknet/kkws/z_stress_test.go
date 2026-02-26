@@ -323,7 +323,7 @@ func TestStress_SharedWP_ManyConns(t *testing.T) {
 	}()
 
 	serverAddr := "ws://" + addr + "/ws"
-	payload := make([]byte, 266)
+	payload := make([]byte, 1024)
 	for i := range payload {
 		payload[i] = 0x01
 	}

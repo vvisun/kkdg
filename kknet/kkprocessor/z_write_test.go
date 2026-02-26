@@ -537,3 +537,193 @@ func TestWriteProcessor_FlushTimeout(t *testing.T) {
 		t.Fatal("flush timeout callback should be invoked")
 	}
 }
+
+func TestSharedWriteProcessor_FlushOver(t *testing.T) {
+	opts := kknet.WriteOptions{
+		SendQueueSize:             8,
+		SendQueueStrict:            false,
+		SendQueueNeedFlushOver:     true,
+		SendQueueTimeoutFlushOver:  2 * time.Second,
+		BatchWriteSize:            8,
+		BatchWriteLimitBytes:      1024,
+		SendQueueFullAction:       kknet.EWpQueueFullActionDrop,
+	}
+	wp := NewSharedWriteProcessor(opts)
+	recvCh := make(chan int, 16)
+	allowProcess := make(chan struct{})
+	connID := kknet.CONN_ID(1)
+	wp.RegisterConn(connID, func(batch []*kkbuffer.ByteBuffer, n int) error {
+		<-allowProcess
+		for i := 0; i < n; i++ {
+			if batch[i] != nil {
+				recvCh <- batch[i].Len()
+				kkbuffer.Put(batch[i])
+				batch[i] = nil
+			}
+		}
+		return nil
+	})
+	wp.Start()
+
+	for i := 0; i < 5; i++ {
+		bb := kkbuffer.GetWithCapacity(8)
+		bb.B = bb.B[:8]
+		if err := wp.SendBufferForConn(connID, bb); err != nil {
+			t.Fatalf("SendBufferForConn: %v", err)
+		}
+	}
+	time.Sleep(20 * time.Millisecond)
+
+	done := make(chan struct{})
+	go func() {
+		wp.Stop(nil)
+		close(done)
+	}()
+	time.Sleep(50 * time.Millisecond)
+	close(allowProcess)
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Stop should return after flush")
+	}
+
+	for i := 0; i < 5; i++ {
+		select {
+		case <-recvCh:
+		case <-time.After(500 * time.Millisecond):
+			t.Fatalf("expected 5 received, got %d", i)
+		}
+	}
+	wp.UnregisterConn(connID)
+}
+
+func TestSharedWriteProcessor_FlushTimeout(t *testing.T) {
+	opts := kknet.WriteOptions{
+		SendQueueSize:             8,
+		SendQueueStrict:            false,
+		SendQueueNeedFlushOver:     true,
+		SendQueueTimeoutFlushOver:  50 * time.Millisecond,
+		BatchWriteSize:            8,
+		BatchWriteLimitBytes:      1024,
+		SendQueueFullAction:       kknet.EWpQueueFullActionDrop,
+	}
+	flushTimeoutCh := make(chan bool, 1)
+	opts.SendQueueFlushTimeoutCallback = func(conn kknet.IConn, timeout time.Duration) {
+		select {
+		case flushTimeoutCh <- true:
+		default:
+		}
+	}
+	wp := NewSharedWriteProcessor(opts)
+	connID := kknet.CONN_ID(1)
+	wp.RegisterConn(connID, func(batch []*kkbuffer.ByteBuffer, n int) error {
+		time.Sleep(100 * time.Millisecond)
+		for i := 0; i < n; i++ {
+			if batch[i] != nil {
+				kkbuffer.Put(batch[i])
+				batch[i] = nil
+			}
+		}
+		return nil
+	})
+	wp.Start()
+
+	for i := 0; i < 2; i++ {
+		bb := kkbuffer.GetWithCapacity(8)
+		bb.B = bb.B[:8]
+		if err := wp.SendBufferForConn(connID, bb); err != nil {
+			t.Fatalf("SendBufferForConn: %v", err)
+		}
+	}
+	wp.UnregisterConn(connID)
+
+	go wp.Stop(nil)
+
+	select {
+	case <-flushTimeoutCh:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("flush timeout callback should be invoked")
+	}
+}
+
+func TestSharedWriteProcessor_WriteFnRetry_Retryable(t *testing.T) {
+	opts := kknet.WriteOptions{
+		SendQueueSize:          16,
+		SendQueueStrict:        false,
+		WriteFnRetryMaxCount:   5,
+		WriteFnRetryInterval:   2 * time.Millisecond,
+		SendQueueNeedFlushOver: false,
+		BatchWriteSize:         8,
+		BatchWriteLimitBytes:   1024,
+		SendQueueFullAction:    kknet.EWpQueueFullActionDrop,
+	}
+	wp := NewSharedWriteProcessor(opts)
+	connID := kknet.CONN_ID(1)
+
+	var attempts atomic.Int32
+	wp.RegisterConn(connID, func(batch []*kkbuffer.ByteBuffer, n int) error {
+		a := attempts.Add(1)
+		if a < 3 {
+			return errors.New("temporary failure")
+		}
+		for i := 0; i < n; i++ {
+			if batch[i] != nil {
+				kkbuffer.Put(batch[i])
+				batch[i] = nil
+			}
+		}
+		return nil
+	})
+	wp.Start()
+
+	bb := kkbuffer.GetWithCapacity(8)
+	bb.B = bb.B[:8]
+	if err := wp.SendBufferForConn(connID, bb); err != nil {
+		t.Fatalf("SendBufferForConn: %v", err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	if attempts.Load() < 3 {
+		t.Errorf("writeFn should be retried at least 3 times, got %d", attempts.Load())
+	}
+
+	wp.UnregisterConn(connID)
+	wp.Stop(nil)
+}
+
+func TestSharedWriteProcessor_WriteFnRetry_NonRetryable(t *testing.T) {
+	opts := kknet.WriteOptions{
+		SendQueueSize:          16,
+		SendQueueStrict:        false,
+		WriteFnRetryMaxCount:   5,
+		WriteFnRetryInterval:   2 * time.Millisecond,
+		SendQueueNeedFlushOver: false,
+		BatchWriteSize:         8,
+		BatchWriteLimitBytes:   1024,
+		SendQueueFullAction:    kknet.EWpQueueFullActionDrop,
+	}
+	wp := NewSharedWriteProcessor(opts)
+	connID := kknet.CONN_ID(1)
+
+	var attempts atomic.Int32
+	wp.RegisterConn(connID, func(batch []*kkbuffer.ByteBuffer, n int) error {
+		attempts.Add(1)
+		return kkerrors.ErrConnectionClosed
+	})
+	wp.Start()
+
+	bb := kkbuffer.GetWithCapacity(8)
+	bb.B = bb.B[:8]
+	if err := wp.SendBufferForConn(connID, bb); err != nil {
+		t.Fatalf("SendBufferForConn: %v", err)
+	}
+
+	time.Sleep(30 * time.Millisecond)
+	if attempts.Load() != 1 {
+		t.Errorf("writeFn should not be retried for ErrConnectionClosed, got %d attempts", attempts.Load())
+	}
+
+	wp.UnregisterConn(connID)
+	wp.Stop(nil)
+}
