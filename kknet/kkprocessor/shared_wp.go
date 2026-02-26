@@ -11,121 +11,6 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-type connBuf struct {
-	connID kknet.CONN_ID
-	buf    *kkbuffer.ByteBuffer
-}
-
-// connBufRing 环形队列，存 connBuf
-type connBufRing struct {
-	buf      []connBuf
-	head     int
-	tail     int
-	count    int
-	capacity int
-	strict   bool
-}
-
-func newConnBufRing(size int, strict bool) *connBufRing {
-	if size < 8 {
-		size = 8
-	}
-	return &connBufRing{
-		buf:      make([]connBuf, size),
-		capacity: size,
-		strict:   strict,
-	}
-}
-
-func (q *connBufRing) Len() int   { return q.count }
-func (q *connBufRing) Empty() bool { return q.count == 0 }
-
-func (q *connBufRing) Full() bool {
-	return q.strict && q.count >= q.capacity
-}
-
-func (q *connBufRing) Push(cb connBuf) bool {
-	if q.strict && q.count >= q.capacity {
-		return false
-	}
-	if q.count >= q.capacity {
-		q.grow()
-	}
-	q.buf[q.tail] = cb
-	q.tail = (q.tail + 1) % q.capacity
-	q.count++
-	return true
-}
-
-func (q *connBufRing) grow() {
-	newCap := q.capacity * 2
-	if newCap > 65536 {
-		newCap = 65536
-	}
-	newBuf := make([]connBuf, newCap)
-	for i := 0; i < q.count; i++ {
-		pos := (q.head + i) % q.capacity
-		newBuf[i] = q.buf[pos]
-	}
-	q.buf = newBuf
-	q.head = 0
-	q.tail = q.count
-	q.capacity = newCap
-}
-
-func (q *connBufRing) Pop() (connBuf, bool) {
-	if q.count == 0 {
-		return connBuf{}, false
-	}
-	cb := q.buf[q.head]
-	q.buf[q.head] = connBuf{}
-	q.head = (q.head + 1) % q.capacity
-	q.count--
-	return cb, true
-}
-
-func (q *connBufRing) Peek() (connBuf, bool) {
-	if q.count == 0 {
-		return connBuf{}, false
-	}
-	return q.buf[q.head], true
-}
-
-func (q *connBufRing) PopMany(dst []connBuf, limitBytes int) int {
-	if q.count == 0 || len(dst) == 0 {
-		return 0
-	}
-	n := 0
-	totalBytes := 0
-	for n < len(dst) && q.count > 0 {
-		pos := (q.head + n) % q.capacity
-		cb := q.buf[pos]
-		if limitBytes > 0 && n > 0 {
-			if cb.buf != nil && totalBytes+cb.buf.Len() > limitBytes {
-				break
-			}
-		}
-		dst[n] = cb
-		q.buf[pos] = connBuf{}
-		n++
-		if cb.buf != nil {
-			totalBytes += cb.buf.Len()
-		}
-	}
-	q.head = (q.head + n) % q.capacity
-	q.count -= n
-	return n
-}
-
-func (q *connBufRing) DrainAndRelease(release func(*kkbuffer.ByteBuffer)) {
-	for q.count > 0 {
-		cb, _ := q.Pop()
-		if cb.buf != nil && release != nil {
-			release(cb.buf)
-		}
-	}
-}
-
 // SharedWriteProcessor 多个连接共用同一发送队列与 writeLoop
 type SharedWriteProcessor struct {
 	opts kknet.WriteOptions
@@ -142,7 +27,7 @@ type SharedWriteProcessor struct {
 	connMu  sync.RWMutex
 	connFns map[kknet.CONN_ID]kknet.WriteFunc
 
-	batchBuf   []*kkbuffer.ByteBuffer
+	batchBuf     []*kkbuffer.ByteBuffer
 	batchConnBuf []connBuf
 }
 
@@ -153,14 +38,14 @@ func NewSharedWriteProcessor(opts kknet.WriteOptions) *SharedWriteProcessor {
 		size = 128
 	}
 	wp := &SharedWriteProcessor{
-		opts:        opts,
-		queue:       newConnBufRing(size, opts.SendQueueStrict),
-		connFns:     make(map[kknet.CONN_ID]kknet.WriteFunc),
-		batchBuf:    make([]*kkbuffer.ByteBuffer, opts.BatchWriteSize),
+		opts:         opts,
+		queue:        newConnBufRing(size, opts.SendQueueStrict),
+		connFns:      make(map[kknet.CONN_ID]kknet.WriteFunc),
+		batchBuf:     make([]*kkbuffer.ByteBuffer, opts.BatchWriteSize),
 		batchConnBuf: make([]connBuf, opts.BatchWriteSize),
-		closeCh:     make(chan struct{}),
-		doneCh:      make(chan struct{}),
-		wakeCh:      make(chan struct{}, 1),
+		closeCh:      make(chan struct{}),
+		doneCh:       make(chan struct{}),
+		wakeCh:       make(chan struct{}, 1),
 	}
 	wp.queueCond = sync.NewCond(&wp.queueMu)
 	return wp
@@ -191,7 +76,7 @@ func (wp *SharedWriteProcessor) SendBufferForConn(connID kknet.CONN_ID, buffer *
 		return kkerrors.ErrConnectionClosed
 	}
 	wp.queueMu.Lock()
-	if wp.queue.Full() {
+	if wp.queue.IsFull() {
 		switch wp.opts.SendQueueFullAction {
 		case kknet.EWpQueueFullActionBlock:
 			for {
@@ -208,7 +93,7 @@ func (wp *SharedWriteProcessor) SendBufferForConn(connID kknet.CONN_ID, buffer *
 					kkbuffer.Put(buffer)
 					return kkerrors.ErrConnectionClosed
 				}
-				if !wp.queue.Full() {
+				if !wp.queue.IsFull() {
 					wp.queue.Push(connBuf{connID: connID, buf: buffer})
 					wp.queueCond.Broadcast()
 					wp.queueMu.Unlock()
@@ -230,7 +115,7 @@ func (wp *SharedWriteProcessor) SendBufferForConn(connID kknet.CONN_ID, buffer *
 			for i := 0; i < wp.opts.SendQueueRetryMaxCount; i++ {
 				time.Sleep(interval)
 				wp.queueMu.Lock()
-				if !wp.queue.Full() {
+				if !wp.queue.IsFull() {
 					wp.queue.Push(connBuf{connID: connID, buf: buffer})
 					wp.queueCond.Broadcast()
 					wp.queueMu.Unlock()
@@ -307,7 +192,7 @@ func (wp *SharedWriteProcessor) writeLoop() {
 		if n <= 0 {
 			if wp.closing.Load() {
 				wp.queueMu.Lock()
-				empty := wp.queue.Empty()
+				empty := wp.queue.IsEmpty()
 				wp.queueMu.Unlock()
 				if empty {
 					return
