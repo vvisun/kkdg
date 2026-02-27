@@ -60,7 +60,7 @@ func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID, method
 // Invoke 同步调用，阻塞直到收到响应或 ctx 取消/超时
 func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig, rsp *R) error {
 	if i.sender.getPending().IsClosed() {
-		return kkerrors.ErrConnClosed
+		return kkerrors.ErrRpcConnClosed
 	}
 	fixCallConfig(&opts)
 	if ctx == nil {
@@ -70,7 +70,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 	reqId := genReqId()
 	ch, ok := pending.addCh(reqId)
 	if !ok {
-		return kkerrors.ErrConnClosed
+		return kkerrors.ErrRpcConnClosed
 	}
 	defer func() {
 		removed := pending.delCh(reqId)
@@ -113,7 +113,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 
 	doReturn := func(fr Frame) error {
 		if fr.T != FrameTypeResponse {
-			return kkerrors.ErrInvalidFrameType
+			return kkerrors.ErrRpcInvalidFrameType
 		}
 		err := ErrRpc(fr.Code, fr.Err)
 		if err != nil {
@@ -131,19 +131,19 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		select {
 		case fr, ok := <-ch:
 			if !ok {
-				return kkerrors.ErrConnClosed
+				return kkerrors.ErrRpcConnClosed
 			}
 			return doReturn(fr)
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:
-			return kkerrors.ErrTimeout
+			return kkerrors.ErrRpcTimeout
 		}
 	} else {
 		select {
 		case fr, ok := <-ch:
 			if !ok {
-				return kkerrors.ErrConnClosed
+				return kkerrors.ErrRpcConnClosed
 			}
 			return doReturn(fr)
 		case <-ctx.Done():
@@ -155,7 +155,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 // InvokeAsync 异步调用（非阻塞等待结果）。若 opts 或 ctx 设置了超时，超时未收到响应会调用 callback(nil, ErrTimeout)，且仅回调一次。
 func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
 	if i.sender.getPending().IsClosed() {
-		return kkerrors.ErrConnClosed
+		return kkerrors.ErrRpcConnClosed
 	}
 	var respInfo *R = new(R)
 	fixCallConfig(&opts)
@@ -223,7 +223,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 			select {
 			case <-t.C:
 				if _, ok := pending.takeCallback(reqId); ok {
-					callback(nil, kkerrors.ErrTimeout)
+					callback(nil, kkerrors.ErrRpcTimeout)
 				}
 			case <-doneCh:
 				if !t.Stop() {
@@ -242,7 +242,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 // InvokeNR 无响应调用（单向调用）
 func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig) error {
 	if i.sender.getPending().IsClosed() {
-		return kkerrors.ErrConnClosed
+		return kkerrors.ErrRpcConnClosed
 	}
 	bb, err := EncodeRpcFrame(FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {

@@ -54,7 +54,7 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
-			return nil, kkerrors.ErrInvalidRequestID
+			return nil, kkerrors.ErrRpcInvalidRequestID
 		}
 	case FrameTypeOneway:
 		reqId = 0
@@ -88,7 +88,7 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T, de
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
-			return nil, kkerrors.ErrInvalidRequestID
+			return nil, kkerrors.ErrRpcInvalidRequestID
 		}
 	case FrameTypeOneway:
 		reqId = 0

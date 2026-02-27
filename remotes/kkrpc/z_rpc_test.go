@@ -111,7 +111,7 @@ func Test_Invoke_Timeout(t *testing.T) {
 	var resp testRsp
 	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0, "testReqRsp")
 	err := invoker.Invoke(context.Background(), &req, CallConfig{Timeout: 100 * time.Millisecond}, &resp)
-	if !errors.Is(err, kkerrors.ErrTimeout) {
+	if !errors.Is(err, kkerrors.ErrRpcTimeout) {
 		t.Fatalf("expected ErrTimeout, got %v", err)
 	}
 }
@@ -148,7 +148,7 @@ func Test_Invoke_OnClosedClient(t *testing.T) {
 	var resp testRsp
 	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0, "testReqRsp")
 	err := invoker.Invoke(context.Background(), &req, CallConfig{}, &resp)
-	if !errors.Is(err, kkerrors.ErrConnClosed) {
+	if !errors.Is(err, kkerrors.ErrRpcConnClosed) {
 		t.Fatalf("expected ErrConnClosed, got %v", err)
 	}
 }
@@ -258,7 +258,7 @@ func Test_InvokeAsync_Timeout(t *testing.T) {
 	if callCount != 1 {
 		t.Fatalf("expected callback once, got %d", callCount)
 	}
-	if !errors.Is(gotErr, kkerrors.ErrTimeout) {
+	if !errors.Is(gotErr, kkerrors.ErrRpcTimeout) {
 		t.Fatalf("expected ErrTimeout, got %v", gotErr)
 	}
 }
