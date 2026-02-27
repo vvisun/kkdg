@@ -32,17 +32,6 @@ type IWriteProcessor interface {
 type WpProvider func(opts WriteOptions) IWriteProcessor
 type RpProvider func(opts ReadOptions) IReadProcessor
 
-// ISharedWriteProcessor 多个连接共用的写处理器
-type ISharedWriteProcessor interface {
-	RegisterConn(connID CONN_ID, writeFn WriteFunc)
-	UnregisterConn(connID CONN_ID)
-	SendBufferForConn(connID CONN_ID, buffer *kkbuffer.ByteBuffer) error
-	Start()
-	Stop(err error)
-	Done() <-chan struct{}
-	Pending() int
-}
-
 type (
 	// IRawHandler is a handler for raw data.
 	IRawHandler interface {
