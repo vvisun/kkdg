@@ -33,8 +33,8 @@ func SetPayloadCodec(codec kkcodec.ICodec) {
 }
 
 func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
-	if frame.Code == 0 {
-		frame.Code = 1
+	if frame.Code == ErrorCodeSuccess {
+		frame.Code = ErrorCodeFailed
 	}
 	if frame.Err == "" {
 		frame.Err = "unknown error"

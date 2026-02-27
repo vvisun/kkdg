@@ -145,14 +145,14 @@ func (r *RpcReceiver) dealReqResp(fr *Frame) *kkbuffer.ByteBuffer {
 		T:    FrameTypeResponse,
 		ID:   fr.ID,
 		M:    fr.M,
-		Code: 0,
+		Code: ErrorCodeSuccess,
 		Err:  "",
 	}
 
 	method := fr.M
 	h, ok := r.hdMap[method]
 	if !ok || h == nil {
-		rspFrame.Code = 1
+		rspFrame.Code = ErrorCodeMethodNotFound
 		rspFrame.Err = "未找到远程方法" + method
 		rspBB, err := EncodeFailedResponse(&rspFrame)
 		if err != nil {
@@ -166,7 +166,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame) *kkbuffer.ByteBuffer {
 	defer cancel()
 	respBytes, err := h.OnMsg(ctx, fr.P, fr.T)
 	if err != nil {
-		rspFrame.Code = 1
+		rspFrame.Code = ErrorCodeMethodRetErr
 		rspFrame.Err = "远程方法执行失败: " + err.Error()
 		rspBB, err := EncodeFailedResponse(&rspFrame)
 		if err != nil {

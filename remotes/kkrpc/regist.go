@@ -106,10 +106,8 @@ func ClearRpcManagerForTest() {
 
 // verifyReqRespMethod verifies at init that REQ/RSP types are registered for method. No runtime reflect on hot path.
 func verifyReqRespMethod[REQ any, RSP any](method string) bool {
-	var vReq REQ
-	var vRsp RSP
-	typeReq := reflect.TypeOf(&vReq)
-	typeRsp := reflect.TypeOf(&vRsp)
+	typeReq := reflect.TypeFor[REQ]()
+	typeRsp := reflect.TypeFor[RSP]()
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
 	mReq, ok1 := gRpcManager.type2methodReqRsp[typeReq]
@@ -119,8 +117,7 @@ func verifyReqRespMethod[REQ any, RSP any](method string) bool {
 
 // verifyOneWayMethod verifies at init that REQ type is registered for method. No runtime reflect on hot path.
 func verifyOneWayMethod[REQ any](method string) bool {
-	var vReq REQ
-	typeReq := reflect.TypeOf(&vReq)
+	typeReq := reflect.TypeFor[REQ]()
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
 	m, ok := gRpcManager.type2methodOneWay[typeReq]
@@ -143,10 +140,8 @@ func newReqResp[REQ any, RSP any](method string) (*ReqResp[REQ, RSP], bool) {
 		return nil, false
 	}
 
-	var vReq REQ
-	var vRSP RSP
-	typeReq := reflect.TypeOf(&vReq)
-	typeRsp := reflect.TypeOf(&vRSP)
+	typeReq := reflect.TypeFor[REQ]()
+	typeRsp := reflect.TypeFor[RSP]()
 
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
@@ -189,8 +184,7 @@ func newOneWay[REQ any](method string) (*OneWay[REQ], bool) {
 		return nil, false
 	}
 
-	var vReq REQ
-	typeReq := reflect.TypeOf(&vReq)
+	typeReq := reflect.TypeFor[REQ]()
 
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
