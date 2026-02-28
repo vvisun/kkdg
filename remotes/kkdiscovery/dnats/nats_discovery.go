@@ -1,6 +1,7 @@
 package dnats
 
 import (
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -98,16 +99,14 @@ func (d *NatsDiscovery) ListByType(nodeType string, filterNodeID ...string) []kk
 	defer d.membersMu.RUnlock()
 
 	var result []kkdiscovery.IMember
-	filterMap := make(map[string]bool)
-	for _, id := range filterNodeID {
-		filterMap[id] = true
-	}
+	hasFilter := len(filterNodeID) > 0
 
 	for _, member := range d.members {
 		if member.GetNodeType() == nodeType {
-			if len(filterMap) == 0 || !filterMap[member.GetNodeID()] {
-				result = append(result, member)
+			if hasFilter && slices.Contains(filterNodeID, member.GetNodeID()) {
+				continue
 			}
+			result = append(result, member)
 		}
 	}
 	return result
