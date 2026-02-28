@@ -202,7 +202,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	sessionID := getSessionId(connID)
-	if err := h.gate.transportor.ForwardToLogic(sessionID, route, msgBytes); err != nil {
+	if err := h.gate.transportor.ForwardToLogic(sessionID, msgBytes, route); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}
 	kkbuffer.Put(data)

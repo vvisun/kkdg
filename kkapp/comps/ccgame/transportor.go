@@ -74,7 +74,7 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 	}
 
 	resp := kkcluster.NewClusterPacket()
-	resp.FuncName = "s2c"
+	resp.FuncName = "s2c" //暂时没用到
 	resp.ArgBytes = append([]byte(nil), msgBytes...)
 	resp.Sid = sessionID
 	if err := slf.cluster.PublishRemote(sessionInfo.GateNodeID, resp); err != nil {

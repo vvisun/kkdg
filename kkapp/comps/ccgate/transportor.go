@@ -21,7 +21,7 @@ func getSessionId(connID kknet.CONN_ID) string {
 // 抽象化接口，方便切换实现逻辑（如：使用Actor、使用Nats、使用RPC等）。
 type ITransportor interface {
 	// ForwardToLogic forwards a client message to logic side.
-	ForwardToLogic(sessionID string, msgRoute string, msgBytes []byte) error
+	ForwardToLogic(sessionID string, msgBytes []byte, msgRoute string) error
 	// ForwardToClient forwards a logic message to client side.
 	ForwardToClient(sessionID string, msgBytes []byte) error
 	// GetSessionMgr gets the session manager
@@ -56,7 +56,7 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 }
 
 // ForwardToLogic 转发消息到逻辑节点
-func (slf *transportorNats) ForwardToLogic(sessionID string, msgRoute string, msgBytes []byte) error {
+func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, msgRoute string) error {
 	if slf.cluster == nil {
 		return kkerrors.ErrClusterNotInitialized
 	}
@@ -68,7 +68,7 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgRoute string, ms
 	}
 
 	pkt := kkcluster.NewClusterPacket()
-	pkt.FuncName = msgRoute
+	pkt.FuncName = "c2s" //暂时没用到
 	pkt.ArgBytes = append([]byte(nil), msgBytes...)
 	pkt.Sid = sessionID
 	return slf.cluster.PublishRemoteType(kkapp.NodeTypeLogic, pkt)
