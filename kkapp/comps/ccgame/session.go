@@ -16,6 +16,7 @@ func newSessionManager() *sessionManager {
 }
 
 func (slf *sessionManager) AddSession(sessionID string, sessionInfo SessionInfo) {
+	sessionInfo.SessionID = sessionID
 	slf.sessionMap[sessionID] = sessionInfo
 }
 
