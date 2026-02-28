@@ -1,6 +1,16 @@
 package ccgate
 
-import "github.com/vvisun/kkdg/kknet"
+import (
+	"strconv"
+	"sync"
+
+	"github.com/vvisun/kkdg/kknet"
+)
+
+//go:inline
+func getSessionId(connID kknet.CONN_ID) string {
+	return strconv.FormatUint(connID, 10)
+}
 
 // 客户端信息。
 type clientInfo struct {
@@ -9,16 +19,16 @@ type clientInfo struct {
 	sessionId string        // 客户端会话ID
 	// key:nodeType。本客户端链接的逻辑节点列表。
 	// 同一个客户端可能链接不同类型的逻辑服，比如充值服，大厅服，游戏服，聊天服等。
-	logicNodeMap map[string]*logicNodeInfo
+	logicNodeMap sync.Map // map[string]*logicNodeInfo
 }
 
 // 获取本客户端链接的nodeType类型的逻辑节点信息。
 func (c *clientInfo) GetLogicNodeInfo(nodeType string) *logicNodeInfo {
-	info, ok := c.logicNodeMap[nodeType]
+	info, ok := c.logicNodeMap.Load(nodeType)
 	if !ok || info == nil {
 		return nil
 	}
-	return info
+	return info.(*logicNodeInfo)
 }
 
 // 为本客户端分配nodeType类型的逻辑节点。
@@ -26,14 +36,13 @@ func (c *clientInfo) AddLogicNodeInfo(nodeType string, info *logicNodeInfo) {
 	if info == nil {
 		return
 	}
-	c.logicNodeMap[nodeType] = info
+	c.logicNodeMap.Store(nodeType, info)
 }
 
 func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {
 	return &clientInfo{
-		connId:       connId,
-		sessionId:    sessionId,
-		logicNodeMap: make(map[string]*logicNodeInfo),
+		connId:    connId,
+		sessionId: sessionId,
 	}
 }
 
@@ -41,60 +50,61 @@ func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {
 
 // 客户端管理器。
 type clientManager struct {
-	clientMap map[kknet.CONN_ID]*clientInfo
-	userMap   map[kknet.USER_ID]*clientInfo
+	clientMap sync.Map // map[kknet.CONN_ID]*clientInfo
+	userMap   sync.Map // map[kknet.USER_ID]*clientInfo
 }
 
 func newClientManager() *clientManager {
-	return &clientManager{
-		clientMap: make(map[kknet.CONN_ID]*clientInfo),
-		userMap:   make(map[kknet.USER_ID]*clientInfo),
-	}
+	return &clientManager{}
 }
 
 // 添加连接connId的客户端。
 func (m *clientManager) AddClient(connId kknet.CONN_ID, sessionId string) *clientInfo {
-	info := newClientInfo(connId, sessionId)
-	m.clientMap[connId] = info
-	return info
+	cliInfo := newClientInfo(connId, sessionId)
+	m.clientMap.Store(connId, cliInfo)
+	return cliInfo
 }
 
 // 移除连接connId的客户端。
 func (m *clientManager) RemoveClient(connId kknet.CONN_ID) {
-	info, ok := m.clientMap[connId]
-	if !ok || info == nil {
+	cliInfo := m.GetClientInfo(connId)
+	if cliInfo == nil {
 		return
 	}
-	delete(m.clientMap, connId)
-	delete(m.userMap, info.userId)
+	m.clientMap.Delete(connId)
+	m.userMap.Delete(cliInfo.userId)
 }
 
 // 根据connId获取客户端信息。
 func (m *clientManager) GetClientInfo(connId kknet.CONN_ID) *clientInfo {
-	info, ok := m.clientMap[connId]
-	if !ok || info == nil {
+	cliInfo, ok := m.clientMap.Load(connId)
+	if !ok || cliInfo == nil || cliInfo.(*clientInfo) == nil {
 		return nil
 	}
-	return info
+	return cliInfo.(*clientInfo)
 }
 
 // 根据userId获取客户端信息。
 func (m *clientManager) GetClientInfoByUserId(userId kknet.USER_ID) *clientInfo {
-	info, ok := m.userMap[userId]
-	if !ok || info == nil {
+	cliInfo, ok := m.userMap.Load(userId)
+	if !ok || cliInfo == nil || cliInfo.(*clientInfo) == nil {
 		return nil
 	}
-	return info
+	return cliInfo.(*clientInfo)
 }
 
 // 为连接connId的客户端分配nodeType类型的逻辑节点。如果已分配，则返回已分配的逻辑节点信息。
 func (m *clientManager) AddLogicNodeInfo(connId kknet.CONN_ID, nodeType string, nodeId string) *logicNodeInfo {
-	info := m.clientMap[connId].GetLogicNodeInfo(nodeType)
+	cliInfo := m.GetClientInfo(connId)
+	if cliInfo == nil {
+		return nil
+	}
+	info := cliInfo.GetLogicNodeInfo(nodeType)
 	if info != nil {
 		return info
 	}
 	info = newLogicNodeInfo(nodeId, nodeType)
-	m.clientMap[connId].AddLogicNodeInfo(nodeType, info)
+	cliInfo.AddLogicNodeInfo(nodeType, info)
 	return info
 }
 
@@ -103,12 +113,12 @@ func (m *clientManager) Login(connId kknet.CONN_ID, userId kknet.USER_ID) bool {
 	if userId == kknet.NULL_USER_ID {
 		return false
 	}
-	info, ok := m.clientMap[connId]
-	if !ok || info == nil {
+	cliInfo := m.GetClientInfo(connId)
+	if cliInfo == nil {
 		return false
 	}
-	info.userId = userId
-	m.userMap[userId] = info
+	cliInfo.userId = userId
+	m.userMap.Store(userId, cliInfo)
 	return true
 }
 
@@ -117,7 +127,11 @@ func (m *clientManager) LoginToLogicNode(connId kknet.CONN_ID, nodeType string, 
 	if userId == kknet.NULL_USER_ID {
 		return false
 	}
-	info := m.clientMap[connId].GetLogicNodeInfo(nodeType)
+	cliInfo := m.GetClientInfo(connId)
+	if cliInfo == nil {
+		return false
+	}
+	info := cliInfo.GetLogicNodeInfo(nodeType)
 	if info == nil {
 		return false
 	}
@@ -146,6 +160,7 @@ func (l *logicNodeInfo) Login(userId kknet.USER_ID) {
 
 func newLogicNodeInfo(nodeId string, nodeType string) *logicNodeInfo {
 	return &logicNodeInfo{
+		userId:   kknet.NULL_USER_ID,
 		nodeId:   nodeId,
 		nodeType: nodeType,
 	}

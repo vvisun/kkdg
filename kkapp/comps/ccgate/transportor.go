@@ -1,20 +1,12 @@
 package ccgate
 
 import (
-	"strconv"
-
 	"github.com/vvisun/kkdg/kkapp/session"
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
-
-//go:inline
-func getSessionId(connID kknet.CONN_ID) string {
-	return strconv.FormatUint(connID, 10)
-}
 
 // ITransportor 数据转发器接口。
 // 抽象化接口，方便切换实现逻辑（如：使用Actor、使用Nats、使用RPC等）。
