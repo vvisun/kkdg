@@ -419,14 +419,21 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 
 	// 更新成员时间
 	d.membersMu.Lock()
-	if _, existed := d.members[memberInfo.NodeID]; !existed {
+	oldMember, existed := d.members[memberInfo.NodeID]
+	if !existed {
 		d.membersMu.Unlock()
 		d.addMember(member)
 	} else {
 		// 更新成员信息（地址/配置可能变更）及时间，不触发 Add/Remove 通知
+		oldType := oldMember.GetNodeType()
+		newType := memberInfo.NodeType
+		if oldType != newType {
+			// nodeType 变更：先从旧 type 移除，再加入新 type
+			d.removeMemberByType(oldType, memberInfo.NodeID)
+		}
 		d.members[memberInfo.NodeID] = member
 		d.memberTimes[memberInfo.NodeID] = time.Now()
-		d.updateMemberByType(memberInfo.NodeType, member)
+		d.updateMemberByType(newType, member)
 		d.membersMu.Unlock()
 	}
 }
