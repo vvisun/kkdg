@@ -3,7 +3,6 @@ package ccgate
 import (
 	"strconv"
 
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/session"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
@@ -71,7 +70,7 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, lo
 	pkt.FuncName = "c2s" //暂时没用到
 	pkt.ArgBytes = append([]byte(nil), msgBytes...)
 	pkt.Sid = sessionID
-	return slf.cluster.PublishRemoteType(kkapp.NodeTypeLogic, pkt)
+	return slf.cluster.PublishRemote(logicNodeId, pkt)
 }
 
 // ForwardToClient 转发消息到客户端
