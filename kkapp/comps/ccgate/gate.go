@@ -67,7 +67,7 @@ func (slf *gateComponent) Init() error {
 		slf.discovery,
 		clusterOpts,
 	)
-	slf.transportor = NewTransportorNats(slf.cluster)
+	slf.transportor = newTransportorNats(slf.cluster)
 
 	return nil
 }

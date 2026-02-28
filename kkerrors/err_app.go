@@ -16,3 +16,11 @@ var (
 	// 应用已关闭
 	ErrAppShutdown = errors.New("app is already shutdown")
 )
+
+// -------------- for session -------------------
+var (
+	ErrEmptySessionID        = errors.New("empty sessionID")
+	ErrSessionNotFound       = errors.New("session not found")
+	ErrEmptyMsgBytes         = errors.New("empty msgBytes")
+	ErrClusterNotInitialized = errors.New("cluster not initialized")
+)

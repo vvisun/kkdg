@@ -50,7 +50,7 @@ func (r *MsgRouter) GetMsgID(msgPtr any) MSGID {
 	msgType := reflect.TypeOf(msgPtr)
 	id, ok := r.typeToId[msgType]
 	if !ok {
-		kklog.Errorf("message %v is not registered", msgType)
+		kklog.Debugf("message %v is not registered", msgType)
 		return 0
 	}
 	return id
@@ -59,7 +59,7 @@ func (r *MsgRouter) GetMsgID(msgPtr any) MSGID {
 func (r *MsgRouter) GetMsgType(id MSGID) reflect.Type {
 	tp, ok := r.idToType[id]
 	if !ok {
-		kklog.Errorf("message id %v is not registered", id)
+		kklog.Debugf("message id %v is not registered", id)
 		return nil
 	}
 	return tp
@@ -68,7 +68,7 @@ func (r *MsgRouter) GetMsgType(id MSGID) reflect.Type {
 func (r *MsgRouter) GetMsgRoute(id MSGID) string {
 	route, ok := r.idToRoute[id]
 	if !ok {
-		kklog.Errorf("message id %v is not registered", id)
+		kklog.Debugf("message id %v is not registered", id)
 		return ""
 	}
 	return route

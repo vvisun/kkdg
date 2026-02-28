@@ -17,9 +17,10 @@ func NewGameComponent() *gameComponent {
 // 业务服：游戏服
 type gameComponent struct {
 	component.Component
-	pid       *actor.PID
-	discovery kkdiscovery.IDiscovery
-	cluster   kkcluster.ICluster
+	pid         *actor.PID
+	discovery   kkdiscovery.IDiscovery
+	cluster     kkcluster.ICluster
+	transportor ITransportor
 }
 
 func (slf *gameComponent) GetID() string {
@@ -44,7 +45,8 @@ func (slf *gameComponent) Init() error {
 		slf.discovery,
 		opts,
 	)
-	slf.cluster.SetPublishHandler(slf.onClusterPublish)
+
+	slf.transportor = newTransportorNats(slf.cluster)
 	return nil
 }
 
@@ -76,23 +78,4 @@ func (slf *gameComponent) Stop() error {
 		slf.pid = nil
 	}
 	return nil
-}
-
-// onClusterPublish receives messages from gate, and (currently) echoes them back to gate.
-// This makes the end-to-end forwarding path testable without business logic.
-func (slf *gameComponent) onClusterPublish(sourceNodeID string, packet *kkcluster.ClusterPacket) {
-	if slf.cluster == nil || packet == nil {
-		return
-	}
-	if sourceNodeID == "" {
-		return
-	}
-
-	resp := kkcluster.NewClusterPacket()
-	resp.FuncName = packet.FuncName
-	resp.ArgBytes = append([]byte(nil), packet.ArgBytes...)
-	resp.Sid = packet.Sid
-	if err := slf.cluster.PublishRemote(sourceNodeID, resp); err != nil {
-		kklog.Errorf("[ccgame] publish response to %s error: %v", sourceNodeID, err)
-	}
 }
