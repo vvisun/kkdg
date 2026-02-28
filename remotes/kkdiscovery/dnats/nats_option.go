@@ -8,12 +8,12 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-var msgCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
+var msgCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 
 func SetMsgCodec(codec kkcodec.ICodec) {
 	if codec == nil {
 		kklog.Errorf("[kkcluster] SetMsgCodec codec is nil, use default codec")
-		codec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
+		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 	}
 	msgCodec = codec
 }
