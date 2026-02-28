@@ -25,8 +25,9 @@ type NatsDiscovery struct {
 	sub        *nats.Subscription
 	requestSub *nats.Subscription
 
-	members         map[string]kkdiscovery.IMember // key: nodeID, value: member
-	memberTimes     map[string]time.Time           // 记录成员最后更新时间。key: nodeID, value: last update time
+	members         map[string]kkdiscovery.IMember   // key: nodeID, value: member
+	memberByType    map[string][]kkdiscovery.IMember // key: nodeType, value: members
+	memberTimes     map[string]time.Time             // 记录成员最后更新时间。key: nodeID, value: last update time
 	membersMu       sync.RWMutex
 	addListeners    []kkdiscovery.MemberListener
 	removeListeners []kkdiscovery.MemberListener
@@ -57,16 +58,17 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 		settings = make(map[string]string)
 	}
 	return &NatsDiscovery{
-		name:        name,
-		nodeID:      nodeInfo.GetNodeId(),
-		nodeType:    nodeInfo.GetNodeType(),
-		address:     nodeInfo.GetAddress(),
-		settings:    settings,
-		members:     make(map[string]kkdiscovery.IMember), // key: nodeID, value: member
-		memberTimes: make(map[string]time.Time),           // key: nodeID, value: last update time
-		stopCh:      make(chan struct{}),
-		doneCh:      make(chan struct{}),
-		options:     opts,
+		name:         name,
+		nodeID:       nodeInfo.GetNodeId(),
+		nodeType:     nodeInfo.GetNodeType(),
+		address:      nodeInfo.GetAddress(),
+		settings:     settings,
+		members:      make(map[string]kkdiscovery.IMember),   // key: nodeID, value: member
+		memberByType: make(map[string][]kkdiscovery.IMember), // key: nodeType, value: members
+		memberTimes:  make(map[string]time.Time),             // key: nodeID, value: last update time
+		stopCh:       make(chan struct{}),
+		doneCh:       make(chan struct{}),
+		options:      opts,
 	}
 }
 
@@ -98,16 +100,22 @@ func (d *NatsDiscovery) ListByType(nodeType string, filterNodeID ...string) []kk
 	d.membersMu.RLock()
 	defer d.membersMu.RUnlock()
 
+	listOfType, existed := d.memberByType[nodeType]
+	if !existed {
+		return nil
+	}
+
 	var result []kkdiscovery.IMember
 	hasFilter := len(filterNodeID) > 0
+	if !hasFilter {
+		return listOfType
+	}
 
-	for _, member := range d.members {
-		if member.GetNodeType() == nodeType {
-			if hasFilter && slices.Contains(filterNodeID, member.GetNodeID()) {
-				continue
-			}
-			result = append(result, member)
+	for _, member := range listOfType {
+		if slices.Contains(filterNodeID, member.GetNodeID()) {
+			continue
 		}
+		result = append(result, member)
 	}
 	return result
 }
@@ -153,6 +161,23 @@ func (d *NatsDiscovery) addMember(member kkdiscovery.IMember) {
 	_, existed := d.members[member.GetNodeID()]
 	d.members[member.GetNodeID()] = member
 	d.memberTimes[member.GetNodeID()] = time.Now()
+	listOfType, existed := d.memberByType[member.GetNodeType()]
+	if !existed {
+		listOfType = make([]kkdiscovery.IMember, 0)
+		listOfType = append(listOfType, member)
+	} else {
+		isIn := false
+		for _, m := range listOfType {
+			if m.GetNodeID() == member.GetNodeID() {
+				isIn = true
+				break
+			}
+		}
+		if !isIn {
+			listOfType = append(listOfType, member)
+		}
+	}
+	d.memberByType[member.GetNodeType()] = listOfType
 	d.membersMu.Unlock()
 
 	if !existed {
@@ -168,6 +193,15 @@ func (d *NatsDiscovery) removeMember(nodeID string) {
 	if existed {
 		delete(d.members, nodeID)
 		delete(d.memberTimes, nodeID)
+		if listOfType, existed := d.memberByType[member.GetNodeType()]; existed {
+			for i, m := range listOfType {
+				if m.GetNodeID() == nodeID {
+					listOfType = append(listOfType[:i], listOfType[i+1:]...)
+					d.memberByType[member.GetNodeType()] = listOfType
+					break
+				}
+			}
+		}
 	}
 	d.membersMu.Unlock()
 
