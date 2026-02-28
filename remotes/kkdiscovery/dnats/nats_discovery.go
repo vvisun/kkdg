@@ -105,12 +105,12 @@ func (d *NatsDiscovery) ListByType(nodeType string, filterNodeID ...string) []kk
 		return nil
 	}
 
-	var result []kkdiscovery.IMember
 	hasFilter := len(filterNodeID) > 0
 	if !hasFilter {
 		return listOfType
 	}
 
+	var result []kkdiscovery.IMember
 	for _, member := range listOfType {
 		if slices.Contains(filterNodeID, member.GetNodeID()) {
 			continue
