@@ -39,10 +39,7 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 	}
 
 	if _, ok := slf.sessionMgr.GetSession(packet.Sid); !ok {
-		slf.sessionMgr.AddSession(packet.Sid, SessionInfo{
-			SessionID:  packet.Sid,
-			GateNodeID: sourceNodeID,
-		})
+		slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
 	}
 
 	slf.OnRecvMsg(packet.Sid, packet.ArgBytes)

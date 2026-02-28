@@ -12,7 +12,7 @@ func Benchmark_SessionManager_AddSession(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
-		mgr.AddSession(sid, SessionInfo{SessionID: sid, GateNodeID: "gate1"})
+		mgr.AddSession(sid, "gate1")
 	}
 }
 
@@ -21,7 +21,7 @@ func Benchmark_SessionManager_GetSession(b *testing.B) {
 	n := 10000
 	for i := 0; i < n; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
-		mgr.AddSession(sid, SessionInfo{SessionID: sid, GateNodeID: "gate1"})
+		mgr.AddSession(sid, "gate1")
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -35,7 +35,7 @@ func Benchmark_SessionManager_RemoveSession(b *testing.B) {
 	mgr := newSessionManager()
 	for i := 0; i < b.N; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
-		mgr.AddSession(sid, SessionInfo{SessionID: sid, GateNodeID: "gate1"})
+		mgr.AddSession(sid, "gate1")
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -51,7 +51,7 @@ func Benchmark_SessionManager_AddGetRemove(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
-		mgr.AddSession(sid, SessionInfo{SessionID: sid, GateNodeID: "gate1"})
+		mgr.AddSession(sid, "gate1")
 		_, _ = mgr.GetSession(sid)
 		mgr.RemoveSession(sid)
 	}
@@ -62,7 +62,7 @@ func Benchmark_SessionManager_GetSession_Parallel(b *testing.B) {
 	n := 10000
 	for i := 0; i < n; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
-		mgr.AddSession(sid, SessionInfo{SessionID: sid, GateNodeID: "gate1"})
+		mgr.AddSession(sid, "gate1")
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -84,7 +84,7 @@ func Benchmark_SessionManager_AddGetRemove_Parallel(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			sid := fmt.Sprintf("p%d_%d", i%64, i)
-			mgr.AddSession(sid, SessionInfo{SessionID: sid, GateNodeID: "gate1"})
+			mgr.AddSession(sid, "gate1")
 			_, _ = mgr.GetSession(sid)
 			mgr.RemoveSession(sid)
 			i++

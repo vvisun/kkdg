@@ -30,10 +30,10 @@ func newSessionManager() *sessionManager {
 	return &sessionManager{}
 }
 
-func (slf *sessionManager) AddSession(sessionID string, sessionInfo SessionInfo) {
+func (slf *sessionManager) AddSession(sessionID string, gateNodeID string) {
 	si := getSessionInfo()
 	si.SessionID = sessionID
-	si.GateNodeID = sessionInfo.GateNodeID
+	si.GateNodeID = gateNodeID
 	slf.sessionMap.Store(sessionID, si)
 }
 
