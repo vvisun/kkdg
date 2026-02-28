@@ -23,7 +23,7 @@ func putSessionInfo(si *SessionInfo) {
 }
 
 type sessionManager struct {
-	sessionMap sync.Map // map[string]SessionInfo
+	sessionMap sync.Map // map[sessionID]*SessionInfo
 }
 
 func newSessionManager() *sessionManager {

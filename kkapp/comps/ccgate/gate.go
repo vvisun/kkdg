@@ -195,14 +195,18 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	// Best-effort: derive route from msgID if it is registered.
-	msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
-	route := ""
-	if err == nil {
-		route = kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
+	// msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
+	// route := kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
+	// 这里应该先为client选择一个逻辑服
+	logicNodes := h.gate.discovery.ListByType(kkapp.NodeTypeLogic)
+	if len(logicNodes) == 0 {
+		kklog.Debugf("[ccgate] no logic nodes found")
+		return
 	}
+	logicNode := logicNodes[0].GetNodeID()
 
 	sessionID := getSessionId(connID)
-	if err := h.gate.transportor.ForwardToLogic(sessionID, msgBytes, route); err != nil {
+	if err := h.gate.transportor.ForwardToLogic(sessionID, msgBytes, logicNode); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}
 	kkbuffer.Put(data)
