@@ -161,23 +161,7 @@ func (d *NatsDiscovery) addMember(member kkdiscovery.IMember) {
 	_, existed := d.members[member.GetNodeID()]
 	d.members[member.GetNodeID()] = member
 	d.memberTimes[member.GetNodeID()] = time.Now()
-	listOfType, existed := d.memberByType[member.GetNodeType()]
-	if !existed {
-		listOfType = make([]kkdiscovery.IMember, 0)
-		listOfType = append(listOfType, member)
-	} else {
-		isIn := false
-		for _, m := range listOfType {
-			if m.GetNodeID() == member.GetNodeID() {
-				isIn = true
-				break
-			}
-		}
-		if !isIn {
-			listOfType = append(listOfType, member)
-		}
-	}
-	d.memberByType[member.GetNodeType()] = listOfType
+	d.updateMemberByType(member.GetNodeType(), member)
 	d.membersMu.Unlock()
 
 	if !existed {
@@ -193,15 +177,7 @@ func (d *NatsDiscovery) removeMember(nodeID string) {
 	if existed {
 		delete(d.members, nodeID)
 		delete(d.memberTimes, nodeID)
-		if listOfType, existed := d.memberByType[member.GetNodeType()]; existed {
-			for i, m := range listOfType {
-				if m.GetNodeID() == nodeID {
-					listOfType = append(listOfType[:i], listOfType[i+1:]...)
-					d.memberByType[member.GetNodeType()] = listOfType
-					break
-				}
-			}
-		}
+		d.removeMemberByType(member.GetNodeType(), nodeID)
 	}
 	d.membersMu.Unlock()
 
@@ -382,6 +358,40 @@ func (d *NatsDiscovery) resubscribe() error {
 	return nil
 }
 
+func (d *NatsDiscovery) removeMemberByType(nodeType string, nodeID string) {
+	listOfType, existed := d.memberByType[nodeType]
+	if existed {
+		for i, m := range listOfType {
+			if m.GetNodeID() == nodeID {
+				listOfType = append(listOfType[:i], listOfType[i+1:]...)
+				d.memberByType[nodeType] = listOfType
+				break
+			}
+		}
+	}
+}
+
+func (d *NatsDiscovery) updateMemberByType(nodeType string, member kkdiscovery.IMember) {
+	listOfType, existed := d.memberByType[nodeType]
+	if existed {
+		isIn := false
+		for i, m := range listOfType {
+			if m.GetNodeID() == member.GetNodeID() {
+				listOfType[i] = member
+				isIn = true
+				break
+			}
+		}
+		if !isIn {
+			listOfType = append(listOfType, member)
+		}
+	} else {
+		listOfType = make([]kkdiscovery.IMember, 0)
+		listOfType = append(listOfType, member)
+	}
+	d.memberByType[nodeType] = listOfType
+}
+
 // handleDiscoveryMessage 处理服务发现消息
 func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 	// 记录心跳接收统计
@@ -416,6 +426,7 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 		// 更新成员信息（地址/配置可能变更）及时间，不触发 Add/Remove 通知
 		d.members[memberInfo.NodeID] = member
 		d.memberTimes[memberInfo.NodeID] = time.Now()
+		d.updateMemberByType(memberInfo.NodeType, member)
 		d.membersMu.Unlock()
 	}
 }
