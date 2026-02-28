@@ -1,33 +1,53 @@
 package ccgame
 
+import "sync"
+
 type SessionInfo struct {
 	SessionID  string
 	GateNodeID string
 }
 
+var sessionInfoPool = sync.Pool{
+	New: func() interface{} {
+		return &SessionInfo{}
+	},
+}
+
+func getSessionInfo() *SessionInfo {
+	return sessionInfoPool.Get().(*SessionInfo)
+}
+func putSessionInfo(si *SessionInfo) {
+	si.SessionID = ""
+	si.GateNodeID = ""
+	sessionInfoPool.Put(si)
+}
+
 type sessionManager struct {
-	sessionMap map[string]SessionInfo
+	sessionMap sync.Map // map[string]SessionInfo
 }
 
 func newSessionManager() *sessionManager {
-	return &sessionManager{
-		sessionMap: make(map[string]SessionInfo),
-	}
+	return &sessionManager{}
 }
 
 func (slf *sessionManager) AddSession(sessionID string, sessionInfo SessionInfo) {
-	sessionInfo.SessionID = sessionID
-	slf.sessionMap[sessionID] = sessionInfo
+	si := getSessionInfo()
+	si.SessionID = sessionID
+	si.GateNodeID = sessionInfo.GateNodeID
+	slf.sessionMap.Store(sessionID, si)
 }
 
 func (slf *sessionManager) RemoveSession(sessionID string) {
-	delete(slf.sessionMap, sessionID)
+	sessionInfo, ok := slf.sessionMap.LoadAndDelete(sessionID)
+	if ok {
+		putSessionInfo(sessionInfo.(*SessionInfo))
+	}
 }
 
 func (slf *sessionManager) GetSession(sessionID string) (*SessionInfo, bool) {
-	sessionInfo, ok := slf.sessionMap[sessionID]
+	sessionInfo, ok := slf.sessionMap.Load(sessionID)
 	if !ok {
 		return nil, false
 	}
-	return &sessionInfo, true
+	return sessionInfo.(*SessionInfo), true
 }
