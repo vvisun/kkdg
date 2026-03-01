@@ -107,20 +107,6 @@ func (m *clientManager) allocLogicNode(connId kknet.CONN_ID, nodeType string, no
 	return cliInfo.allocLogicNode(nodeType, nodeId)
 }
 
-// 连接connId的客户端登录到本网关。
-func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId kknet.USER_ID) bool {
-	if userId == kknet.NULL_USER_ID {
-		return false
-	}
-	cliInfo := m.getClient(connId)
-	if cliInfo == nil {
-		return false
-	}
-	cliInfo.userId = userId
-	m.userMap.Store(userId, cliInfo)
-	return true
-}
-
 // 连接connId的客户端登录到nodeType类型的逻辑节点。
 func (m *clientManager) loginToLogicNode(connId kknet.CONN_ID, nodeType string, userId kknet.USER_ID) bool {
 	if userId == kknet.NULL_USER_ID {
@@ -134,8 +120,47 @@ func (m *clientManager) loginToLogicNode(connId kknet.CONN_ID, nodeType string, 
 	if lgcInfo == nil {
 		return false
 	}
-	lgcInfo.login(userId)
+	lgcInfo.userId = userId
 	return true
+}
+
+// 检查是否需要踢出旧用户。如果需要踢出，则返回需要踢出的connId。
+func (m *clientManager) checkKickOutUser(connId kknet.CONN_ID, userId kknet.USER_ID) kknet.CONN_ID {
+	if userId == kknet.NULL_USER_ID {
+		return kknet.NULL_CONN_ID
+	}
+	cliInfo := m.getClient(connId)
+	if cliInfo == nil {
+		return kknet.NULL_CONN_ID
+	}
+	if cliInfo.userId != kknet.NULL_USER_ID && (cliInfo.connId != connId || cliInfo.userId != userId) {
+		return cliInfo.connId
+	}
+	usrCliInfo := m.getClientByUserId(userId)
+	if usrCliInfo != nil && (usrCliInfo.connId != connId || usrCliInfo.userId != userId) {
+		return usrCliInfo.connId
+	}
+	return kknet.NULL_CONN_ID
+}
+
+// 连接connId的客户端登录到本网关。如果需要踢出旧用户，则返回需要踢出的用户connId。
+func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId kknet.USER_ID) (bool, kknet.CONN_ID) {
+	if userId == kknet.NULL_USER_ID {
+		return false, kknet.NULL_CONN_ID
+	}
+	cliInfo := m.getClient(connId)
+	if cliInfo == nil {
+		return false, kknet.NULL_CONN_ID
+	}
+
+	kickConnId := m.checkKickOutUser(connId, userId)
+	if kickConnId != kknet.NULL_CONN_ID {
+		m.removeClient(kickConnId)
+	}
+
+	cliInfo.userId = userId
+	m.userMap.Store(userId, cliInfo)
+	return true, kickConnId
 }
 
 //------------------------------------------------------------
@@ -150,11 +175,6 @@ type logicNodeInfo struct {
 // 是否已登录到本逻辑节点
 func (l *logicNodeInfo) isLogin() bool {
 	return l.userId != kknet.NULL_USER_ID
-}
-
-// 登录到本逻辑节点
-func (l *logicNodeInfo) login(userId kknet.USER_ID) {
-	l.userId = userId
 }
 
 func newLogicNodeInfo(nodeId string, nodeType string) *logicNodeInfo {

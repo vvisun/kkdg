@@ -53,7 +53,7 @@ func Test_logicNodeInfo_isLogin_login(t *testing.T) {
 	if info.isLogin() {
 		t.Error("new logicNodeInfo should not be login")
 	}
-	info.login(100)
+	info.userId = 100
 	if !info.isLogin() {
 		t.Error("after login should be login")
 	}
@@ -106,12 +106,12 @@ func Test_clientManager_getClientByUserId_loginToGate(t *testing.T) {
 	}
 
 	// login with NULL_USER_ID should fail
-	if m.loginToGate(connID, kknet.NULL_USER_ID) {
+	if _, kickConnId := m.loginToGate(connID, kknet.NULL_USER_ID); kickConnId != kknet.NULL_CONN_ID {
 		t.Error("loginToGate with NULL_USER_ID should return false")
 	}
 
 	// login with valid userId
-	if !m.loginToGate(connID, 100) {
+	if _, kickConnId := m.loginToGate(connID, 100); kickConnId != kknet.NULL_CONN_ID {
 		t.Error("loginToGate(200, 100) should return true")
 	}
 	ci := m.getClientByUserId(100)
@@ -120,7 +120,7 @@ func Test_clientManager_getClientByUserId_loginToGate(t *testing.T) {
 	}
 
 	// login on non-existent conn should fail
-	if m.loginToGate(999, 101) {
+	if _, kickConnId := m.loginToGate(999, 101); kickConnId != kknet.NULL_CONN_ID {
 		t.Error("loginToGate on non-existent conn should return false")
 	}
 }

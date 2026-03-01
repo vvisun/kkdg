@@ -158,29 +158,35 @@ func (slf *gateComponent) startWSServer() error {
 
 // 为客户端(connID)分配一个nodeType类型的逻辑节点
 func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) *logicNodeInfo {
+	if nodeType == "" {
+		return nil //无效的nodeType，不分配逻辑节点
+	}
 	cliInfo := slf.clientMgr.getClient(connID)
 	if cliInfo == nil {
-		return nil
+		return nil //客户端不存在，不分配逻辑节点
 	}
 
-	// 如果已分配，则返回已分配的逻辑节点信息。
+	// 如果已分配，则返回已分配的逻辑节点信息
 	lgcNode := cliInfo.getLogicNode(nodeType)
 	if lgcNode != nil {
 		return lgcNode
 	}
 
-	// 从discovery中获取nodeType类型的逻辑节点列表，选择一个权重最小的逻辑节点。
+	// 从discovery中获取nodeType类型的逻辑节点列表
 	logicNodes := slf.discovery.ListByType(nodeType)
 	if len(logicNodes) == 0 {
-		kklog.Debugf("[ccgate] no logic nodes found")
-		return nil
+		kklog.Debugf("[ccgate] no logic nodes found for nodeType=%s", nodeType)
+		return nil //没有找到逻辑节点，不分配逻辑节点
 	}
+
+	// 选择权重最小的逻辑节点
 	chooseNode := logicNodes[0]
 	for _, node := range logicNodes {
 		if node.GetWeight() < chooseNode.GetWeight() {
 			chooseNode = node
 		}
 	}
+
 	return cliInfo.allocLogicNode(nodeType, chooseNode.GetNodeID())
 }
 
