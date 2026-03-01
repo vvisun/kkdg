@@ -23,6 +23,7 @@ type gateComponent struct {
 	handler   *gateHandler
 	discovery kkdiscovery.IDiscovery
 
+	clientMgr   clientManager
 	transportor ITransportor
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
 }
@@ -155,6 +156,34 @@ func (slf *gateComponent) startWSServer() error {
 	return nil
 }
 
+// 为客户端(connID)分配一个nodeType类型的逻辑节点
+func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) *logicNodeInfo {
+	cliInfo := slf.clientMgr.getClient(connID)
+	if cliInfo == nil {
+		return nil
+	}
+
+	// 如果已分配，则返回已分配的逻辑节点信息。
+	lgcNode := cliInfo.getLogicNode(nodeType)
+	if lgcNode != nil {
+		return lgcNode
+	}
+
+	// 从discovery中获取nodeType类型的逻辑节点列表，选择一个权重最小的逻辑节点。
+	logicNodes := slf.discovery.ListByType(nodeType)
+	if len(logicNodes) == 0 {
+		kklog.Debugf("[ccgate] no logic nodes found")
+		return nil
+	}
+	chooseNode := logicNodes[0]
+	for _, node := range logicNodes {
+		if node.GetWeight() < chooseNode.GetWeight() {
+			chooseNode = node
+		}
+	}
+	return slf.clientMgr.allocLogicNode(connID, nodeType, chooseNode.GetNodeID())
+}
+
 //------------------------------------------------------------
 
 type gateHandler struct {
@@ -171,12 +200,15 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 }
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
-	h.gate.transportor.GetSessionMgr().AddConn(getSessionId(c.ID()), c)
+	sessionID := getSessionId(c.ID())
+	h.gate.transportor.GetSessionMgr().AddConn(sessionID, c)
+	h.gate.clientMgr.addClient(c.ID(), sessionID)
 	kklog.Infof("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 	h.gate.transportor.GetSessionMgr().RemoveConn(getSessionId(c.ID()))
+	h.gate.clientMgr.removeClient(c.ID())
 	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
 
@@ -198,15 +230,14 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	// msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
 	// route := kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
 	// 这里应该先为client选择一个逻辑服
-	logicNodes := h.gate.discovery.ListByType(kkapp.NodeTypeLogic)
-	if len(logicNodes) == 0 {
-		kklog.Debugf("[ccgate] no logic nodes found")
+	logicNode := h.gate.allocLogicNode(connID, kkapp.NodeTypeLogic)
+	if logicNode == nil {
+		kklog.Errorf("[ccgate] alloc logic node failed")
 		return
 	}
-	logicNode := logicNodes[0].GetNodeID()
 
-	sessionID := getSessionId(connID)
-	if err := h.gate.transportor.ForwardToLogic(sessionID, msgBytes, logicNode); err != nil {
+	sessionID := h.gate.clientMgr.getClient(connID).sessionId
+	if err := h.gate.transportor.ForwardToLogic(sessionID, msgBytes, logicNode.nodeId); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}
 	kkbuffer.Put(data)

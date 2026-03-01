@@ -17,13 +17,14 @@ type clientInfo struct {
 	connId    kknet.CONN_ID // 客户端连接ID
 	userId    kknet.USER_ID // 用户ID
 	sessionId string        // 客户端会话ID
-	// key:nodeType。本客户端链接的逻辑节点列表。
+	// key: nodeType。
+	// 本客户端链接的逻辑节点列表。
 	// 同一个客户端可能链接不同类型的逻辑服，比如充值服，大厅服，游戏服，聊天服等。
 	logicNodeMap sync.Map // map[string]*logicNodeInfo
 }
 
 // 获取本客户端链接的nodeType类型的逻辑节点信息。
-func (c *clientInfo) GetLogicNodeInfo(nodeType string) *logicNodeInfo {
+func (c *clientInfo) getLogicNode(nodeType string) *logicNodeInfo {
 	info, ok := c.logicNodeMap.Load(nodeType)
 	if !ok || info == nil {
 		return nil
@@ -32,11 +33,16 @@ func (c *clientInfo) GetLogicNodeInfo(nodeType string) *logicNodeInfo {
 }
 
 // 为本客户端分配nodeType类型的逻辑节点。
-func (c *clientInfo) AddLogicNodeInfo(nodeType string, info *logicNodeInfo) {
+func (c *clientInfo) allocLogicNode(nodeType string, info *logicNodeInfo) {
 	if info == nil {
 		return
 	}
 	c.logicNodeMap.Store(nodeType, info)
+}
+
+// 解绑逻辑节点
+func (c *clientInfo) removeLogicNode(nodeType string) {
+	c.logicNodeMap.Delete(nodeType)
 }
 
 func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {
@@ -54,20 +60,16 @@ type clientManager struct {
 	userMap   sync.Map // map[kknet.USER_ID]*clientInfo
 }
 
-func newClientManager() *clientManager {
-	return &clientManager{}
-}
-
 // 添加连接connId的客户端。
-func (m *clientManager) AddClient(connId kknet.CONN_ID, sessionId string) *clientInfo {
+func (m *clientManager) addClient(connId kknet.CONN_ID, sessionId string) *clientInfo {
 	cliInfo := newClientInfo(connId, sessionId)
 	m.clientMap.Store(connId, cliInfo)
 	return cliInfo
 }
 
 // 移除连接connId的客户端。
-func (m *clientManager) RemoveClient(connId kknet.CONN_ID) {
-	cliInfo := m.GetClientInfo(connId)
+func (m *clientManager) removeClient(connId kknet.CONN_ID) {
+	cliInfo := m.getClient(connId)
 	if cliInfo == nil {
 		return
 	}
@@ -76,7 +78,7 @@ func (m *clientManager) RemoveClient(connId kknet.CONN_ID) {
 }
 
 // 根据connId获取客户端信息。
-func (m *clientManager) GetClientInfo(connId kknet.CONN_ID) *clientInfo {
+func (m *clientManager) getClient(connId kknet.CONN_ID) *clientInfo {
 	cliInfo, ok := m.clientMap.Load(connId)
 	if !ok || cliInfo == nil || cliInfo.(*clientInfo) == nil {
 		return nil
@@ -85,7 +87,7 @@ func (m *clientManager) GetClientInfo(connId kknet.CONN_ID) *clientInfo {
 }
 
 // 根据userId获取客户端信息。
-func (m *clientManager) GetClientInfoByUserId(userId kknet.USER_ID) *clientInfo {
+func (m *clientManager) getClientByUserId(userId kknet.USER_ID) *clientInfo {
 	cliInfo, ok := m.userMap.Load(userId)
 	if !ok || cliInfo == nil || cliInfo.(*clientInfo) == nil {
 		return nil
@@ -93,27 +95,27 @@ func (m *clientManager) GetClientInfoByUserId(userId kknet.USER_ID) *clientInfo 
 	return cliInfo.(*clientInfo)
 }
 
-// 为连接connId的客户端分配nodeType类型的逻辑节点。如果已分配，则返回已分配的逻辑节点信息。
-func (m *clientManager) AddLogicNodeInfo(connId kknet.CONN_ID, nodeType string, nodeId string) *logicNodeInfo {
-	cliInfo := m.GetClientInfo(connId)
+// 为连接connId的客户端分配一个nodeType类型的逻辑节点。如果已分配，则返回已分配的逻辑节点信息。
+func (m *clientManager) allocLogicNode(connId kknet.CONN_ID, nodeType string, nodeId string) *logicNodeInfo {
+	cliInfo := m.getClient(connId)
 	if cliInfo == nil {
 		return nil
 	}
-	info := cliInfo.GetLogicNodeInfo(nodeType)
-	if info != nil {
-		return info
+	lgcInfo := cliInfo.getLogicNode(nodeType)
+	if lgcInfo != nil {
+		return lgcInfo
 	}
-	info = newLogicNodeInfo(nodeId, nodeType)
-	cliInfo.AddLogicNodeInfo(nodeType, info)
-	return info
+	lgcInfo = newLogicNodeInfo(nodeId, nodeType)
+	cliInfo.allocLogicNode(nodeType, lgcInfo)
+	return lgcInfo
 }
 
 // 连接connId的客户端登录到本网关。
-func (m *clientManager) Login(connId kknet.CONN_ID, userId kknet.USER_ID) bool {
+func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId kknet.USER_ID) bool {
 	if userId == kknet.NULL_USER_ID {
 		return false
 	}
-	cliInfo := m.GetClientInfo(connId)
+	cliInfo := m.getClient(connId)
 	if cliInfo == nil {
 		return false
 	}
@@ -123,19 +125,19 @@ func (m *clientManager) Login(connId kknet.CONN_ID, userId kknet.USER_ID) bool {
 }
 
 // 连接connId的客户端登录到nodeType类型的逻辑节点。
-func (m *clientManager) LoginToLogicNode(connId kknet.CONN_ID, nodeType string, userId kknet.USER_ID) bool {
+func (m *clientManager) loginToLogicNode(connId kknet.CONN_ID, nodeType string, userId kknet.USER_ID) bool {
 	if userId == kknet.NULL_USER_ID {
 		return false
 	}
-	cliInfo := m.GetClientInfo(connId)
+	cliInfo := m.getClient(connId)
 	if cliInfo == nil {
 		return false
 	}
-	info := cliInfo.GetLogicNodeInfo(nodeType)
-	if info == nil {
+	lgcInfo := cliInfo.getLogicNode(nodeType)
+	if lgcInfo == nil {
 		return false
 	}
-	info.Login(userId)
+	lgcInfo.login(userId)
 	return true
 }
 
@@ -149,12 +151,12 @@ type logicNodeInfo struct {
 }
 
 // 是否已登录到本逻辑节点
-func (l *logicNodeInfo) IsLogin() bool {
+func (l *logicNodeInfo) isLogin() bool {
 	return l.userId != kknet.NULL_USER_ID
 }
 
 // 登录到本逻辑节点
-func (l *logicNodeInfo) Login(userId kknet.USER_ID) {
+func (l *logicNodeInfo) login(userId kknet.USER_ID) {
 	l.userId = userId
 }
 
