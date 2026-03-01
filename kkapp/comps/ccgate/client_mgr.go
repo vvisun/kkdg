@@ -76,26 +76,27 @@ func (m *clientManager) removeClient(connId kknet.CONN_ID) {
 	if cliInfo == nil {
 		return
 	}
+	uid := cliInfo.userId
 	m.clientMap.Delete(connId)
-	m.userMap.Delete(cliInfo.userId)
+	m.userMap.Delete(uid)
 }
 
 // 根据connId获取客户端信息。
 func (m *clientManager) getClient(connId kknet.CONN_ID) *clientInfo {
 	cliInfo, ok := m.clientMap.Load(connId)
-	if !ok || cliInfo == nil || cliInfo.(*clientInfo) == nil {
-		return nil
+	if ok && cliInfo != nil {
+		return cliInfo.(*clientInfo)
 	}
-	return cliInfo.(*clientInfo)
+	return nil
 }
 
 // 根据userId获取客户端信息。
 func (m *clientManager) getClientByUserId(userId kknet.USER_ID) *clientInfo {
 	cliInfo, ok := m.userMap.Load(userId)
-	if !ok || cliInfo == nil || cliInfo.(*clientInfo) == nil {
-		return nil
+	if ok && cliInfo != nil {
+		return cliInfo.(*clientInfo)
 	}
-	return cliInfo.(*clientInfo)
+	return nil
 }
 
 // 为连接connId的客户端分配一个nodeType类型的逻辑节点。如果已分配，则返回已分配的逻辑节点信息。
