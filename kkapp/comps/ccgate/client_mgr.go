@@ -33,11 +33,14 @@ func (c *clientInfo) getLogicNode(nodeType string) *logicNodeInfo {
 }
 
 // 为本客户端分配nodeType类型的逻辑节点。
-func (c *clientInfo) allocLogicNode(nodeType string, info *logicNodeInfo) {
-	if info == nil {
-		return
+func (c *clientInfo) allocLogicNode(nodeType string, nodeId string) *logicNodeInfo {
+	lgcInfo := c.getLogicNode(nodeType)
+	if lgcInfo != nil {
+		return lgcInfo
 	}
-	c.logicNodeMap.Store(nodeType, info)
+	lgcInfo = newLogicNodeInfo(nodeId, nodeType)
+	c.logicNodeMap.Store(nodeType, lgcInfo)
+	return lgcInfo
 }
 
 // 解绑逻辑节点
@@ -101,13 +104,7 @@ func (m *clientManager) allocLogicNode(connId kknet.CONN_ID, nodeType string, no
 	if cliInfo == nil {
 		return nil
 	}
-	lgcInfo := cliInfo.getLogicNode(nodeType)
-	if lgcInfo != nil {
-		return lgcInfo
-	}
-	lgcInfo = newLogicNodeInfo(nodeId, nodeType)
-	cliInfo.allocLogicNode(nodeType, lgcInfo)
-	return lgcInfo
+	return cliInfo.allocLogicNode(nodeType, nodeId)
 }
 
 // 连接connId的客户端登录到本网关。

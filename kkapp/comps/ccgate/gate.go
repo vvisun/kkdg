@@ -181,7 +181,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 			chooseNode = node
 		}
 	}
-	return slf.clientMgr.allocLogicNode(connID, nodeType, chooseNode.GetNodeID())
+	return cliInfo.allocLogicNode(nodeType, chooseNode.GetNodeID())
 }
 
 //------------------------------------------------------------
