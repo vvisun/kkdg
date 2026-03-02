@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxzan/gws/internal"
+	"github.com/vvisun/kkdg/kknet/gws/internal"
 )
 
 // Dialer 拨号器接口

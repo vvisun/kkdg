@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/dolthub/maphash"
-	"github.com/lxzan/gws/internal"
+	"github.com/vvisun/kkdg/kknet/gws/internal"
 )
 
 // SessionStorage 会话存储

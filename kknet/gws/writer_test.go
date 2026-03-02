@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
+	"github.com/vvisun/kkdg/kknet/gws/internal"
 )
 
 func testWrite(c *Conn, fin bool, opcode Opcode, payload []byte) error {

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxzan/gws/internal"
+	"github.com/vvisun/kkdg/kknet/gws/internal"
 
 	"github.com/stretchr/testify/assert"
 )

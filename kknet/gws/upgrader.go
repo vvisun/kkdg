@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lxzan/gws/internal"
+	"github.com/vvisun/kkdg/kknet/gws/internal"
 )
 
 type responseWriter struct {

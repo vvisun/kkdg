@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/dolthub/maphash"
-	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
+	"github.com/vvisun/kkdg/kknet/gws/internal"
 )
 
 func TestMap(t *testing.T) {

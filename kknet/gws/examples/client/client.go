@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/lxzan/gws"
+	"github.com/vvisun/kkdg/kknet/gws"
 )
 
 func main() {

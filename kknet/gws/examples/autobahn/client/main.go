@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/lxzan/gws"
+	"github.com/vvisun/kkdg/kknet/gws"
 )
 
 const remoteAddr = "127.0.0.1:9001"

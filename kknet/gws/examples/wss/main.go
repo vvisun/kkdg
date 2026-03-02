@@ -5,7 +5,7 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/lxzan/gws"
+	"github.com/vvisun/kkdg/kknet/gws"
 )
 
 var dir string

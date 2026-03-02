@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
+	"github.com/vvisun/kkdg/kknet/gws/internal"
 )
 
 // 测试同步读

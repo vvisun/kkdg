@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lxzan/gws"
+	"github.com/vvisun/kkdg/kknet/gws"
 )
 
 const (

@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lxzan/gws/internal"
 	"github.com/stretchr/testify/assert"
+	"github.com/vvisun/kkdg/kknet/gws/internal"
 )
 
 var _port = int64(19999)
