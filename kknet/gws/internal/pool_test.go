@@ -64,3 +64,46 @@ func TestPool_Get(t *testing.T) {
 	var buf = p.Get(128)
 	assert.GreaterOrEqual(t, buf.Cap(), 128)
 }
+
+// ------------------------------------------------------------
+// Benchmarks
+
+func BenchmarkBufferPool_GetAndPut(b *testing.B) {
+	pool := NewBufferPool(128, 128*1024)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf := pool.Get(1024)
+		if _, err := buf.Write(AlphabetNumeric.Generate(64)); err != nil {
+			b.Fatal(err)
+		}
+		pool.Put(buf)
+	}
+}
+
+func BenchmarkBufferPool_Get_NoReuse(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// 模拟不使用池时的分配成本
+		buf := bytes.NewBuffer(make([]byte, 0, 1024))
+		if _, err := buf.Write(AlphabetNumeric.Generate(64)); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkBufferPool_Get_Parallel(b *testing.B) {
+	pool := NewBufferPool(128, 128*1024)
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			buf := pool.Get(2048)
+			if _, err := buf.Write(AlphabetNumeric.Generate(128)); err != nil {
+				b.Fatal(err)
+			}
+			pool.Put(buf)
+		}
+	})
+}

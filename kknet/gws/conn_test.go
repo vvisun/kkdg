@@ -82,7 +82,6 @@ func TestOthers(t *testing.T) {
 	fh.SetMaskKey(10, maskKey)
 	as.Equal(true, fh.GetMask())
 	as.Equal(string(maskKey[:4]), string(fh.GetMaskKey()))
-	return
 }
 
 func TestConn_Close(t *testing.T) {

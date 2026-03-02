@@ -63,6 +63,10 @@ type stressHandler struct {
 	connCount *atomic.Int64
 }
 
+func (h *stressHandler) OnOpen(socket *gws.Conn) {
+	socket.SetNoDelay(true)
+}
+
 func (h *stressHandler) OnMessage(socket *gws.Conn, message *gws.Message) {
 	h.recvCount.Add(1)
 	message.Close()

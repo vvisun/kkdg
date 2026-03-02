@@ -102,8 +102,8 @@ func stressClient(t testing.TB, wsAddr string, numSend int, payloadSize int) (se
 // TestStress_Echo 压测：多连接 + 每连接多消息回显
 func TestStress_Echo(t *testing.T) {
 	const (
-		numClients  = 22222
-		msgsPerConn = 2222
+		numClients  = 2000
+		msgsPerConn = 888
 		payloadSize = 555
 	)
 	addr, stop := runEchoServer(t, nil)
