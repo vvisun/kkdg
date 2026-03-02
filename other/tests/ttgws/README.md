@@ -35,3 +35,11 @@ run_ttgws_client.bat
 3. 对比两边在相同连接数、消息大小、发送间隔下的 CPU/内存与收包速率。
 
 注意：ttws 客户端用 kkpacket 打流式包；ttgws 客户端发原始二进制 WebSocket 帧，消息大小一致即可对比。
+
+## Windows 报错 "buffer space or queue was full"
+
+系统 TCP 缓冲区或端口队列被占满时会出现。处理方式：
+
+1. **减小并发**：`-conn=500` 或更小。
+2. **拉长建连间隔**：`-connDelay=10ms` 或 `20ms`（ttgws/ttws 客户端均支持 `-connDelay`）。
+3. **示例**：`go run ./other/tests/ttgws/ttgwsclient -addr=localhost:8080 -conn=500 -connDelay=10ms`

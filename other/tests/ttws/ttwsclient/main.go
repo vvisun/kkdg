@@ -25,6 +25,7 @@ var (
 	connNum      = flag.Int("conn", 1000, "concurrent connection num")
 	msgSize      = flag.Int("size", 64, "message size (byte)")
 	sendInterval = flag.Duration("interval", 10*time.Millisecond, "send interval")
+	connDelay    = flag.Duration("connDelay", 5*time.Millisecond, "delay between starting each connection (avoid Windows buffer space error)")
 )
 
 var (
@@ -57,8 +58,7 @@ func main() {
 			defer wg.Done()
 			runOneClient(serverUrl, rawMsg)
 		}()
-		// 连接建立间隔1ms，避免瞬间压垮服务端
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(*connDelay)
 	}
 
 	go func() {
@@ -73,6 +73,7 @@ func main() {
 	println("并发连接：", *connNum)
 	println("消息大小：", *msgSize, "B")
 	println("发送间隔：", *sendInterval)
+	println("建连间隔：", *connDelay)
 	println("================\n")
 	wg.Wait()
 }
