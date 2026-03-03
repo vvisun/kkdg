@@ -98,6 +98,22 @@ func isConnRefused(err error) bool {
 	return false
 }
 
+// isConnTimeout 判断是否为建连超时（可重试，如 accept 忙或 backlog 满）。
+func isConnTimeout(err error) bool {
+	if err == nil {
+		return false
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "timeout") ||
+		strings.Contains(strings.ToLower(err.Error()), "did not properly respond") {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	return false
+}
+
 func connectWithRetry(client *GnetClient, attempts int, baseBackoff time.Duration) error {
 	if attempts < 1 {
 		attempts = 1
@@ -111,7 +127,8 @@ func connectWithRetry(client *GnetClient, attempts int, baseBackoff time.Duratio
 			return nil
 		} else {
 			lastErr = err
-			if !isConnRefused(err) {
+			// 仅对“可重试”的错误重试：连接被拒绝（服务未就绪）或建连超时（高并发下 accept 慢）
+			if !isConnRefused(err) && !isConnTimeout(err) {
 				return err
 			}
 		}
@@ -125,8 +142,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 2222
-	msgsPerConn := 555
+	numConns := 3333
+	msgsPerConn := 2222
 	payload := make([]byte, 512)
 	totalMsgs := int64(numConns * msgsPerConn)
 
@@ -174,7 +191,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	errCh := make(chan error, numConns)
 	var clientsMu sync.Mutex
 	clients := make([]*GnetClient, 0, numConns)
-	connSem := make(chan struct{}, 100)
+	// 限制并发建连+发送，避免 gnet 侧“too many goroutines blocked on submit”
+	connSem := make(chan struct{}, 50)
 	for i := 0; i < numConns; i++ {
 		wg.Add(1)
 		go func() {
@@ -182,7 +200,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 			connSem <- struct{}{}
 			defer func() { <-connSem }()
 			client := NewClient(addr, nil, kknet.ApplyOptions(clientOpts...))
-			if err := connectWithRetry(client, 50, 20*time.Millisecond); err != nil {
+			if err := connectWithRetry(client, 80, 30*time.Millisecond); err != nil {
 				errCh <- err
 				return
 			}
@@ -195,6 +213,10 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 				if err := client.SendBuffer(bb); err != nil {
 					errCh <- err
 					return
+				}
+				// 每发一批让出一点时间，减轻 gnet 提交池压力，避免 "too many goroutines blocked on submit"
+				if (j+1)%128 == 0 {
+					time.Sleep(1 * time.Millisecond)
 				}
 			}
 			clientsMu.Lock()
