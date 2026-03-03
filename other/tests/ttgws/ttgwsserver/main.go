@@ -1,4 +1,4 @@
-// ttgwsserver: gws 压测服务端，与 ttws/ttwsserver 对比（ttws 用 kkws/gorilla，本程序用 kknet/gws）
+// ttgwsserver: gws 压测服务端，与 ttws/ttwsserver 对比（ttws 用 kkws/gorilla，本程序用 kknet/engines/gws）
 // 运行：go run ./other/tests/ttgws/ttgwsserver
 package main
 
@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vvisun/kkdg/kknet/gws"
+	"github.com/vvisun/kkdg/kknet/engines/gws"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 

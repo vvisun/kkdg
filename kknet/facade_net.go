@@ -71,3 +71,56 @@ type IClient interface {
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 	SendMsg(msg any) error
 }
+
+// 通用网络事件处理器。总结自gnet和gws。
+type INetHandler interface {
+	// OnBoot 引擎(server/client)启动事件
+	// OnBoot 在引擎准备好接受连接时触发。
+	// 参数engine包含引擎信息和各种实用工具。
+	// OnBoot fires when the engine is ready for accepting connections.
+	// The parameter engine has information and various utilities.
+	// @param engine 引擎
+	// @return action 动作
+	OnBoot(engine any) (action any)
+
+	// OnShutdown 引擎(server/client)关闭事件
+	// OnShutdown 在引擎关闭时触发。
+	// 所有事件循环和连接关闭后调用。
+	// OnShutdown fires when the engine is being shut down, it is called right after
+	// all event-loops and connections are closed.
+	// @param engine 引擎
+	OnShutdown(engine any)
+
+	// OnOpen 建立连接事件
+	// WebSocket connection was successfully established
+	// @param socket 连接
+	OnOpen(socket any)
+
+	// OnClose 关闭事件
+	// 接收到了网络连接另一端发送的关闭帧, 或者IO过程中出现错误主动断开连接
+	// 如果是前者, err可以断言为*CloseError
+	// Received a close frame from the other end of the network connection, or disconnected voluntarily due to an error in the IO process
+	// In the former case, err can be asserted as *CloseError
+	// @param socket 连接
+	// @param err 错误
+	OnClose(socket any, err error)
+
+	// OnPing 心跳探测事件
+	// Received a ping frame
+	// @param socket 连接
+	// @param payload 心跳数据
+	OnPing(socket any, payload []byte)
+
+	// OnPong 心跳响应事件
+	// Received a pong frame
+	// @param socket 连接
+	// @param payload 心跳数据
+	OnPong(socket any, payload []byte)
+
+	// OnMessage 消息事件
+	// 如果开启了ParallelEnabled, 会并行地调用OnMessage; 没有做recover处理.
+	// If ParallelEnabled is enabled, OnMessage is called in parallel. No recover is done.
+	// @param socket 连接
+	// @param message 消息
+	OnMessage(socket any, message any)
+}

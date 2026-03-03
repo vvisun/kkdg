@@ -1,6 +1,6 @@
 # ttgws：gws 压测（对比 ttws）
 
-与 `ttws` 同场景的 WebSocket 压测，用于对比 **kkws**（gorilla/websocket）与 **gws**（kknet/gws）的表现。
+与 `ttws` 同场景的 WebSocket 压测，用于对比 **kkws**（gorilla/websocket）与 **gws**（kknet/engines/gws）的表现。
 
 ## 对比
 
@@ -8,7 +8,7 @@
 |--------|---------------------|-----------------|
 | 服务端 | `other/tests/ttws/ttwsserver`  | `other/tests/ttgws/ttgwsserver`  |
 | 客户端 | `other/tests/ttws/ttwsclient`  | `other/tests/ttgws/ttgwsclient`  |
-| 库     | kknet/kkws (gorilla) | kknet/gws       |
+| 库     | kknet/kkws (gorilla) | kknet/engines/gws       |
 | 端口   | 8080，path `/ws`    | 8080，path `/ws` |
 | 参数   | -addr -conn -size -interval | 同左 |
 

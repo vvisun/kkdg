@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vvisun/kkdg/kknet/gws"
+	"github.com/vvisun/kkdg/kknet/engines/gws"
 )
 
 var (
