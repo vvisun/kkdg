@@ -42,6 +42,9 @@ type ReadProcessor struct {
 
 var _ kknet.IReadProcessor = (*ReadProcessor)(nil)
 
+// per connection per goroutine
+// 每个连接一个携程，消费recvQueue中的数据，并分发消息。
+// 保证顺序性，适合RawHandler逻辑较重的场景。
 func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	if opts.NoneCopyHandler != nil {

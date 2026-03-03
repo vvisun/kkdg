@@ -47,9 +47,9 @@ func NewTaskReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	}
 
 	// 不保证RawHandler的顺序性，如果需要保证顺序，可以将RecvBatchSize设置为1。
-	maxConc := int32(opts.RecvBatchSize)
+	maxConc := opts.WorkerQueueMaxConcurrency
 	if maxConc <= 0 {
-		maxConc = 8
+		maxConc = 1
 	}
 	return &TaskReadProcessor{
 		opts:    opts,

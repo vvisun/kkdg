@@ -349,6 +349,13 @@ func WithRecvBatchSize(size int) Option {
 	}
 }
 
+// WithWorkerQueueMaxConcurrency sets worker queue max concurrency.
+func WithWorkerQueueMaxConcurrency(concurrency int32) Option {
+	return func(o *Options) {
+		o.RpOptions.WorkerQueueMaxConcurrency = concurrency
+	}
+}
+
 // WithRecvQueueStrict sets recv queue strict.
 func WithRecvQueueStrict(strict bool) Option {
 	return func(o *Options) {

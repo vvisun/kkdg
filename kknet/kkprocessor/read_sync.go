@@ -24,6 +24,8 @@ type SyncReadProcessor struct {
 
 var _ kknet.IReadProcessor = (*SyncReadProcessor)(nil)
 
+// 同步消费数据，实现0拷贝优化。
+// 保证顺序性，适合NoneCopyHandler逻辑非常轻的场景。
 func NewSyncReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	if opts.NoneCopyHandler == nil {

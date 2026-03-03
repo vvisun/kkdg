@@ -119,14 +119,19 @@ type ReadOptions struct {
 	RecvBufShrinkCap int
 	// RecvQueue full 回调。当 Push 因队列满失败时调用（需 RecvQueueStrict=true 才会出现队列满）
 	RecvQueueFullCallback func(conn IConn)
+	// WorkerQueue 最大并发数。用于TaskReadProcessor。
+	// 默认 1，表示不并发，保证顺序性。大于1时并发，不保证顺序性。
+	// 取值范围会自动归一化到 [1,64]。
+	WorkerQueueMaxConcurrency int32
 }
 
 func DefaultReadOptions() ReadOptions {
 	return ReadOptions{
-		RecvQueueSize:    256,
-		RecvQueueStrict:  false,
-		RecvBatchSize:    32,
-		RecvBufShrinkCap: 2 * 1024, // 2KB
+		RecvQueueSize:             256,
+		RecvQueueStrict:           false,
+		RecvBatchSize:             32,
+		RecvBufShrinkCap:          2 * 1024, // 2KB
+		WorkerQueueMaxConcurrency: 1,
 	}
 }
 
@@ -149,5 +154,12 @@ func CheckReadOptions(opts *ReadOptions) {
 	if opts.RecvBufShrinkCap <= 0 || opts.RecvBufShrinkCap > 2*1024 {
 		kklog.Debugf("rp RecvBufShrinkCap fixed from %d to %d", opts.RecvBufShrinkCap, 2048)
 		opts.RecvBufShrinkCap = 2 * 1024 // 2KB
+	}
+	if opts.WorkerQueueMaxConcurrency <= 0 {
+		opts.WorkerQueueMaxConcurrency = 1
+	}
+	if opts.WorkerQueueMaxConcurrency > 64 {
+		kklog.Debugf("rp WorkerQueueMaxConcurrency fixed from %d to %d", opts.WorkerQueueMaxConcurrency, 64)
+		opts.WorkerQueueMaxConcurrency = 64
 	}
 }
