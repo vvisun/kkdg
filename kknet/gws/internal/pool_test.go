@@ -65,6 +65,46 @@ func TestPool_Get(t *testing.T) {
 	assert.GreaterOrEqual(t, buf.Cap(), 128)
 }
 
+// TestBinaryCeil 测试 binaryCeil：向上取整到最近的 2 的幂
+func TestBinaryCeil(t *testing.T) {
+	tests := []struct {
+		in   uint32
+		want uint32
+	}{
+		{0, 0},
+		{1, 1},
+		{2, 2},
+		{3, 4},
+		{4, 4},
+		{5, 8},
+		{7, 8},
+		{8, 8},
+		{9, 16},
+		{15, 16},
+		{16, 16},
+		{17, 32},
+		{128, 128},
+		{129, 256},
+		{255, 256},
+		{256, 256},
+		{257, 512},
+		{1024, 1024},
+		{1025, 2048},
+		{2048, 2048},
+		{4096, 4096},
+		{8192, 8192},
+		{10000, 16384},
+		{0x80000000, 0x80000000},
+		{0x80000001, 0},
+	}
+	for _, tt := range tests {
+		got := binaryCeil(tt.in)
+		if got != tt.want {
+			t.Errorf("binaryCeil(%d) = %d, want %d", tt.in, got, tt.want)
+		}
+	}
+}
+
 // ------------------------------------------------------------
 // Benchmarks
 
@@ -72,9 +112,10 @@ func BenchmarkBufferPool_GetAndPut(b *testing.B) {
 	pool := NewBufferPool(128, 128*1024)
 	b.ReportAllocs()
 	b.ResetTimer()
+	wBytes := AlphabetNumeric.Generate(640)
 	for i := 0; i < b.N; i++ {
 		buf := pool.Get(1024)
-		if _, err := buf.Write(AlphabetNumeric.Generate(64)); err != nil {
+		if _, err := buf.Write(wBytes); err != nil {
 			b.Fatal(err)
 		}
 		pool.Put(buf)
@@ -84,10 +125,11 @@ func BenchmarkBufferPool_GetAndPut(b *testing.B) {
 func BenchmarkBufferPool_Get_NoReuse(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
+	wBytes := AlphabetNumeric.Generate(640)
 	for i := 0; i < b.N; i++ {
 		// 模拟不使用池时的分配成本
 		buf := bytes.NewBuffer(make([]byte, 0, 1024))
-		if _, err := buf.Write(AlphabetNumeric.Generate(64)); err != nil {
+		if _, err := buf.Write(wBytes); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -97,10 +139,11 @@ func BenchmarkBufferPool_Get_Parallel(b *testing.B) {
 	pool := NewBufferPool(128, 128*1024)
 	b.ReportAllocs()
 	b.ResetTimer()
+	wBytes := AlphabetNumeric.Generate(128)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			buf := pool.Get(2048)
-			if _, err := buf.Write(AlphabetNumeric.Generate(128)); err != nil {
+			if _, err := buf.Write(wBytes); err != nil {
 				b.Fatal(err)
 			}
 			pool.Put(buf)
