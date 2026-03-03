@@ -29,11 +29,7 @@ const (
 )
 
 var calibrateCallsThreshold uint64 = 128 // 多少次调用后进行校准
-var defaultPool bfPool
-
-func init() {
-	defaultPool.defaultSize = 128
-}
+var defaultPool = NewBSPool(128)
 
 // GetWithCapacity returns a buffer with at least the specified capacity.
 //

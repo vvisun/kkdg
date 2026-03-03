@@ -1,21 +1,23 @@
 package kkbuffer
 
 import (
-	"math/bits"
 	"sync"
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-func indexBS(n uint32) uint32 {
-	return uint32(bits.Len32(n - 1))
-}
-
 type bsPool struct {
 	pools       [32]sync.Pool
 	defaultSize uint32
 	count       int64
+}
+
+func NewBSPool(defaultSize uint32) *bsPool {
+	var p = &bsPool{
+		defaultSize: defaultSize,
+	}
+	return p
 }
 
 func (p *bsPool) Get() *ByteBuffer {

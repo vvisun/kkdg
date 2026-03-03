@@ -64,6 +64,10 @@ func (b *ByteBuffer) WriteTo(w io.Writer) (int64, error) {
 
 //----------------------------------------------------------
 
+func (b *ByteBuffer) Cap() int {
+	return cap(b.B)
+}
+
 // Len returns the size of the byte buffer.
 func (b *ByteBuffer) Len() int {
 	return len(b.B)

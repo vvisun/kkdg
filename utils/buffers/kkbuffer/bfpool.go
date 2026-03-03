@@ -1,7 +1,6 @@
 package kkbuffer
 
 import (
-	"math/bits"
 	"sync"
 	"sync/atomic"
 
@@ -20,6 +19,13 @@ type bfPool struct {
 	count          int64
 	calls          [steps]uint64
 	pool           sync.Pool
+}
+
+func NewBFPool(defaultSize uint64) *bfPool {
+	var p = &bfPool{
+		defaultSize: defaultSize,
+	}
+	return p
 }
 
 // Get returns new byte buffer with zero length.
@@ -126,16 +132,4 @@ func (p *bfPool) calibrate() {
 	}
 	atomic.StoreUint64(&p.defaultSize, uint64(defaultSize))
 	atomic.StoreUint64(&p.calibrating, 0)
-}
-
-func index(n int) int {
-	if n <= 0 {
-		return 0
-	}
-	k := (n - 1) >> minBitSize
-	idx := bits.Len(uint(k))
-	if idx >= steps {
-		return steps - 1
-	}
-	return idx
 }
