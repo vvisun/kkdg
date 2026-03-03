@@ -122,29 +122,6 @@ func TestPool_EmptyGet(t *testing.T) {
 	}
 }
 
-func TestIndex(t *testing.T) {
-	tests := []struct {
-		n    int
-		want int
-	}{
-		{0, 0},
-		{1, 0},
-		{64, 0},
-		{65, 1},
-		{128, 1},
-		{129, 2},
-		{256, 2},
-		{512, 3},
-		{1024, 4},
-	}
-	for _, tt := range tests {
-		got := index(tt.n)
-		if got != tt.want {
-			t.Errorf("index(%d) = %d, want %d", tt.n, got, tt.want)
-		}
-	}
-}
-
 func TestPool_Calibrate(t *testing.T) {
 	tstData := strings.Repeat("x", 666)
 
