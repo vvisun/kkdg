@@ -20,6 +20,13 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+type clientHandler struct {
+}
+
+func (h *clientHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
+
+}
+
 type stressRecvHandler struct {
 	recvCount atomic.Int64
 	ch        chan struct{}
@@ -118,15 +125,15 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 5000
-	msgsPerConn := 2222
+	numConns := 5555
+	msgsPerConn := 222
+	payload := make([]byte, 512)
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	// 高连接数时用较小读写缓冲以降低内存：50k 连接 × (2KB+2KB) ≈ 200MB，默认 64KB×2 约 6.4GB
 	opts := kknet.ApplyOptions(
-		kknet.WithRawHandler(recv),
 		kknet.WithNoneCopyHandler(recv),
 		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		kknet.WithRecvQueueSize(512),
@@ -147,12 +154,15 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		}
 	}()
 
-	payload := make([]byte, 512)
+	//--------client--------
+
 	for i := range payload {
 		payload[i] = 0x01
 	}
 
 	clientOpts := []kknet.Option{
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
 		kknet.WithSendQueueNeedFlushOver(true),
 		kknet.WithSendQueueTimeoutFlushOver(5 * time.Second),
 		kknet.WithBufferSizes(2*1024, 2*1024),

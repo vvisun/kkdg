@@ -45,10 +45,6 @@ func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 		if tc.rp != nil {
 			go tc.rp.Stop()
 		}
-		// Stop write processor asynchronously (release pending buffers).
-		if tc.wp != nil {
-			go tc.wp.Stop(err)
-		}
 		h.server.connMgr.RemoveConn(tc.id)
 	}
 	if h.server.handler == nil {

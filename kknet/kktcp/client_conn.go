@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
 type gnetClientConn struct {
@@ -24,8 +25,9 @@ type gnetClientConn struct {
 
 	closing atomic.Bool
 
-	rp kknet.IReadProcessor
-	wp kknet.IWriteProcessor
+	rp        kknet.IReadProcessor
+	sendQueue bbqueue.IFiFoQueue //发送队列
+	sendMu    sync.Mutex
 }
 
 var _ kknet.IConn = (*gnetClientConn)(nil)
@@ -33,11 +35,12 @@ var _ kknet.IConn = (*gnetClientConn)(nil)
 func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetClientConn {
 	kknet.CheckOptions(opts)
 	cc := &gnetClientConn{
-		id:    kknet.NextConnID(),
-		conn:  c,
-		opts:  opts,
-		stats: stats,
-		ctx:   context.Background(),
+		id:        kknet.NextConnID(),
+		conn:      c,
+		opts:      opts,
+		stats:     stats,
+		ctx:       context.Background(),
+		sendQueue: bbqueue.NewFIFOQueue(opts.WpOptions.SendQueueSize, opts.WpOptions.SendQueueStrict),
 	}
 	if opts.RpProvider != nil {
 		cc.rp = opts.RpProvider(opts.RpOptions)
@@ -45,15 +48,6 @@ func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gn
 		cc.rp = defaultRpProvider(opts.RpOptions)
 	}
 	cc.rp.Start(cc)
-
-	if opts.WpProvider != nil {
-		cc.wp = opts.WpProvider(opts.WpOptions)
-	} else {
-		cc.wp = defaultWpProvider(opts.WpOptions)
-	}
-	cc.wp.Start(cc, cc.writeBatch, func(_ error) {
-		_ = cc.conn.Close()
-	})
 
 	return cc
 }
@@ -92,9 +86,6 @@ func (c *gnetClientConn) SetContext(ctx context.Context) {
 
 func (c *gnetClientConn) Close() error {
 	c.closing.Store(true)
-	if c.wp != nil {
-		go c.wp.Stop(kkerrors.ErrConnectionClosed)
-	}
 	if c.rp != nil {
 		go c.rp.Stop()
 	}
@@ -108,10 +99,12 @@ func (c *gnetClientConn) SendMsg(msg any) error {
 	if c.closing.Load() {
 		return kkerrors.ErrConnectionClosed
 	}
-	if c.wp == nil {
-		return kkerrors.ErrConnectionClosed
+	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), c.opts.WpOptions.MsgPacket)
+	if err != nil {
+		kkbuffer.Put(buffer)
+		return err
 	}
-	return c.wp.SendMsg(msg)
+	return c.SendBuffer(buffer)
 }
 
 func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
@@ -126,11 +119,34 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed
 	}
-	if c.wp == nil {
+
+	c.sendMu.Lock()
+	ok := c.sendQueue.Push(buffer)
+	c.sendMu.Unlock()
+	if !ok {
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrSendQueueFull
 	}
-	return c.wp.SendBuffer(buffer)
+
+	return c.doWrite()
+}
+
+func (c *gnetClientConn) doWrite() error {
+	batchArr := [64]*kkbuffer.ByteBuffer{}
+	sendBatchBuffer := batchArr[:]
+	sbbLen := len(sendBatchBuffer)
+	c.sendMu.Lock()
+	n := c.sendQueue.PopMany(sbbLen, sendBatchBuffer, c.opts.WpOptions.BatchWriteLimitBytes)
+	c.sendMu.Unlock()
+	for n > 0 {
+		if err := c.writeBatch(sendBatchBuffer, n); err != nil {
+			return err
+		}
+		c.sendMu.Lock()
+		n = c.sendQueue.PopMany(sbbLen, sendBatchBuffer, c.opts.WpOptions.BatchWriteLimitBytes)
+		c.sendMu.Unlock()
+	}
+	return nil
 }
 
 /*
@@ -140,29 +156,65 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
  *@return error
 */
 func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
-	for i := 0; i < n; i++ {
-		bb := batch[i]
-		if bb == nil {
-			continue
+	if n <= 0 {
+		return nil
+	}
+
+	if n > 1 {
+		bs := make([][]byte, n)
+		totalBytes := 0
+		for i := 0; i < n; i++ {
+			bs[i] = batch[i].B
+			totalBytes += len(bs[i])
 		}
-		if err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
+		if err := c.conn.AsyncWritev(bs, func(_ gnet.Conn, err error) error {
 			if err != nil {
 				if c.stats != nil {
 					c.stats.AddError()
 				}
-			} else if c.stats != nil {
-				c.stats.AddSent(len(bb.B))
+			} else {
+				if c.stats != nil {
+					c.stats.AddSent(totalBytes)
+				}
+				for j := 0; j < n; j++ {
+					kkbuffer.Put(batch[j])
+					batch[j] = nil
+				}
 			}
-			kkbuffer.Put(bb)
 			return nil
 		}); err != nil {
-			//发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。
 			if c.stats != nil {
 				c.stats.AddError()
 			}
 			return err
 		}
-		batch[i] = nil // 成功才释放。
+		return nil
+	} else {
+		for i := 0; i < n; i++ {
+			bb := batch[i]
+			if bb == nil {
+				continue
+			}
+			// NOTE: AsyncWrite is safe across goroutines; keep bb until callback.
+			if err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
+				if err != nil {
+					if c.stats != nil {
+						c.stats.AddError()
+					}
+				} else if c.stats != nil {
+					c.stats.AddSent(len(bb.B))
+				}
+				kkbuffer.Put(bb)
+				return nil
+			}); err != nil {
+				//发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。
+				if c.stats != nil {
+					c.stats.AddError()
+				}
+				return err
+			}
+			batch[i] = nil // 成功才释放。
+		}
+		return nil
 	}
-	return nil
 }
