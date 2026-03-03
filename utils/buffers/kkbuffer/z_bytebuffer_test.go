@@ -8,7 +8,7 @@ import (
 )
 
 func TestByteBuffer_Len(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	if buf.Len() != 0 {
@@ -25,7 +25,7 @@ func TestByteBuffer_Len(t *testing.T) {
 }
 
 func TestByteBuffer_WriteString(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	s := "hello"
@@ -36,7 +36,7 @@ func TestByteBuffer_WriteString(t *testing.T) {
 }
 
 func TestByteBuffer_Set(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	// 先写入一些数据以获得容量
@@ -67,7 +67,7 @@ func TestByteBuffer_Set(t *testing.T) {
 }
 
 func TestByteBuffer_SetString(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	buf.SetString("xxxxx")
@@ -81,7 +81,7 @@ func TestByteBuffer_SetString(t *testing.T) {
 }
 
 func TestByteBuffer_Grow(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	// 从零增长
@@ -116,7 +116,7 @@ func TestByteBuffer_Grow(t *testing.T) {
 }
 
 func TestByteBuffer_Reset(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	buf.SetString("test")
@@ -130,7 +130,7 @@ func TestByteBuffer_Reset(t *testing.T) {
 }
 
 func TestByteBuffer_ReadFrom(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	r := strings.NewReader("hello world")
@@ -147,7 +147,7 @@ func TestByteBuffer_ReadFrom(t *testing.T) {
 }
 
 func TestByteBuffer_WriteTo(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 	buf.SetString("foo")
 
@@ -165,7 +165,7 @@ func TestByteBuffer_WriteTo(t *testing.T) {
 }
 
 func TestByteBuffer_Bytes(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 	buf.SetString("xyz")
 
@@ -181,7 +181,7 @@ func TestByteBuffer_Bytes(t *testing.T) {
 }
 
 func TestByteBuffer_String(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 	buf.SetString("test")
 
@@ -191,7 +191,7 @@ func TestByteBuffer_String(t *testing.T) {
 }
 
 func TestByteBuffer_ReadFrom_EOF(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	r := strings.NewReader("hi")
@@ -208,7 +208,7 @@ func TestByteBuffer_ReadFrom_EOF(t *testing.T) {
 }
 
 func TestByteBuffer_ReadFrom_Error(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 
 	r := &errorReader{err: io.ErrClosedPipe}

@@ -8,7 +8,7 @@ import (
 )
 
 func makeBuf(s string) *kkbuffer.ByteBuffer {
-	b := kkbuffer.Get()
+	b := kkbuffer.GetWithCapacity(len(s))
 	b.SetString(s)
 	return b
 }

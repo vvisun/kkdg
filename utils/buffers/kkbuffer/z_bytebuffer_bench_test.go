@@ -10,7 +10,7 @@ import (
 func BenchmarkGetPut(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf := Get()
+		buf := GetWithCapacity(128)
 		buf.SetString("test")
 		Put(buf)
 	}
@@ -19,14 +19,14 @@ func BenchmarkGetPut(b *testing.B) {
 func BenchmarkPool_GetPut(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf := Get()
+		buf := GetWithCapacity(128)
 		buf.SetString("test")
 		Put(buf)
 	}
 }
 
 func BenchmarkByteBuffer_WriteString(b *testing.B) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 	data := "test data"
 	b.ResetTimer()
@@ -37,7 +37,7 @@ func BenchmarkByteBuffer_WriteString(b *testing.B) {
 }
 
 func BenchmarkSet(b *testing.B) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 	buf.grow(1024)
 	buf.Reset()
@@ -54,7 +54,7 @@ func BenchmarkSet(b *testing.B) {
 }
 
 func BenchmarkSet_Append(b *testing.B) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 	buf.grow(1024)
 	buf.Reset()
@@ -71,7 +71,7 @@ func BenchmarkSet_Append(b *testing.B) {
 }
 
 func BenchmarkSetString(b *testing.B) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	defer Put(buf)
 	buf.grow(1024)
 	buf.Reset()
@@ -93,7 +93,7 @@ func BenchmarkGetPut_WithSet(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf := Get()
+		buf := GetWithCapacity(128)
 		buf.SetBytes(data)
 		Put(buf)
 	}
@@ -105,7 +105,7 @@ func BenchmarkGetPut_WithSetString(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		buf := Get()
+		buf := GetWithCapacity(128)
 		buf.SetString(data)
 		Put(buf)
 	}
@@ -119,7 +119,7 @@ func BenchmarkGetPut_Concurrent(b *testing.B) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			buf := Get()
+			buf := GetWithCapacity(128)
 			buf.SetString("test")
 			Put(buf)
 		}()
@@ -132,7 +132,7 @@ func Benchmark_AA(b *testing.B) {
 	b.ReportAllocs()
 	data := []byte("test data")
 	for i := 0; i < b.N; i++ {
-		bb := Get()
+		bb := GetWithCapacity(len(data) + 4)
 		bb.B = bb.B[:0]
 		bb.B = append(bb.B, 0, 0, 0, 0)
 		binary.BigEndian.PutUint32(bb.B[:4], uint32(len(data)))

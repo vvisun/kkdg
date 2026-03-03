@@ -69,7 +69,7 @@ func BenchmarkNNQueue_Push_WithPool(b *testing.B) {
 	q := NewNNQueue(1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bb := kkbuffer.Get()
+		bb := kkbuffer.GetWithCapacity(128)
 		q.Push(bb)
 	}
 	for q.Len() > 0 {
@@ -81,7 +81,7 @@ func BenchmarkNNQueue_PushPop_WithPool(b *testing.B) {
 	q := NewNNQueue(1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bb := kkbuffer.Get()
+		bb := kkbuffer.GetWithCapacity(128)
 		q.Push(bb)
 		got := q.Pop()
 		if got != nil {

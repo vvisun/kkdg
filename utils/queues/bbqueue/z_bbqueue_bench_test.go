@@ -78,7 +78,7 @@ func BenchmarkBBQueue_Push_WithPool(b *testing.B) {
 	q := NewBBQueue(1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bb := kkbuffer.Get()
+		bb := kkbuffer.GetWithCapacity(128)
 		q.Push(bb)
 	}
 	// 清空并归还，避免池膨胀影响后续用例（本 benchmark 不包含 Pop）
@@ -91,7 +91,7 @@ func BenchmarkBBQueue_PushPop_WithPool(b *testing.B) {
 	q := NewBBQueue(1000, false)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bb := kkbuffer.Get()
+		bb := kkbuffer.GetWithCapacity(128)
 		q.Push(bb)
 		got := q.Pop()
 		if got != nil {

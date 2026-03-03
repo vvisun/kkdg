@@ -35,13 +35,6 @@ func init() {
 	defaultPool.defaultSize = 128
 }
 
-// Get returns an empty byte buffer from the pool.
-//
-// The buffer may be returned via Put to reduce allocations.
-// When the expected size is known, prefer GetWithCapacity to avoid
-// reallocations on first writes.
-func Get() *ByteBuffer { return defaultPool.Get() }
-
 // GetWithCapacity returns a buffer with at least the specified capacity.
 //
 // Prefer this over Get when the expected size is known, to avoid

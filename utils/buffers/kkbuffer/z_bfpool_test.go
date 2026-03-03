@@ -7,7 +7,7 @@ import (
 )
 
 func TestPool_GetPut(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	if buf == nil {
 		t.Fatal("Get returned nil")
 	}
@@ -24,7 +24,7 @@ func TestPool_GetPut(t *testing.T) {
 	// 重复 Put 应被忽略
 	Put(buf)
 
-	buf2 := Get()
+	buf2 := GetWithCapacity(128)
 	if buf2 == nil {
 		t.Fatal("Get after Put returned nil")
 	}
@@ -34,14 +34,14 @@ func TestPool_GetPut(t *testing.T) {
 }
 
 func TestGetPut(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	if buf == nil {
 		t.Fatal("Get returned nil")
 	}
 	buf.SetString("test")
 	Put(buf)
 
-	buf2 := Get()
+	buf2 := GetWithCapacity(128)
 	if buf2 == nil {
 		t.Fatal("Get after Put returned nil")
 	}
@@ -57,7 +57,7 @@ func TestPool_Concurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 100; j++ {
-				buf := Get()
+				buf := GetWithCapacity(128)
 				buf.SetString("test")
 				Put(buf)
 			}
@@ -99,18 +99,18 @@ func TestGetWithCapacity(t *testing.T) {
 }
 
 func TestPool_ResetOnPut(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	buf.SetString("data")
 	Put(buf)
 
-	buf2 := Get()
+	buf2 := GetWithCapacity(128)
 	if len(buf2.B) != 0 {
 		t.Fatalf("Put should reset: len got %d, want 0", len(buf2.B))
 	}
 }
 
 func TestPool_EmptyGet(t *testing.T) {
-	buf := Get()
+	buf := GetWithCapacity(128)
 	if buf == nil {
 		t.Fatal("Get from empty pool returned nil")
 	}
@@ -149,12 +149,12 @@ func TestPool_Calibrate(t *testing.T) {
 	tstData := strings.Repeat("x", 666)
 
 	for i := uint64(0); i < calibrateCallsThreshold+1; i++ {
-		buf := Get()
+		buf := GetWithCapacity(128)
 		buf.SetString(tstData)
 		Put(buf)
 	}
 
-	buf := Get()
+	buf := GetWithCapacity(128)
 	if buf == nil {
 		t.Fatal("Get after calibrate returned nil")
 	}
