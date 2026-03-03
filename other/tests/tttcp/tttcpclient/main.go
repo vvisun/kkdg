@@ -12,6 +12,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -91,6 +92,7 @@ func runOneClient(serverAddr string, rawMsg []byte) {
 	recv := &stressRecvHandler{}
 	client := kktcp.NewClient(serverAddr, nil, kknet.ApplyOptions(
 		kknet.WithNoneCopyHandler(recv),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		kknet.WithLogger(kklog.GetConsoleLogger()),
 	))
 

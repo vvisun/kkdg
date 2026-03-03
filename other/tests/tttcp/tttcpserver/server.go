@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -29,6 +30,7 @@ func main() {
 		recv := &stressRecvHandler{}
 		opts := kknet.ApplyOptions(
 			kknet.WithNoneCopyHandler(recv),
+			kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 			kknet.WithRecvQueueSize(512),
 			kknet.WithLogger(kklog.GetConsoleLogger()),
 		)

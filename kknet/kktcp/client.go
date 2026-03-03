@@ -80,9 +80,13 @@ func (c *GnetClient) Connect() error {
 	if !c.started.Swap(true) {
 		ev := &gnetClientEventHandler{client: c}
 		cli, err := gnet.NewClient(ev,
+			gnet.WithMulticore(false),
+			gnet.WithLogger(gnetNopLogger),
+			gnet.WithTCPKeepAlive(10*time.Second),
+			gnet.WithNumEventLoop(1),
 			gnet.WithReadBufferCap(c.opts.ReadBufferSize),
 			gnet.WithWriteBufferCap(c.opts.WriteBufferSize),
-			gnet.WithLogger(gnetNopLogger),
+			gnet.WithTCPNoDelay(gnet.TCPNoDelay),
 		)
 		if err != nil {
 			c.started.Store(false)
