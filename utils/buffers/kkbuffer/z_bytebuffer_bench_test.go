@@ -39,7 +39,7 @@ func BenchmarkByteBuffer_WriteString(b *testing.B) {
 func BenchmarkSet(b *testing.B) {
 	buf := Get()
 	defer Put(buf)
-	buf.Grow(1024)
+	buf.grow(1024)
 	buf.Reset()
 	data := make([]byte, 512)
 	for i := range data {
@@ -56,7 +56,7 @@ func BenchmarkSet(b *testing.B) {
 func BenchmarkSet_Append(b *testing.B) {
 	buf := Get()
 	defer Put(buf)
-	buf.Grow(1024)
+	buf.grow(1024)
 	buf.Reset()
 	data := make([]byte, 512)
 	for i := range data {
@@ -73,7 +73,7 @@ func BenchmarkSet_Append(b *testing.B) {
 func BenchmarkSetString(b *testing.B) {
 	buf := Get()
 	defer Put(buf)
-	buf.Grow(1024)
+	buf.grow(1024)
 	buf.Reset()
 	data := string(make([]byte, 512))
 

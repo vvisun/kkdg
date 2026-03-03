@@ -22,23 +22,6 @@ type ByteBuffer struct {
 	B []byte
 }
 
-// Len returns the size of the byte buffer.
-func (b *ByteBuffer) Len() int {
-	return len(b.B)
-}
-
-// Bytes returns b.B, i.e. all the bytes accumulated in the buffer.
-//
-// The purpose of this function is bytes.Buffer compatibility.
-func (b *ByteBuffer) Bytes() []byte {
-	return b.B
-}
-
-// Reset makes ByteBuffer.B empty.
-func (b *ByteBuffer) Reset() {
-	b.B = b.B[:0]
-}
-
 // ReadFrom implements io.ReaderFrom.
 //
 // The function appends all the data read from r to b.
@@ -79,13 +62,32 @@ func (b *ByteBuffer) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
+//----------------------------------------------------------
+
+// Len returns the size of the byte buffer.
+func (b *ByteBuffer) Len() int {
+	return len(b.B)
+}
+
+// Bytes returns b.B, i.e. all the bytes accumulated in the buffer.
+//
+// The purpose of this function is bytes.Buffer compatibility.
+func (b *ByteBuffer) Bytes() []byte {
+	return b.B
+}
+
+// Reset makes ByteBuffer.B empty.
+func (b *ByteBuffer) Reset() {
+	b.B = b.B[:0]
+}
+
 // SetBytes sets ByteBuffer.B to p.
 //
 // If cap(b.B) >= len(p), it uses copy (no alloc). Use GetWithCapacity
 // or Grow before Reset+SetBytes when repeatedly setting similar-sized data.
 func (b *ByteBuffer) SetBytes(p []byte) {
 	cnt := len(p)
-	b.Grow(cnt)
+	b.grow(cnt)
 	b.B = b.B[:cnt]
 	copy(b.B, p)
 }
@@ -102,17 +104,17 @@ func (b *ByteBuffer) WriteBytes(p []byte) {
 // or Grow before Reset+SetString when repeatedly setting similar-sized data.
 func (b *ByteBuffer) SetString(s string) {
 	cnt := len(s)
-	b.Grow(cnt)
+	b.grow(cnt)
 	b.B = b.B[:cnt]
 	copy(b.B, s)
 }
 
-// Grow ensures the buffer has at least n bytes capacity.
+// grow ensures the buffer has at least n bytes capacity.
 // If the current capacity is less than n, it grows the buffer.
 //
-// Call Grow before a batch of Write/WriteByte/WriteString when the total
-// size is known (e.g. Grow(len(b.B)+total) before a loop) to reduce reallocations.
-func (b *ByteBuffer) Grow(n int) {
+// Call grow before a batch of Write/WriteByte/WriteString when the total
+// size is known (e.g. grow(len(b.B)+total) before a loop) to reduce reallocations.
+func (b *ByteBuffer) grow(n int) {
 	if cap(b.B) < n {
 		newCap := n
 		if cap(b.B) > 0 {

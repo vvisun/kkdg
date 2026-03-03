@@ -85,7 +85,7 @@ func TestByteBuffer_Grow(t *testing.T) {
 	defer Put(buf)
 
 	// 从零增长
-	buf.Grow(1000)
+	buf.grow(1000)
 	if cap(buf.B) < 1000 {
 		t.Fatalf("Grow(1000) cap: got %d, want >= 1000", cap(buf.B))
 	}
@@ -96,7 +96,7 @@ func TestByteBuffer_Grow(t *testing.T) {
 	// 有数据时增长
 	buf.SetString("abc")
 	oldLen := len(buf.B)
-	buf.Grow(2000)
+	buf.grow(2000)
 	if cap(buf.B) < 2000 {
 		t.Fatalf("Grow(2000) cap: got %d, want >= 2000", cap(buf.B))
 	}
@@ -109,7 +109,7 @@ func TestByteBuffer_Grow(t *testing.T) {
 
 	// 容量已足够时不增长
 	oldCap := cap(buf.B)
-	buf.Grow(1000)
+	buf.grow(1000)
 	if cap(buf.B) != oldCap {
 		t.Fatalf("Grow when sufficient: cap changed from %d to %d", oldCap, cap(buf.B))
 	}
