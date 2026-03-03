@@ -26,9 +26,10 @@ type ReadProcessor struct {
 	userID kknet.USER_ID     //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
 	opts   kknet.ReadOptions //选项
 
+	recvBuf  []byte     //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
+	splitBuf [32][]byte //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
+
 	recvQueue bbqueue.IFiFoQueue     //接收队列
-	recvBuf   []byte                 //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
-	splitBuf  [32][]byte             //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 	batchBuf  []*kkbuffer.ByteBuffer //批量消费缓冲区，用于消费时复用，避免分配新的内存
 
 	mu        sync.Mutex
@@ -81,16 +82,6 @@ func (rp *ReadProcessor) Stop() {
 	<-rp.doneCh
 }
 
-func (rp *ReadProcessor) reRecvBuf(capacity int) {
-	if rp.recvBuf == nil {
-		rp.recvBuf = byteslice.GetZero(capacity)
-		return
-	}
-	rp.recvBuf = rp.recvBuf[:0]
-	byteslice.Put(rp.recvBuf)
-	rp.recvBuf = byteslice.GetZero(capacity)
-}
-
 // EnqueuePacket enqueues a single, already-split packet frame: [length,message].
 //
 // This is useful for transports (like gnet) that already perform stream framing
@@ -129,6 +120,16 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 	}
 }
 
+func (rp *ReadProcessor) reRecvBuf(capacity int) {
+	if rp.recvBuf == nil {
+		rp.recvBuf = byteslice.GetZero(capacity)
+		return
+	}
+	rp.recvBuf = rp.recvBuf[:0]
+	byteslice.Put(rp.recvBuf)
+	rp.recvBuf = byteslice.GetZero(capacity)
+}
+
 // 收到数据时（生产者生产数据）
 func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
@@ -165,6 +166,13 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		copy(rp.recvBuf, leftData)
 	}
 
+	// shrink: if empty and cap too big, shrink to default.
+	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
+		byteslice.Put(rp.recvBuf)
+		rp.recvBuf = nil
+	}
+
+	// 异步消费，包入队后在异步消费携程中消费。
 	for _, packet := range packets {
 		bb := kkbuffer.GetWithCapacity(len(packet))
 		bb.B = bb.B[:len(packet)]
@@ -182,12 +190,6 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	}
 
 	nowEmpty := rp.recvQueue.IsEmpty()
-
-	// shrink: if empty and cap too big, shrink to default.
-	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
-		byteslice.Put(rp.recvBuf)
-		rp.recvBuf = nil
-	}
 
 	rp.mu.Unlock()
 

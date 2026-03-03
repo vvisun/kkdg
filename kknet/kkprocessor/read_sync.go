@@ -103,18 +103,18 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		copy(rp.recvBuf, leftData)
 	}
 
+	// shrink: if empty and cap too big, shrink to default.
+	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
+		byteslice.Put(rp.recvBuf)
+		rp.recvBuf = nil
+	}
+
 	// 同步消费数据，实现0拷贝优化。
 	xcall.SafeCall(func() {
 		for _, packet := range packets {
 			rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 		}
 	})
-
-	// shrink: if empty and cap too big, shrink to default.
-	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
-		byteslice.Put(rp.recvBuf)
-		rp.recvBuf = nil
-	}
 
 	return nil
 }

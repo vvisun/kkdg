@@ -340,6 +340,15 @@ func WithRecvQueueSize(size int) Option {
 	}
 }
 
+// WithRecvBatchSize sets recv batch size.
+func WithRecvBatchSize(size int) Option {
+	return func(o *Options) {
+		if size > 0 {
+			o.RpOptions.RecvBatchSize = size
+		}
+	}
+}
+
 // WithRecvQueueStrict sets recv queue strict.
 func WithRecvQueueStrict(strict bool) Option {
 	return func(o *Options) {

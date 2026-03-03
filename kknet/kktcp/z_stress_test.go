@@ -125,8 +125,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 5000
-	msgsPerConn := 555
+	numConns := 12222
+	msgsPerConn := 222
 	payload := make([]byte, 512)
 	totalMsgs := int64(numConns * msgsPerConn)
 
@@ -134,9 +134,10 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	// 高连接数时用较小读写缓冲以降低内存：50k 连接 × (2KB+2KB) ≈ 200MB，默认 64KB×2 约 6.4GB
 	opts := kknet.ApplyOptions(
-		kknet.WithNoneCopyHandler(recv),
-		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithRawHandler(recv),
+		kknet.WithRpProvider(kkprocessor.NewTaskReadProcessor),
 		kknet.WithRecvQueueSize(64),
+		kknet.WithRecvBatchSize(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
 	)
 	srv := NewServer(addr, nil, opts)
