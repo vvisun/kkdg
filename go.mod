@@ -8,6 +8,7 @@ require (
 	github.com/bytedance/sonic v1.14.2
 	github.com/google/flatbuffers v25.12.19+incompatible
 	github.com/gorilla/websocket v1.5.3
+	github.com/lxzan/gws v1.8.9
 	github.com/nats-io/nats.go v1.48.0
 	github.com/shamaton/msgpack/v2 v2.4.0
 	go.uber.org/zap v1.27.0
@@ -19,6 +20,7 @@ require (
 	github.com/Workiva/go-datastructures v1.1.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dolthub/maphash v0.1.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -70,6 +72,6 @@ require (
 	golang.org/x/sys v0.39.0 // indirect
 )
 
-require github.com/dolthub/maphash v0.1.0 // indirect
+replace github.com/lxzan/gws => ../gws
 
-require github.com/lxzan/gws v1.8.9
+replace github.com/panjf2000/gnet/v2 => ../gnet
