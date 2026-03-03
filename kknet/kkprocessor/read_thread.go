@@ -29,8 +29,7 @@ type ReadProcessor struct {
 	recvBuf  []byte     //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
 	splitBuf [32][]byte //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 
-	recvQueue bbqueue.IFiFoQueue     //接收队列
-	batchBuf  []*kkbuffer.ByteBuffer //批量消费缓冲区，用于消费时复用，避免分配新的内存
+	recvQueue bbqueue.IFiFoQueue //接收队列
 
 	mu        sync.Mutex
 	closeOnce sync.Once
@@ -61,7 +60,6 @@ func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 		wakeCh:    make(chan struct{}, 1),
 		closeCh:   make(chan struct{}),
 		doneCh:    make(chan struct{}),
-		batchBuf:  make([]*kkbuffer.ByteBuffer, opts.RecvBatchSize),
 	}
 }
 
@@ -227,18 +225,21 @@ func (rp *ReadProcessor) consumeRecvQueue() {
 	}
 }
 
+const batchBufSize = 32
+
 func (rp *ReadProcessor) drainOnce() {
 	for {
+		batchArr := [batchBufSize]*kkbuffer.ByteBuffer{}
+		batchBuf := batchArr[:]
 		rp.mu.Lock()
-		n := rp.recvQueue.PopMany(len(rp.batchBuf), rp.batchBuf, 0)
+		n := rp.recvQueue.PopMany(batchBufSize, batchBuf, 0)
 		rp.mu.Unlock()
 		if n <= 0 {
 			return
 		}
 		xcall.SafeCall(func() {
 			for i := 0; i < n; i++ {
-				packet := rp.batchBuf[i]
-				rp.batchBuf[i] = nil
+				packet := batchBuf[i]
 				if packet == nil {
 					continue
 				}

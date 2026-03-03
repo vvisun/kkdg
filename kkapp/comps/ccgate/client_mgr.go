@@ -8,8 +8,8 @@ import (
 )
 
 //go:inline
-func getSessionId(connID kknet.CONN_ID) string {
-	return strconv.FormatUint(connID, 10)
+func getSessionId(connID kknet.CONN_ID, gateNodeId string) string {
+	return gateNodeId + "-" + strconv.FormatUint(connID, 10)
 }
 
 // 客户端信息。

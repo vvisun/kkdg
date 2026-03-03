@@ -126,6 +126,6 @@ func Benchmark_clientManager_AddGetRemove_Parallel(b *testing.B) {
 func Benchmark_getSessionId(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = getSessionId(kknet.CONN_ID(i))
+		_ = getSessionId(kknet.CONN_ID(i), "gate1")
 	}
 }

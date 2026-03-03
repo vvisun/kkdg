@@ -80,9 +80,9 @@ func (c *GnetClient) Connect() error {
 		ev := &gnetClientEventHandler{client: c}
 		cli, err := gnet.NewClient(ev,
 			gnet.WithMulticore(false),
+			gnet.WithNumEventLoop(1),
 			gnet.WithLogger(gnetNopLogger),
 			gnet.WithTCPKeepAlive(10*time.Second),
-			gnet.WithNumEventLoop(1),
 			gnet.WithReadBufferCap(c.opts.ReadBufferSize),
 			gnet.WithWriteBufferCap(c.opts.WriteBufferSize),
 			gnet.WithTCPNoDelay(gnet.TCPNoDelay),

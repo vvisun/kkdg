@@ -113,8 +113,6 @@ type ReadOptions struct {
 	RecvQueueSize int
 	//接收队列是否严格容量控制
 	RecvQueueStrict bool
-	//每轮消费最多 Pop 的帧数，减少 Lock 次数与消费竞争，同时会创建这个大小的缓存数组复用以实现0分配
-	RecvBatchSize int
 	//当拆包缓冲区 cap 超过该值且当前为空时，缩容到默认值(<=0 使用默认值defaultRecvBufSize)
 	RecvBufShrinkCap int
 	// RecvQueue full 回调。当 Push 因队列满失败时调用（需 RecvQueueStrict=true 才会出现队列满）
@@ -129,7 +127,6 @@ func DefaultReadOptions() ReadOptions {
 	return ReadOptions{
 		RecvQueueSize:             256,
 		RecvQueueStrict:           false,
-		RecvBatchSize:             32,
 		RecvBufShrinkCap:          2 * 1024, // 2KB
 		WorkerQueueMaxConcurrency: 1,
 	}
@@ -142,14 +139,6 @@ func CheckReadOptions(opts *ReadOptions) {
 	if opts.RecvQueueSize <= 0 {
 		kklog.Debugf("rp RecvQueueSize fixed from %d to %d", opts.RecvQueueSize, 512)
 		opts.RecvQueueSize = 512
-	}
-	if opts.RecvBatchSize < 8 {
-		kklog.Debugf("rp RecvBatchSize fixed from %d to %d", opts.RecvBatchSize, 8)
-		opts.RecvBatchSize = 8 //太小影响性能
-	}
-	if opts.RecvBatchSize > 64 {
-		kklog.Debugf("rp RecvBatchSize fixed from %d to %d", opts.RecvBatchSize, 64)
-		opts.RecvBatchSize = 64 //太大占内存
 	}
 	if opts.RecvBufShrinkCap <= 0 || opts.RecvBufShrinkCap > 2*1024 {
 		kklog.Debugf("rp RecvBufShrinkCap fixed from %d to %d", opts.RecvBufShrinkCap, 2048)

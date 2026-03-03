@@ -47,16 +47,16 @@ type mockConnForRead struct {
 	id kknet.CONN_ID
 }
 
-func (m *mockConnForRead) ID() kknet.CONN_ID                       { return m.id }
-func (m *mockConnForRead) Close() error                            { return nil }
-func (m *mockConnForRead) RemoteAddr() string                      { return "mock:0" }
-func (m *mockConnForRead) Context() context.Context                { return context.Background() }
-func (m *mockConnForRead) SetContext(context.Context)              {}
-func (m *mockConnForRead) SendBuffer(*kkbuffer.ByteBuffer) error   { return nil }
-func (m *mockConnForRead) SendMsg(any) error                       { return nil }
-func (m *mockConnForRead) BindUser(kknet.USER_ID)                  {}
-func (m *mockConnForRead) UnbindUser()                             {}
-func (m *mockConnForRead) GetUserId() kknet.USER_ID               { return kknet.NULL_USER_ID }
+func (m *mockConnForRead) ID() kknet.CONN_ID                     { return m.id }
+func (m *mockConnForRead) Close() error                          { return nil }
+func (m *mockConnForRead) RemoteAddr() string                    { return "mock:0" }
+func (m *mockConnForRead) Context() context.Context              { return context.Background() }
+func (m *mockConnForRead) SetContext(context.Context)            {}
+func (m *mockConnForRead) SendBuffer(*kkbuffer.ByteBuffer) error { return nil }
+func (m *mockConnForRead) SendMsg(any) error                     { return nil }
+func (m *mockConnForRead) BindUser(kknet.USER_ID)                {}
+func (m *mockConnForRead) UnbindUser()                           {}
+func (m *mockConnForRead) GetUserId() kknet.USER_ID              { return kknet.NULL_USER_ID }
 
 func TestReadProcessor_OnRecvBytes_SinglePacket(t *testing.T) {
 	h := &collectingRawHandler{}
@@ -64,7 +64,6 @@ func TestReadProcessor_OnRecvBytes_SinglePacket(t *testing.T) {
 		RawHandler:       h,
 		RecvQueueSize:    32,
 		RecvQueueStrict:  false,
-		RecvBatchSize:    16,
 		RecvBufShrinkCap: 2048,
 	}
 	rp := NewReadProcessor(opts).(*ReadProcessor)
@@ -103,7 +102,6 @@ func TestReadProcessor_OnRecvBytes_MultiPacket(t *testing.T) {
 		RawHandler:       h,
 		RecvQueueSize:    32,
 		RecvQueueStrict:  false,
-		RecvBatchSize:    16,
 		RecvBufShrinkCap: 2048,
 	}
 	rp := NewReadProcessor(opts).(*ReadProcessor)
@@ -145,7 +143,6 @@ func TestReadProcessor_OnRecvBytes_PartialThenComplete(t *testing.T) {
 		RawHandler:       h,
 		RecvQueueSize:    32,
 		RecvQueueStrict:  false,
-		RecvBatchSize:    16,
 		RecvBufShrinkCap: 2048,
 	}
 	rp := NewReadProcessor(opts).(*ReadProcessor)
@@ -191,7 +188,6 @@ func TestReadProcessor_OnRecvBytes_Empty(t *testing.T) {
 		RawHandler:      h,
 		RecvQueueSize:   32,
 		RecvQueueStrict: false,
-		RecvBatchSize:   16,
 	}
 	rp := NewReadProcessor(opts).(*ReadProcessor)
 	conn := &mockConnForRead{id: 1}
@@ -217,7 +213,6 @@ func TestReadProcessor_RecvQueueFullCallback(t *testing.T) {
 		RawHandler:       &blockingRawHandler{block: blockCh},
 		RecvQueueSize:    2,
 		RecvQueueStrict:  true,
-		RecvBatchSize:    8,
 		RecvBufShrinkCap: 2048,
 		RecvQueueFullCallback: func(_ kknet.IConn) {
 			fullCount++
@@ -266,7 +261,6 @@ func TestReadProcessor_EnqueuePacket(t *testing.T) {
 		RawHandler:       h,
 		RecvQueueSize:    32,
 		RecvQueueStrict:  false,
-		RecvBatchSize:    16,
 		RecvBufShrinkCap: 2048,
 	}
 	rp := NewReadProcessor(opts).(*ReadProcessor)
@@ -294,9 +288,8 @@ func TestReadProcessor_EnqueuePacket(t *testing.T) {
 func TestReadProcessor_EnqueuePacket_Empty(t *testing.T) {
 	h := &collectingRawHandler{}
 	opts := kknet.ReadOptions{
-		RawHandler:   h,
+		RawHandler:    h,
 		RecvQueueSize: 32,
-		RecvBatchSize: 16,
 	}
 	rp := NewReadProcessor(opts).(*ReadProcessor)
 	conn := &mockConnForRead{id: 1}
@@ -338,7 +331,6 @@ func TestSyncReadProcessor_OnRecvBytes(t *testing.T) {
 	opts := kknet.ReadOptions{
 		NoneCopyHandler: h,
 		RecvQueueSize:   32,
-		RecvBatchSize:   16,
 	}
 	rp := NewSyncReadProcessor(opts).(*SyncReadProcessor)
 	conn := &mockConnForRead{id: 7}
@@ -373,7 +365,6 @@ func TestSyncReadProcessor_EnqueuePacket(t *testing.T) {
 	opts := kknet.ReadOptions{
 		NoneCopyHandler: h,
 		RecvQueueSize:   32,
-		RecvBatchSize:   16,
 	}
 	rp := NewSyncReadProcessor(opts).(*SyncReadProcessor)
 	conn := &mockConnForRead{id: 99}
@@ -401,7 +392,6 @@ func TestReadProcessor_Stop_DrainsRemaining(t *testing.T) {
 		RawHandler:       h,
 		RecvQueueSize:    32,
 		RecvQueueStrict:  false,
-		RecvBatchSize:    16,
 		RecvBufShrinkCap: 2048,
 	}
 	rp := NewReadProcessor(opts).(*ReadProcessor)
