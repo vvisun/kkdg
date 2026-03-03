@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vvisun/kkdg/kknet/engines/gws"
+	"github.com/lxzan/gws"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
