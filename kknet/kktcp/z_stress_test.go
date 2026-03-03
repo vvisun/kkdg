@@ -125,8 +125,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 50000
-	msgsPerConn := 0
+	numConns := 5000
+	msgsPerConn := 555
 	payload := make([]byte, 512)
 	totalMsgs := int64(numConns * msgsPerConn)
 

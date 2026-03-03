@@ -1,7 +1,6 @@
 package kktcp
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 
@@ -20,9 +19,6 @@ type tcpConn struct {
 	opts  *kknet.Options
 	stats *kknet.Stats
 
-	ctxMu sync.RWMutex
-	ctx   context.Context
-
 	closing atomic.Bool
 
 	rp kknet.IReadProcessor
@@ -40,7 +36,6 @@ func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
 		conn:      c,
 		opts:      opts,
 		stats:     stats,
-		ctx:       context.Background(),
 		sendQueue: bbqueue.NewFIFOQueue(opts.WpOptions.SendQueueSize, opts.WpOptions.SendQueueStrict),
 	}
 
@@ -80,18 +75,6 @@ func (c *tcpConn) Close() error {
 		go c.rp.Stop()
 	}
 	return c.conn.Close()
-}
-
-func (c *tcpConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
-
-func (c *tcpConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
 }
 
 func (c *tcpConn) SendMsg(msg any) error {

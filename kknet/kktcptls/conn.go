@@ -1,7 +1,6 @@
 package kktcptls
 
 import (
-	"context"
 	"crypto/tls"
 	"io"
 	"net"
@@ -22,9 +21,6 @@ type tlsConn struct {
 	opts  *kknet.Options
 	stats *kknet.Stats
 
-	ctxMu sync.RWMutex
-	ctx   context.Context
-
 	closing   atomic.Bool
 	closeOnce sync.Once
 
@@ -42,7 +38,6 @@ func newTLSConn(conn net.Conn, opts *kknet.Options, stats *kknet.Stats) *tlsConn
 		conn:            conn,
 		opts:            opts,
 		stats:           stats,
-		ctx:             context.Background(),
 		batchWriteBuf:   make([]byte, 0, opts.WpOptions.BatchWriteLimitBytes),
 		batchWriteLimit: opts.WpOptions.BatchWriteLimitBytes,
 	}
@@ -83,18 +78,6 @@ func (c *tlsConn) RemoteAddr() string {
 func (c *tlsConn) Close() error {
 	c.closeWithError(nil, nil)
 	return nil
-}
-
-func (c *tlsConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
-
-func (c *tlsConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
 }
 
 func (c *tlsConn) closeWithError(handler kknet.IConnLifecycleHandler, err error) {

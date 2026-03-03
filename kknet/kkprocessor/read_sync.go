@@ -111,8 +111,9 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 	})
 
 	// shrink: if empty and cap too big, shrink to default.
-	if rp.opts.RecvBufShrinkCap > 0 && len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
-		rp.reRecvBuf(defaultRecvBufSize)
+	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
+		byteslice.Put(rp.recvBuf)
+		rp.recvBuf = nil
 	}
 
 	return nil

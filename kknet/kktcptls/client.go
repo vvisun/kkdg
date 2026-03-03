@@ -1,7 +1,6 @@
 package kktcptls
 
 import (
-	"context"
 	"crypto/tls"
 	"net"
 	"sync"
@@ -156,17 +155,8 @@ func (c *Client) Conn() kknet.IConn {
 	return c.conn
 }
 
-func (c *Client) Addr() string            { return c.addr }
+func (c *Client) Addr() string               { return c.addr }
 func (c *Client) Stats() kknet.StatsSnapshot { return c.stats.Snapshot() }
-
-func (c *Client) SetContext(ctx context.Context) {
-	c.connMu.Lock()
-	conn := c.conn
-	c.connMu.Unlock()
-	if conn != nil {
-		conn.SetContext(ctx)
-	}
-}
 
 // -------------------- dial --------------------
 

@@ -1,7 +1,6 @@
 package kkws
 
 import (
-	"context"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -23,8 +22,6 @@ type wsConn struct {
 	conn  *websocket.Conn
 	opts  *kknet.Options // 配置
 	stats *kknet.Stats   // 统计信息
-	ctxMu sync.RWMutex
-	ctx   context.Context
 
 	closeOnce sync.Once
 	closing   atomic.Bool // 连接关闭标志
@@ -50,7 +47,6 @@ func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *w
 		conn:            conn,
 		opts:            opts,
 		stats:           stats,
-		ctx:             context.Background(),
 		batchWriteBuf:   make([]byte, 0, opts.WpOptions.BatchWriteLimitBytes),
 		batchWriteLimit: opts.WpOptions.BatchWriteLimitBytes,
 	}
@@ -96,18 +92,6 @@ func (c *wsConn) RemoteAddr() string {
 func (c *wsConn) Close() error {
 	c.closeWithError(nil, nil)
 	return nil
-}
-
-func (c *wsConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
-
-func (c *wsConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
 }
 
 // wsPingScheduler 用于时间轮按 WsPingInterval 周期触发 Ping。

@@ -1,7 +1,6 @@
 package kkws
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -158,15 +157,6 @@ func (c *Client) Conn() kknet.IConn {
 // Stats returns a snapshot of client statistics.
 func (c *Client) Stats() kknet.StatsSnapshot {
 	return c.stats.Snapshot()
-}
-
-func (c *Client) SetContext(ctx context.Context) {
-	c.connMu.Lock()
-	conn := c.conn
-	c.connMu.Unlock()
-	if conn != nil {
-		conn.SetContext(ctx)
-	}
 }
 
 func (c *Client) Addr() string {

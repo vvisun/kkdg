@@ -1,7 +1,6 @@
 package kkudp
 
 import (
-	"context"
 	"net"
 	"sync"
 
@@ -19,9 +18,6 @@ type clientConn struct {
 
 	writeMu   sync.Mutex
 	closeOnce sync.Once
-
-	ctxMu sync.RWMutex
-	ctx   context.Context
 }
 
 var _ kknet.IConn = (*clientConn)(nil)
@@ -32,7 +28,6 @@ func newClientConn(conn *net.UDPConn, opts kknet.Options, stats *kknet.Stats) *c
 		conn:  conn,
 		opts:  opts,
 		stats: stats,
-		ctx:   context.Background(),
 	}
 }
 
@@ -87,18 +82,6 @@ func (c *clientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 
 func (c *clientConn) Close() error {
 	return c.conn.Close()
-}
-
-func (c *clientConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
-
-func (c *clientConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
 }
 
 func (c *clientConn) readLoop() error {

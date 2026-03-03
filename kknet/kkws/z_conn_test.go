@@ -1,7 +1,6 @@
 package kkws
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -561,28 +560,6 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 	case <-wc.wp.Done():
 	case <-time.After(2 * time.Second):
 		t.Fatalf("writer did not stop after Close")
-	}
-}
-
-func TestWSConn_Context_SetContext(t *testing.T) {
-	wsURL, _, closeSrv := startTestWSServer(t)
-	defer closeSrv()
-
-	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("dial error: %v", err)
-	}
-	opts := kknet.ApplyOptions()
-	wc := newWSConn(c, &opts, nil)
-	defer wc.Close()
-
-	if wc.Context() == nil {
-		t.Fatal("Context() returned nil")
-	}
-	ctx := context.Background()
-	wc.SetContext(ctx)
-	if wc.Context() != ctx {
-		t.Error("Context() after SetContext does not match")
 	}
 }
 

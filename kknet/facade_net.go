@@ -1,18 +1,14 @@
 package kknet
 
 import (
-	"context"
-
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 // IConn represents a network connection.
 type IConn interface {
-	ID() CONN_ID                    //unique connection id
-	Close() error                   //close connection
-	RemoteAddr() string             //remote address
-	Context() context.Context       //get context
-	SetContext(ctx context.Context) //set context
+	ID() CONN_ID        //unique connection id
+	Close() error       //close connection
+	RemoteAddr() string //remote address
 
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 	SendMsg(msg any) error
@@ -65,7 +61,6 @@ type IClient interface {
 	Close() error   //like Stop()
 	Addr() string
 	Stats() StatsSnapshot
-	SetContext(ctx context.Context)
 	IsConnected() bool
 
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error

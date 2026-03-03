@@ -1,7 +1,6 @@
 package kktcp
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -189,10 +188,6 @@ func (c *GnetClient) Addr() string {
 // Stats returns a snapshot of client statistics.
 func (c *GnetClient) Stats() kknet.StatsSnapshot {
 	return c.stats.Snapshot()
-}
-
-func (c *GnetClient) SetContext(ctx context.Context) {
-
 }
 
 func (c *GnetClient) startReconnect() {

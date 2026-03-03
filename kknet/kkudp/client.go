@@ -1,7 +1,6 @@
 package kkudp
 
 import (
-	"context"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -127,10 +126,6 @@ func (c *Client) Conn() kknet.IConn {
 // Stats returns a snapshot of client statistics.
 func (c *Client) Stats() kknet.StatsSnapshot {
 	return c.stats.Snapshot()
-}
-
-func (c *Client) SetContext(ctx context.Context) {
-
 }
 
 func (c *Client) Addr() string {

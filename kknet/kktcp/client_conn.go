@@ -1,7 +1,6 @@
 package kktcp
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 
@@ -20,9 +19,6 @@ type gnetClientConn struct {
 	opts  *kknet.Options
 	stats *kknet.Stats
 
-	ctxMu sync.RWMutex
-	ctx   context.Context
-
 	closing atomic.Bool
 
 	rp        kknet.IReadProcessor
@@ -39,7 +35,6 @@ func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gn
 		conn:      c,
 		opts:      opts,
 		stats:     stats,
-		ctx:       context.Background(),
 		sendQueue: bbqueue.NewFIFOQueue(opts.WpOptions.SendQueueSize, opts.WpOptions.SendQueueStrict),
 	}
 	if opts.RpProvider != nil {
@@ -70,18 +65,6 @@ func (c *gnetClientConn) GetUserId() kknet.USER_ID {
 
 func (c *gnetClientConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
-}
-
-func (c *gnetClientConn) Context() context.Context {
-	c.ctxMu.RLock()
-	defer c.ctxMu.RUnlock()
-	return c.ctx
-}
-
-func (c *gnetClientConn) SetContext(ctx context.Context) {
-	c.ctxMu.Lock()
-	c.ctx = ctx
-	c.ctxMu.Unlock()
 }
 
 func (c *gnetClientConn) Close() error {
