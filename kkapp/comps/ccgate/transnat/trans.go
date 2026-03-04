@@ -2,7 +2,6 @@ package transnat
 
 import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
-	"github.com/vvisun/kkdg/kkapp/session"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
@@ -12,7 +11,7 @@ import (
 // transportorNats 使用Nats集群转发消息
 type transportorNats struct {
 	cluster    kkcluster.ICluster // cluster for forwarding messages to logic and client
-	sessionMgr session.ISessionManager
+	sessionMgr transface.ISessionManager
 }
 
 var _ transface.ITransportor = (*transportorNats)(nil)
@@ -20,7 +19,7 @@ var _ transface.ITransportor = (*transportorNats)(nil)
 func NewTransportorNats(cluster kkcluster.ICluster) transface.ITransportor {
 	trans := &transportorNats{
 		cluster:    cluster,
-		sessionMgr: session.NewSessionMgr(),
+		sessionMgr: transface.NewSessionMgr(),
 	}
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans
@@ -78,6 +77,6 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 	return nil
 }
 
-func (slf *transportorNats) GetSessionMgr() session.ISessionManager {
+func (slf *transportorNats) GetSessionMgr() transface.ISessionManager {
 	return slf.sessionMgr
 }

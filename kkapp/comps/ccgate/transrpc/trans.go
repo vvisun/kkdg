@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
-	"github.com/vvisun/kkdg/kkapp/session"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -22,7 +21,7 @@ type logicMemberInfo struct {
 // 逻辑服先连接到本网关, 然后发送[register:nodeId,nodeType]注册到本网关, 进行注册服务。
 type transportorRpc struct {
 	rpcSvr       *kkrpc.Server
-	sessionMgr   session.ISessionManager
+	sessionMgr   transface.ISessionManager
 	logicNodeMap sync.Map // map[string]*logicMemberInfo
 }
 
@@ -42,7 +41,7 @@ func NewTransportorRpc() transface.ITransportor {
 
 	return &transportorRpc{
 		rpcSvr:     rpcSvr,
-		sessionMgr: session.NewSessionMgr(),
+		sessionMgr: transface.NewSessionMgr(),
 	}
 }
 
@@ -89,7 +88,7 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, msgBytes []byte) er
 	return nil
 }
 
-func (slf *transportorRpc) GetSessionMgr() session.ISessionManager {
+func (slf *transportorRpc) GetSessionMgr() transface.ISessionManager {
 	return slf.sessionMgr
 }
 
