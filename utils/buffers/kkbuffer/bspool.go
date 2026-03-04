@@ -21,7 +21,7 @@ func NewBSPool(defaultSize uint32) *bsPool {
 }
 
 func (p *bsPool) Get() *ByteBuffer {
-	idx := indexBS(p.defaultSize)
+	idx := indexBS(p.defaultSize) //从向上取整的bucket中获取，避免需要扩容或cap不足
 	v := p.pools[idx].Get()
 	if v != nil {
 		b := v.(*ByteBuffer)
@@ -48,7 +48,7 @@ func (p *bsPool) GetWithCap(capacity int) *ByteBuffer {
 			B: make([]byte, 0, capacity),
 		}
 	}
-	idx := indexBS(uint32(capacity))
+	idx := indexBS(uint32(capacity)) //从向上取整的bucket中获取，避免需要扩容或cap不足
 	v := p.pools[idx].Get()
 	if v != nil {
 		b := v.(*ByteBuffer)
@@ -80,8 +80,8 @@ func (p *bsPool) Put(b *ByteBuffer) {
 		return // 超大 buffer 丢弃，不参与校准统计
 	}
 	idx := indexBS(uint32(size))
-	if size != 1<<idx { // this byte slice is not from Pool.Get(), put it into the previous interval of idx
-		idx--
+	if size != 1<<idx {
+		idx-- // 非精确 2^k 大小，放到前一个区间, 否则 GetWithCap 可能从太小的 bucket 里拿, 导致需要扩容或cap不足
 	}
 	atomic.AddInt64(&p.count, 1)
 	p.pools[idx].Put(b)

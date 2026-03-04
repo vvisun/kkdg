@@ -42,16 +42,6 @@ func NewBBPool(left, right uint32) *bbPool {
 	return p
 }
 
-// Put 将缓冲区放回到内存池
-// returns the buffer to the memory pool
-func (p *bbPool) Put(b *ByteBuffer) {
-	if b != nil {
-		if pool, ok := p.shards[b.Cap()]; ok {
-			pool.Put(b)
-		}
-	}
-}
-
 // Get 从内存池中获取一个至少 n 字节的缓冲区
 // fetches a buffer from the memory pool, of at least n bytes
 func (p *bbPool) GetWithCap(n int) *ByteBuffer {
@@ -66,5 +56,15 @@ func (p *bbPool) GetWithCap(n int) *ByteBuffer {
 	}
 	return &ByteBuffer{
 		B: make([]byte, 0, n),
+	}
+}
+
+// Put 将缓冲区放回到内存池
+// returns the buffer to the memory pool
+func (p *bbPool) Put(b *ByteBuffer) {
+	if b != nil {
+		if pool, ok := p.shards[b.Cap()]; ok {
+			pool.Put(b)
+		}
 	}
 }

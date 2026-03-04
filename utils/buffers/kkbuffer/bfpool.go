@@ -89,13 +89,14 @@ func (p *bfPool) Put(b *ByteBuffer) {
 		kklog.Debug("byte buffer already released")
 		return // 防止重复释放
 	}
-	if cap(b.B) > maxItemSize {
-		return // 超大 buffer 丢弃，不参与校准统计
-	}
 	if atomic.LoadInt64(&p.count) > max_size_for_pool {
 		return // 防止池过大耗尽内存
 	}
-	idx := index(cap(b.B))
+	size := cap(b.B)
+	if size < 1 || size > maxItemSize {
+		return // 超大 buffer 丢弃，不参与校准统计
+	}
+	idx := index(size)
 	atomic.AddUint64(&p.calls[idx], 1)
 	if atomic.AddUint64(&p.calibrateCount, 1) > calibrateCallsThreshold {
 		p.calibrate()

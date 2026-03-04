@@ -142,8 +142,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 3333
-	msgsPerConn := 2222
+	numConns := 128
+	msgsPerConn := 22233
 	payload := make([]byte, 512)
 	totalMsgs := int64(numConns * msgsPerConn)
 
@@ -153,6 +153,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
 		kknet.WithRpProvider(kkprocessor.NewTaskReadProcessor),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(64),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),

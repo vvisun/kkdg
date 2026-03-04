@@ -12,7 +12,7 @@ import (
 // slice. See example code for details.
 //
 // Use Get for obtaining an empty byte buffer.
-// 使用原则: 在任何函数中，如果不再使用则kkbuffer.Put()释放。
+// 使用原则: 在任何函数中，如果不再使用(不作为参数传递给其他函数，或不作为返回值时)则kkbuffer.Put()释放。
 // 如果传递给其他函数使用，不要释放，因为其他函数可能是异步使用，释放会引起数据错乱。
 type ByteBuffer struct {
 	//防止重复释放
