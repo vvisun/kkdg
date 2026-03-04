@@ -214,6 +214,7 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) marshal publish packet failed: targetNode=%s err=%v", c.nodeID, nodeID, err)
 		return err
 	}
 
@@ -221,6 +222,7 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 	subject := c.getPublishSubject(nodeID)
 	if err := c.conn.Publish(subject, data); err != nil {
 		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) publish failed: subject=%s targetNode=%s bytes=%d err=%v", c.nodeID, subject, nodeID, len(data), err)
 		return err
 	}
 
@@ -253,6 +255,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) marshal type publish packet failed: nodeType=%s err=%v", c.nodeID, nodeType, err)
 		return err
 	}
 
@@ -261,6 +264,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	subject := c.getPublishTypeSubject(nodeType)
 	if err := c.conn.Publish(subject, data); err != nil {
 		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) publish type failed: subject=%s nodeType=%s bytes=%d err=%v", c.nodeID, subject, nodeType, len(data), err)
 		return err
 	}
 
@@ -309,6 +313,7 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		delete(c.reqMap, requestID)
 		c.reqMu.Unlock()
 		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) marshal async request failed: requestID=%s targetNode=%s err=%v", c.nodeID, requestID, nodeID, err)
 		return err
 	}
 
@@ -318,6 +323,7 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		delete(c.reqMap, requestID)
 		c.reqMu.Unlock()
 		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) publish async request failed: subject=%s requestID=%s targetNode=%s bytes=%d err=%v", c.nodeID, requestSubject, requestID, nodeID, len(data), err)
 		return err
 	}
 
@@ -394,6 +400,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) marshal request failed: requestID=%s targetNode=%s err=%v", c.nodeID, requestID, nodeID, err)
 		return nil, kkcluster.ClusterErrorCodeMarshalFailed
 	}
 
@@ -401,6 +408,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	requestSubject := c.getRequestSubjectForNode(nodeID)
 	if err := c.conn.Publish(requestSubject, data); err != nil {
 		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) publish request failed: subject=%s requestID=%s targetNode=%s bytes=%d err=%v", c.nodeID, requestSubject, requestID, nodeID, len(data), err)
 		return nil, kkcluster.ClusterErrorCodePublishFailed
 	}
 

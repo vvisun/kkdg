@@ -453,11 +453,14 @@ func (d *NatsDiscovery) publishSelf() error {
 	data, err := msgCodec.Marshal(&memberInfo)
 	if err != nil {
 		d.stats.AddError()
+		kklog.Errorf("NatsDiscovery(%s) marshal self failed: nodeType=%s addr=%s err=%v", d.nodeID, d.nodeType, d.address, err)
 		return err
 	}
 
-	if err := d.conn.Publish(d.getDiscoverySubject(), data); err != nil {
+	subject := d.getDiscoverySubject()
+	if err := d.conn.Publish(subject, data); err != nil {
 		d.stats.AddError()
+		kklog.Errorf("NatsDiscovery(%s) publish self failed: subject=%s bytes=%d err=%v", d.nodeID, subject, len(data), err)
 		return err
 	}
 
@@ -502,16 +505,16 @@ func (d *NatsDiscovery) requestAllMembers() {
 
 	data, err := msgCodec.Marshal(&reqMsg)
 	if err != nil {
-		kklog.Errorf("NatsDiscovery(%s) marshal request failed: %v", d.nodeID, err)
 		d.stats.AddError()
+		kklog.Errorf("NatsDiscovery(%s) marshal discovery request failed: requesterID=%s err=%v", d.nodeID, reqMsg.RequesterID, err)
 		return
 	}
 
 	subject := d.getDiscoveryRequestSubject()
 	if d.conn != nil && !d.closed.Load() {
 		if err := d.conn.Publish(subject, data); err != nil {
-			kklog.Errorf("NatsDiscovery(%s) publish request failed: %v", d.nodeID, err)
 			d.stats.AddError()
+			kklog.Errorf("NatsDiscovery(%s) publish discovery request failed: subject=%s requesterID=%s bytes=%d err=%v", d.nodeID, subject, reqMsg.RequesterID, len(data), err)
 		}
 	}
 }
