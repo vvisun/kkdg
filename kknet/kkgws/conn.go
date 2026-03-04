@@ -210,11 +210,25 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed
 	}
-	if c.wp == nil {
-		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
-	}
-	return c.wp.SendBuffer(buffer)
+	// if c.wp == nil {
+	// 	kkbuffer.Put(buffer)
+	// 	return kkerrors.ErrConnectionClosed
+	// }
+	// return c.wp.SendBuffer(buffer)
+	c.socket.WriteAsync(gws.OpcodeBinary, buffer.B, func(err error) {
+		if err != nil {
+			if c.stats != nil {
+				c.stats.AddError()
+			}
+			kkbuffer.Put(buffer)
+		} else {
+			if c.stats != nil {
+				c.stats.AddSent(len(buffer.B))
+			}
+			kkbuffer.Put(buffer)
+		}
+	})
+	return nil
 }
 
 // writeBatch is the WriteFunc called by the write processor.
