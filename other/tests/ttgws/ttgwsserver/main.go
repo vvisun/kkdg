@@ -1,82 +1,65 @@
-// ttgwsserver: gws 压测服务端，与 ttws/ttwsserver 对比（ttws 用 kkws/gorilla，本程序用 kknet/engines/gws）
-// 运行：go run ./other/tests/ttgws/ttgwsserver
+// ttgwsserver: 基于 kkgws(gws) 的压测服务端，与 ttws/ttwsserver 对比（ttws 用 kkws/gorilla）
+// 运行：go run ./other/tests/ttgws/ttgwsserver -addr=:8080
 package main
 
 import (
-	"bufio"
-	"net"
-	"net/http"
+	"flag"
 	"sync/atomic"
 	"time"
 
-	"github.com/lxzan/gws"
+	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkgws"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+var addr = flag.String("addr", ":8080", "listen address")
+
 func main() {
+	flag.Parse()
+
 	var recvCount atomic.Int64
-	var connCount atomic.Int64
 
-	handler := &stressHandler{
-		recvCount: &recvCount,
-		connCount: &connCount,
+	recv := &stressRecvHandler{recvCount: &recvCount}
+	opts := kknet.ApplyOptions(
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithNoneCopyHandler(recv),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithBufferSizes(4*1024, 4*1024),
+	)
+
+	lifecycleHandler := &connLifecycleHandler{}
+	srv := kkgws.NewServer(*addr, lifecycleHandler, opts)
+	if err := srv.Start(); err != nil {
+		kklog.Errorf("[ttgws] Start: %v", err)
+		return
 	}
-	srv := gws.NewServer(handler, nil)
-	// 仅对 /ws 做 WebSocket 升级，与 ttws 行为一致
-	srv.OnRequest = func(conn net.Conn, br *bufio.Reader, r *http.Request) {
-		if r.URL.Path != "/ws" {
-			writeHTTP404(conn)
-			conn.Close()
-			return
-		}
-		socket, err := srv.GetUpgrader().UpgradeFromConn(conn, br, r)
-		if err != nil {
-			srv.OnError(conn, err)
-			return
-		}
-		connCount.Add(1)
-		socket.ReadLoop()
-		connCount.Add(-1)
-	}
+	defer srv.Stop()
 
-	go func() {
-		addr := ":8080"
-		kklog.Infof("[ttgws] server listening on %s (path /ws)", addr)
-		if err := srv.Run(addr); err != nil {
-			kklog.Errorf("[ttgws] Run: %v", err)
-		}
-	}()
-
-	// 定时打印统计，便于与 ttws 对比
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {
-		active := connCount.Load()
-		recv := recvCount.Load()
-		kklog.Infof("[ttgws] 并发连接: %d  累计收包: %d", active, recv)
+		stats := srv.Stats()
+		kknet.PrintStress(&stats)
 	}
 }
 
-type stressHandler struct {
-	gws.BuiltinEventHandler
+type connLifecycleHandler struct{}
+
+func (h *connLifecycleHandler) OnConnect(c kknet.IConn) {}
+
+func (h *connLifecycleHandler) OnClose(c kknet.IConn, err error) {}
+
+type stressRecvHandler struct {
 	recvCount *atomic.Int64
-	connCount *atomic.Int64
 }
 
-func (h *stressHandler) OnOpen(socket *gws.Conn) {
-	socket.SetNoDelay(true)
-}
-
-func (h *stressHandler) OnMessage(socket *gws.Conn, message *gws.Message) {
+func (h *stressRecvHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
 	h.recvCount.Add(1)
-	message.Close()
 }
 
-func (h *stressHandler) OnPing(socket *gws.Conn, payload []byte) {
-	_ = socket.WritePong(payload)
-}
-
-func writeHTTP404(conn net.Conn) {
-	body := "404 Not Found"
-	_, _ = conn.Write([]byte("HTTP/1.1 404 Not Found\r\nContent-Length: 13\r\nConnection: close\r\n\r\n" + body))
+func (h *stressRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	h.recvCount.Add(1)
+	kkbuffer.Put(data)
 }

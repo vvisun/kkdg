@@ -1,0 +1,293 @@
+package kkgws
+
+import (
+	"sync"
+	"sync/atomic"
+	"time"
+	"unsafe"
+
+	"github.com/lxzan/gws"
+	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kktime"
+	"github.com/vvisun/kkdg/utils/timingwheel"
+)
+
+const sessionKeyConn = "_kkgws"
+
+type gwsConn struct {
+	id     kknet.CONN_ID
+	uid    kknet.USER_ID
+	socket *gws.Conn
+	opts   *kknet.Options
+	stats  *kknet.Stats
+
+	closeOnce sync.Once
+	closing   atomic.Bool
+
+	writeMu         sync.Mutex
+	wp              kknet.IWriteProcessor
+	batchWriteBuf   []byte
+	batchWriteLimit int
+
+	rp kknet.IReadProcessor
+
+	pingTimer unsafe.Pointer // *timingwheel.Timer
+}
+
+var _ kknet.IConn = (*gwsConn)(nil)
+
+func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsConn {
+	kknet.CheckOptions(opts)
+	c := &gwsConn{
+		id:              kknet.NextConnID(),
+		socket:          socket,
+		opts:            opts,
+		stats:           stats,
+		batchWriteBuf:   make([]byte, 0, opts.WpOptions.BatchWriteLimitBytes),
+		batchWriteLimit: opts.WpOptions.BatchWriteLimitBytes,
+	}
+
+	if opts.WpProvider != nil {
+		c.wp = opts.WpProvider(opts.WpOptions)
+	} else {
+		c.wp = defaultWpProvider(opts.WpOptions)
+	}
+	c.wp.Start(c, c.writeBatch, func(_ error) {
+		_ = socket.WriteClose(1011, nil)
+	})
+
+	if opts.RpProvider != nil {
+		c.rp = opts.RpProvider(opts.RpOptions)
+	} else {
+		c.rp = defaultRpProvider(opts.RpOptions)
+	}
+	c.rp.Start(c)
+
+	return c
+}
+
+func (c *gwsConn) ID() kknet.CONN_ID {
+	return c.id
+}
+
+func (c *gwsConn) BindUser(uid kknet.USER_ID) {
+	c.uid = uid
+}
+
+func (c *gwsConn) UnbindUser() {
+	c.uid = kknet.NULL_USER_ID
+}
+
+func (c *gwsConn) GetUserId() kknet.USER_ID {
+	return c.uid
+}
+
+func (c *gwsConn) RemoteAddr() string {
+	if c.socket == nil {
+		return ""
+	}
+	addr := c.socket.RemoteAddr()
+	if addr == nil {
+		return ""
+	}
+	return addr.String()
+}
+
+func (c *gwsConn) Close() error {
+	if c.closing.Swap(true) {
+		return nil
+	}
+	_ = c.socket.WriteClose(1000, nil)
+	return nil
+}
+
+// onRecvMessage is called from the gws OnMessage callback.
+func (c *gwsConn) onRecvMessage(data []byte) {
+	if len(data) == 0 {
+		return
+	}
+	if c.stats != nil {
+		c.stats.AddRecv(len(data))
+	}
+	if err := c.rp.OnRecvBytes(data); err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		_ = c.socket.WriteClose(1011, nil)
+	}
+}
+
+// doClose performs the actual cleanup; called from the gws OnClose callback.
+func (c *gwsConn) doClose(handler kknet.IConnLifecycleHandler, err error) {
+	c.closeOnce.Do(func() {
+		c.closing.Store(true)
+		c.stopPingByTimingWheel()
+		if c.rp != nil {
+			c.rp.Stop()
+		}
+		if c.wp != nil {
+			c.wp.Stop(err)
+		}
+
+		if c.stats != nil {
+			c.stats.OnClose()
+			if err != nil {
+				c.opts.Logger.Debugf("kkgws OnClose error: connId=%d, err=%v", c.id, err)
+				c.stats.AddError()
+			}
+		}
+		if handler != nil {
+			kknet.SafeHandlerCall(c.opts.Logger, c.stats, "kkgws OnClose", func() {
+				handler.OnClose(c, err)
+			})
+		}
+	})
+}
+
+// --- ping keepalive via timing wheel ---
+
+type gwsPingScheduler struct {
+	interval time.Duration
+}
+
+func (s *gwsPingScheduler) Next(prev time.Time) time.Time {
+	return prev.Add(s.interval)
+}
+
+func (c *gwsConn) startPingByTimingWheel() {
+	if c.opts.PingInterval <= 0 || c.opts.ReadTimeout <= 0 {
+		return
+	}
+
+	tw := kktime.GetNetTimingWheel()
+	t := tw.ScheduleFunc(&gwsPingScheduler{c.opts.PingInterval}, func() {
+		if c.closing.Load() {
+			return
+		}
+		if err := c.socket.WritePing(nil); err != nil {
+			c.opts.Logger.Errorf("kkgws write ping error: %v", err)
+		}
+	})
+	if t != nil {
+		atomic.StorePointer(&c.pingTimer, unsafe.Pointer(t))
+	}
+}
+
+func (c *gwsConn) stopPingByTimingWheel() {
+	if p := atomic.LoadPointer(&c.pingTimer); p != nil {
+		(*timingwheel.Timer)(p).Stop()
+		atomic.StorePointer(&c.pingTimer, nil)
+	}
+}
+
+// --- send ---
+
+func (c *gwsConn) SendMsg(msg any) error {
+	if msg == nil {
+		return kkerrors.ErrInvalidPacket
+	}
+	if c.closing.Load() {
+		return kkerrors.ErrConnectionClosed
+	}
+	if c.wp == nil {
+		return kkerrors.ErrConnectionClosed
+	}
+	return c.wp.SendMsg(msg)
+}
+
+func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
+	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		kkbuffer.Put(buffer)
+		return err
+	}
+	if c.closing.Load() {
+		kkbuffer.Put(buffer)
+		return kkerrors.ErrConnectionClosed
+	}
+	if c.wp == nil {
+		kkbuffer.Put(buffer)
+		return kkerrors.ErrConnectionClosed
+	}
+	return c.wp.SendBuffer(buffer)
+}
+
+// writeBatch is the WriteFunc called by the write processor.
+func (c *gwsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
+	if n <= 0 {
+		return nil
+	}
+
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	batchBytes := c.batchWriteBuf[:0]
+	start := 0
+	for i := 0; i < n; i++ {
+		bb := batch[i]
+		if bb == nil {
+			continue
+		}
+		batchBytes = append(batchBytes, bb.B...)
+		if len(batchBytes) >= c.batchWriteLimit {
+			if err := c.sendBytes(batchBytes); err != nil {
+				return err
+			}
+			batchBytes = batchBytes[:0]
+			for j := start; j <= i; j++ {
+				bb2 := batch[j]
+				batch[j] = nil
+				if bb2 != nil {
+					kkbuffer.Put(bb2)
+				}
+			}
+			start = i + 1
+		}
+	}
+
+	if len(batchBytes) > 0 {
+		if err := c.sendBytes(batchBytes); err != nil {
+			return err
+		}
+	}
+
+	for j := start; j < n; j++ {
+		bb := batch[j]
+		batch[j] = nil
+		if bb != nil {
+			kkbuffer.Put(bb)
+		}
+	}
+	return nil
+}
+
+func (c *gwsConn) sendBytes(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+	err := c.socket.WriteMessage(gws.OpcodeBinary, data)
+	if err != nil {
+		if c.stats != nil {
+			c.stats.AddError()
+		}
+		return err
+	}
+	if c.stats != nil {
+		c.stats.AddSent(len(data))
+	}
+	return nil
+}
+
+// getGwsConn retrieves the gwsConn stored in the gws.Conn session.
+func getGwsConn(socket *gws.Conn) *gwsConn {
+	v, ok := socket.Session().Load(sessionKeyConn)
+	if !ok {
+		return nil
+	}
+	return v.(*gwsConn)
+}
