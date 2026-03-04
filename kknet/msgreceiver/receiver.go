@@ -1,7 +1,6 @@
 package msgreceiver
 
 import (
-	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -15,8 +14,6 @@ type MsgReceiver[K any] struct {
 	hdMap         map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
 	metaParser    MetaParser
 }
-
-var _ kknet.IRawHandler = (*MsgReceiver[kknet.CONN_ID])(nil) // 默认实现
 
 // 解析出: msgID-消息ID，bodyBytes-消息对象二进制数据
 func (r *MsgReceiver[K]) parseMsgInfo(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error) {
@@ -38,6 +35,8 @@ func (r *MsgReceiver[K]) parseMsgInfo(data *kkbuffer.ByteBuffer) (kkpacket.MSGID
 	}
 	return msgId, bodyBytes, nil
 }
+
+// var _ kknet.IRawHandler = (*MsgReceiver[kknet.CONN_ID])(nil)
 
 // OnRaw 接收原始数据并分发到消息处理器
 func (r *MsgReceiver[K]) OnRaw(connId K, data *kkbuffer.ByteBuffer) {
@@ -74,6 +73,8 @@ func (r *MsgReceiver[K]) OnSession(sessionID K, messageBytes []byte) {
 
 	h.OnRaw(sessionID, bodyBytes)
 }
+
+//--------------------------------------------------
 
 // NewMsgReceiver 创建消息接收器
 func NewMsgReceiver[K any](messagePacket *kkpacket.MessagePacket) *MsgReceiver[K] {
