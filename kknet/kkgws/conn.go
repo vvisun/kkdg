@@ -27,12 +27,9 @@ type gwsConn struct {
 	closeOnce sync.Once
 	closing   atomic.Bool
 
-	writeMu         sync.Mutex
-	wp              kknet.IWriteProcessor
-	batchWriteBuf   []byte
-	batchWriteLimit int
-
-	rp kknet.IReadProcessor
+	writeMu sync.Mutex
+	wp      kknet.IWriteProcessor
+	rp      kknet.IReadProcessor
 
 	pingTimer unsafe.Pointer // *timingwheel.Timer
 }
@@ -42,12 +39,10 @@ var _ kknet.IConn = (*gwsConn)(nil)
 func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsConn {
 	kknet.CheckOptions(opts)
 	c := &gwsConn{
-		id:              kknet.NextConnID(),
-		socket:          socket,
-		opts:            opts,
-		stats:           stats,
-		batchWriteBuf:   make([]byte, 0, opts.WpOptions.BatchWriteLimitBytes),
-		batchWriteLimit: opts.WpOptions.BatchWriteLimitBytes,
+		id:     kknet.NextConnID(),
+		socket: socket,
+		opts:   opts,
+		stats:  stats,
 	}
 
 	if opts.WpProvider != nil {

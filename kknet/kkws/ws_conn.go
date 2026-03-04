@@ -11,6 +11,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kktime"
 	"github.com/vvisun/kkdg/utils/timingwheel"
@@ -28,9 +29,7 @@ type wsConn struct {
 
 	writeMu sync.Mutex // websocket 写必须串行
 
-	wp              kknet.IWriteProcessor // 写处理器（每连接独立）
-	batchWriteBuf   []byte                // 批量写入缓冲区
-	batchWriteLimit int                   // 批量写入限制字节数
+	wp kknet.IWriteProcessor // 写处理器（每连接独立）
 
 	readBB *kkbuffer.ByteBuffer // reused read buffer for NextReader
 
@@ -43,12 +42,10 @@ var _ kknet.IConn = (*wsConn)(nil)
 func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *wsConn {
 	kknet.CheckOptions(opts)
 	c := &wsConn{
-		id:              kknet.NextConnID(),
-		conn:            conn,
-		opts:            opts,
-		stats:           stats,
-		batchWriteBuf:   make([]byte, 0, opts.WpOptions.BatchWriteLimitBytes),
-		batchWriteLimit: opts.WpOptions.BatchWriteLimitBytes,
+		id:    kknet.NextConnID(),
+		conn:  conn,
+		opts:  opts,
+		stats: stats,
 	}
 
 	if c.opts.WpProvider != nil {
@@ -285,7 +282,17 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	}
 
 	if n > 1 {
-		batchBytes := c.batchWriteBuf[:0]
+		totalBytes := 0
+		for i := 0; i < n; i++ {
+			bb := batch[i]
+			if bb == nil {
+				continue
+			}
+			totalBytes += len(bb.B)
+		}
+		batchBytes := byteslice.GetZero(totalBytes)
+		defer byteslice.Put(batchBytes)
+
 		start := 0 // start index of current batchBytes ownership window
 		for i := 0; i < n; i++ {
 			bb := batch[i]
@@ -293,7 +300,7 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 				continue
 			}
 			batchBytes = append(batchBytes, bb.B...)
-			if len(batchBytes) >= c.batchWriteLimit {
+			if len(batchBytes) >= c.opts.WpOptions.BatchWriteLimitBytes {
 				// 单次写入超过限制，则立即发送
 				if err := c.sendBytes(batchBytes); err != nil {
 					// 发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。

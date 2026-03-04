@@ -11,6 +11,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -24,9 +25,7 @@ type tlsConn struct {
 	closing   atomic.Bool
 	closeOnce sync.Once
 
-	wp              kknet.IWriteProcessor
-	batchWriteBuf   []byte
-	batchWriteLimit int
+	wp kknet.IWriteProcessor
 }
 
 var _ kknet.IConn = (*tlsConn)(nil)
@@ -34,12 +33,10 @@ var _ kknet.IConn = (*tlsConn)(nil)
 func newTLSConn(conn net.Conn, opts *kknet.Options, stats *kknet.Stats) *tlsConn {
 	kknet.CheckOptions(opts)
 	c := &tlsConn{
-		id:              kknet.NextConnID(),
-		conn:            conn,
-		opts:            opts,
-		stats:           stats,
-		batchWriteBuf:   make([]byte, 0, opts.WpOptions.BatchWriteLimitBytes),
-		batchWriteLimit: opts.WpOptions.BatchWriteLimitBytes,
+		id:    kknet.NextConnID(),
+		conn:  conn,
+		opts:  opts,
+		stats: stats,
 	}
 
 	if opts.WpProvider != nil {
@@ -193,7 +190,17 @@ func (c *tlsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	}
 
 	if n > 1 {
-		batchBytes := c.batchWriteBuf[:0]
+		totalBytes := 0
+		for i := 0; i < n; i++ {
+			bb := batch[i]
+			if bb == nil {
+				continue
+			}
+			totalBytes += len(bb.B)
+		}
+		batchBytes := byteslice.GetZero(totalBytes)
+		defer byteslice.Put(batchBytes)
+
 		start := 0
 		for i := 0; i < n; i++ {
 			bb := batch[i]
@@ -201,7 +208,7 @@ func (c *tlsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 				continue
 			}
 			batchBytes = append(batchBytes, bb.B...)
-			if len(batchBytes) >= c.batchWriteLimit {
+			if len(batchBytes) >= c.opts.WpOptions.BatchWriteLimitBytes {
 				if err := c.writeAll(batchBytes); err != nil {
 					return err
 				}
