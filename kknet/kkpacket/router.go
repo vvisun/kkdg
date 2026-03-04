@@ -23,7 +23,12 @@ type msgMeta[T any] struct {
 	msgRoute      string         // 消息路由
 }
 
-func newMsgMeta[T any](id MSGID, route string, messagePacket *MessagePacket) *msgMeta[T] {
+func NewMsgMeta[T any](id MSGID, route string, messagePacket *MessagePacket) *msgMeta[T] {
+	var v T
+	err := messagePacket.router.Register(id, &v, route)
+	if err != nil {
+		return nil
+	}
 	return &msgMeta[T]{
 		msgID:         id,
 		msgType:       reflect.TypeFor[T](),
@@ -123,6 +128,10 @@ func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 	if msgType == nil || !xreflect.IsPointer(msgPtr) {
 		kklog.Errorf("message pointer required, got %v", msgType)
 		return kkerrors.ErrInvalidMessage
+	}
+	if _, ok := r.idToType[id]; ok {
+		kklog.Errorf("message id %v is already registered", id)
+		return kkerrors.ErrMsgIDAlreadyRegistered
 	}
 	r.typeToId[reflect.TypeOf(msgPtr)] = id
 	r.idToType[id] = reflect.TypeOf(msgPtr)

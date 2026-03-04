@@ -32,6 +32,8 @@ var (
 	ErrValueListTooShortToUnmarshal = errors.New("value list too short to unmarshal")
 	// 值超出范围
 	ErrValueOutOfRange = errors.New("value out of range")
+	// 消息ID已注册
+	ErrMsgIDAlreadyRegistered = errors.New("message id already registered")
 )
 
 // -------------- for kkcodec -------------------
