@@ -14,6 +14,25 @@ const BatchPacketSize = 32
 
 type OriginCheckFunc func(r *http.Request) bool
 
+// ReconnectBackoff computes a reconnect delay with exponential backoff and jitter.
+//
+//	delay = base * 2^max(0, consecutiveFails-1), capped at maxInterval.
+//	Adds [0, 25%) of delay as jitter to spread out reconnect storms.
+func ReconnectBackoff(base, maxInterval time.Duration, consecutiveFails int) time.Duration {
+	delay := base
+	for i := 1; i < consecutiveFails; i++ {
+		delay *= 2
+		if delay >= maxInterval {
+			delay = maxInterval
+			break
+		}
+	}
+	if jitterRange := int64(delay) / 4; jitterRange > 0 {
+		delay += time.Duration(rand.Int63n(jitterRange))
+	}
+	return delay
+}
+
 // Options are common network settings.
 type Options struct {
 	Logger               kklog.ILogger                // 日志记录器
@@ -174,9 +193,6 @@ func WithShutdownTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout > 0 {
 			o.ShutdownTimeout = timeout
-			if o.ShutdownTimeout < 50*time.Millisecond { // 最小关闭超时时间，防止压根没效果
-				o.ShutdownTimeout = 50 * time.Millisecond
-			}
 		}
 	}
 }
@@ -187,9 +203,6 @@ func WithReadTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
 			o.ReadTimeout = timeout
-			if o.ReadTimeout < 50*time.Millisecond { // 最小读超时时间，防止压根没效果
-				o.ReadTimeout = 50 * time.Millisecond
-			}
 		}
 	}
 }
@@ -200,9 +213,6 @@ func WithWriteTimeout(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout >= 0 {
 			o.WriteTimeout = timeout
-			if o.WriteTimeout < 50*time.Millisecond {
-				o.WriteTimeout = 50 * time.Millisecond
-			}
 		}
 	}
 }
@@ -215,9 +225,6 @@ func WithPingInterval(interval time.Duration) Option {
 	return func(o *Options) {
 		if interval >= 0 {
 			o.PingInterval = interval
-			if o.PingInterval > 0 && o.PingInterval < 2*time.Second {
-				o.PingInterval = 2 * time.Second
-			}
 		}
 	}
 }
@@ -235,9 +242,6 @@ func WithReconnectInterval(interval time.Duration, maxRetries int) Option {
 	return func(o *Options) {
 		if interval > 0 {
 			o.ReconnectInterval = interval
-			if interval < 500*time.Millisecond {
-				o.ReconnectInterval = 500 * time.Millisecond
-			}
 		}
 		o.ReconnectMaxRetries = maxRetries
 	}
@@ -257,25 +261,6 @@ func WithReconnectCallback(cb func(attempt int, err error)) Option {
 	return func(o *Options) {
 		o.ReconnectCallback = cb
 	}
-}
-
-// ReconnectBackoff computes a reconnect delay with exponential backoff and jitter.
-//
-//	delay = base * 2^max(0, consecutiveFails-1), capped at maxInterval.
-//	Adds [0, 25%) of delay as jitter to spread out reconnect storms.
-func ReconnectBackoff(base, maxInterval time.Duration, consecutiveFails int) time.Duration {
-	delay := base
-	for i := 1; i < consecutiveFails; i++ {
-		delay *= 2
-		if delay >= maxInterval {
-			delay = maxInterval
-			break
-		}
-	}
-	if jitterRange := int64(delay) / 4; jitterRange > 0 {
-		delay += time.Duration(rand.Int63n(jitterRange))
-	}
-	return delay
 }
 
 // WithWsOriginChecker sets origin checker.
@@ -439,9 +424,6 @@ func WithSendQueueTimeoutFlushOver(timeout time.Duration) Option {
 	return func(o *Options) {
 		if timeout > 0 {
 			o.WpOptions.SendQueueTimeoutFlushOver = timeout
-			if o.WpOptions.SendQueueTimeoutFlushOver < 50*time.Millisecond { // 最小超时时间，防止压根没效果
-				o.WpOptions.SendQueueTimeoutFlushOver = 50 * time.Millisecond
-			}
 		}
 	}
 }

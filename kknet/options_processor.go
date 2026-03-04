@@ -100,6 +100,9 @@ func CheckWriteOptions(opts *WriteOptions) {
 	if opts.WriteFnRetryInterval <= 0 {
 		opts.WriteFnRetryInterval = 5 * time.Millisecond
 	}
+	if opts.SendQueueTimeoutFlushOver > 0 && opts.SendQueueTimeoutFlushOver < 500*time.Millisecond {
+		opts.SendQueueTimeoutFlushOver = 500 * time.Millisecond
+	}
 }
 
 //--------------------------------------------------
