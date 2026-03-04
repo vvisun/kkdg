@@ -46,6 +46,7 @@ type IRpcServer interface {
 	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
+	GetConnManager() kknet.IConnManager
 }
 
 type IGatewayTransport interface {

@@ -3,6 +3,8 @@ package ccgate
 import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transnat"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -24,7 +26,7 @@ type gateComponent struct {
 	discovery kkdiscovery.IDiscovery
 
 	clientMgr   clientManager
-	transportor ITransportor
+	transportor transface.ITransportor
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
 }
 
@@ -68,7 +70,7 @@ func (slf *gateComponent) Init() error {
 		slf.discovery,
 		clusterOpts,
 	)
-	slf.transportor = newTransportorNats(slf.cluster)
+	slf.transportor = transnat.NewTransportorNats(slf.cluster)
 
 	return nil
 }

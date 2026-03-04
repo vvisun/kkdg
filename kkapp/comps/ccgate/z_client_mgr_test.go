@@ -69,7 +69,7 @@ func Test_clientManager_addClient_removeClient_getClient(t *testing.T) {
 
 	// add and get
 	connID := kknet.CONN_ID(100)
-	sessionID := "100"
+	sessionID := getSessionId(connID, "gate1")
 	ci := m.addClient(connID, sessionID)
 	if ci == nil {
 		t.Fatal("addClient should return non-nil clientInfo")
@@ -101,7 +101,7 @@ func Test_clientManager_addClient_removeClient_getClient(t *testing.T) {
 func Test_clientManager_getClientByUserId_loginToGate(t *testing.T) {
 	m := &clientManager{}
 	connID := kknet.CONN_ID(200)
-	m.addClient(connID, "200")
+	m.addClient(connID, getSessionId(connID, "gate1"))
 
 	if m.getClientByUserId(100) != nil {
 		t.Error("getClientByUserId before login should return nil")
@@ -130,7 +130,7 @@ func Test_clientManager_getClientByUserId_loginToGate(t *testing.T) {
 func Test_clientManager_allocLogicNode(t *testing.T) {
 	m := &clientManager{}
 	connID := kknet.CONN_ID(300)
-	m.addClient(connID, "300")
+	m.addClient(connID, getSessionId(connID, "gate1"))
 
 	// alloc on existing client
 	info1 := m.allocLogicNode(connID, "game", "game1")
@@ -156,7 +156,7 @@ func Test_clientManager_allocLogicNode(t *testing.T) {
 func Test_clientManager_loginToLogicNode(t *testing.T) {
 	m := &clientManager{}
 	connID := kknet.CONN_ID(400)
-	m.addClient(connID, "400")
+	m.addClient(connID, getSessionId(connID, "gate1"))
 	m.allocLogicNode(connID, "game", "game1")
 
 	if m.loginToLogicNode(connID, "game", kknet.NULL_USER_ID) {
@@ -182,7 +182,7 @@ func Test_clientManager_loginToLogicNode(t *testing.T) {
 func Test_clientManager_removeClient_clearsUserMap(t *testing.T) {
 	m := &clientManager{}
 	connID := kknet.CONN_ID(500)
-	m.addClient(connID, "500")
+	m.addClient(connID, getSessionId(connID, "gate1"))
 	m.loginToGate(connID, 200)
 
 	m.removeClient(connID)

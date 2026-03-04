@@ -1,6 +1,7 @@
-package ccgate
+package transnat
 
 import (
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
 	"github.com/vvisun/kkdg/kkapp/session"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -8,28 +9,15 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// ITransportor 数据转发器接口。
-// 抽象化接口，方便切换实现逻辑（如：使用Actor、使用Nats、使用RPC等）。
-type ITransportor interface {
-	// ForwardToLogic forwards a client message to logic side.
-	ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error
-	// ForwardToClient forwards a logic message to client side.
-	ForwardToClient(sessionID string, msgBytes []byte) error
-	// GetSessionMgr gets the session manager
-	GetSessionMgr() session.ISessionManager
-}
-
-//------------------------------------------------------------
-
 // transportorNats 使用Nats集群转发消息
 type transportorNats struct {
 	cluster    kkcluster.ICluster // cluster for forwarding messages to logic and client
 	sessionMgr session.ISessionManager
 }
 
-var _ ITransportor = (*transportorNats)(nil)
+var _ transface.ITransportor = (*transportorNats)(nil)
 
-func newTransportorNats(cluster kkcluster.ICluster) ITransportor {
+func NewTransportorNats(cluster kkcluster.ICluster) transface.ITransportor {
 	trans := &transportorNats{
 		cluster:    cluster,
 		sessionMgr: session.NewSessionMgr(),
@@ -75,14 +63,14 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 	}
 	conn, err := slf.sessionMgr.GetConn(sessionID)
 	if err != nil {
-		return err
+		return err //客户端已下线
 	}
 
 	// packet.ArgBytes is [message], pack it to [length,message] then send back to client.
 	bb, err := kkpacket.DefaultStreamPacket().Pack(msgBytes)
 	if err != nil {
 		kklog.Errorf("[ccgate] pack response error: %v", err)
-		return err
+		return err //打包失败
 	}
 	if err := conn.SendBuffer(bb); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)

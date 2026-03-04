@@ -447,6 +447,8 @@ func (d *NatsDiscovery) publishSelf() error {
 		NodeID:   d.nodeID,
 		NodeType: d.nodeType,
 		Address:  d.address,
+		Weight:   0,
+		Status:   0,
 		Settings: d.settings,
 	}
 

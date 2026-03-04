@@ -52,6 +52,10 @@ func (s *Server) Stop() error {
 	return s.tcp.Stop()
 }
 
+func (s *Server) GetConnManager() kknet.IConnManager {
+	return s.tcp.GetConnManager()
+}
+
 func (s *Server) getPending() *pendingMap {
 	return s.pending
 }

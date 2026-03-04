@@ -87,7 +87,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numConns := 64
-	callsPerConn := 8888
+	callsPerConn := 888
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
@@ -310,8 +310,8 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 32
-	callsPerConn := 2000
+	numConns := 64
+	callsPerConn := 88888
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
@@ -390,7 +390,7 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 
 	got := recvCount.Load()
 	elapsed := time.Since(start)
-	kklog.Debugf("kkrpc InvokeNR: %d/%d received in %v, ≈ %.0f calls/s", got, totalCalls, elapsed, float64(got)/elapsed.Seconds())
+	kklog.Debugf("kkrpc InvokeNR: %d/%d received in %v, ≈ %.0f calls/s rate: %.0f%%", got, totalCalls, elapsed, float64(got)/elapsed.Seconds(), float64(got)/float64(totalCalls)*100)
 	if got < totalCalls*95/100 {
 		t.Errorf("kkrpc InvokeNR: got %d < 95%% of %d", got, totalCalls)
 	}

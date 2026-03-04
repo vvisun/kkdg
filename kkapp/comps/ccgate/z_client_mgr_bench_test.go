@@ -2,7 +2,6 @@ package ccgate
 
 import (
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet"
@@ -14,8 +13,7 @@ func Benchmark_clientManager_addClient(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		connID := kknet.CONN_ID(i)
-		sessionID := strconv.FormatUint(uint64(i), 10)
-		m.addClient(connID, sessionID)
+		m.addClient(connID, getSessionId(connID, "gate1"))
 	}
 }
 
@@ -23,7 +21,7 @@ func Benchmark_clientManager_getClient(b *testing.B) {
 	m := &clientManager{}
 	n := 10000
 	for i := 0; i < n; i++ {
-		m.addClient(kknet.CONN_ID(i), strconv.FormatUint(uint64(i), 10))
+		m.addClient(kknet.CONN_ID(i), getSessionId(kknet.CONN_ID(i), "gate1"))
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -36,7 +34,7 @@ func Benchmark_clientManager_removeClient(b *testing.B) {
 	m := &clientManager{}
 	for i := 0; i < b.N; i++ {
 		connID := kknet.CONN_ID(i)
-		m.addClient(connID, strconv.FormatUint(uint64(i), 10))
+		m.addClient(connID, getSessionId(connID, "gate1"))
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -50,7 +48,7 @@ func Benchmark_clientManager_loginToGate_getClientByUserId(b *testing.B) {
 	n := 10000
 	for i := 0; i < n; i++ {
 		connID := kknet.CONN_ID(i)
-		m.addClient(connID, strconv.FormatUint(uint64(i), 10))
+		m.addClient(connID, getSessionId(connID, "gate1"))
 		m.loginToGate(connID, kknet.USER_ID(i+1))
 	}
 	b.ResetTimer()
@@ -64,7 +62,7 @@ func Benchmark_clientManager_allocLogicNode(b *testing.B) {
 	m := &clientManager{}
 	n := 1000
 	for i := 0; i < n; i++ {
-		m.addClient(kknet.CONN_ID(i), strconv.FormatUint(uint64(i), 10))
+		m.addClient(kknet.CONN_ID(i), getSessionId(kknet.CONN_ID(i), "gate1"))
 	}
 	nodeTypes := []string{"game", "lobby", "chat"}
 	b.ResetTimer()
@@ -82,7 +80,7 @@ func Benchmark_clientManager_AddGetRemove(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		connID := kknet.CONN_ID(i)
-		sessionID := strconv.FormatUint(uint64(i), 10)
+		sessionID := getSessionId(connID, "gate1")
 		m.addClient(connID, sessionID)
 		_ = m.getClient(connID)
 		m.removeClient(connID)
@@ -93,7 +91,7 @@ func Benchmark_clientManager_GetClient_Parallel(b *testing.B) {
 	m := &clientManager{}
 	n := 10000
 	for i := 0; i < n; i++ {
-		m.addClient(kknet.CONN_ID(i), strconv.FormatUint(uint64(i), 10))
+		m.addClient(kknet.CONN_ID(i), getSessionId(kknet.CONN_ID(i), "gate1"))
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -114,7 +112,7 @@ func Benchmark_clientManager_AddGetRemove_Parallel(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			connID := kknet.CONN_ID(i)
-			sessionID := fmt.Sprintf("p%d_%d", i%64, i)
+			sessionID := getSessionId(connID, "gate1")
 			m.addClient(connID, sessionID)
 			_ = m.getClient(connID)
 			m.removeClient(connID)

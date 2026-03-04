@@ -21,23 +21,43 @@ type IApplication interface {
 	AddComponent(child IComponent) error
 	HasComponent(child IComponent) bool
 	GetComponents() []IComponent
+
+	SetConfigDir(configDir string)
+	GetConfigDir() string
+}
+
+var globalApp IApplication
+
+func APP() IApplication {
+	return globalApp
 }
 
 type Application struct {
-	nodeInfo *kkapp.NodeInfo
-	actorSys *actor.ActorSystem
-	compList []IComponent
-	mu       sync.RWMutex
+	nodeInfo  *kkapp.NodeInfo
+	actorSys  *actor.ActorSystem
+	compList  []IComponent
+	mu        sync.RWMutex
+	configDir string // 配置文件所在目录
 }
 
 var _ IApplication = (*Application)(nil)
 
 func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
-	return &Application{
+	app := &Application{
 		nodeInfo: nodeInfo,
 		actorSys: actor.NewActorSystem(),
 		compList: make([]IComponent, 0),
 	}
+	globalApp = app
+	return app
+}
+
+func (slf *Application) SetConfigDir(configDir string) {
+	slf.configDir = configDir
+}
+
+func (slf *Application) GetConfigDir() string {
+	return slf.configDir
 }
 
 func (slf *Application) GetNodeInfo() *kkapp.NodeInfo {
