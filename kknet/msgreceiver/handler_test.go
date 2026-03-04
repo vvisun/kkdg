@@ -41,7 +41,7 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 	router.Register(1, &testMsg{}, "test")
 	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
-	receiver := NewMsgReceiver(msgPacket)
+	receiver := NewMsgReceiver[kknet.CONN_ID](msgPacket)
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
 		fmt.Println(msg)
 		return nil
@@ -63,7 +63,7 @@ func TestMsgReceiver_OnRawWithParser(t *testing.T) {
 	router.Register(1, &testMsg{}, "test")
 	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
-	receiver := NewMsgReceiverWithParser(msgPacket, func(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error) {
+	receiver := NewMsgReceiverWithParser[kknet.CONN_ID](msgPacket, func(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error) {
 		return 1, data.Bytes(), nil
 	})
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
@@ -85,7 +85,7 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 	router.Register(1, &testMsg{}, "test")
 	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
-	receiver := NewMsgReceiver(msgPacket)
+	receiver := NewMsgReceiver[kknet.CONN_ID](msgPacket)
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
 		// fmt.Println(msg)
 		return nil
@@ -105,7 +105,6 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 			b.Fatalf("encode stream: %v", err)
 		}
 
-		//receiver.OnRaw(1, bb)
-		kkbuffer.Put(bb)
+		receiver.OnRaw(1, bb)
 	}
 }

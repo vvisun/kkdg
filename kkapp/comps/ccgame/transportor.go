@@ -21,7 +21,7 @@ type ITransportor interface {
 type transportorNats struct {
 	cluster     kkcluster.ICluster // cluster for forwarding messages to client
 	sessionMgr  *sessionManager
-	msgReceiver *msgreceiver.MsgReceiver
+	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
 var _ ITransportor = (*transportorNats)(nil)
@@ -30,7 +30,7 @@ func newTransportorNats(cluster kkcluster.ICluster) ITransportor {
 	trans := &transportorNats{
 		cluster:     cluster,
 		sessionMgr:  newSessionManager(),
-		msgReceiver: msgreceiver.NewMsgReceiver(kkapp.GetMsgPacket()),
+		msgReceiver: msgreceiver.NewMsgReceiver[string](kkapp.GetMsgPacket()),
 	}
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans
@@ -61,6 +61,8 @@ func (slf *transportorNats) OnRecvMsg(sessionID string, msgBytes []byte) error {
 	if err != nil {
 		kklog.Warnf("[ccgame] get msg id error: %v", err)
 	}
+
+	slf.msgReceiver.OnSession(sessionID, msgBytes)
 
 	// TODO: 处理来自客户端的消息。暂时直接回显
 	slf.ForwardToClient(sessionID, msgBytes)
