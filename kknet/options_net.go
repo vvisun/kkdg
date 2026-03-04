@@ -10,6 +10,8 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+const BatchPacketSize = 32
+
 type OriginCheckFunc func(r *http.Request) bool
 
 // Options are common network settings.

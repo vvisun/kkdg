@@ -25,8 +25,8 @@ type WriteProcessor struct {
 	userID kknet.USER_ID //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
 	opts   kknet.WriteOptions
 
-	sendQueue       bbqueue.IFiFoQueue     //发送队列
-	sendBatchBuffer []*kkbuffer.ByteBuffer //批量发送缓冲区。as an array to reduce memory allocation.
+	sendQueue       bbqueue.IFiFoQueue                          //发送队列
+	sendBatchBuffer [kknet.BatchPacketSize]*kkbuffer.ByteBuffer //批量发送缓冲区。as an array to reduce memory allocation.
 
 	sendMu    sync.Mutex
 	cond      *sync.Cond // 用于 Block 模式：队列有空位时由 writeLoop 唤醒
@@ -47,13 +47,12 @@ var _ kknet.IWriteProcessor = (*WriteProcessor)(nil)
 func NewWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	kknet.CheckWriteOptions(&opts)
 	wp := &WriteProcessor{
-		opts:            opts,
-		sendQueue:       bbqueue.NewFIFOQueue(opts.SendQueueSize, opts.SendQueueStrict),
-		sendBatchBuffer: make([]*kkbuffer.ByteBuffer, opts.BatchWriteSize),
-		wakeCh:          make(chan struct{}, 1),
-		closeCh:         make(chan struct{}),
-		drainedCh:       make(chan struct{}),
-		doneCh:          make(chan struct{}),
+		opts:      opts,
+		sendQueue: bbqueue.NewFIFOQueue(opts.SendQueueSize, opts.SendQueueStrict),
+		wakeCh:    make(chan struct{}, 1),
+		closeCh:   make(chan struct{}),
+		drainedCh: make(chan struct{}),
+		doneCh:    make(chan struct{}),
 	}
 	wp.cond = sync.NewCond(&wp.sendMu)
 	return wp
@@ -241,7 +240,7 @@ func (wp *WriteProcessor) writeLoop() {
 			// stop: release everything left in queue
 			for {
 				wp.sendMu.Lock()
-				n := wp.sendQueue.PopMany(sbbLen, wp.sendBatchBuffer, 0)
+				n := wp.sendQueue.PopMany(sbbLen, wp.sendBatchBuffer[:], 0)
 				if n > 0 {
 					wp.cond.Signal()
 				}
@@ -255,7 +254,7 @@ func (wp *WriteProcessor) writeLoop() {
 
 		for {
 			wp.sendMu.Lock()
-			n := wp.sendQueue.PopMany(sbbLen, wp.sendBatchBuffer, wp.opts.BatchWriteLimitBytes)
+			n := wp.sendQueue.PopMany(sbbLen, wp.sendBatchBuffer[:], wp.opts.BatchWriteLimitBytes)
 			remain := wp.sendQueue.Len()
 			closing := wp.closing.Load()
 			if n > 0 {
@@ -275,7 +274,7 @@ func (wp *WriteProcessor) writeLoop() {
 				break
 			}
 
-			if err := wp.writeFn(wp.sendBatchBuffer, n); err != nil {
+			if err := wp.writeFn(wp.sendBatchBuffer[:n], n); err != nil {
 				if !wp.isWriteFnRetryable(err) {
 					wp.drainRelease(n)
 					if wp.onWriteError != nil {
@@ -342,7 +341,7 @@ func (wp *WriteProcessor) retryWriteFn(n int) bool {
 		if remaining <= 0 {
 			return true
 		}
-		if err := wp.writeFn(wp.sendBatchBuffer, remaining); err == nil {
+		if err := wp.writeFn(wp.sendBatchBuffer[:remaining], remaining); err == nil {
 			return true
 		} else if !wp.isWriteFnRetryable(err) {
 			return false

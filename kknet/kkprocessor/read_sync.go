@@ -16,8 +16,8 @@ type SyncReadProcessor struct {
 	userID kknet.USER_ID     //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
 	opts   kknet.ReadOptions //选项
 
-	recvBuf  []byte     //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
-	splitBuf [32][]byte //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
+	recvBuf  []byte                        //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
+	splitBuf [kknet.BatchPacketSize][]byte //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 
 	mu sync.Mutex
 }

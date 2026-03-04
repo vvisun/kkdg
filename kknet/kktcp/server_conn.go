@@ -117,7 +117,7 @@ func (c *tcpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 }
 
 func (c *tcpConn) doWrite() error {
-	batchArr := [64]*kkbuffer.ByteBuffer{}
+	batchArr := [kknet.BatchPacketSize]*kkbuffer.ByteBuffer{}
 	sendBatchBuffer := batchArr[:]
 	sbbLen := len(sendBatchBuffer)
 	c.sendMu.Lock()

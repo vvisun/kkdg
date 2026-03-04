@@ -24,8 +24,8 @@ type TaskReadProcessor struct {
 	userID kknet.USER_ID
 	opts   kknet.ReadOptions
 
-	recvBuf  []byte     // 残包缓冲区
-	splitBuf [32][]byte // 拆包缓冲区
+	recvBuf  []byte                        // 残包缓冲区
+	splitBuf [kknet.BatchPacketSize][]byte // 拆包缓冲区
 
 	mu      sync.Mutex
 	closing atomic.Bool

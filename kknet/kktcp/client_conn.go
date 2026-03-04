@@ -115,7 +115,7 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 }
 
 func (c *gnetClientConn) doWrite() error {
-	batchArr := [64]*kkbuffer.ByteBuffer{}
+	batchArr := [kknet.BatchPacketSize]*kkbuffer.ByteBuffer{}
 	sendBatchBuffer := batchArr[:]
 	sbbLen := len(sendBatchBuffer)
 	c.sendMu.Lock()
