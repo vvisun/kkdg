@@ -1,7 +1,9 @@
 package ccgame
 
 import (
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -17,16 +19,18 @@ type ITransportor interface {
 
 // transportorNats 使用Nats集群转发消息
 type transportorNats struct {
-	cluster    kkcluster.ICluster // cluster for forwarding messages to client
-	sessionMgr *sessionManager
+	cluster     kkcluster.ICluster // cluster for forwarding messages to client
+	sessionMgr  *sessionManager
+	msgReceiver *msgreceiver.MsgReceiver
 }
 
 var _ ITransportor = (*transportorNats)(nil)
 
 func newTransportorNats(cluster kkcluster.ICluster) ITransportor {
 	trans := &transportorNats{
-		cluster:    cluster,
-		sessionMgr: newSessionManager(),
+		cluster:     cluster,
+		sessionMgr:  newSessionManager(),
+		msgReceiver: msgreceiver.NewMsgReceiver(kkapp.GetMsgPacket()),
 	}
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans
@@ -38,7 +42,7 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 		return
 	}
 
-	if _, ok := slf.sessionMgr.GetSession(packet.Sid); !ok {
+	if slf.sessionMgr.GetSession(packet.Sid) == nil {
 		slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
 	}
 
@@ -52,6 +56,12 @@ func (slf *transportorNats) OnRecvMsg(sessionID string, msgBytes []byte) error {
 	if len(msgBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
+
+	_, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
+	if err != nil {
+		kklog.Warnf("[ccgame] get msg id error: %v", err)
+	}
+
 	// TODO: 处理来自客户端的消息。暂时直接回显
 	slf.ForwardToClient(sessionID, msgBytes)
 	return nil
@@ -65,8 +75,8 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 	if len(msgBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
-	sessionInfo, ok := slf.sessionMgr.GetSession(sessionID)
-	if !ok {
+	sessionInfo := slf.sessionMgr.GetSession(sessionID)
+	if sessionInfo == nil {
 		return kkerrors.ErrSessionNotFound
 	}
 

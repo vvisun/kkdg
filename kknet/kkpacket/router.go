@@ -158,11 +158,11 @@ func (r *MsgRouter) GetMsgType(id MSGID) reflect.Type {
 	return tp
 }
 
-func (r *MsgRouter) GetMsgRoute(id MSGID) string {
+func (r *MsgRouter) GetMsgRoute(id MSGID) (string, error) {
 	route, ok := r.idToRoute[id]
 	if !ok {
 		kklog.Debugf("message id %v is not registered", id)
-		return ""
+		return "", kkerrors.ErrMsgIDNotRegistered
 	}
-	return route
+	return route, nil
 }

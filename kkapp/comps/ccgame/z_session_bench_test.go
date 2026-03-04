@@ -27,7 +27,7 @@ func Benchmark_SessionManager_GetSession(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		sid := strconv.FormatInt(int64(i%n), 10)
-		_, _ = mgr.GetSession(sid)
+		_ = mgr.GetSession(sid)
 	}
 }
 
@@ -52,7 +52,7 @@ func Benchmark_SessionManager_AddGetRemove(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
 		mgr.AddSession(sid, "gate1")
-		_, _ = mgr.GetSession(sid)
+		_ = mgr.GetSession(sid)
 		mgr.RemoveSession(sid)
 	}
 }
@@ -70,7 +70,7 @@ func Benchmark_SessionManager_GetSession_Parallel(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			sid := strconv.FormatInt(int64(i%n), 10)
-			_, _ = mgr.GetSession(sid)
+			_ = mgr.GetSession(sid)
 			i++
 		}
 	})
@@ -85,7 +85,7 @@ func Benchmark_SessionManager_AddGetRemove_Parallel(b *testing.B) {
 		for pb.Next() {
 			sid := fmt.Sprintf("p%d_%d", i%64, i)
 			mgr.AddSession(sid, "gate1")
-			_, _ = mgr.GetSession(sid)
+			_ = mgr.GetSession(sid)
 			mgr.RemoveSession(sid)
 			i++
 		}

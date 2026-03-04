@@ -31,6 +31,10 @@ func newSessionManager() *sessionManager {
 }
 
 func (slf *sessionManager) AddSession(sessionID string, gateNodeID string) {
+	oldInfo := slf.GetSession(sessionID)
+	if oldInfo != nil {
+		return
+	}
 	si := getSessionInfo()
 	si.SessionID = sessionID
 	si.GateNodeID = gateNodeID
@@ -44,10 +48,10 @@ func (slf *sessionManager) RemoveSession(sessionID string) {
 	}
 }
 
-func (slf *sessionManager) GetSession(sessionID string) (*SessionInfo, bool) {
+func (slf *sessionManager) GetSession(sessionID string) *SessionInfo {
 	sessionInfo, ok := slf.sessionMap.Load(sessionID)
 	if !ok {
-		return nil, false
+		return nil
 	}
-	return sessionInfo.(*SessionInfo), true
+	return sessionInfo.(*SessionInfo)
 }
