@@ -11,8 +11,8 @@ import (
 // ITransportor 数据转发器接口。
 // 抽象化接口，方便切换实现逻辑（如：使用Actor、使用Nats、使用RPC等）。
 type ITransportor interface {
-	ForwardToClient(sessionID string, msgBytes []byte) error
-	OnRecvMsg(sessionID string, msgBytes []byte) error
+	ForwardToClient(sessionID string, messageBytes []byte) error
+	OnRecvMsg(sessionID string, messageBytes []byte) error
 }
 
 //------------------------------------------------------------
@@ -49,32 +49,32 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 	slf.OnRecvMsg(packet.Sid, packet.ArgBytes)
 }
 
-func (slf *transportorNats) OnRecvMsg(sessionID string, msgBytes []byte) error {
+func (slf *transportorNats) OnRecvMsg(sessionID string, messageBytes []byte) error {
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
-	if len(msgBytes) == 0 {
+	if len(messageBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
 
-	_, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
+	_, err := kkapp.GetMsgPacket().GetMsgID(messageBytes)
 	if err != nil {
 		kklog.Warnf("[ccgame] get msg id error: %v", err)
 	}
 
-	slf.msgReceiver.OnSession(sessionID, msgBytes)
+	slf.msgReceiver.OnSession(sessionID, messageBytes)
 
 	// TODO: 处理来自客户端的消息。暂时直接回显
-	slf.ForwardToClient(sessionID, msgBytes)
+	slf.ForwardToClient(sessionID, messageBytes)
 	return nil
 }
 
 // ForwardToClient 转发消息到客户端
-func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) error {
+func (slf *transportorNats) ForwardToClient(sessionID string, messageBytes []byte) error {
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
-	if len(msgBytes) == 0 {
+	if len(messageBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
@@ -84,7 +84,7 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 
 	resp := kkcluster.NewClusterPacket()
 	resp.FuncName = "s2c" //暂时没用到
-	resp.ArgBytes = append([]byte(nil), msgBytes...)
+	resp.ArgBytes = append([]byte(nil), messageBytes...)
 	resp.Sid = sessionID
 	if err := slf.cluster.PublishRemote(sessionInfo.GateNodeID, resp); err != nil {
 		kklog.Errorf("[ccgame] publish response to %s error: %v", sessionInfo.GateNodeID, err)

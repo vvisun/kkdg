@@ -1,6 +1,7 @@
 package msgreceiver
 
 import (
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -36,9 +37,11 @@ func (r *MsgReceiver[K]) parseMsgInfo(data *kkbuffer.ByteBuffer) (kkpacket.MSGID
 	return msgId, bodyBytes, nil
 }
 
-// var _ kknet.IRawHandler = (*MsgReceiver[kknet.CONN_ID])(nil)
+var _ kknet.IRawHandler = (*MsgReceiver[kknet.CONN_ID])(nil)
 
-// OnRaw 接收原始数据并分发到消息处理器
+// OnRaw 接收原始数据并分发到消息处理器。实现kknet.IRawHandler接口。
+// @param connId 连接ID
+// @param data 原始数据 完整包[length,message]
 func (r *MsgReceiver[K]) OnRaw(connId K, data *kkbuffer.ByteBuffer) {
 	msgID, bodyBytes, err := r.parseMsgInfo(data)
 	if err != nil {
@@ -56,6 +59,9 @@ func (r *MsgReceiver[K]) OnRaw(connId K, data *kkbuffer.ByteBuffer) {
 	kkbuffer.Put(data)
 }
 
+// OnSession 接收来自会话的消息并分发到消息处理器。
+// @param sessionID 会话ID
+// @param messageBytes 消息数据 packet的[message]部分
 func (r *MsgReceiver[K]) OnSession(sessionID K, messageBytes []byte) {
 	msgID, err := r.messagePacket.GetMsgID(messageBytes)
 	if err != nil {
