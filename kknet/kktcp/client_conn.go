@@ -120,7 +120,12 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	return c.wp.SendBuffer(buffer)
 }
 
-// writeBatch 供 WriteProcessor 调用的批量写；需在回调完成后 return，以便满足 WriteFunc 约定。
+/*
+*批量写入。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
+ *@param batch 批量缓冲区，数组长度为 WriteOptions.WriteBatchSize
+ *@param n 批量数量
+ *@return error
+*/
 func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	if n <= 0 {
 		return nil
