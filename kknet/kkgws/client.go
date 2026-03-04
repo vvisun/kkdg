@@ -171,6 +171,7 @@ func (c *Client) dialAndStart() (*gwsConn, <-chan struct{}, error) {
 		return nil, nil, err
 	}
 
+	socket.SetNoDelay(true)
 	gc := newGwsConn(socket, &c.opts, &c.stats)
 	socket.Session().Store(sessionKeyConn, gc)
 
