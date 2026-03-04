@@ -66,6 +66,7 @@ func (s *Server) Start() error {
 	s.upgrader = gws.NewUpgrader(&gwsEventHandler{server: s}, &gws.ServerOption{
 		ReadBufferSize:  s.opts.ReadBufferSize,
 		WriteBufferSize: s.opts.WriteBufferSize,
+		ParallelEnabled: false,
 	})
 
 	var ln net.Listener

@@ -284,49 +284,62 @@ func (c *wsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		}
 	}
 
-	batchBytes := c.batchWriteBuf[:0]
-	start := 0 // start index of current batchBytes ownership window
-	for i := 0; i < n; i++ {
-		bb := batch[i]
-		if bb == nil {
-			continue
+	if n > 1 {
+		batchBytes := c.batchWriteBuf[:0]
+		start := 0 // start index of current batchBytes ownership window
+		for i := 0; i < n; i++ {
+			bb := batch[i]
+			if bb == nil {
+				continue
+			}
+			batchBytes = append(batchBytes, bb.B...)
+			if len(batchBytes) >= c.batchWriteLimit {
+				// 单次写入超过限制，则立即发送
+				if err := c.sendBytes(batchBytes); err != nil {
+					// 发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。
+					return err
+				}
+				batchBytes = batchBytes[:0]
+				// 发送成功，释放已发送的数据。
+				for j := start; j <= i; j++ {
+					bb2 := batch[j]
+					batch[j] = nil
+					if bb2 != nil {
+						kkbuffer.Put(bb2)
+					}
+				}
+				start = i + 1
+			}
 		}
-		batchBytes = append(batchBytes, bb.B...)
-		if len(batchBytes) >= c.batchWriteLimit {
-			// 单次写入超过限制，则立即发送
+
+		// 发送剩余数据
+		if len(batchBytes) > 0 {
 			if err := c.sendBytes(batchBytes); err != nil {
 				// 发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。
 				return err
 			}
-			batchBytes = batchBytes[:0]
-			// 发送成功，释放已发送的数据。
-			for j := start; j <= i; j++ {
-				bb2 := batch[j]
-				batch[j] = nil
-				if bb2 != nil {
-					kkbuffer.Put(bb2)
-				}
+		}
+
+		// 发送成功，释放剩余数据。
+		for j := start; j < n; j++ {
+			bb := batch[j]
+			batch[j] = nil
+			if bb != nil {
+				kkbuffer.Put(bb)
 			}
-			start = i + 1
 		}
+		return nil
 	}
 
-	// 发送剩余数据
-	if len(batchBytes) > 0 {
-		if err := c.sendBytes(batchBytes); err != nil {
-			// 发送失败，保持剩余数据在批量中，供调用方知道哪些数据发送失败。
-			return err
-		}
+	bb := batch[0]
+	if bb == nil {
+		return nil
 	}
-
-	// 发送成功，释放剩余数据。
-	for j := start; j < n; j++ {
-		bb := batch[j]
-		batch[j] = nil
-		if bb != nil {
-			kkbuffer.Put(bb)
-		}
+	if err := c.sendBytes(bb.B); err != nil {
+		return err
 	}
+	kkbuffer.Put(bb)
+	batch[0] = nil
 	return nil
 }
 

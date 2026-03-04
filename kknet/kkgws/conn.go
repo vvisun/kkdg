@@ -231,7 +231,12 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	return nil
 }
 
-// writeBatch is the WriteFunc called by the write processor.
+/**writeBatch is the WriteFunc called by the write processor.
+ *批量写入。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
+ *@param batch 批量缓冲区，数组长度为 WriteOptions.WriteBatchSize
+ *@param n 批量数量
+ *@return error
+ */
 func (c *gwsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	if n <= 0 {
 		return nil
@@ -240,51 +245,32 @@ func (c *gwsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
-	batchBytes := c.batchWriteBuf[:0]
-	start := 0
-	for i := 0; i < n; i++ {
-		bb := batch[i]
-		if bb == nil {
-			continue
+	if n > 1 {
+		bs := make([][]byte, n)
+		totalBytes := 0
+		for i := 0; i < n; i++ {
+			bs[i] = batch[i].B
+			totalBytes += len(bs[i])
 		}
-		batchBytes = append(batchBytes, bb.B...)
-		if len(batchBytes) >= c.batchWriteLimit {
-			if err := c.sendBytes(batchBytes); err != nil {
-				return err
+		err := c.socket.Writev(gws.OpcodeBinary, bs...)
+		if err != nil {
+			if c.stats != nil {
+				c.stats.AddError()
 			}
-			batchBytes = batchBytes[:0]
-			for j := start; j <= i; j++ {
-				bb2 := batch[j]
-				batch[j] = nil
-				if bb2 != nil {
-					kkbuffer.Put(bb2)
-				}
-			}
-			start = i + 1
-		}
-	}
-
-	if len(batchBytes) > 0 {
-		if err := c.sendBytes(batchBytes); err != nil {
 			return err
 		}
-	}
-
-	for j := start; j < n; j++ {
-		bb := batch[j]
-		batch[j] = nil
-		if bb != nil {
-			kkbuffer.Put(bb)
+		for j := 0; j < n; j++ {
+			kkbuffer.Put(batch[j])
+			batch[j] = nil
 		}
-	}
-	return nil
-}
-
-func (c *gwsConn) sendBytes(data []byte) error {
-	if len(data) == 0 {
+		if c.stats != nil {
+			c.stats.AddSent(totalBytes)
+		}
 		return nil
 	}
-	err := c.socket.WriteMessage(gws.OpcodeBinary, data)
+
+	bb := batch[0]
+	err := c.socket.WriteMessage(gws.OpcodeBinary, bb.B)
 	if err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -292,8 +278,10 @@ func (c *gwsConn) sendBytes(data []byte) error {
 		return err
 	}
 	if c.stats != nil {
-		c.stats.AddSent(len(data))
+		c.stats.AddSent(len(bb.B))
 	}
+	kkbuffer.Put(bb)
+	batch[0] = nil
 	return nil
 }
 

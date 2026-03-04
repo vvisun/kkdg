@@ -192,43 +192,56 @@ func (c *tlsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		}
 	}
 
-	batchBytes := c.batchWriteBuf[:0]
-	start := 0
-	for i := 0; i < n; i++ {
-		bb := batch[i]
-		if bb == nil {
-			continue
+	if n > 1 {
+		batchBytes := c.batchWriteBuf[:0]
+		start := 0
+		for i := 0; i < n; i++ {
+			bb := batch[i]
+			if bb == nil {
+				continue
+			}
+			batchBytes = append(batchBytes, bb.B...)
+			if len(batchBytes) >= c.batchWriteLimit {
+				if err := c.writeAll(batchBytes); err != nil {
+					return err
+				}
+				batchBytes = batchBytes[:0]
+				for j := start; j <= i; j++ {
+					bb2 := batch[j]
+					batch[j] = nil
+					if bb2 != nil {
+						kkbuffer.Put(bb2)
+					}
+				}
+				start = i + 1
+			}
 		}
-		batchBytes = append(batchBytes, bb.B...)
-		if len(batchBytes) >= c.batchWriteLimit {
+
+		if len(batchBytes) > 0 {
 			if err := c.writeAll(batchBytes); err != nil {
 				return err
 			}
-			batchBytes = batchBytes[:0]
-			for j := start; j <= i; j++ {
-				bb2 := batch[j]
-				batch[j] = nil
-				if bb2 != nil {
-					kkbuffer.Put(bb2)
-				}
+		}
+
+		for j := start; j < n; j++ {
+			bb := batch[j]
+			batch[j] = nil
+			if bb != nil {
+				kkbuffer.Put(bb)
 			}
-			start = i + 1
 		}
+		return nil
 	}
 
-	if len(batchBytes) > 0 {
-		if err := c.writeAll(batchBytes); err != nil {
-			return err
-		}
+	bb := batch[0]
+	if bb == nil {
+		return nil
 	}
-
-	for j := start; j < n; j++ {
-		bb := batch[j]
-		batch[j] = nil
-		if bb != nil {
-			kkbuffer.Put(bb)
-		}
+	if err := c.writeAll(bb.B); err != nil {
+		return err
 	}
+	kkbuffer.Put(bb)
+	batch[0] = nil
 	return nil
 }
 

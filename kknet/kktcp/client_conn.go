@@ -7,7 +7,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -44,7 +43,7 @@ func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gn
 	if opts.WpProvider != nil {
 		cc.wp = opts.WpProvider(opts.WpOptions)
 	} else {
-		cc.wp = kkprocessor.NewWriteProcessor(opts.WpOptions)
+		cc.wp = defaultWpProvider(opts.WpOptions)
 	}
 	cc.wp.Start(cc, cc.writeBatch, func(err error) {
 		if stats != nil {
@@ -170,6 +169,7 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		<-done
 		return writeErr
 	}
+
 	bb := batch[0]
 	if bb == nil {
 		return nil

@@ -7,7 +7,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -45,7 +44,7 @@ func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
 	if opts.WpProvider != nil {
 		tc.wp = opts.WpProvider(opts.WpOptions)
 	} else {
-		tc.wp = kkprocessor.NewWriteProcessor(opts.WpOptions)
+		tc.wp = defaultWpProvider(opts.WpOptions)
 	}
 	tc.wp.Start(tc, tc.writeBatch, func(err error) {
 		if stats != nil {
@@ -171,6 +170,7 @@ func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		<-done
 		return writeErr
 	}
+
 	bb := batch[0]
 	if bb == nil {
 		return nil
