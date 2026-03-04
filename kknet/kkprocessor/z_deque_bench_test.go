@@ -4,16 +4,16 @@ import "testing"
 
 // Benchmark basic PushBack/PopFront throughput on Deque.
 func BenchmarkDequePushPop(b *testing.B) {
-	const batch = 1024
+	const batch = 64
 	b.ReportAllocs()
 	b.ResetTimer()
 	d := New[int](batch)
 
 	for n := 0; n < b.N; n++ {
-		for i := 0; i < 2; i++ {
+		for i := 0; i < batch; i++ {
 			d.PushBack(i)
 		}
-		for i := 0; i < 1; i++ {
+		for i := 0; i < batch; i++ {
 			_ = d.PopFront()
 		}
 	}
