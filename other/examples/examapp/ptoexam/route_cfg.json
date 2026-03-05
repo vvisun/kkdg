@@ -1,3 +1,4 @@
 {
-    "test.proto": "logic"
+    "test.proto": {"route":"logic", "fromId": 1},
+    "test1.proto": {"route":"combat", "fromId": 1000}
 }

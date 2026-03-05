@@ -1,0 +1,20 @@
+syntax = "proto3";
+package ptoexam;
+option go_package = ".;ptoexam";
+
+message AaaaReq {
+	int32 ID = 1; 
+	string Data = 2;
+	string Extra = 3;
+}
+
+message AaaaResp {
+	int32 ID = 1;
+	string Name = 2;
+	int32 Damage = 3;
+}
+
+message BbbbResp {
+	int32 ID = 1;
+	int32 Hp = 2;
+}
