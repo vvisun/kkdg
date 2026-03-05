@@ -200,7 +200,7 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 	}
 
 	// 检查目标节点是否存在
-	_, found := c.discovery.GetMember(nodeID)
+	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
 	if !found {
 		return kkerrors.ErrMemberNotFound
 	}
@@ -241,7 +241,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	}
 
 	// 检查该类型是否有节点（可选，用于提前验证）
-	if members := c.discovery.ListByType(nodeType); len(members) == 0 {
+	if members := c.discovery.GetMemberMgr().ListByType(nodeType); len(members) == 0 {
 		return kkerrors.ErrNoMemberOfType
 	}
 
@@ -281,7 +281,7 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		return kkcluster.ErrFromCode(kkcluster.ClusterErrorCodeInvalidRequest)
 	}
 
-	_, found := c.discovery.GetMember(nodeID)
+	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
 	if !found {
 		return kkerrors.ErrMemberNotFound
 	}
@@ -359,7 +359,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	}
 
 	// 检查目标节点是否存在
-	_, found := c.discovery.GetMember(nodeID)
+	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
 	if !found {
 		return nil, kkcluster.ClusterErrorCodeMemberNotFound
 	}

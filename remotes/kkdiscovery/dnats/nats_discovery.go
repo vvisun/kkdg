@@ -73,34 +73,14 @@ func (d *NatsDiscovery) Name() string {
 	return d.name
 }
 
-// MemberCount 获取成员数量
-func (d *NatsDiscovery) MemberCount() int {
-	return d.memberMgr.MemberCount()
+// SetInfoGetter 设置信息获取函数
+func (d *NatsDiscovery) SetInfoGetter(fn func() (int, int)) {
+	d.infoGetterFn = fn
 }
 
-// Range 遍历成员, fn 返回 false 时停止遍历
-func (d *NatsDiscovery) Range(fn func(nodeID string, member kkdiscovery.IMember) bool) {
-	d.memberMgr.Range(fn)
-}
-
-// ListByType 根据节点类型获取列表
-func (d *NatsDiscovery) ListByType(nodeType string) []kkdiscovery.IMember {
-	return d.memberMgr.ListByType(nodeType)
-}
-
-// Random 根据节点类型随机一个
-func (d *NatsDiscovery) Random(nodeType string) (kkdiscovery.IMember, bool) {
-	return d.memberMgr.Random(nodeType)
-}
-
-// GetType 根据节点id获取类型
-func (d *NatsDiscovery) GetType(nodeID string) (string, error) {
-	return d.memberMgr.GetType(nodeID)
-}
-
-// GetMember 获取成员
-func (d *NatsDiscovery) GetMember(nodeID string) (kkdiscovery.IMember, bool) {
-	return d.memberMgr.GetMember(nodeID)
+// GetMemberMgr 获取成员管理器
+func (d *NatsDiscovery) GetMemberMgr() kkdiscovery.IMemberMgr {
+	return d.memberMgr
 }
 
 // addMemberInfo 根据 MemberInfo 添加或更新成员
@@ -137,16 +117,6 @@ func (d *NatsDiscovery) removeMember(nodeID string) {
 	d.memberTimesMu.Unlock()
 
 	d.stats.RemoveMember()
-}
-
-// OnAddMember 添加成员监听函数
-func (d *NatsDiscovery) OnAddMember(listener kkdiscovery.MemberListener) {
-	d.memberMgr.OnAddMember(listener)
-}
-
-// OnRemoveMember 移除成员监听函数
-func (d *NatsDiscovery) OnRemoveMember(listener kkdiscovery.MemberListener) {
-	d.memberMgr.OnRemoveMember(listener)
 }
 
 // Stats 获取统计信息快照
@@ -321,11 +291,6 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 
 	// 利用 MemberMgr 统一管理成员信息
 	d.addMemberInfo(&memberInfo)
-}
-
-// SetInfoGetter 设置信息获取函数
-func (d *NatsDiscovery) SetInfoGetter(fn func() (int, int)) {
-	d.infoGetterFn = fn
 }
 
 // publishSelf 发布自己的信息

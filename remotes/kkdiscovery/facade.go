@@ -25,7 +25,7 @@ type (
 		Stop() error                     // 停止
 		Stats() DiscoveryStatsSnapshot   // 获取统计信息
 		SetInfoGetter(func() (int, int)) // return (onlineCount, status)。在线数量，状态
-		IMemberMgr
+		GetMemberMgr() IMemberMgr        // 获取成员管理器
 	}
 
 	// IMember 成员接口

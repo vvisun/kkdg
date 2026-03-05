@@ -26,10 +26,10 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 	d := newTestDiscovery(t)
 
 	var addCount, removeCount atomic.Int64
-	d.OnAddMember(func(m kkdiscovery.IMember) {
+	d.GetMemberMgr().OnAddMember(func(m kkdiscovery.IMember) {
 		addCount.Add(1)
 	})
-	d.OnRemoveMember(func(m kkdiscovery.IMember) {
+	d.GetMemberMgr().OnRemoveMember(func(m kkdiscovery.IMember) {
 		removeCount.Add(1)
 	})
 
@@ -44,23 +44,23 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 	// Add member via internal API and verify state.
 	d.addMemberInfo(info)
 
-	if got := d.MemberCount(); got != 1 {
+	if got := d.GetMemberMgr().MemberCount(); got != 1 {
 		t.Fatalf("MemberCount after add = %d, want 1", got)
 	}
-	m, ok := d.GetMember("node2")
+	m, ok := d.GetMemberMgr().GetMember("node2")
 	if !ok || m == nil {
 		t.Fatalf("GetMember(node2) = (%v,%v), want non-nil,true", m, ok)
 	}
-	if typ, err := d.GetType("node2"); err != nil || typ != "logic" {
+	if typ, err := d.GetMemberMgr().GetType("node2"); err != nil || typ != "logic" {
 		t.Fatalf("GetType(node2) = (%q,%v), want (\"logic\",nil)", typ, err)
 	}
 
 	// ListByType / Random should see this member.
-	list := d.ListByType("logic")
+	list := d.GetMemberMgr().ListByType("logic")
 	if len(list) != 1 || list[0].GetNodeID() != "node2" {
 		t.Fatalf("ListByType(logic) = %v, want [node2]", list)
 	}
-	if rm, ok := d.Random("logic"); !ok || rm == nil || rm.GetNodeID() != "node2" {
+	if rm, ok := d.GetMemberMgr().Random("logic"); !ok || rm == nil || rm.GetNodeID() != "node2" {
 		t.Fatalf("Random(logic) = (%v,%v), want node2,true", rm, ok)
 	}
 
@@ -76,10 +76,10 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 	// Remove the member and verify everything is cleaned up.
 	d.removeMember("node2")
 
-	if got := d.MemberCount(); got != 0 {
+	if got := d.GetMemberMgr().MemberCount(); got != 0 {
 		t.Fatalf("MemberCount after remove = %d, want 0", got)
 	}
-	if m, ok := d.GetMember("node2"); ok || m != nil {
+	if m, ok := d.GetMemberMgr().GetMember("node2"); ok || m != nil {
 		t.Fatalf("GetMember(node2) after remove = (%v,%v), want (nil,false)", m, ok)
 	}
 	snap = d.Stats()
@@ -90,4 +90,3 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 		t.Fatalf("OnRemoveMember called %d times, want 1", removeCount.Load())
 	}
 }
-

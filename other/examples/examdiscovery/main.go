@@ -25,11 +25,11 @@ func main() {
 	discovery2 := dnats.NewNatsDiscovery("exam2", nodeInfo2, nil, opts)
 
 	// 监听成员添加
-	discovery1.OnAddMember(func(member kkdiscovery.IMember) {
+	discovery1.GetMemberMgr().OnAddMember(func(member kkdiscovery.IMember) {
 		fmt.Printf("[node1] member added: %s (%s) @ %s\n",
 			member.GetNodeID(), member.GetNodeType(), member.GetAddress())
 	})
-	discovery1.OnRemoveMember(func(member kkdiscovery.IMember) {
+	discovery1.GetMemberMgr().OnRemoveMember(func(member kkdiscovery.IMember) {
 		fmt.Printf("[node1] member removed: %s\n", member.GetNodeID())
 	})
 
@@ -53,19 +53,19 @@ func main() {
 	fmt.Println("--- mutual discovery ok ---")
 
 	// 按类型列出成员
-	gates := discovery1.ListByType("gate")
+	gates := discovery1.GetMemberMgr().ListByType("gate")
 	fmt.Printf("ListByType(gate): %d members\n", len(gates))
 	for _, m := range gates {
 		fmt.Printf("  - %s @ %s\n", m.GetNodeID(), m.GetAddress())
 	}
 
 	// 随机获取一个
-	if rnd, ok := discovery1.Random("gate"); ok {
+	if rnd, ok := discovery1.GetMemberMgr().Random("gate"); ok {
 		fmt.Printf("Random(gate): %s\n", rnd.GetNodeID())
 	}
 
 	// 获取指定成员
-	if m, ok := discovery1.GetMember("node2"); ok {
+	if m, ok := discovery1.GetMemberMgr().GetMember("node2"); ok {
 		fmt.Printf("GetMember(node2): type=%s, addr=%s\n", m.GetNodeType(), m.GetAddress())
 	}
 
@@ -84,7 +84,7 @@ func main() {
 func waitForMembers(d kkdiscovery.IDiscovery, count int, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if d.MemberCount() >= count {
+		if d.GetMemberMgr().MemberCount() >= count {
 			return true
 		}
 		time.Sleep(100 * time.Millisecond)

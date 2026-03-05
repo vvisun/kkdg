@@ -181,7 +181,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 
 	// 从discovery中选择权重最小的逻辑节点
 	var chooseNode kkdiscovery.IMember = nil
-	slf.discovery.Range(func(nodeID string, member kkdiscovery.IMember) bool {
+	slf.discovery.GetMemberMgr().Range(func(nodeID string, member kkdiscovery.IMember) bool {
 		if member.GetNodeType() != nodeType {
 			return true
 		}
