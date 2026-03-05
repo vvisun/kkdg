@@ -11,9 +11,8 @@ import (
 
 // each application is a node. each node is a process.
 type IApplication interface {
+	kkapp.INodeIdentity
 	GetNodeInfo() *kkapp.NodeInfo
-	GetNodeId() string
-	GetNodeType() string
 	Start() error
 	Stop() error
 	GetActorSystem() *actor.ActorSystem
@@ -26,6 +25,7 @@ type IApplication interface {
 	GetConfigDir() string
 }
 
+// each application is a node. each node is a process.
 type Application struct {
 	nodeInfo  *kkapp.NodeInfo
 	actorSys  *actor.ActorSystem
