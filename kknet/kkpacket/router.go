@@ -134,8 +134,8 @@ func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 		kklog.Errorf("message id %v is already registered", id)
 		return kkerrors.ErrMsgIDAlreadyRegistered
 	}
-	r.typeToId[reflect.TypeOf(msgPtr)] = id
-	r.idToType[id] = reflect.TypeOf(msgPtr)
+	r.typeToId[msgType] = id
+	r.idToType[id] = msgType
 	r.idToRoute[id] = route
 	return nil
 }
