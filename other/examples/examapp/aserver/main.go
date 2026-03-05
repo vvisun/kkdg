@@ -18,6 +18,7 @@ var (
 	natsURL  = "nats://127.0.0.1:4222"
 	tcpAddr  = "127.0.0.1:19090"
 	settings = map[string]string{"nats_url": natsURL}
+	withGate = false
 )
 
 func initMsgs() {
@@ -31,7 +32,10 @@ func main() {
 	initMsgs()
 
 	// gate 节点
-	gateApp := runGate()
+	var gateApp *component.Application
+	if withGate {
+		gateApp = runGate()
+	}
 
 	// game 节点
 	gameApp := runGame()
@@ -42,7 +46,9 @@ func main() {
 	<-signalCh
 	kklog.Infof("receive interrupt signal, exit")
 	gameApp.Stop()
-	gateApp.Stop()
+	if gateApp != nil {
+		gateApp.Stop()
+	}
 	os.Exit(0)
 }
 
