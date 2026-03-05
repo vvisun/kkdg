@@ -14,6 +14,15 @@ type MessagePacket struct {
 }
 
 func NewMessagePacket(head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRouter) *MessagePacket {
+	if head == nil {
+		panic("head is nil")
+	}
+	if bodyCodec == nil {
+		panic("bodyCodec is nil")
+	}
+	if router == nil {
+		panic("router is nil")
+	}
 	return &MessagePacket{
 		head:      head,
 		bodyCodec: bodyCodec,

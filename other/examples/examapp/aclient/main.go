@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -11,29 +12,46 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
+	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 var tcpAddr = "127.0.0.1:19090"
+var autoId int64 = 0
+
+func initMsgs() {
+	router := kkapp.GetMsgPacket().GetRouter()
+	router.Register(1, &ptoexam.Msg1Req{}, "test")
+	router.Register(2, &ptoexam.Msg1Resp{}, "test")
+	router.Register(3, &ptoexam.Msg2Broadcast{}, "test")
+}
 
 func main() {
 	initMsgs()
 
+	client := runOneClient()
+
+	// 等待信号退出
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+	<-signalCh
+	kklog.Infof("receive interrupt signal, exit")
+	client.Close()
+	os.Exit(0)
+}
+
+func runOneClient() kknet.IClient {
 	msgReceiver := msgreceiver.NewMsgReceiver[kknet.CONN_ID](kkapp.GetMsgPacket())
 	gh := &gameHandler{}
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest1)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest2)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest3)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg2Broadcast)
 
-	handler := &clientHandler{
-		onRaw: func(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-			msgReceiver.OnRaw(connID, data)
-		},
-	}
+	handler := &clientHandler{}
 
 	opts := kknet.ApplyOptions(
-		kknet.WithRawHandler(handler),
+		kknet.WithRawHandler(msgReceiver),
 	)
 	client := kktcp.NewClient(tcpAddr, handler, opts)
 	if err := client.Connect(); err != nil {
@@ -48,21 +66,14 @@ func main() {
 		}
 	}()
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-	<-signalCh
-	kklog.Infof("receive interrupt signal, exit")
-	client.Close()
-	os.Exit(0)
+	return client
 }
 
-var autoId = 0
-
 func sendMsg(client kknet.IClient) {
-	autoId++
+	curId := atomic.AddInt64(&autoId, 1)
 	payload := []byte("hello")
 	bb, err := kkpacket.EncodeStream(
-		&MsgTest1{ID: autoId, Data: string(payload)},
+		&ptoexam.Msg1Req{ID: int(curId), Data: string(payload)},
 		kkpacket.DefaultStreamPacket(),
 		kkapp.GetMsgPacket(),
 	)
@@ -77,56 +88,30 @@ func sendMsg(client kknet.IClient) {
 }
 
 type clientHandler struct {
-	onRaw func(kknet.CONN_ID, *kkbuffer.ByteBuffer)
 }
 
-func (h *clientHandler) OnConnect(kknet.IConn)      {}
-func (h *clientHandler) OnClose(kknet.IConn, error) {}
+func (h *clientHandler) OnConnect(kknet.IConn) {
 
-func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	if h.onRaw != nil {
-		h.onRaw(connID, data)
-	} else {
-		kkbuffer.Put(data)
-	}
 }
 
-type (
-	MsgTest1 struct {
-		ID   int
-		Data string
-	}
-	MsgTest2 struct {
-		ID   int
-		Data string
-	}
-	MsgTest3 struct {
-		ID   int
-		Data string
-	}
-)
+func (h *clientHandler) OnClose(kknet.IConn, error) {
 
-func initMsgs() {
-	router := kkapp.GetMsgPacket().GetRouter()
-	router.Register(1, &MsgTest1{}, "test")
-	router.Register(2, &MsgTest2{}, "test")
-	router.Register(3, &MsgTest3{}, "test")
 }
 
 type gameHandler struct {
 }
 
-func (h *gameHandler) onMsgTest1(sessionID kknet.CONN_ID, msg *MsgTest1) error {
-	kklog.Infof("onMsgTest1: %v", msg)
+func (h *gameHandler) onMsg1Req(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Req) error {
+	kklog.Infof("onMsg1Req: %v", msg)
 	return nil
 }
 
-func (h *gameHandler) onMsgTest2(sessionID kknet.CONN_ID, msg *MsgTest2) error {
-	kklog.Infof("onMsgTest2: %v", msg)
+func (h *gameHandler) onMsg1Resp(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Resp) error {
+	kklog.Infof("onMsg1Resp: %v", msg)
 	return nil
 }
 
-func (h *gameHandler) onMsgTest3(sessionID kknet.CONN_ID, msg *MsgTest3) error {
-	kklog.Infof("onMsgTest3: %v", msg)
+func (h *gameHandler) onMsg2Broadcast(sessionID kknet.CONN_ID, msg *ptoexam.Msg2Broadcast) error {
+	kklog.Infof("onMsg2Broadcast: %v", msg)
 	return nil
 }
