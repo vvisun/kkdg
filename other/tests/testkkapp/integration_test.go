@@ -139,7 +139,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	var recvData []byte
 	recvCh := make(chan struct{})
 
-	handler := &testRawHandler{
+	handler := &clientHandler{
 		onRaw: func(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			msg, e := kkpacket.DecodeStream(data, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
 
@@ -199,14 +199,14 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	}
 }
 
-type testRawHandler struct {
+type clientHandler struct {
 	onRaw func(kknet.CONN_ID, *kkbuffer.ByteBuffer)
 }
 
-func (h *testRawHandler) OnConnect(kknet.IConn)      {}
-func (h *testRawHandler) OnClose(kknet.IConn, error) {}
+func (h *clientHandler) OnConnect(kknet.IConn)      {}
+func (h *clientHandler) OnClose(kknet.IConn, error) {}
 
-func (h *testRawHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if h.onRaw != nil {
 		h.onRaw(connID, data)
 	} else {

@@ -236,8 +236,9 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 
+	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	sessionID := h.gate.clientMgr.getClient(connID).sessionId
-	if err := h.gate.transportor.ForwardToLogic(sessionID, data.B, logicNode.nodeId); err != nil {
+	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}
 	kkbuffer.Put(data)

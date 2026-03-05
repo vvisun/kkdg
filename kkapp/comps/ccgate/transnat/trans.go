@@ -46,8 +46,8 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, lo
 	}
 
 	pkt := kkcluster.NewClusterPacket()
-	pkt.FuncName = "c2s" //暂时没用到
-	pkt.ArgBytes = append([]byte(nil), msgBytes...)
+	pkt.FuncName = "c2s"    //暂时没用到
+	pkt.ArgBytes = msgBytes //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	pkt.Sid = sessionID
 	return slf.cluster.PublishRemote(logicNodeId, pkt)
 }

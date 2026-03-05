@@ -67,11 +67,11 @@ func (slf *transportorNats) onRecvMsg(sessionID string, streamBytes []byte) erro
 }
 
 // forwardToClient 转发消息到客户端
-func (slf *transportorNats) forwardToClient(sessionID string, messageBytes []byte) error {
+func (slf *transportorNats) forwardToClient(sessionID string, streamBytes []byte) error {
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
-	if len(messageBytes) == 0 {
+	if len(streamBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
@@ -80,8 +80,8 @@ func (slf *transportorNats) forwardToClient(sessionID string, messageBytes []byt
 	}
 
 	resp := kkcluster.NewClusterPacket()
-	resp.FuncName = "s2c" //暂时没用到
-	resp.ArgBytes = append([]byte(nil), messageBytes...)
+	resp.FuncName = "s2c"       //暂时没用到
+	resp.ArgBytes = streamBytes //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	resp.Sid = sessionID
 	if err := slf.cluster.PublishRemote(sessionInfo.GateNodeID, resp); err != nil {
 		kklog.Errorf("[ccgame] publish response to %s error: %v", sessionInfo.GateNodeID, err)
@@ -107,7 +107,8 @@ func (slf *transportorNats) SendToClient(sessionID string, msg any) error {
 		kkbuffer.Put(bb)
 		return err
 	}
-	err = slf.forwardToClient(sessionID, bb.B)
+	streamBytes := bb.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
+	err = slf.forwardToClient(sessionID, streamBytes)
 	kkbuffer.Put(bb)
 	if err != nil {
 		return err
