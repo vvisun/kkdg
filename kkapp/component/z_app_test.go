@@ -96,12 +96,13 @@ type failInitComponent struct {
 	id string
 }
 
-func (c *failInitComponent) GetID() string                    { return c.id }
-func (c *failInitComponent) SetApplication(_ IApplication)    {}
-func (c *failInitComponent) GetApplication() IApplication      { return nil }
-func (c *failInitComponent) Init() error                      { return errInitFailed }
-func (c *failInitComponent) Start() error                      { return nil }
-func (c *failInitComponent) Stop() error                       { return nil }
+func (c *failInitComponent) GetID() string                 { return c.id }
+func (c *failInitComponent) SetApplication(_ IApplication) {}
+func (c *failInitComponent) GetApplication() IApplication  { return nil }
+func (c *failInitComponent) Init() error                   { return errInitFailed }
+func (c *failInitComponent) Start() error                  { return nil }
+func (c *failInitComponent) Stop() error                   { return nil }
+func (c *failInitComponent) Equal(other IComponent) bool   { return IsEqual(c, other) }
 
 func TestApplication_Start_Stop(t *testing.T) {
 	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))
@@ -141,6 +142,7 @@ func (c *failStartComponent) GetApplication() IApplication  { return nil }
 func (c *failStartComponent) Init() error                   { return nil }
 func (c *failStartComponent) Start() error                  { return errStartFailed }
 func (c *failStartComponent) Stop() error                   { return nil }
+func (c *failStartComponent) Equal(other IComponent) bool   { return IsEqual(c, other) }
 
 func TestApplication_HasComponent_Empty(t *testing.T) {
 	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))

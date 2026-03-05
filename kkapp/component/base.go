@@ -15,6 +15,7 @@ type IComponent interface {
 	IComponentLifecycle
 	SetApplication(app IApplication)
 	GetApplication() IApplication
+	Equal(other IComponent) bool
 }
 
 func IsEqual(a, b IComponent) bool {
@@ -70,4 +71,8 @@ func (slf *Component) Start() error {
 // Stop was called to stop the component.
 func (slf *Component) Stop() error {
 	return nil
+}
+
+func (slf *Component) Equal(other IComponent) bool {
+	return IsEqual(slf, other)
 }
