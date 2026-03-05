@@ -26,11 +26,11 @@ type transportorNats struct {
 
 var _ ITransportor = (*transportorNats)(nil)
 
-func newTransportorNats(cluster kkcluster.ICluster) ITransportor {
+func newTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string]) ITransportor {
 	trans := &transportorNats{
 		cluster:     cluster,
 		sessionMgr:  newSessionManager(),
-		msgReceiver: msgreceiver.NewMsgReceiver[string](kkapp.GetMsgPacket()),
+		msgReceiver: msgReceiver,
 	}
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans
@@ -62,10 +62,9 @@ func (slf *transportorNats) OnRecvMsg(sessionID string, messageBytes []byte) err
 		kklog.Warnf("[ccgame] get msg id error: %v", err)
 	}
 
+	// 处理来自客户端的消息
 	slf.msgReceiver.OnSession(sessionID, messageBytes)
 
-	// TODO: 处理来自客户端的消息。暂时直接回显
-	slf.ForwardToClient(sessionID, messageBytes)
 	return nil
 }
 

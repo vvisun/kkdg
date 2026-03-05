@@ -15,6 +15,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
+	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -38,12 +39,53 @@ func freePort(t *testing.T) string {
 	return addr
 }
 
+type (
+	MsgTest1 struct {
+		ID   int
+		Data string
+	}
+	MsgTest2 struct {
+		ID   int
+		Data string
+	}
+	MsgTest3 struct {
+		ID   int
+		Data string
+	}
+)
+
+func InitMsgs(t *testing.T) {
+	router := kkapp.GetMsgPacket().GetRouter()
+	router.Register(1, &MsgTest1{}, "test")
+	router.Register(2, &MsgTest2{}, "test")
+	router.Register(3, &MsgTest3{}, "test")
+}
+
+type gameHandler struct{}
+
+func (h *gameHandler) onMsgTest1(sessionID string, msg *MsgTest1) error {
+	kklog.Infof("onMsgTest1: %v", msg)
+	return nil
+}
+
+func (h *gameHandler) onMsgTest2(sessionID string, msg *MsgTest2) error {
+	kklog.Infof("onMsgTest2: %v", msg)
+	return nil
+}
+
+func (h *gameHandler) onMsgTest3(sessionID string, msg *MsgTest3) error {
+	kklog.Infof("onMsgTest3: %v", msg)
+	return nil
+}
+
 // TestIntegration_GateGame_Echo 集成测试：gate + game 节点，客户端连 gate 发消息，经 game 回显，验证收到
 func TestIntegration_GateGame_Echo(t *testing.T) {
 	natsURL := requireNATS(t)
 	tcpAddr := freePort(t)
 
 	settings := map[string]string{"nats_url": natsURL}
+
+	InitMsgs(t)
 
 	// gate 节点
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", settings)
@@ -66,6 +108,13 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", settings)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent()
+
+	msgReceiver := game.GetMsgReceiver()
+	gh := &gameHandler{}
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest1)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest2)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest3)
+
 	if err := gameApp.AddComponent(game); err != nil {
 		t.Fatalf("add game: %v", err)
 	}
@@ -77,6 +126,8 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	// 等待 discovery 建立（requestAllMembers 约 1s 后触发，再留时间收响应）
 	time.Sleep(2 * time.Second)
 
+	//----------------------------- client -----------------------------
+
 	// 客户端：发送 payload，期望 game 回显相同内容
 	payload := []byte("hello")
 
@@ -86,14 +137,19 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	handler := &testRawHandler{
 		onRaw: func(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-			bytes, e := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+			msg, e := kkpacket.DecodeStream(data, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
 			kkbuffer.Put(data)
 			if e != nil {
 				t.Logf("unpack recv: %v", e)
 				return
 			}
+			msgTest1, ok := msg.(*MsgTest1)
+			if !ok {
+				t.Logf("unpack recv: %v", e)
+				return
+			}
 			recvMu.Lock()
-			recvData = append([]byte(nil), bytes...)
+			recvData = append([]byte(nil), msgTest1.Data...)
 			recvMu.Unlock()
 			select {
 			case recvCh <- struct{}{}:
@@ -113,7 +169,11 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	bb, err := kkpacket.EncodeStream(
+		&MsgTest1{ID: 1, Data: string(payload)},
+		kkpacket.DefaultStreamPacket(),
+		kkapp.GetMsgPacket(),
+	)
 	if err != nil {
 		t.Fatalf("pack: %v", err)
 	}

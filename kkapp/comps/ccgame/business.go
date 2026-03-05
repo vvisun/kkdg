@@ -2,7 +2,9 @@ package ccgame
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
+	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
@@ -11,7 +13,9 @@ import (
 )
 
 func NewGameComponent() *gameComponent {
-	return &gameComponent{}
+	return &gameComponent{
+		msgReceiver: msgreceiver.NewMsgReceiver[string](kkapp.GetMsgPacket()),
+	}
 }
 
 // 业务服：游戏服
@@ -21,6 +25,7 @@ type gameComponent struct {
 	discovery   kkdiscovery.IDiscovery
 	cluster     kkcluster.ICluster
 	transportor ITransportor
+	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
 func (slf *gameComponent) GetID() string {
@@ -46,7 +51,7 @@ func (slf *gameComponent) Init() error {
 		opts,
 	)
 
-	slf.transportor = newTransportorNats(slf.cluster)
+	slf.transportor = newTransportorNats(slf.cluster, slf.msgReceiver)
 	return nil
 }
 
@@ -78,4 +83,8 @@ func (slf *gameComponent) Stop() error {
 		slf.pid = nil
 	}
 	return nil
+}
+
+func (slf *gameComponent) GetMsgReceiver() *msgreceiver.MsgReceiver[string] {
+	return slf.msgReceiver
 }

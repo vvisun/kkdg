@@ -1,6 +1,8 @@
 package kkpacket
 
 import (
+	"reflect"
+
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -47,4 +49,29 @@ func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffe
 	}
 
 	return bb, nil
+}
+
+func DecodeStream(bb *kkbuffer.ByteBuffer, stream IPacket, messagePacket *MessagePacket) (any, error) {
+	messageBytes, err := stream.MessageBytes(bb.B)
+	if err != nil {
+		return nil, err
+	}
+	bodyBytes, err := messagePacket.BodyBytes(messageBytes)
+	if err != nil {
+		return nil, err
+	}
+	msgId, err := messagePacket.GetMsgID(messageBytes)
+	if err != nil {
+		return nil, err
+	}
+	msgType := messagePacket.GetRouter().GetMsgType(msgId)
+	if msgType == nil {
+		return nil, kkerrors.ErrMsgTypeNotRegistered
+	}
+	v := reflect.New(msgType.Elem()).Interface()
+	err = messagePacket.GetBodyCodec().Unmarshal(bodyBytes, &v)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
 }
