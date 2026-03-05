@@ -12,6 +12,25 @@ type MSGID = uint32 // 消息ID
 
 //--------------------------------------------------
 
+/*
+*维护消息ID与消息类型、消息路由的映射关系。
+
+	 *消息ID: 消息的唯一标识
+	 *消息类型: 消息结构体
+	 *消息路由: 标识消息应发往的目标节点类型(nodeType)。
+
+		 *例如:
+
+			  msgID -> msgType -> msgRoute
+			  1001 -> *Msg1Req -> "game"
+			  1002 -> *Msg1Resp -> "game"
+			  1003 -> *Msg2Broadcast -> "gate"
+			  1004 -> *ChatMsgReq -> "chat"
+			  1005 -> *ChatMsgResp -> "chat"
+			  ...
+
+*
+*/
 type MsgRouter struct {
 	typeToId  map[reflect.Type]MSGID
 	idToType  map[MSGID]reflect.Type
