@@ -1,6 +1,7 @@
 package kkdiscovery
 
 import (
+	"fmt"
 	"sync/atomic"
 	"testing"
 
@@ -181,3 +182,70 @@ func TestMemberMgr_Range(t *testing.T) {
 	}
 }
 
+// --- Benchmarks ---
+
+// BenchmarkMemberMgr_AddMember benchmarks AddMember with mixed new & existing members.
+func BenchmarkMemberMgr_AddMember(b *testing.B) {
+	mgr := NewMemberMgr()
+	const base = 100000
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		id := fmt.Sprintf("node-%d", base+i%1024) // 控制总成员数量，模拟热点更新
+		info := newTestMemberInfo(id, "logic", "addr", 1, NodeStatusOnline)
+		_ = mgr.AddMember(info)
+	}
+}
+
+// BenchmarkMemberMgr_ListByType benchmarks ListByType with/without filters.
+func BenchmarkMemberMgr_ListByType(b *testing.B) {
+	mgr := NewMemberMgr()
+	const total = 4096
+	for i := 0; i < total; i++ {
+		tp := "logic"
+		if i%4 == 0 {
+			tp = "gate"
+		}
+		mgr.AddMember(newTestMemberInfo(fmt.Sprintf("n-%d", i), tp, "addr", 1, NodeStatusOnline))
+	}
+
+	b.Run("NoFilter", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			list := mgr.ListByType("logic")
+			if len(list) == 0 {
+				b.Fatalf("ListByType(logic) returned empty list")
+			}
+		}
+	})
+
+	b.Run("WithFilter", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = mgr.ListByType("logic", "n-1", "n-2", "n-3")
+		}
+	})
+}
+
+// BenchmarkMemberMgr_Random benchmarks Random selection from a given type.
+func BenchmarkMemberMgr_Random(b *testing.B) {
+	mgr := NewMemberMgr()
+	const total = 2048
+	for i := 0; i < total; i++ {
+		mgr.AddMember(newTestMemberInfo(fmt.Sprintf("n-%d", i), "logic", "addr", 1, NodeStatusOnline))
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m, ok := mgr.Random("logic")
+		if !ok || m == nil {
+			b.Fatalf("Random(logic) returned nil, false")
+		}
+	}
+}

@@ -1,17 +1,14 @@
 package dnats
 
 import (
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xrand"
 )
 
 // NatsDiscovery 基于NATS的服务发现实现
@@ -26,14 +23,9 @@ type NatsDiscovery struct {
 	sub        *nats.Subscription
 	requestSub *nats.Subscription
 
-	members      map[string]kkdiscovery.IMember   // key: nodeID, value: member
-	memberByType map[string][]kkdiscovery.IMember // key: nodeType, value: members
-	memberTimes  map[string]time.Time             // 记录成员最后更新时间。key: nodeID, value: last update time
-	membersMu    sync.RWMutex
-
-	addListeners    []kkdiscovery.MemberListener
-	removeListeners []kkdiscovery.MemberListener
-	listenersMu     sync.RWMutex
+	memberMgr     *kkdiscovery.MemberMgr
+	memberTimes   map[string]time.Time // 记录成员最后更新时间。key: nodeID, value: last update time
+	memberTimesMu sync.RWMutex
 
 	// 订阅管理（用于重连时重新订阅）
 	subMu sync.Mutex
@@ -63,17 +55,16 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 		settings = make(map[string]string)
 	}
 	return &NatsDiscovery{
-		name:         name,
-		nodeID:       nodeInfo.GetNodeId(),
-		nodeType:     nodeInfo.GetNodeType(),
-		address:      nodeInfo.GetAddress(),
-		settings:     settings,
-		members:      make(map[string]kkdiscovery.IMember),   // key: nodeID, value: member
-		memberByType: make(map[string][]kkdiscovery.IMember), // key: nodeType, value: members
-		memberTimes:  make(map[string]time.Time),             // key: nodeID, value: last update time
-		stopCh:       make(chan struct{}),
-		doneCh:       make(chan struct{}),
-		options:      opts,
+		name:        name,
+		nodeID:      nodeInfo.GetNodeId(),
+		nodeType:    nodeInfo.GetNodeType(),
+		address:     nodeInfo.GetAddress(),
+		settings:    settings,
+		memberMgr:   kkdiscovery.NewMemberMgr(),
+		memberTimes: make(map[string]time.Time), // key: nodeID, value: last update time
+		stopCh:      make(chan struct{}),
+		doneCh:      make(chan struct{}),
+		options:     opts,
 	}
 }
 
@@ -84,140 +75,83 @@ func (d *NatsDiscovery) Name() string {
 
 // MemberCount 获取成员数量
 func (d *NatsDiscovery) MemberCount() int {
-	d.membersMu.RLock()
-	defer d.membersMu.RUnlock()
-	return len(d.members)
+	return d.memberMgr.MemberCount()
 }
 
 // Range 遍历成员, fn 返回 false 时停止遍历
 func (d *NatsDiscovery) Range(fn func(nodeID string, member kkdiscovery.IMember) bool) {
-	d.membersMu.RLock()
-	defer d.membersMu.RUnlock()
-	for nodeID, member := range d.members {
-		if !fn(nodeID, member) {
-			break
-		}
-	}
+	d.memberMgr.Range(fn)
 }
 
 // ListByType 根据节点类型获取列表
 func (d *NatsDiscovery) ListByType(nodeType string, filterNodeID ...string) []kkdiscovery.IMember {
-	d.membersMu.RLock()
-	defer d.membersMu.RUnlock()
-
-	listOfType, existed := d.memberByType[nodeType]
-	if !existed {
-		return nil
-	}
-
-	hasFilter := len(filterNodeID) > 0
-	if !hasFilter {
-		return listOfType
-	}
-
-	var result []kkdiscovery.IMember
-	for _, member := range listOfType {
-		if slices.Contains(filterNodeID, member.GetNodeID()) {
-			continue
-		}
-		result = append(result, member)
-	}
-	return result
+	return d.memberMgr.ListByType(nodeType, filterNodeID...)
 }
 
 // Random 根据节点类型随机一个
 func (d *NatsDiscovery) Random(nodeType string) (kkdiscovery.IMember, bool) {
-	list := d.ListByType(nodeType)
-	if len(list) == 0 {
-		return nil, false
-	}
-	idx := xrand.Int(0, len(list)-1)
-	return list[idx], true
+	return d.memberMgr.Random(nodeType)
 }
 
 // GetType 根据节点id获取类型
 func (d *NatsDiscovery) GetType(nodeID string) (string, error) {
-	d.membersMu.RLock()
-	defer d.membersMu.RUnlock()
-
-	member, found := d.members[nodeID]
-	if !found {
-		return "", kkerrors.ErrMemberNotFound
-	}
-	return member.GetNodeType(), nil
+	return d.memberMgr.GetType(nodeID)
 }
 
 // GetMember 获取成员
 func (d *NatsDiscovery) GetMember(nodeID string) (kkdiscovery.IMember, bool) {
-	d.membersMu.RLock()
-	defer d.membersMu.RUnlock()
-
-	member, found := d.members[nodeID]
-	return member, found
+	return d.memberMgr.GetMember(nodeID)
 }
 
-// addMember 添加成员
-func (d *NatsDiscovery) addMember(member kkdiscovery.IMember) {
-	if member == nil {
+// addMemberInfo 根据 MemberInfo 添加或更新成员
+func (d *NatsDiscovery) addMemberInfo(info *kkdiscovery.MemberInfo) {
+	if info == nil {
 		return
 	}
+	_, existed := d.memberMgr.GetMember(info.NodeID)
+	d.memberMgr.AddMember(info)
 
-	d.membersMu.Lock()
-	_, existed := d.members[member.GetNodeID()]
-	d.members[member.GetNodeID()] = member
-	d.memberTimes[member.GetNodeID()] = time.Now()
-	d.updateMemberByType(member.GetNodeType(), member)
-	d.membersMu.Unlock()
+	d.memberTimesMu.Lock()
+	d.memberTimes[info.NodeID] = time.Now()
+	d.memberTimesMu.Unlock()
 
 	if !existed {
 		d.stats.AddMember()
-		d.notifyAddListeners(member)
 	}
 }
 
 // removeMember 移除成员
 func (d *NatsDiscovery) removeMember(nodeID string) {
-	d.membersMu.Lock()
-	member, existed := d.members[nodeID]
-	if existed {
-		delete(d.members, nodeID)
-		delete(d.memberTimes, nodeID)
-		d.removeMemberByType(member.GetNodeType(), nodeID)
+	if nodeID == "" {
+		return
 	}
-	d.membersMu.Unlock()
+	_, existed := d.memberMgr.GetMember(nodeID)
+	if !existed {
+		return
+	}
 
-	if existed {
-		d.stats.RemoveMember()
-		d.notifyRemoveListeners(member)
-	}
+	d.memberMgr.RemoveMember(nodeID)
+
+	d.memberTimesMu.Lock()
+	delete(d.memberTimes, nodeID)
+	d.memberTimesMu.Unlock()
+
+	d.stats.RemoveMember()
 }
 
 // OnAddMember 添加成员监听函数
 func (d *NatsDiscovery) OnAddMember(listener kkdiscovery.MemberListener) {
-	if listener == nil {
-		return
-	}
-	d.listenersMu.Lock()
-	d.addListeners = append(d.addListeners, listener)
-	d.listenersMu.Unlock()
+	d.memberMgr.OnAddMember(listener)
 }
 
 // OnRemoveMember 移除成员监听函数
 func (d *NatsDiscovery) OnRemoveMember(listener kkdiscovery.MemberListener) {
-	if listener == nil {
-		return
-	}
-	d.listenersMu.Lock()
-	d.removeListeners = append(d.removeListeners, listener)
-	d.listenersMu.Unlock()
+	d.memberMgr.OnRemoveMember(listener)
 }
 
 // Stats 获取统计信息快照
 func (d *NatsDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot {
-	d.membersMu.RLock()
-	memberCount := len(d.members)
-	d.membersMu.RUnlock()
-
+	memberCount := d.memberMgr.MemberCount()
 	isConnected := d.conn != nil && d.conn.IsConnected()
 	return d.stats.Snapshot(memberCount, isConnected)
 }
@@ -368,40 +302,6 @@ func (d *NatsDiscovery) resubscribe() error {
 	return nil
 }
 
-func (d *NatsDiscovery) removeMemberByType(nodeType string, nodeID string) {
-	listOfType, existed := d.memberByType[nodeType]
-	if existed {
-		for i, m := range listOfType {
-			if m.GetNodeID() == nodeID {
-				listOfType = append(listOfType[:i], listOfType[i+1:]...)
-				d.memberByType[nodeType] = listOfType
-				break
-			}
-		}
-	}
-}
-
-func (d *NatsDiscovery) updateMemberByType(nodeType string, member kkdiscovery.IMember) {
-	listOfType, existed := d.memberByType[nodeType]
-	if existed {
-		isIn := false
-		for i, m := range listOfType {
-			if m.GetNodeID() == member.GetNodeID() {
-				listOfType[i] = member
-				isIn = true
-				break
-			}
-		}
-		if !isIn {
-			listOfType = append(listOfType, member)
-		}
-	} else {
-		listOfType = make([]kkdiscovery.IMember, 0)
-		listOfType = append(listOfType, member)
-	}
-	d.memberByType[nodeType] = listOfType
-}
-
 // handleDiscoveryMessage 处理服务发现消息
 func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 	// 记录心跳接收统计
@@ -419,34 +319,8 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 		return
 	}
 
-	member := kkdiscovery.NewMember(
-		memberInfo.NodeID,
-		memberInfo.NodeType,
-		memberInfo.Address,
-		memberInfo.Weight,
-		memberInfo.Status,
-		memberInfo.Settings,
-	)
-
-	// 更新成员时间
-	d.membersMu.Lock()
-	oldMember, existed := d.members[memberInfo.NodeID]
-	if !existed {
-		d.membersMu.Unlock()
-		d.addMember(member)
-	} else {
-		// 更新成员信息（地址/配置可能变更）及时间，不触发 Add/Remove 通知
-		oldType := oldMember.GetNodeType()
-		newType := memberInfo.NodeType
-		if oldType != newType {
-			// nodeType 变更：先从旧 type 移除，再加入新 type
-			d.removeMemberByType(oldType, memberInfo.NodeID)
-		}
-		d.members[memberInfo.NodeID] = member
-		d.memberTimes[memberInfo.NodeID] = time.Now()
-		d.updateMemberByType(newType, member)
-		d.membersMu.Unlock()
-	}
+	// 利用 MemberMgr 统一管理成员信息
+	d.addMemberInfo(&memberInfo)
 }
 
 // SetInfoGetter 设置信息获取函数
@@ -580,59 +454,19 @@ func (d *NatsDiscovery) checkMemberTimeout() {
 			now := time.Now()
 			var toRemove []string
 
-			d.membersMu.RLock()
+			d.memberTimesMu.RLock()
 			for nodeID, lastTime := range d.memberTimes {
 				if now.Sub(lastTime) > timeout {
 					toRemove = append(toRemove, nodeID)
 				}
 			}
-			d.membersMu.RUnlock()
+			d.memberTimesMu.RUnlock()
 
 			for _, nodeID := range toRemove {
 				kklog.Warnf("NatsDiscovery(%s) member %s timeout, removing", d.nodeID, nodeID)
 				d.removeMember(nodeID)
 			}
 		}
-	}
-}
-
-// notifyAddListeners 通知添加监听器
-func (d *NatsDiscovery) notifyAddListeners(member kkdiscovery.IMember) {
-	d.listenersMu.RLock()
-	listeners := make([]kkdiscovery.MemberListener, len(d.addListeners))
-	copy(listeners, d.addListeners)
-	d.listenersMu.RUnlock()
-
-	for _, listener := range listeners {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					d.stats.AddError()
-					kklog.Errorf("NatsDiscovery(%s) add listener panic: %v", d.nodeID, r)
-				}
-			}()
-			listener(member)
-		}()
-	}
-}
-
-// notifyRemoveListeners 通知移除监听器
-func (d *NatsDiscovery) notifyRemoveListeners(member kkdiscovery.IMember) {
-	d.listenersMu.RLock()
-	listeners := make([]kkdiscovery.MemberListener, len(d.removeListeners))
-	copy(listeners, d.removeListeners)
-	d.listenersMu.RUnlock()
-
-	for _, listener := range listeners {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					d.stats.AddError()
-					kklog.Errorf("NatsDiscovery(%s) remove listener panic: %v", d.nodeID, r)
-				}
-			}()
-			listener(member)
-		}()
 	}
 }
 

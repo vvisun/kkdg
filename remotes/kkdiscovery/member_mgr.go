@@ -3,7 +3,6 @@ package kkdiscovery
 import (
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -11,19 +10,21 @@ import (
 )
 
 type MemberMgr struct {
-	members     map[string]IMember   // key: nodeID, value: member
-	memberTimes map[string]time.Time // 记录成员最后更新时间。key: nodeID, value: last update time
-	membersMu   sync.RWMutex
+	members   map[string]IMember   // key: nodeID, value: member
+	typeMap   map[string][]IMember // key: nodeType, value: members
+	membersMu sync.RWMutex
 
 	addListeners    []MemberListener
 	removeListeners []MemberListener
 	listenersMu     sync.RWMutex
 }
 
+var _ IMemberMgr = (*MemberMgr)(nil)
+
 func NewMemberMgr() *MemberMgr {
 	return &MemberMgr{
 		members:         make(map[string]IMember),
-		memberTimes:     make(map[string]time.Time),
+		typeMap:         make(map[string][]IMember),
 		addListeners:    make([]MemberListener, 0),
 		removeListeners: make([]MemberListener, 0),
 	}
@@ -49,15 +50,27 @@ func (m *MemberMgr) AddMember(info *MemberInfo) IMember {
 			settings: info.Settings,
 		}
 		m.members[info.NodeID] = member
-		m.memberTimes[info.NodeID] = time.Now()
+		m.typeMap[info.NodeType] = append(m.typeMap[info.NodeType], member)
 	} else {
+		oldType := member.GetNodeType()
+		if oldType != info.NodeType {
+			// 如果节点类型发生变化，则需要将成员从旧的类型列表中删除，再添加到新的类型列表中
+			oldTypeList := m.typeMap[oldType]
+			for i, oldMember := range oldTypeList {
+				if oldMember.GetNodeID() == info.NodeID {
+					oldTypeList = append(oldTypeList[:i], oldTypeList[i+1:]...)
+					break
+				}
+			}
+			m.typeMap[oldType] = oldTypeList
+			m.typeMap[info.NodeType] = append(m.typeMap[info.NodeType], member)
+		}
 		mb := member.(*Member)
 		mb.nodeType = info.NodeType
 		mb.address = info.Address
 		mb.weight = info.Weight
 		mb.status = info.Status
 		mb.settings = info.Settings
-		m.memberTimes[info.NodeID] = time.Now()
 	}
 	m.membersMu.Unlock()
 
@@ -73,7 +86,15 @@ func (m *MemberMgr) RemoveMember(nodeID string) {
 	member, existed := m.members[nodeID]
 	if existed {
 		delete(m.members, nodeID)
-		delete(m.memberTimes, nodeID)
+		oldType := member.GetNodeType()
+		oldTypeList := m.typeMap[oldType]
+		for i, oldMember := range oldTypeList {
+			if oldMember.GetNodeID() == nodeID {
+				oldTypeList = append(oldTypeList[:i], oldTypeList[i+1:]...)
+				break
+			}
+		}
+		m.typeMap[oldType] = oldTypeList
 	}
 	m.membersMu.Unlock()
 
@@ -108,26 +129,27 @@ func (m *MemberMgr) Range(fn func(nodeID string, member IMember) bool) {
 func (m *MemberMgr) ListByType(nodeType string, filterNodeID ...string) []IMember {
 	m.membersMu.RLock()
 	defer m.membersMu.RUnlock()
-	listOfType := make([]IMember, 0)
+	listOfType := m.typeMap[nodeType]
 	hasFilter := len(filterNodeID) > 0
-	for _, member := range m.members {
-		if member.GetNodeType() == nodeType {
-			if hasFilter {
-				if slices.Contains(filterNodeID, member.GetNodeID()) {
-					continue
-				}
-			}
-			listOfType = append(listOfType, member)
-		}
+	if !hasFilter {
+		return listOfType
 	}
-	return listOfType
+
+	retList := make([]IMember, 0, len(listOfType))
+	for _, member := range listOfType {
+		if slices.Contains(filterNodeID, member.GetNodeID()) {
+			continue
+		}
+		retList = append(retList, member)
+	}
+	return retList
 }
 
 // 根据节点类型随机一个
 func (m *MemberMgr) Random(nodeType string) (IMember, bool) {
 	m.membersMu.RLock()
-	defer m.membersMu.RUnlock()
-	listOfType := m.ListByType(nodeType)
+	listOfType := m.typeMap[nodeType]
+	m.membersMu.RUnlock()
 	if len(listOfType) == 0 {
 		return nil, false
 	}
