@@ -20,15 +20,8 @@ import (
 var tcpAddr = "127.0.0.1:19090"
 var autoId int64 = 0
 
-func initMsgs() {
-	router := kkapp.GetMsgPacket().GetRouter()
-	router.Register(1, &ptoexam.Msg1Req{}, "logic")
-	router.Register(2, &ptoexam.Msg1Resp{}, "logic")
-	router.Register(3, &ptoexam.Msg2Broadcast{}, "logic")
-}
-
 func main() {
-	initMsgs()
+	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
 
 	client := runOneClient()
 
@@ -73,7 +66,7 @@ func sendMsg(client kknet.IClient) {
 	curId := atomic.AddInt64(&autoId, 1)
 	payload := []byte("hello")
 	bb, err := kkpacket.EncodeStream(
-		&ptoexam.Msg1Req{ID: int(curId), Data: string(payload)},
+		&ptoexam.Msg1Req{ID: int32(curId), Data: string(payload)},
 		kkpacket.DefaultStreamPacket(),
 		kkapp.GetMsgPacket(),
 	)

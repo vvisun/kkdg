@@ -21,15 +21,8 @@ var (
 	withGate = false
 )
 
-func initMsgs() {
-	router := kkapp.GetMsgPacket().GetRouter()
-	router.Register(1, &ptoexam.Msg1Req{}, "logic")
-	router.Register(2, &ptoexam.Msg1Resp{}, "logic")
-	router.Register(3, &ptoexam.Msg2Broadcast{}, "logic")
-}
-
 func main() {
-	initMsgs()
+	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
 
 	// gate 节点
 	var gateApp *component.Application
@@ -98,7 +91,7 @@ type gameHandler struct {
 
 func (h *gameHandler) onMsg1Req(sessionID string, msg *ptoexam.Msg1Req) error {
 	kklog.Infof("onMsg1Req: %v", msg)
-	h.sendToClient(sessionID, &ptoexam.Msg1Resp{ID: msg.ID, Data: "hello"})
+	h.sendToClient(sessionID, &ptoexam.Msg1Resp{ID: msg.ID, Name: "hello"})
 	return nil
 }
 

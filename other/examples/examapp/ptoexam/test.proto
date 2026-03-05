@@ -1,0 +1,19 @@
+syntax = "proto3";
+package ptoexam;
+option go_package = ".;ptoexam";
+
+message Msg1Req {
+	int32 ID = 1; 
+	string Data = 2;
+}
+
+message Msg1Resp {
+	int32 ID = 1;
+	string Name = 2;
+	int32 Age = 3;
+}
+
+message Msg2Broadcast {
+	int32 ID = 1;
+	repeated string Names = 2;
+}

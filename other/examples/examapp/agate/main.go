@@ -18,15 +18,8 @@ var (
 	settings = map[string]string{"nats_url": natsURL}
 )
 
-func initMsgs() {
-	router := kkapp.GetMsgPacket().GetRouter()
-	router.Register(1, &ptoexam.Msg1Req{}, "logic")
-	router.Register(2, &ptoexam.Msg1Resp{}, "logic")
-	router.Register(3, &ptoexam.Msg2Broadcast{}, "logic")
-}
-
 func main() {
-	initMsgs()
+	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
 
 	// gate 节点
 	gateApp := runGate()
