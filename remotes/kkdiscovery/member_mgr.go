@@ -1,7 +1,6 @@
 package kkdiscovery
 
 import (
-	"slices"
 	"sync"
 
 	"github.com/vvisun/kkdg/kkerrors"
@@ -126,23 +125,11 @@ func (m *MemberMgr) Range(fn func(nodeID string, member IMember) bool) {
 }
 
 // 根据节点类型获取列表
-func (m *MemberMgr) ListByType(nodeType string, filterNodeID ...string) []IMember {
+func (m *MemberMgr) ListByType(nodeType string) []IMember {
 	m.membersMu.RLock()
-	defer m.membersMu.RUnlock()
 	listOfType := m.typeMap[nodeType]
-	hasFilter := len(filterNodeID) > 0
-	if !hasFilter {
-		return listOfType
-	}
-
-	retList := make([]IMember, 0, len(listOfType))
-	for _, member := range listOfType {
-		if slices.Contains(filterNodeID, member.GetNodeID()) {
-			continue
-		}
-		retList = append(retList, member)
-	}
-	return retList
+	m.membersMu.RUnlock()
+	return listOfType
 }
 
 // 根据节点类型随机一个

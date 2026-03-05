@@ -1,0 +1,93 @@
+package dnats
+
+import (
+	"sync/atomic"
+	"testing"
+
+	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
+)
+
+// newTestDiscovery creates a NatsDiscovery without connecting to a real NATS server.
+func newTestDiscovery(t *testing.T) *NatsDiscovery {
+	t.Helper()
+	nodeInfo := kkapp.NewNodeInfo("node1", kkapp.NodeTypeGate, "127.0.0.1:8000", "", nil)
+	d := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions())
+	nd, ok := d.(*NatsDiscovery)
+	if !ok || nd == nil {
+		t.Fatalf("NewNatsDiscovery returned %T, want *NatsDiscovery", d)
+	}
+	return nd
+}
+
+// TestNatsDiscovery_AddRemove_StatsAndDelegation verifies that NatsDiscovery delegates
+// member operations to MemberMgr and updates stats consistently.
+func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
+	d := newTestDiscovery(t)
+
+	var addCount, removeCount atomic.Int64
+	d.OnAddMember(func(m kkdiscovery.IMember) {
+		addCount.Add(1)
+	})
+	d.OnRemoveMember(func(m kkdiscovery.IMember) {
+		removeCount.Add(1)
+	})
+
+	info := &kkdiscovery.MemberInfo{
+		NodeID:   "node2",
+		NodeType: "logic",
+		Address:  "127.0.0.1:9000",
+		Weight:   1,
+		Status:   kkdiscovery.NodeStatusOnline,
+	}
+
+	// Add member via internal API and verify state.
+	d.addMemberInfo(info)
+
+	if got := d.MemberCount(); got != 1 {
+		t.Fatalf("MemberCount after add = %d, want 1", got)
+	}
+	m, ok := d.GetMember("node2")
+	if !ok || m == nil {
+		t.Fatalf("GetMember(node2) = (%v,%v), want non-nil,true", m, ok)
+	}
+	if typ, err := d.GetType("node2"); err != nil || typ != "logic" {
+		t.Fatalf("GetType(node2) = (%q,%v), want (\"logic\",nil)", typ, err)
+	}
+
+	// ListByType / Random should see this member.
+	list := d.ListByType("logic")
+	if len(list) != 1 || list[0].GetNodeID() != "node2" {
+		t.Fatalf("ListByType(logic) = %v, want [node2]", list)
+	}
+	if rm, ok := d.Random("logic"); !ok || rm == nil || rm.GetNodeID() != "node2" {
+		t.Fatalf("Random(logic) = (%v,%v), want node2,true", rm, ok)
+	}
+
+	// Stats should reflect 1 member added.
+	snap := d.Stats()
+	if snap.MemberCount != 1 || snap.MembersAdded != 1 || snap.MembersRemoved != 0 {
+		t.Fatalf("Stats after add = %+v, want MemberCount=1 MembersAdded=1 MembersRemoved=0", snap)
+	}
+	if addCount.Load() != 1 {
+		t.Fatalf("OnAddMember called %d times, want 1", addCount.Load())
+	}
+
+	// Remove the member and verify everything is cleaned up.
+	d.removeMember("node2")
+
+	if got := d.MemberCount(); got != 0 {
+		t.Fatalf("MemberCount after remove = %d, want 0", got)
+	}
+	if m, ok := d.GetMember("node2"); ok || m != nil {
+		t.Fatalf("GetMember(node2) after remove = (%v,%v), want (nil,false)", m, ok)
+	}
+	snap = d.Stats()
+	if snap.MemberCount != 0 || snap.MembersAdded != 1 || snap.MembersRemoved != 1 {
+		t.Fatalf("Stats after remove = %+v, want MemberCount=0 MembersAdded=1 MembersRemoved=1", snap)
+	}
+	if removeCount.Load() != 1 {
+		t.Fatalf("OnRemoveMember called %d times, want 1", removeCount.Load())
+	}
+}
+

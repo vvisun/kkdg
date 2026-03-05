@@ -84,8 +84,8 @@ func (d *NatsDiscovery) Range(fn func(nodeID string, member kkdiscovery.IMember)
 }
 
 // ListByType 根据节点类型获取列表
-func (d *NatsDiscovery) ListByType(nodeType string, filterNodeID ...string) []kkdiscovery.IMember {
-	return d.memberMgr.ListByType(nodeType, filterNodeID...)
+func (d *NatsDiscovery) ListByType(nodeType string) []kkdiscovery.IMember {
+	return d.memberMgr.ListByType(nodeType)
 }
 
 // Random 根据节点类型随机一个

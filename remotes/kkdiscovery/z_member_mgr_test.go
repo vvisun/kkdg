@@ -76,12 +76,6 @@ func TestMemberMgr_ListByTypeAndRandom(t *testing.T) {
 		t.Fatalf("ListByType(logic) len = %d, want 2", len(list))
 	}
 
-	// filter out one node
-	listFiltered := mgr.ListByType("logic", "n1")
-	if len(listFiltered) != 1 || listFiltered[0].GetNodeID() != "n2" {
-		t.Fatalf("ListByType(logic, filter n1) = %v, want only n2", idsOf(listFiltered))
-	}
-
 	// Random should only pick from existing type; we can't assert exact distribution, but should return ok.
 	for i := 0; i < 10; i++ {
 		m, ok := mgr.Random("logic")
@@ -226,7 +220,7 @@ func BenchmarkMemberMgr_ListByType(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = mgr.ListByType("logic", "n-1", "n-2", "n-3")
+			_ = mgr.ListByType("logic")
 		}
 	})
 }
