@@ -3,8 +3,8 @@ package transnat
 import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -65,13 +65,7 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 		return err //客户端已下线
 	}
 
-	// packet.ArgBytes is [message], pack it to [length,message] then send back to client.
-	bb, err := kkpacket.DefaultStreamPacket().Pack(msgBytes)
-	if err != nil {
-		kklog.Errorf("[ccgate] pack response error: %v", err)
-		return err //打包失败
-	}
-	if err := conn.SendBuffer(bb); err != nil {
+	if err := conn.SendBuffer(&kkbuffer.ByteBuffer{B: msgBytes}); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
 	}
 	return nil

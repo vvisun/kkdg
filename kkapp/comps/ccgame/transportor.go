@@ -14,7 +14,7 @@ import (
 // 抽象化接口，方便切换实现逻辑（如：使用Actor、使用Nats、使用RPC等）。
 type ITransportor interface {
 	forwardToClient(sessionID string, messageBytes []byte) error
-	onRecvMsg(sessionID string, messageBytes []byte) error
+	onRecvMsg(sessionID string, streamBytes []byte) error
 	SendToClient(sessionID string, msg any) error
 }
 
@@ -52,21 +52,16 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 	slf.onRecvMsg(packet.Sid, packet.ArgBytes)
 }
 
-func (slf *transportorNats) onRecvMsg(sessionID string, messageBytes []byte) error {
+func (slf *transportorNats) onRecvMsg(sessionID string, streamBytes []byte) error {
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
-	if len(messageBytes) == 0 {
+	if len(streamBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
 
-	_, err := kkapp.GetMsgPacket().GetMsgID(messageBytes)
-	if err != nil {
-		kklog.Warnf("[ccgame] get msg id error: %v", err)
-	}
-
 	// 处理来自客户端的消息
-	slf.msgReceiver.OnSession(sessionID, messageBytes)
+	slf.msgReceiver.OnSession(sessionID, streamBytes)
 
 	return nil
 }
@@ -107,15 +102,15 @@ func (slf *transportorNats) SendToClient(sessionID string, msg any) error {
 		return kkerrors.ErrSessionNotFound
 	}
 
-	messageBytes, err := kkpacket.EncodeMessage(msg, kkapp.GetMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
 	if err != nil {
-		kkbuffer.Put(messageBytes)
+		kkbuffer.Put(bb)
 		return err
 	}
-	if err := slf.forwardToClient(sessionID, messageBytes.B); err != nil {
-		kkbuffer.Put(messageBytes)
+	err = slf.forwardToClient(sessionID, bb.B)
+	kkbuffer.Put(bb)
+	if err != nil {
 		return err
 	}
-	kkbuffer.Put(messageBytes)
 	return nil
 }

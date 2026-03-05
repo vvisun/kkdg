@@ -6,7 +6,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transnat"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
@@ -226,17 +225,10 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 
-	// server handler gives us a frame [length,message]. unpack to [message].
-	msgBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
-	if err != nil {
-		kkbuffer.Put(data)
-		kklog.Errorf("[ccgate] unpack stream packet error: %v", err)
-		return
-	}
-
 	// Best-effort: derive route from msgID if it is registered.
 	// msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
 	// route := kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
+
 	// 这里应该先为client选择一个逻辑服
 	logicNode := h.gate.allocLogicNode(connID, kkapp.NodeTypeLogic)
 	if logicNode == nil {
@@ -245,7 +237,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	sessionID := h.gate.clientMgr.getClient(connID).sessionId
-	if err := h.gate.transportor.ForwardToLogic(sessionID, msgBytes, logicNode.nodeId); err != nil {
+	if err := h.gate.transportor.ForwardToLogic(sessionID, data.B, logicNode.nodeId); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}
 	kkbuffer.Put(data)
