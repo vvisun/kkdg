@@ -125,8 +125,12 @@ func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 		kklog.Errorf("message id is 0")
 		return kkerrors.ErrInvalidMsgID
 	}
+	if !xreflect.IsPointer(msgPtr) {
+		kklog.Errorf("message pointer required, got %T", msgPtr)
+		return kkerrors.ErrInvalidMessage
+	}
 	msgType := reflect.TypeOf(msgPtr)
-	if msgType == nil || !xreflect.IsPointer(msgPtr) {
+	if msgType == nil {
 		kklog.Errorf("message pointer required, got %v", msgType)
 		return kkerrors.ErrInvalidMessage
 	}
