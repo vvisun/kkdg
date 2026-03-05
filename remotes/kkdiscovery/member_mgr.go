@@ -29,12 +29,6 @@ func NewMemberMgr() *MemberMgr {
 	}
 }
 
-func (m *MemberMgr) MemberCount() int {
-	m.membersMu.RLock()
-	defer m.membersMu.RUnlock()
-	return len(m.members)
-}
-
 // 添加或更新成员
 func (m *MemberMgr) AddMember(info *MemberInfo) IMember {
 	m.membersMu.Lock()
@@ -111,6 +105,12 @@ func (m *MemberMgr) GetMember(nodeID string) (IMember, bool) {
 		return nil, false
 	}
 	return member, true
+}
+
+func (m *MemberMgr) MemberCount() int {
+	m.membersMu.RLock()
+	defer m.membersMu.RUnlock()
+	return len(m.members)
 }
 
 // 遍历成员 fn返回false时停止遍历

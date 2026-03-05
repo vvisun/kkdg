@@ -44,7 +44,7 @@ type NatsDiscovery struct {
 	closing atomic.Bool // 正在关闭标志
 	closed  atomic.Bool // 关闭标志
 
-	infoGetterFn func() (int, int)
+	infoGetterFn func() (int, int) // return (onlineCount, status)。在线数量，状态
 }
 
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
