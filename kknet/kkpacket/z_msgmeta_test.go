@@ -40,8 +40,8 @@ func TestMsgMeta_BasicGetters(t *testing.T) {
 	if got := m.GetMsgID(); got != msgID {
 		t.Fatalf("GetMsgID() = %d, want %d", got, msgID)
 	}
-	if got := m.GetMsgType(); got != reflect.TypeFor[testMsg]() {
-		t.Fatalf("GetMsgType() = %v, want %v", got, reflect.TypeFor[testMsg]())
+	if got := m.GetMsgType(); got != reflect.TypeFor[*testMsg]() {
+		t.Fatalf("GetMsgType() = %v, want %v", got, reflect.TypeFor[*testMsg]())
 	}
 	if got := m.GetMsgRoute(); got != route {
 		t.Fatalf("GetMsgRoute() = %q, want %q", got, route)
