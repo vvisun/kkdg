@@ -68,7 +68,7 @@ func (slf *gameComponent) Start() error {
 		}
 	}
 	if slf.cluster != nil {
-		if err := slf.cluster.Init(); err != nil {
+		if err := slf.cluster.Start(); err != nil {
 			return err
 		}
 	}

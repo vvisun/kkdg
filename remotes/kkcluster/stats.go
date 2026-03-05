@@ -1,8 +1,6 @@
 package kkcluster
 
-import (
-	"sync/atomic"
-)
+import "sync/atomic"
 
 // ClusterStatsSnapshot 集群统计信息快照
 type ClusterStatsSnapshot struct {
@@ -133,4 +131,47 @@ func (s *ClusterStats) Reset() {
 	atomic.StoreInt64(&s.receivedBytes, 0)
 	atomic.StoreInt64(&s.errors, 0)
 	atomic.StoreInt64(&s.reconnects, 0)
+}
+
+//----------------------------------------------------------
+
+// MetricsFromSnapshot 将 ClusterStatsSnapshot 转换为统一的 metrics 键值对。
+//
+// - namespace 用于区分不同实例/模块，为空则不加前缀。
+// - 返回的 key 采用 "<namespace>.<name>" 或仅 "<name>" 形式，值统一为 float64。
+//
+// 约定的度量名称（未加 namespace）:
+//   - cluster_publish_sent_total
+//   - cluster_publish_received_total
+//   - cluster_request_sent_total
+//   - cluster_request_received_total
+//   - cluster_response_sent_total
+//   - cluster_response_received_total
+//   - cluster_sent_bytes_total
+//   - cluster_received_bytes_total
+//   - cluster_errors_total
+//   - cluster_reconnects_total
+//   - cluster_is_connected (0 或 1)
+func MetricsFromSnapshot(namespace string, snap ClusterStatsSnapshot) map[string]float64 {
+	prefix := ""
+	if namespace != "" {
+		prefix = namespace + "."
+	}
+	m := make(map[string]float64, 11)
+	m[prefix+"cluster_publish_sent_total"] = float64(snap.PublishSent)
+	m[prefix+"cluster_publish_received_total"] = float64(snap.PublishReceived)
+	m[prefix+"cluster_request_sent_total"] = float64(snap.RequestSent)
+	m[prefix+"cluster_request_received_total"] = float64(snap.RequestReceived)
+	m[prefix+"cluster_response_sent_total"] = float64(snap.ResponseSent)
+	m[prefix+"cluster_response_received_total"] = float64(snap.ResponseReceived)
+	m[prefix+"cluster_sent_bytes_total"] = float64(snap.SentBytes)
+	m[prefix+"cluster_received_bytes_total"] = float64(snap.ReceivedBytes)
+	m[prefix+"cluster_errors_total"] = float64(snap.Errors)
+	m[prefix+"cluster_reconnects_total"] = float64(snap.Reconnects)
+	if snap.IsConnected {
+		m[prefix+"cluster_is_connected"] = 1
+	} else {
+		m[prefix+"cluster_is_connected"] = 0
+	}
+	return m
 }

@@ -22,7 +22,7 @@ func (slf *compCluster) GetID() string {
 var _ component.IComponent = (*compCluster)(nil)
 
 func (slf *compCluster) Init() error {
-	return slf.cluster.Init()
+	return slf.cluster.Start()
 }
 
 func (slf *compCluster) Start() error {

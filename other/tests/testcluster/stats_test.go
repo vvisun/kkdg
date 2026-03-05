@@ -25,7 +25,7 @@ func TestStats(t *testing.T) {
 
 	// 创建集群
 	cluster := cnats.NewNatsCluster("node1", "type1", discovery, cnats.ApplyNatsOptions())
-	if err := cluster.Init(); err != nil {
+	if err := cluster.Start(); err != nil {
 		fmt.Printf("Failed to init cluster: %v\n", err)
 		return
 	}

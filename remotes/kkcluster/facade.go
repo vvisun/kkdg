@@ -4,10 +4,17 @@ import (
 	"time"
 )
 
+type (
+	// 向其他节点发送消息，no response
+	FunPublishHandler func(nodeID string, packet *ClusterPacket)
+	// 向其他节点发送请求，有response
+	FunRequestHandler func(req *ClusterRequest) (*ClusterResponse, error)
+)
+
 // ICluster 集群接口
 type ICluster interface {
-	// 初始化
-	Init() error
+	// 启动
+	Start() error
 	// 停止
 	Stop()
 
@@ -28,10 +35,3 @@ type ICluster interface {
 	// 获取统计信息
 	Stats() ClusterStatsSnapshot
 }
-
-type (
-	// 向其他节点发送消息，no response
-	FunPublishHandler func(nodeID string, packet *ClusterPacket)
-	// 向其他节点发送请求，有response
-	FunRequestHandler func(req *ClusterRequest) (*ClusterResponse, error)
-)

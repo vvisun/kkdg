@@ -41,12 +41,12 @@ func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cle
 	cluster1 = cnats.NewNatsCluster("node1", "type1", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 	cluster2 = cnats.NewNatsCluster("node2", "type1", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster1.Init(); err != nil {
+	if err := cluster1.Start(); err != nil {
 		discovery1.Stop()
 		discovery2.Stop()
 		b.Fatalf("cluster1.Init() failed: %v", err)
 	}
-	if err := cluster2.Init(); err != nil {
+	if err := cluster2.Start(); err != nil {
 		cluster1.Stop()
 		discovery1.Stop()
 		discovery2.Stop()
@@ -99,13 +99,13 @@ func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkclu
 	cluster2 = cnats.NewNatsCluster("node2", "type1", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 	cluster3 = cnats.NewNatsCluster("node3", "type2", discovery3, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster1.Init(); err != nil {
+	if err := cluster1.Start(); err != nil {
 		b.Fatalf("cluster1.Init() failed: %v", err)
 	}
-	if err := cluster2.Init(); err != nil {
+	if err := cluster2.Start(); err != nil {
 		b.Fatalf("cluster2.Init() failed: %v", err)
 	}
-	if err := cluster3.Init(); err != nil {
+	if err := cluster3.Start(); err != nil {
 		b.Fatalf("cluster3.Init() failed: %v", err)
 	}
 

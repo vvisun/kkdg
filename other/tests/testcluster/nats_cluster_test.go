@@ -33,7 +33,7 @@ func TestNatsCluster_Init(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 	cluster := cnats.NewNatsCluster("node1", "type1", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster.Init(); err != nil {
+	if err := cluster.Start(); err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
 
@@ -74,12 +74,12 @@ func TestNatsCluster_PublishRemote(t *testing.T) {
 	cluster1 := cnats.NewNatsCluster("node1", "type1", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 	cluster2 := cnats.NewNatsCluster("node2", "type1", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster1.Init(); err != nil {
+	if err := cluster1.Start(); err != nil {
 		t.Fatalf("cluster1.Init() failed: %v", err)
 	}
 	defer cluster1.Stop()
 
-	if err := cluster2.Init(); err != nil {
+	if err := cluster2.Start(); err != nil {
 		t.Fatalf("cluster2.Init() failed: %v", err)
 	}
 	defer cluster2.Stop()
@@ -159,17 +159,17 @@ func TestNatsCluster_PublishRemoteType(t *testing.T) {
 	cluster2 := cnats.NewNatsCluster("node2", "type1", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 	cluster3 := cnats.NewNatsCluster("node3", "type2", discovery3, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster1.Init(); err != nil {
+	if err := cluster1.Start(); err != nil {
 		t.Fatalf("cluster1.Init() failed: %v", err)
 	}
 	defer cluster1.Stop()
 
-	if err := cluster2.Init(); err != nil {
+	if err := cluster2.Start(); err != nil {
 		t.Fatalf("cluster2.Init() failed: %v", err)
 	}
 	defer cluster2.Stop()
 
-	if err := cluster3.Init(); err != nil {
+	if err := cluster3.Start(); err != nil {
 		t.Fatalf("cluster3.Init() failed: %v", err)
 	}
 	defer cluster3.Stop()
@@ -249,12 +249,12 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 	cluster1 := cnats.NewNatsCluster("node1", "type1", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 	cluster2 := cnats.NewNatsCluster("node2", "type1", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster1.Init(); err != nil {
+	if err := cluster1.Start(); err != nil {
 		t.Fatalf("cluster1.Init() failed: %v", err)
 	}
 	defer cluster1.Stop()
 
-	if err := cluster2.Init(); err != nil {
+	if err := cluster2.Start(); err != nil {
 		t.Fatalf("cluster2.Init() failed: %v", err)
 	}
 	defer cluster2.Stop()
@@ -288,7 +288,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 	cluster := cnats.NewNatsCluster("node1", "type1", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster.Init(); err != nil {
+	if err := cluster.Start(); err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
 	defer cluster.Stop()
@@ -318,7 +318,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 	cluster := cnats.NewNatsCluster("node1", "type1", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster.Init(); err != nil {
+	if err := cluster.Start(); err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
 	defer cluster.Stop()
@@ -366,12 +366,12 @@ func TestNatsCluster_RequestRemoteAsync(t *testing.T) {
 	cluster1 := cnats.NewNatsCluster("node1", "type1", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 	cluster2 := cnats.NewNatsCluster("node2", "type1", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster1.Init(); err != nil {
+	if err := cluster1.Start(); err != nil {
 		t.Fatalf("cluster1.Init() failed: %v", err)
 	}
 	defer cluster1.Stop()
 
-	if err := cluster2.Init(); err != nil {
+	if err := cluster2.Start(); err != nil {
 		t.Fatalf("cluster2.Init() failed: %v", err)
 	}
 	defer cluster2.Stop()
@@ -424,7 +424,7 @@ func TestNatsCluster_RequestRemoteAsync_NotFound(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 	cluster := cnats.NewNatsCluster("node1", "type1", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster.Init(); err != nil {
+	if err := cluster.Start(); err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
 	defer cluster.Stop()
@@ -450,7 +450,7 @@ func TestNatsCluster_Stop(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 	cluster := cnats.NewNatsCluster("node1", "type1", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
-	if err := cluster.Init(); err != nil {
+	if err := cluster.Start(); err != nil {
 		t.Fatalf("Init() failed: %v", err)
 	}
 

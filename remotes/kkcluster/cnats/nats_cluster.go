@@ -71,8 +71,8 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 	}
 }
 
-// Init 初始化集群
-func (c *NatsCluster) Init() error {
+// Start 初始化集群
+func (c *NatsCluster) Start() error {
 	kklog.Infof("NatsCluster(%s) startup", c.nodeID)
 	return c.connectAndSubscribe()
 }

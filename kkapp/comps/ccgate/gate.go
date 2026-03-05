@@ -98,7 +98,7 @@ func (slf *gateComponent) Start() error {
 
 	// 启动 cluster
 	if slf.cluster != nil {
-		if err := slf.cluster.Init(); err != nil {
+		if err := slf.cluster.Start(); err != nil {
 			return err
 		}
 	}
