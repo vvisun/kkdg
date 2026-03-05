@@ -88,3 +88,7 @@ func (slf *gameComponent) Stop() error {
 func (slf *gameComponent) GetMsgReceiver() *msgreceiver.MsgReceiver[string] {
 	return slf.msgReceiver
 }
+
+func (slf *gameComponent) SendToClient(sessionID string, msg any) error {
+	return slf.transportor.SendToClient(sessionID, msg)
+}

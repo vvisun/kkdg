@@ -61,10 +61,13 @@ func InitMsgs(t *testing.T) {
 	router.Register(3, &MsgTest3{}, "test")
 }
 
-type gameHandler struct{}
+type gameHandler struct {
+	sendToClient func(sessionID string, msg any) error
+}
 
 func (h *gameHandler) onMsgTest1(sessionID string, msg *MsgTest1) error {
 	kklog.Infof("onMsgTest1: %v", msg)
+	h.sendToClient(sessionID, msg)
 	return nil
 }
 
@@ -111,6 +114,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	msgReceiver := game.GetMsgReceiver()
 	gh := &gameHandler{}
+	gh.sendToClient = game.SendToClient
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest1)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest2)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest3)

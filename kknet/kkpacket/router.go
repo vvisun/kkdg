@@ -69,6 +69,7 @@ func (m *msgMeta[T]) Marshal(v *T) ([]byte, error) {
 	return m.messagePacket.GetBodyCodec().Marshal(v)
 }
 
+// offset = lfbCount + headSize = stream.LengthFieldByteCount() + messagePacket.GetHead().GetSize()
 func (m *msgMeta[T]) MarshalAppend(v *T, offset int) (*kkbuffer.ByteBuffer, error) {
 	if v == nil {
 		return nil, kkerrors.ErrInvalidMessage
