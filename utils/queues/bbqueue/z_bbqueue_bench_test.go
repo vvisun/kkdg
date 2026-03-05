@@ -17,7 +17,7 @@ func benchBufs(n int) []*kkbuffer.ByteBuffer {
 	}
 	bufs := make([]*kkbuffer.ByteBuffer, n)
 	for i := 0; i < n; i++ {
-		bufs[i] = &kkbuffer.ByteBuffer{B: make([]byte, 0, 64)}
+		bufs[i] = kkbuffer.NewByteBuffer(make([]byte, 0, 64))
 	}
 	return bufs
 }

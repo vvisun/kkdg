@@ -65,7 +65,7 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 		return err //客户端已下线
 	}
 
-	if err := conn.SendBuffer(&kkbuffer.ByteBuffer{B: msgBytes}); err != nil {
+	if err := conn.SendBuffer(kkbuffer.NewByteBuffer(msgBytes)); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
 	}
 	return nil
