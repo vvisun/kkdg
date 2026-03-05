@@ -15,6 +15,7 @@ import (
 var (
 	natsURL  = "nats://127.0.0.1:4222"
 	tcpAddr  = "127.0.0.1:19090"
+	wsAddr   = "127.0.0.1:19091"
 	settings = map[string]string{"nats_url": natsURL}
 )
 
@@ -38,6 +39,7 @@ func runGate() *component.Application {
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
 		TCPAddr:       tcpAddr,
+		WSAddr:        wsAddr,
 		NatsURL:       natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 	}

@@ -1,14 +1,16 @@
 package ccgate
 
 import (
+	"errors"
+
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transnat"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
-	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
@@ -53,6 +55,9 @@ func (slf *gateComponent) Init() error {
 			slf.opt.NatsURL = v
 		}
 	}
+	if slf.opt.TCPAddr == "" && slf.opt.WSAddr == "" {
+		return errors.New("tcp addr or ws addr is required")
+	}
 
 	// 创建 handler
 	slf.handler = newGateHandler(slf)
@@ -76,12 +81,12 @@ func (slf *gateComponent) Init() error {
 }
 
 func (slf *gateComponent) Start() error {
-	if slf.opt.TCPAddr != "" {
-		if err := slf.startTCPServer(); err != nil {
+	if slf.opt.WSAddr != "" {
+		if err := slf.startWSServer(); err != nil {
 			return err
 		}
-	} else if slf.opt.WSAddr != "" {
-		if err := slf.startWSServer(); err != nil {
+	} else if slf.opt.TCPAddr != "" {
+		if err := slf.startTCPServer(); err != nil {
 			return err
 		}
 	}
@@ -146,7 +151,7 @@ func (slf *gateComponent) startWSServer() error {
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(slf.handler),
 	)
-	server := kkws.NewServer(slf.opt.WSAddr, slf.handler, opts)
+	server := kkgws.NewServer(slf.opt.WSAddr, slf.handler, opts)
 
 	if err := server.Start(); err != nil {
 		return err
@@ -174,19 +179,23 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 		return lgcNode
 	}
 
-	// 从discovery中获取nodeType类型的逻辑节点列表
-	logicNodes := slf.discovery.ListByType(nodeType)
-	if len(logicNodes) == 0 {
-		kklog.Debugf("[ccgate] no logic nodes found for nodeType=%s", nodeType)
-		return nil //没有找到逻辑节点，不分配逻辑节点
-	}
-
-	// 选择权重最小的逻辑节点
-	chooseNode := logicNodes[0]
-	for _, node := range logicNodes {
-		if node.GetWeight() < chooseNode.GetWeight() {
-			chooseNode = node
+	// 从discovery中选择权重最小的逻辑节点
+	var chooseNode kkdiscovery.IMember = nil
+	slf.discovery.Range(func(nodeID string, member kkdiscovery.IMember) bool {
+		if member.GetNodeType() != nodeType {
+			return true
 		}
+		if chooseNode == nil {
+			chooseNode = member
+			return true
+		}
+		if member.GetWeight() < chooseNode.GetWeight() {
+			chooseNode = member
+		}
+		return true
+	})
+	if chooseNode == nil {
+		return nil
 	}
 
 	return cliInfo.allocLogicNode(nodeType, chooseNode.GetNodeID())

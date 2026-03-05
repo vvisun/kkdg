@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/url"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
@@ -18,6 +20,7 @@ import (
 )
 
 var tcpAddr = "127.0.0.1:19090"
+var wsAddr = "127.0.0.1:19091"
 var autoId int64 = 0
 
 func main() {
@@ -43,10 +46,16 @@ func runOneClient() kknet.IClient {
 
 	handler := &clientHandler{}
 
+	var client kknet.IClient
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(msgReceiver),
 	)
-	client := kktcp.NewClient(tcpAddr, handler, opts)
+	if wsAddr != "" {
+		u := url.URL{Scheme: "ws", Host: wsAddr, Path: "/ws"}
+		client = kkgws.NewClient(u.String(), handler, opts)
+	} else if tcpAddr != "" {
+		client = kktcp.NewClient(tcpAddr, handler, opts)
+	}
 	if err := client.Connect(); err != nil {
 		kklog.Errorf("client connect: %v", err)
 	}
