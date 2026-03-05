@@ -138,7 +138,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	handler := &testRawHandler{
 		onRaw: func(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			msg, e := kkpacket.DecodeStream(data, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
-			kkbuffer.Put(data)
+
 			if e != nil {
 				t.Logf("unpack recv: %v", e)
 				return

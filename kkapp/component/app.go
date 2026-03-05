@@ -26,12 +26,6 @@ type IApplication interface {
 	GetConfigDir() string
 }
 
-var globalApp IApplication
-
-func APP() IApplication {
-	return globalApp
-}
-
 type Application struct {
 	nodeInfo  *kkapp.NodeInfo
 	actorSys  *actor.ActorSystem
@@ -43,13 +37,11 @@ type Application struct {
 var _ IApplication = (*Application)(nil)
 
 func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
-	app := &Application{
+	return &Application{
 		nodeInfo: nodeInfo,
 		actorSys: actor.NewActorSystem(),
 		compList: make([]IComponent, 0),
 	}
-	globalApp = app
-	return app
 }
 
 func (slf *Application) SetConfigDir(configDir string) {

@@ -51,27 +51,40 @@ func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffe
 	return bb, nil
 }
 
+/**解码包。
+ *@param bb *kkbuffer.ByteBuffer 包数据[length,message]
+ *@param stream IPacket 流包类型
+ *@param messagePacket *MessagePacket 消息包
+ *@return any 消息对象
+ *@return error 错误
+ */
 func DecodeStream(bb *kkbuffer.ByteBuffer, stream IPacket, messagePacket *MessagePacket) (any, error) {
 	messageBytes, err := stream.MessageBytes(bb.B)
 	if err != nil {
+		kkbuffer.Put(bb)
 		return nil, err
 	}
 	bodyBytes, err := messagePacket.BodyBytes(messageBytes)
 	if err != nil {
+		kkbuffer.Put(bb)
 		return nil, err
 	}
 	msgId, err := messagePacket.GetMsgID(messageBytes)
 	if err != nil {
+		kkbuffer.Put(bb)
 		return nil, err
 	}
 	msgType := messagePacket.GetRouter().GetMsgType(msgId)
 	if msgType == nil {
+		kkbuffer.Put(bb)
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
 	v := reflect.New(msgType.Elem()).Interface()
 	err = messagePacket.GetBodyCodec().Unmarshal(bodyBytes, &v)
 	if err != nil {
+		kkbuffer.Put(bb)
 		return nil, err
 	}
+	kkbuffer.Put(bb)
 	return v, nil
 }
