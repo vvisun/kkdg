@@ -23,16 +23,16 @@ type ITransportor interface {
 // transportorNats 使用Nats集群转发消息
 type transportorNats struct {
 	cluster     kkcluster.ICluster // cluster for forwarding messages to client
-	sessionMgr  *sessionManager
+	sessionMgr  *SessionManager
 	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
 var _ ITransportor = (*transportorNats)(nil)
 
-func newTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string]) ITransportor {
+func newTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *SessionManager) ITransportor {
 	trans := &transportorNats{
 		cluster:     cluster,
-		sessionMgr:  newSessionManager(),
+		sessionMgr:  sessionManager,
 		msgReceiver: msgReceiver,
 	}
 	cluster.SetPublishHandler(trans.onPublish)

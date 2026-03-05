@@ -14,18 +14,20 @@ import (
 
 func NewGameComponent() *gameComponent {
 	return &gameComponent{
-		msgReceiver: msgreceiver.NewMsgReceiver[string](kkapp.GetMsgPacket()),
+		msgReceiver:    msgreceiver.NewMsgReceiver[string](kkapp.GetMsgPacket()),
+		sessionManager: newSessionManager(),
 	}
 }
 
 // 业务服：游戏服
 type gameComponent struct {
 	component.Component
-	pid         *actor.PID
-	discovery   kkdiscovery.IDiscovery
-	cluster     kkcluster.ICluster
-	transportor ITransportor
-	msgReceiver *msgreceiver.MsgReceiver[string]
+	pid            *actor.PID
+	discovery      kkdiscovery.IDiscovery
+	cluster        kkcluster.ICluster
+	msgReceiver    *msgreceiver.MsgReceiver[string]
+	sessionManager *SessionManager
+	transportor    ITransportor
 }
 
 func (slf *gameComponent) GetID() string {
@@ -51,7 +53,7 @@ func (slf *gameComponent) Init() error {
 		opts,
 	)
 
-	slf.transportor = newTransportorNats(slf.cluster, slf.msgReceiver)
+	slf.transportor = newTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
 	return nil
 }
 
@@ -91,4 +93,8 @@ func (slf *gameComponent) GetMsgReceiver() *msgreceiver.MsgReceiver[string] {
 
 func (slf *gameComponent) SendToClient(sessionID string, msg any) error {
 	return slf.transportor.SendToClient(sessionID, msg)
+}
+
+func (slf *gameComponent) GetSessionManager() *SessionManager {
+	return slf.sessionManager
 }

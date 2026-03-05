@@ -1,6 +1,8 @@
 package ccgame
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet"
@@ -218,4 +220,46 @@ func TestSessionManager_PutSessionInfo_Duplicate(t *testing.T) {
 		t.Error("SessionInfo should be in pool after put")
 	}
 	putSessionInfo(si)
+}
+
+// 并发场景测试：不同会话/用户在多个 goroutine 中同时增删，确保计数最终一致且无 panic。
+func TestSessionManager_ConcurrentAddLoginRemove_DisjointSessions(t *testing.T) {
+	mgr := newSessionManager()
+
+	const goroutines = 8
+	const perG = 256
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for g := 0; g < goroutines; g++ {
+		g := g
+		go func() {
+			defer wg.Done()
+			base := g * perG
+			for i := 0; i < perG; i++ {
+				// 保证每个 goroutine 负责一段不重叠的 session/user 区间，避免同一 SessionInfo 被多 goroutine 同时操作。
+				id := base + i
+				sessionID := fmt.Sprintf("s-%d", id)
+				gateID := fmt.Sprintf("gate-%d", g)
+				userID := kknet.USER_ID(id + 1)
+
+				mgr.AddSession(sessionID, gateID)
+
+				ok := mgr.Login(sessionID, userID)
+				if !ok {
+					t.Fatalf("Login(%s, %d) = false", sessionID, userID)
+				}
+
+				// 使用 RemoveSessionByUserID 删除，间接校验 userMap 与 sessionMap 的一致性。
+				mgr.RemoveSessionByUserID(userID)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if gotOnline, gotUser := mgr.OnlineCount(), mgr.UserCount(); gotOnline != 0 || gotUser != 0 {
+		t.Fatalf("after concurrent add/login/remove: online=%d user=%d, want 0,0", gotOnline, gotUser)
+	}
 }

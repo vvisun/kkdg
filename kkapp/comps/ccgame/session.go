@@ -40,19 +40,19 @@ func putSessionInfo(si *SessionInfo) {
 
 //--------------------------------------------------
 
-// sessionManager 会话管理器
-type sessionManager struct {
+// SessionManager 会话管理器
+type SessionManager struct {
 	sessionMap  sync.Map // map[sessionID]*SessionInfo
 	userMap     sync.Map // map[userID]*SessionInfo
 	onlineCount int32
 	userCount   int32
 }
 
-func newSessionManager() *sessionManager {
-	return &sessionManager{}
+func newSessionManager() *SessionManager {
+	return &SessionManager{}
 }
 
-func (slf *sessionManager) AddSession(sessionID string, gateNodeID string) {
+func (slf *SessionManager) AddSession(sessionID string, gateNodeID string) {
 	oldInfo := slf.GetSession(sessionID)
 	if oldInfo != nil {
 		return
@@ -64,7 +64,7 @@ func (slf *sessionManager) AddSession(sessionID string, gateNodeID string) {
 	atomic.AddInt32(&slf.onlineCount, 1)
 }
 
-func (slf *sessionManager) RemoveSession(sessionID string) {
+func (slf *SessionManager) RemoveSession(sessionID string) {
 	si, ok := slf.sessionMap.LoadAndDelete(sessionID)
 	if !ok {
 		return
@@ -78,14 +78,14 @@ func (slf *sessionManager) RemoveSession(sessionID string) {
 	putSessionInfo(si.(*SessionInfo))
 }
 
-func (slf *sessionManager) RemoveSessionByUserID(userID kknet.USER_ID) {
+func (slf *SessionManager) RemoveSessionByUserID(userID kknet.USER_ID) {
 	si, ok := slf.userMap.Load(userID)
 	if ok {
 		slf.RemoveSession(si.(*SessionInfo).SessionID)
 	}
 }
 
-func (slf *sessionManager) GetSession(sessionID string) *SessionInfo {
+func (slf *SessionManager) GetSession(sessionID string) *SessionInfo {
 	si, ok := slf.sessionMap.Load(sessionID)
 	if !ok {
 		return nil
@@ -93,7 +93,7 @@ func (slf *sessionManager) GetSession(sessionID string) *SessionInfo {
 	return si.(*SessionInfo)
 }
 
-func (slf *sessionManager) GetSessionByUserID(userID kknet.USER_ID) *SessionInfo {
+func (slf *SessionManager) GetSessionByUserID(userID kknet.USER_ID) *SessionInfo {
 	si, ok := slf.userMap.Load(userID)
 	if !ok {
 		return nil
@@ -101,7 +101,7 @@ func (slf *sessionManager) GetSessionByUserID(userID kknet.USER_ID) *SessionInfo
 	return si.(*SessionInfo)
 }
 
-func (slf *sessionManager) CheckKickOutUser(sessionID string, userID kknet.USER_ID) string {
+func (slf *SessionManager) CheckKickOutUser(sessionID string, userID kknet.USER_ID) string {
 	si := slf.GetSession(sessionID)
 	if si != nil {
 		if si.UserID != kknet.NULL_USER_ID && (si.UserID != userID || si.SessionID != sessionID) {
@@ -117,7 +117,7 @@ func (slf *sessionManager) CheckKickOutUser(sessionID string, userID kknet.USER_
 	return ""
 }
 
-func (slf *sessionManager) Login(sessionID string, userID kknet.USER_ID) bool {
+func (slf *SessionManager) Login(sessionID string, userID kknet.USER_ID) bool {
 	if userID == kknet.NULL_USER_ID {
 		return false
 	}
@@ -135,10 +135,10 @@ func (slf *sessionManager) Login(sessionID string, userID kknet.USER_ID) bool {
 	return true
 }
 
-func (slf *sessionManager) OnlineCount() int {
+func (slf *SessionManager) OnlineCount() int {
 	return int(atomic.LoadInt32(&slf.onlineCount))
 }
 
-func (slf *sessionManager) UserCount() int {
+func (slf *SessionManager) UserCount() int {
 	return int(atomic.LoadInt32(&slf.userCount))
 }
