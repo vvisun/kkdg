@@ -39,6 +39,9 @@ var _ IApplication = (*Application)(nil)
 // new application.
 // each application is a node. each node is a process.
 func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
+	if nodeInfo == nil {
+		panic("nodeInfo is nil")
+	}
 	return &Application{
 		nodeInfo: nodeInfo,
 		actorSys: actor.NewActorSystem(),

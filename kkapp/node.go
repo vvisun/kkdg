@@ -7,9 +7,9 @@ import (
 
 const (
 	// 节点ID最大长度
-	MaxNodeIDLength int = 24
+	maxNodeIDLength int = 16
 	// 节点类型最大长度
-	MaxNodeTypeLength int = 24
+	maxNodeTypeLength int = 16
 )
 
 // INodeIdentity 节点身份接口。
@@ -24,6 +24,10 @@ func CheckNodeID(nodeId string) error {
 		kklog.Errorf("invalid node id: %s", nodeId)
 		return kkerrors.ErrInvalidNodeID
 	}
+	if len(nodeId) > maxNodeIDLength {
+		kklog.Errorf("node id is too long: %s", nodeId)
+		return kkerrors.ErrInvalidNodeID
+	}
 	return nil
 }
 
@@ -33,10 +37,15 @@ func CheckNodeType(nodeType string) error {
 		kklog.Errorf("invalid node type: %s", nodeType)
 		return kkerrors.ErrInvalidNodeType
 	}
+	if len(nodeType) > maxNodeTypeLength {
+		kklog.Errorf("node type is too long: %s", nodeType)
+		return kkerrors.ErrInvalidNodeType
+	}
 	return nil
 }
 
 // NewNodeInfo 创建节点信息
+// 一般在启动时，从配置文件中读取节点信息并创建节点信息。
 func NewNodeInfo(nodeId, nodeType, address, rpcAddress string, settings map[string]string) *NodeInfo {
 	if CheckNodeID(nodeId) != nil {
 		panic("invalid node id")

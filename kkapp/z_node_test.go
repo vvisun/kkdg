@@ -15,7 +15,7 @@ func TestCheckNodeID(t *testing.T) {
 	}{
 		{"empty", "", kkerrors.ErrInvalidNodeID},
 		{"valid", "node1", nil},
-		{"long", "node123456789012345678", nil},
+		{"long", "node123456789012345678", kkerrors.ErrInvalidNodeID},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
