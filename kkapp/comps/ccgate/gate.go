@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transnat"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/kkws"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
@@ -226,11 +227,24 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	// Best-effort: derive route from msgID if it is registered.
-	// msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
-	// route := kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
+	msgBytes, err := kkpacket.DefaultStreamPacket().MessageBytes(data.B)
+	if err != nil {
+		kklog.Errorf("[ccgate] get message bytes error: %v", err)
+		return
+	}
+	msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
+	if err != nil {
+		kklog.Errorf("[ccgate] get message id error: %v", err)
+		return
+	}
+	route, err := kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
+	if err != nil {
+		kklog.Errorf("[ccgate] get message route error: %v", err)
+		return
+	}
 
 	// 这里应该先为client选择一个逻辑服
-	logicNode := h.gate.allocLogicNode(connID, kkapp.NodeTypeLogic)
+	logicNode := h.gate.allocLogicNode(connID, route)
 	if logicNode == nil {
 		kklog.Errorf("[ccgate] alloc logic node failed")
 		return

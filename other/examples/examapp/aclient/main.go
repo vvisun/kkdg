@@ -22,9 +22,9 @@ var autoId int64 = 0
 
 func initMsgs() {
 	router := kkapp.GetMsgPacket().GetRouter()
-	router.Register(1, &ptoexam.Msg1Req{}, "test")
-	router.Register(2, &ptoexam.Msg1Resp{}, "test")
-	router.Register(3, &ptoexam.Msg2Broadcast{}, "test")
+	router.Register(1, &ptoexam.Msg1Req{}, "logic")
+	router.Register(2, &ptoexam.Msg1Resp{}, "logic")
+	router.Register(3, &ptoexam.Msg2Broadcast{}, "logic")
 }
 
 func main() {

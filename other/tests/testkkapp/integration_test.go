@@ -56,9 +56,9 @@ type (
 
 func InitMsgs(t *testing.T) {
 	router := kkapp.GetMsgPacket().GetRouter()
-	router.Register(1, &MsgTest1{}, "test")
-	router.Register(2, &MsgTest2{}, "test")
-	router.Register(3, &MsgTest3{}, "test")
+	router.Register(1, &MsgTest1{}, "logic")
+	router.Register(2, &MsgTest2{}, "logic")
+	router.Register(3, &MsgTest3{}, "logic")
 }
 
 type gameHandler struct {
