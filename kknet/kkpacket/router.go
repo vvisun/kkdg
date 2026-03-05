@@ -167,3 +167,13 @@ func (r *MsgRouter) GetMsgRoute(id MSGID) (string, error) {
 	}
 	return route, nil
 }
+
+func GetMsgID[T any](router *MsgRouter) MSGID {
+	msgType := reflect.TypeFor[*T]()
+	id, ok := router.typeToId[msgType]
+	if !ok {
+		kklog.Debugf("message %v is not registered", msgType)
+		return 0
+	}
+	return id
+}

@@ -27,6 +27,11 @@ func TestMsgRouter_RegisterAndGetters_Success(t *testing.T) {
 		t.Fatalf("GetMsgID() = %d, want %d", gotID, id)
 	}
 
+	gotID = GetMsgID[routerTestMsg](router)
+	if gotID != id {
+		t.Fatalf("GetMsgID() = %d, want %d", gotID, id)
+	}
+
 	// GetMsgType should return the original type
 	gotType := router.GetMsgType(id)
 	wantType := reflect.TypeOf(&routerTestMsg{})
@@ -81,6 +86,10 @@ func TestMsgRouter_Getters_Unregistered(t *testing.T) {
 		t.Fatalf("GetMsgID(unregistered) = %d, want 0", id)
 	}
 
+	if id := GetMsgID[routerTestMsg](router); id != 0 {
+		t.Fatalf("GetMsgID(unregistered) = %d, want 0", id)
+	}
+
 	// unregistered id should return nil type
 	if tp := router.GetMsgType(999); tp != nil {
 		t.Fatalf("GetMsgType(unregistered) = %v, want nil", tp)
@@ -91,4 +100,3 @@ func TestMsgRouter_Getters_Unregistered(t *testing.T) {
 		t.Fatalf("GetMsgRoute(unregistered) = (%q, %v), want (\"\", ErrMsgIDNotRegistered)", route, err)
 	}
 }
-
