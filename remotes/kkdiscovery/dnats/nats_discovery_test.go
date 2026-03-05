@@ -111,9 +111,9 @@ func TestNatsDiscovery_ListByType(t *testing.T) {
 	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions(WithUrl(natsURL)))
 
 	// 手动添加成员
-	member1 := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, nil)
-	member2 := kkdiscovery.NewMember("node3", "type2", "127.0.0.1:8082", 0, nil)
-	member3 := kkdiscovery.NewMember("node4", "type1", "127.0.0.1:8083", 0, nil)
+	member1 := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, kkdiscovery.NodeStatusOnline, nil)
+	member2 := kkdiscovery.NewMember("node3", "type2", "127.0.0.1:8082", 0, kkdiscovery.NodeStatusOnline, nil)
+	member3 := kkdiscovery.NewMember("node4", "type1", "127.0.0.1:8083", 0, kkdiscovery.NodeStatusOnline, nil)
 
 	discovery.(*NatsDiscovery).addMember(member1)
 	discovery.(*NatsDiscovery).addMember(member2)
@@ -155,7 +155,7 @@ func TestNatsDiscovery_Random(t *testing.T) {
 	}
 
 	// 添加成员
-	member1 := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, nil)
+	member1 := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, kkdiscovery.NodeStatusOnline, nil)
 	discovery.(*NatsDiscovery).addMember(member1)
 
 	member, found = discovery.Random("type1")
@@ -175,7 +175,7 @@ func TestNatsDiscovery_GetType(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
 	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions())
 
-	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, nil)
+	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, kkdiscovery.NodeStatusOnline, nil)
 	discovery.(*NatsDiscovery).addMember(member)
 
 	nodeType, err := discovery.GetType("node2")
@@ -198,7 +198,7 @@ func TestNatsDiscovery_AddRemoveMember(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
 	discovery := NewNatsDiscovery("test", nodeInfo, nil, ApplyNatsOptions())
 
-	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, nil)
+	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, kkdiscovery.NodeStatusOnline, nil)
 	discovery.(*NatsDiscovery).addMember(member)
 
 	if discovery.MemberCount() != 1 {
@@ -234,7 +234,7 @@ func TestNatsDiscovery_Listeners(t *testing.T) {
 		}
 	})
 
-	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, nil)
+	member := kkdiscovery.NewMember("node2", "type1", "127.0.0.1:8081", 0, kkdiscovery.NodeStatusOnline, nil)
 	discovery.(*NatsDiscovery).addMember(member)
 
 	if !addCalled {

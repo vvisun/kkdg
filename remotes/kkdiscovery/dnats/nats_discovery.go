@@ -48,6 +48,8 @@ type NatsDiscovery struct {
 	options nats.Options
 
 	closed atomic.Bool // 关闭标志
+
+	infoGetterFn func() (int, int)
 }
 
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
@@ -414,6 +416,7 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 		memberInfo.NodeType,
 		memberInfo.Address,
 		memberInfo.Weight,
+		memberInfo.Status,
 		memberInfo.Settings,
 	)
 
@@ -438,17 +441,26 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 	}
 }
 
+// SetInfoGetter 设置信息获取函数
+func (d *NatsDiscovery) SetInfoGetter(fn func() (int, int)) {
+	d.infoGetterFn = fn
+}
+
 // publishSelf 发布自己的信息
 func (d *NatsDiscovery) publishSelf() error {
 	if d.closed.Load() {
 		return nil // 已关闭，静默返回
 	}
+	weight, status := 0, 0
+	if d.infoGetterFn != nil {
+		weight, status = d.infoGetterFn()
+	}
 	memberInfo := kkdiscovery.MemberInfo{
 		NodeID:   d.nodeID,
 		NodeType: d.nodeType,
 		Address:  d.address,
-		Weight:   0,
-		Status:   0,
+		Weight:   weight,
+		Status:   status,
 		Settings: d.settings,
 	}
 

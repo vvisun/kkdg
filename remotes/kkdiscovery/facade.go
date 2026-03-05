@@ -1,5 +1,10 @@
 package kkdiscovery
 
+const (
+	NodeStatusOnline  = 0 // 在线
+	NodeStatusOffline = 1 // 离线
+)
+
 type (
 	// IDiscovery 发现服务接口
 	IDiscovery interface {
@@ -15,6 +20,7 @@ type (
 		OnAddMember(listener MemberListener)                          // watcher 添加成员监听函数
 		OnRemoveMember(listener MemberListener)                       // watcher 移除成员监听函数
 		Stats() DiscoveryStatsSnapshot                                // 获取统计信息
+		SetInfoGetter(func() (int, int))                              //return (onlineCount, status)
 	}
 
 	// IMember 成员接口
@@ -25,6 +31,8 @@ type (
 		GetSetting(k string) (string, bool) // 额外数据，可以为空。
 		GetWeight() int                     // 获取权重
 		SetWeight(weight int)               // 设置权重
+		GetStatus() int                     // 获取状态
+		SetStatus(status int)               // 设置状态
 	}
 
 	// MemberListener 成员增、删监听函数

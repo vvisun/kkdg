@@ -53,6 +53,10 @@ func (slf *gameComponent) Init() error {
 		opts,
 	)
 
+	slf.discovery.SetInfoGetter(func() (int, int) {
+		return slf.sessionManager.OnlineCount(), kkdiscovery.NodeStatusOnline
+	})
+
 	slf.transportor = newTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
 	return nil
 }
