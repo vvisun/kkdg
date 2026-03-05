@@ -36,6 +36,8 @@ type Application struct {
 
 var _ IApplication = (*Application)(nil)
 
+// new application.
+// each application is a node. each node is a process.
 func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
 	return &Application{
 		nodeInfo: nodeInfo,
