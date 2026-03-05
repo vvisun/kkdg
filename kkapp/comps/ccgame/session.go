@@ -42,8 +42,10 @@ func putSessionInfo(si *SessionInfo) {
 
 // sessionManager 会话管理器
 type sessionManager struct {
-	sessionMap sync.Map // map[sessionID]*SessionInfo
-	userMap    sync.Map // map[userID]*SessionInfo
+	sessionMap  sync.Map // map[sessionID]*SessionInfo
+	userMap     sync.Map // map[userID]*SessionInfo
+	onlineCount int32
+	userCount   int32
 }
 
 func newSessionManager() *sessionManager {
@@ -59,6 +61,7 @@ func (slf *sessionManager) AddSession(sessionID string, gateNodeID string) {
 	si.SessionID = sessionID
 	si.GateNodeID = gateNodeID
 	slf.sessionMap.Store(sessionID, si)
+	atomic.AddInt32(&slf.onlineCount, 1)
 }
 
 func (slf *sessionManager) RemoveSession(sessionID string) {
@@ -66,13 +69,18 @@ func (slf *sessionManager) RemoveSession(sessionID string) {
 	if !ok {
 		return
 	}
-	slf.userMap.Delete(si.(*SessionInfo).UserID)
+	atomic.AddInt32(&slf.onlineCount, -1)
+	userID := si.(*SessionInfo).UserID
+	if userID != kknet.NULL_USER_ID {
+		slf.userMap.Delete(userID)
+		atomic.AddInt32(&slf.userCount, -1)
+	}
 	putSessionInfo(si.(*SessionInfo))
 }
 
 func (slf *sessionManager) RemoveSessionByUserID(userID kknet.USER_ID) {
-	si, ok := slf.userMap.LoadAndDelete(userID)
-	if ok && si != nil {
+	si, ok := slf.userMap.Load(userID)
+	if ok {
 		slf.RemoveSession(si.(*SessionInfo).SessionID)
 	}
 }
@@ -123,5 +131,14 @@ func (slf *sessionManager) Login(sessionID string, userID kknet.USER_ID) bool {
 	}
 	si.UserID = userID
 	slf.userMap.Store(userID, si)
+	atomic.AddInt32(&slf.userCount, 1)
 	return true
+}
+
+func (slf *sessionManager) OnlineCount() int {
+	return int(atomic.LoadInt32(&slf.onlineCount))
+}
+
+func (slf *sessionManager) UserCount() int {
+	return int(atomic.LoadInt32(&slf.userCount))
 }
