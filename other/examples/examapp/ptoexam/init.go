@@ -1,3 +1,4 @@
+// 该文件自动生成，无需手动调整
 package ptoexam
 
 import "github.com/vvisun/kkdg/kknet/kkpacket"
