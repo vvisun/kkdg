@@ -16,19 +16,21 @@ import (
 
 // NatsDiscovery 基于NATS的服务发现实现
 type NatsDiscovery struct {
-	name       string
-	nodeID     string
-	nodeType   string
-	address    string
-	settings   map[string]string
+	name     string
+	nodeID   string
+	nodeType string
+	address  string
+	settings map[string]string
+
 	conn       *nats.Conn
 	sub        *nats.Subscription
 	requestSub *nats.Subscription
 
-	members         map[string]kkdiscovery.IMember   // key: nodeID, value: member
-	memberByType    map[string][]kkdiscovery.IMember // key: nodeType, value: members
-	memberTimes     map[string]time.Time             // 记录成员最后更新时间。key: nodeID, value: last update time
-	membersMu       sync.RWMutex
+	members      map[string]kkdiscovery.IMember   // key: nodeID, value: member
+	memberByType map[string][]kkdiscovery.IMember // key: nodeType, value: members
+	memberTimes  map[string]time.Time             // 记录成员最后更新时间。key: nodeID, value: last update time
+	membersMu    sync.RWMutex
+
 	addListeners    []kkdiscovery.MemberListener
 	removeListeners []kkdiscovery.MemberListener
 	listenersMu     sync.RWMutex
@@ -47,7 +49,8 @@ type NatsDiscovery struct {
 
 	options nats.Options
 
-	closed atomic.Bool // 关闭标志
+	closing atomic.Bool // 正在关闭标志
+	closed  atomic.Bool // 关闭标志
 
 	infoGetterFn func() (int, int)
 }
@@ -221,7 +224,12 @@ func (d *NatsDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot {
 
 // Stop 停止服务发现
 func (d *NatsDiscovery) Stop() error {
+	d.closing.Store(true)
 	kklog.Infof("NatsDiscovery(%s) shutdown", d.nodeID)
+
+	d.publishSelf()                    //将离线通知出去
+	time.Sleep(500 * time.Millisecond) //等待500毫秒，让离线通知出去
+
 	select {
 	case <-d.stopCh:
 		return nil
@@ -257,7 +265,7 @@ func (d *NatsDiscovery) connectAndSubscribe() error {
 
 	// 设置重连处理器
 	opts.ReconnectedCB = func(nc *nats.Conn) {
-		if d.closed.Load() {
+		if d.closing.Load() {
 			return
 		}
 		kklog.Infof("NatsDiscovery(%s) reconnected to %s", d.nodeID, nc.ConnectedUrl())
@@ -455,6 +463,9 @@ func (d *NatsDiscovery) publishSelf() error {
 	if d.infoGetterFn != nil {
 		weight, status = d.infoGetterFn()
 	}
+	if d.closing.Load() {
+		status = kkdiscovery.NodeStatusOffline // 正在关闭，设置为离线
+	}
 	memberInfo := kkdiscovery.MemberInfo{
 		NodeID:   d.nodeID,
 		NodeType: d.nodeType,
@@ -508,7 +519,7 @@ func (d *NatsDiscovery) heartbeatLoop() {
 func (d *NatsDiscovery) requestAllMembers() {
 	// 延迟一下，等待连接稳定
 	time.Sleep(1 * time.Second)
-	if d.closed.Load() {
+	if d.closing.Load() {
 		return
 	}
 
