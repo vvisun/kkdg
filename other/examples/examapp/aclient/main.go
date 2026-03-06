@@ -4,7 +4,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -30,14 +29,11 @@ func main() {
 
 	connNum := examapp.ClientConnNum
 	connDelay := examapp.ClientConnDelay
-	var wg sync.WaitGroup
-	wg.Add(connNum)
 
 	client := runOneClient()
 
 	for i := 0; i < connNum; i++ {
 		go func() {
-			defer wg.Done()
 			runOneClient()
 		}()
 		time.Sleep(connDelay)
@@ -48,7 +44,9 @@ func main() {
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 	<-signalCh
 	kklog.Infof("receive interrupt signal, exit")
-	client.Close()
+	if client != nil {
+		client.Close()
+	}
 	os.Exit(0)
 }
 
@@ -70,9 +68,17 @@ func runOneClient() kknet.IClient {
 		client = kkgws.NewClient(u.String(), handler, opts)
 	} else if tcpAddr != "" {
 		client = kktcp.NewClient(tcpAddr, handler, opts)
+	} else {
+		kklog.Errorf("tcpAddr or wsAddr is empty")
+		return nil
+	}
+	if client == nil {
+		kklog.Errorf("client is nil")
+		return nil
 	}
 	if err := client.Connect(); err != nil {
 		kklog.Errorf("client connect: %v", err)
+		return nil
 	}
 
 	//定时发送消息
