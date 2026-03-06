@@ -19,7 +19,7 @@ var (
 	natsURL     = examapp.NatsURL
 	gateTcpAddr = examapp.GateTCPAddr
 	gateWsAddr  = examapp.GateWSAddr
-	settings    = map[string]string{"nats_url": natsURL}
+	rpcAddr     = examapp.RpcAddr
 	withGate    = false
 )
 
@@ -48,11 +48,12 @@ func main() {
 }
 
 func runGate() *component.Application {
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, gateTcpAddr, "", settings)
+	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, gateTcpAddr, "", nil)
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
 		TCPAddr:       gateTcpAddr,
 		WSAddr:        gateWsAddr,
+		RpcAddr:       rpcAddr,
 		NatsURL:       natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     examapp.UseTransType,
@@ -69,10 +70,12 @@ func runGate() *component.Application {
 
 func runGame() *component.Application {
 	// game 节点，nodeType 必须为 logic 以匹配 gate 的 LogicNodeType
-	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", settings)
+	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent(ccgame.Option{
 		TransType: examapp.UseTransType,
+		RpcAddr:   rpcAddr,
+		NatsURL:   natsURL,
 	})
 
 	msgReceiver := game.GetMsgReceiver()

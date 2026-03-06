@@ -18,6 +18,9 @@ import (
 )
 
 func NewGameComponent(opt Option) *gameComponent {
+	if err := validateOption(&opt); err != nil {
+		panic(err)
+	}
 	return &gameComponent{
 		msgReceiver:    msgreceiver.NewMsgReceiver[string](kkapp.GetMsgPacket()),
 		sessionManager: gametrans.NewSessionManager(),
@@ -45,13 +48,9 @@ var _ component.IComponent = (*gameComponent)(nil)
 
 func (slf *gameComponent) Init() error {
 	nodeInfo := slf.GetApplication().GetNodeInfo()
-	natsURL := ""
-	if v, ok := nodeInfo.GetSetting("nats_url"); ok {
-		natsURL = v
-	}
 
 	// discovery + cluster for receiving forwarded messages from gate
-	opts := dnats.ApplyNatsOptions(dnats.WithUrl(natsURL))
+	opts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.NatsURL))
 	slf.discovery = dnats.NewNatsDiscovery("logic."+slf.GetApplication().GetNodeId(), nodeInfo, nil, opts)
 	slf.cluster = cnats.NewNatsCluster(
 		slf.GetApplication().GetNodeId(),
@@ -68,7 +67,7 @@ func (slf *gameComponent) Init() error {
 	case kkapp.TransTypeNats:
 		slf.transportor = gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
 	case kkapp.TransTypeRpc:
-		slf.transportor = gametransrpc.NewTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication())
+		slf.transportor = gametransrpc.NewTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication(), slf.opt.RpcAddr)
 	default:
 		return errors.New("invalid trans type: " + slf.opt.TransType)
 	}

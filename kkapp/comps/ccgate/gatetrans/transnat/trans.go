@@ -33,9 +33,10 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 	if packet == nil || packet.Sid == "" || len(packet.ArgBytes) == 0 {
 		return
 	}
-	if packet.FuncName == kkapp.FuncNameSendToClient {
+	switch packet.FuncName {
+	case kkapp.FuncNameSendToClient:
 		slf.ForwardToClient(packet.Sid, packet.ArgBytes)
-	} else if packet.FuncName == kkapp.FuncNameSendToClients {
+	case kkapp.FuncNameSendToClients:
 		sids := strings.Split(packet.Sid, ",")
 		for _, sid := range sids {
 			slf.ForwardToClient(sid, packet.ArgBytes)

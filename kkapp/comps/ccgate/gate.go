@@ -42,6 +42,9 @@ var _ component.IComponent = (*gateComponent)(nil)
 
 // NewGateComponent creates a new gate component.
 func NewGateComponent(opt Option) *gateComponent {
+	if err := validateOption(&opt); err != nil {
+		panic(err)
+	}
 	return &gateComponent{
 		opt:        opt,
 		sessionMgr: gatetrans.NewSessionMgr(),
@@ -52,11 +55,6 @@ func (slf *gateComponent) Init() error {
 	// defaults
 	if slf.opt.LogicNodeType == "" {
 		slf.opt.LogicNodeType = kkapp.NodeTypeLogic
-	}
-	if slf.opt.NatsURL == "" {
-		if v, ok := slf.GetApplication().GetNodeInfo().GetSetting("nats_url"); ok {
-			slf.opt.NatsURL = v
-		}
 	}
 	if slf.opt.TCPAddr == "" && slf.opt.WSAddr == "" {
 		return errors.New("tcp addr or ws addr is required")
@@ -83,7 +81,7 @@ func (slf *gateComponent) Init() error {
 	case kkapp.TransTypeNats:
 		slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
 	case kkapp.TransTypeRpc:
-		slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId())
+		slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId(), slf.opt.RpcAddr)
 	default:
 		return errors.New("invalid trans type: " + slf.opt.TransType)
 	}

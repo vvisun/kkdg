@@ -89,17 +89,17 @@ func (h *gameHandler) onMsgTest3(sessionID string, msg *MsgTest3) error {
 func TestIntegration_GateGame_Echo(t *testing.T) {
 	natsURL := requireNATS(t)
 	tcpAddr := freePort(t)
-	const transType = kkapp.TransTypeRpc
-
-	settings := map[string]string{"nats_url": natsURL}
+	rpcAddr := freePort(t)
+	const transType = kkapp.TransTypeNats
 
 	InitMsgs(t)
 
 	// gate 节点
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", settings)
+	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", nil)
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
 		TCPAddr:       tcpAddr,
+		RpcAddr:       rpcAddr,
 		NatsURL:       natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     transType,
@@ -114,10 +114,12 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	t.Cleanup(func() { _ = gateApp.Stop() })
 
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
-	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", settings)
+	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent(ccgame.Option{
 		TransType: transType,
+		RpcAddr:   rpcAddr,
+		NatsURL:   natsURL,
 	})
 
 	msgReceiver := game.GetMsgReceiver()

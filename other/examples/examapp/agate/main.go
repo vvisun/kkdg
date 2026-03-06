@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	natsURL  = examapp.NatsURL
-	tcpAddr  = examapp.GateTCPAddr
-	wsAddr   = examapp.GateWSAddr
-	settings = map[string]string{"nats_url": natsURL}
+	natsURL = examapp.NatsURL
+	tcpAddr = examapp.GateTCPAddr
+	wsAddr  = examapp.GateWSAddr
+	rpcAddr = examapp.RpcAddr
 )
 
 func main() {
@@ -36,11 +36,12 @@ func main() {
 }
 
 func runGate() *component.Application {
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", settings)
+	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", nil)
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
 		TCPAddr:       tcpAddr,
 		WSAddr:        wsAddr,
+		RpcAddr:       rpcAddr,
 		NatsURL:       natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     examapp.UseTransType,

@@ -11,6 +11,7 @@ const (
 	UseTransType = kkapp.TransTypeRpc
 	GateTCPAddr  = "127.0.0.1:19090"
 	GateWSAddr   = "127.0.0.1:19091"
+	RpcAddr      = "127.0.0.1:19092"
 )
 
 const (

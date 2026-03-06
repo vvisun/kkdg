@@ -21,7 +21,7 @@ type transportorRpc struct {
 	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
-func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity) gametrans.ITransportor {
+func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity, rpcAddr string) gametrans.ITransportor {
 	rpcRouter := kkrpc.NewRpcReceiver()
 	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
@@ -29,7 +29,7 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2cs", rpcProcessor.onS2Clients)
 	kkrpc.RegistOneWayHandler(rpcRouter, "c2s", rpcProcessor.onC2S)
 
-	rpcClient := kkrpc.NewClient("127.0.0.1:19090", kknet.DefaultOptions(), rpcRouter)
+	rpcClient := kkrpc.NewClient(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcClient.Start(); err != nil {
 		kklog.Errorf("[ccgame] start rpc client error: %v", err)
 		return nil
