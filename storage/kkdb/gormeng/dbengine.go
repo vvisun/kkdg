@@ -24,6 +24,11 @@ func NewDbEngine(opt kkdb.DBOption) *DbEngine {
 	return eng
 }
 
+// NewDbEngineFromDB 用于测试或已有 *gorm.DB 时包装为 DbEngine，无需 DBOption。调用方负责 db 的生命周期。
+func NewDbEngineFromDB(db *gorm.DB) *DbEngine {
+	return &DbEngine{dbInst: db}
+}
+
 type DbEngine struct {
 	dbInst      *gorm.DB
 	opts        kkdb.DBOption
