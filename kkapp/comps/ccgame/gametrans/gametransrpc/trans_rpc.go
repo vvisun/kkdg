@@ -41,6 +41,7 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 		rpcClient:   rpcClient,
 	}
 	rpcProcessor.trans = trans
+	msgReceiver.SetNeedCopyInOnSession(true)
 
 	// 注册到网关
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")

@@ -24,6 +24,7 @@ func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.Msg
 		sessionMgr:  sessionManager,
 		msgReceiver: msgReceiver,
 	}
+	msgReceiver.SetNeedCopyInOnSession(false)
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans
 }

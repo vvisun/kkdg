@@ -10,9 +10,17 @@ type MetaParser func(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error)
 
 // MsgReceiver 消息接收器
 type MsgReceiver[K any] struct {
-	messagePacket *kkpacket.MessagePacket
-	hdMap         map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
-	metaParser    MetaParser
+	messagePacket       *kkpacket.MessagePacket
+	hdMap               map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
+	metaParser          MetaParser
+	needCopyInOnSession bool
+}
+
+// 设置是否需要在内部分配新的buffer来处理session消息
+// @note if use transportor rpc. need copy streamBytes to a new buffer.
+// @note if use transportor nats. not need copy.
+func (r *MsgReceiver[K]) SetNeedCopyInOnSession(isNeedCopy bool) {
+	r.needCopyInOnSession = isNeedCopy
 }
 
 // 解析出: msgID-消息ID，bodyBytes-消息对象二进制数据
@@ -62,8 +70,15 @@ func (r *MsgReceiver[K]) OnRaw(connId K, data *kkbuffer.ByteBuffer) {
 // @param sessionID 会话ID
 // @param messageBytes 消息数据 packet的[message]部分
 func (r *MsgReceiver[K]) OnSession(sessionID K, streamBytes []byte) {
-	data := kkbuffer.GetWithCapacity(len(streamBytes))
-	data.WriteBytes(streamBytes)
+	// if use transportor rpc. need copy streamBytes to a new buffer.
+	// if use transportor nats. not need copy.
+	var data *kkbuffer.ByteBuffer
+	if r.needCopyInOnSession {
+		data = kkbuffer.GetWithCapacity(len(streamBytes))
+		data.WriteBytes(streamBytes)
+	} else {
+		data = kkbuffer.NewByteBuffer(streamBytes)
+	}
 
 	msgID, bodyBytes, err := r.parseMsgInfo(data)
 	if err != nil {
