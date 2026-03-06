@@ -61,7 +61,7 @@ func NewTransportorRpc(sessionMgr transface.ISessionManager) transface.ITranspor
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2cs", rpcProcessor.onS2Clients)
 	kkrpc.RegistOneWayHandler(rpcRouter, "c2s", rpcProcessor.onC2S)
 
-	rpcSvr := kkrpc.NewServer("", kknet.DefaultOptions(), rpcRouter)
+	rpcSvr := kkrpc.NewServer("127.0.0.1:19090", kknet.DefaultOptions(), rpcRouter)
 	if err := rpcSvr.Start(); err != nil {
 		kklog.Errorf("[ccgate] start rpc server error: %v", err)
 		return nil

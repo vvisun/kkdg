@@ -6,7 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transnat"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transrpc"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -77,7 +77,8 @@ func (slf *gateComponent) Init() error {
 		slf.discovery,
 		clusterOpts,
 	)
-	slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
+	// slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
+	slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr)
 
 	return nil
 }
