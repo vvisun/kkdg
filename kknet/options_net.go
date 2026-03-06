@@ -73,18 +73,18 @@ func DefaultOptions() Options {
 		Logger:               kklog.GetConsoleLogger(),
 		ReadBufferSize:       4 * 1024,
 		WriteBufferSize:      4 * 1024,
-		TLSConfig:            nil,
 		ShutdownTimeout:      10 * time.Second, // 10秒
 		IsNeedReconnect:      true,
 		ReconnectInterval:    1 * time.Second,
 		ReconnectMaxInterval: 30 * time.Second,
 		ReconnectMaxRetries:  5,
 		ReconnectCallback:    nil,
+		ReadTimeout:          15 * time.Second,
+		WriteTimeout:         5 * time.Second,
+		PingInterval:         5 * time.Second,
+		TLSConfig:            nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
-		ReadTimeout:     20 * time.Second,
-		WriteTimeout:    5 * time.Second,
-		PingInterval:    5 * time.Second,
 
 		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
 		UDPCleanupInterval: 1 * time.Minute, // 1分钟
