@@ -246,6 +246,12 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 
+	cliInfo := h.gate.clientMgr.getClient(connID)
+	if cliInfo == nil {
+		kkbuffer.Put(data)
+		return
+	}
+
 	// Best-effort: derive route from msgID if it is registered.
 	msgBytes, err := kkpacket.DefaultStreamPacket().MessageBytes(data.B)
 	if err != nil {
@@ -271,7 +277,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
-	sessionID := h.gate.clientMgr.getClient(connID).sessionId
+	sessionID := cliInfo.sessionId
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
 		kklog.Errorf("[ccgate] forward to logic error: %v", err)
 	}

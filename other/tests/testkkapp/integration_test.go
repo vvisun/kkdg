@@ -56,9 +56,13 @@ type (
 
 func InitMsgs(t *testing.T) {
 	router := kkapp.GetMsgPacket().GetRouter()
-	router.Register(1, &MsgTest1{}, "logic")
-	router.Register(2, &MsgTest2{}, "logic")
-	router.Register(3, &MsgTest3{}, "logic")
+	// 避免在单测和 benchmark 混合运行时重复注册相同消息 ID。
+	if router.GetMsgType(1) != nil {
+		return
+	}
+	_ = router.Register(1, &MsgTest1{}, "logic")
+	_ = router.Register(2, &MsgTest2{}, "logic")
+	_ = router.Register(3, &MsgTest3{}, "logic")
 }
 
 type gameHandler struct {
