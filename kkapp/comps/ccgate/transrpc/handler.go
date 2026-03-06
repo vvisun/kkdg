@@ -3,6 +3,7 @@ package transrpc
 import (
 	"context"
 
+	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -10,22 +11,28 @@ type rpcHandler struct {
 	trans *transportorRpc
 }
 
-func (rh *rpcHandler) onRegister(ctx context.Context, msg *RpcMsgRegister, connId kknet.CONN_ID) error {
+func (rh *rpcHandler) onRegister(ctx context.Context, msg *ptotrans.RpcMsgRegister, connId kknet.CONN_ID) error {
 	rh.trans.registerLogicNode(msg.NodeId, msg.NodeType, connId)
 	return nil
 }
 
-func (rh *rpcHandler) onS2C(ctx context.Context, msg *RpcS2Client, connId kknet.CONN_ID) error {
-	rh.trans.ForwardToClient(msg.clientId, msg.payload)
+func (rh *rpcHandler) onS2C(ctx context.Context, msg *ptotrans.RpcS2Client, connId kknet.CONN_ID) error {
+	rh.trans.ForwardToClient(msg.ClientId, msg.Payload)
 	return nil
 }
 
-func (rh *rpcHandler) onS2Clients(ctx context.Context, msg *RpcS2Clients, connId kknet.CONN_ID) error {
-	// rh.trans.ForwardToClients(msg.clientIds, msg.payload)
+func (rh *rpcHandler) onS2Clients(ctx context.Context, msg *ptotrans.RpcS2Clients, connId kknet.CONN_ID) error {
+	for _, clientId := range msg.ClientIds {
+		rh.trans.ForwardToClient(clientId, msg.Payload)
+	}
 	return nil
 }
 
-func (rh *rpcHandler) onC2S(ctx context.Context, msg *RpcC2S, connId kknet.CONN_ID) error {
-	// rh.trans.ForwardToLogic(msg.clientId, msg.payload, msg.logicNodeId)
+func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kknet.CONN_ID) error {
+	logicNode := rh.trans.logicNodeMgr.getLogicNodeByConnId(connId)
+	if logicNode == nil {
+		return ErrLogicNodeNotRegistered //逻辑节点未注册
+	}
+	rh.trans.ForwardToLogic(msg.ClientId, msg.Payload, logicNode.nodeId)
 	return nil
 }

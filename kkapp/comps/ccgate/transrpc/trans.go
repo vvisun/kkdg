@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
+	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
@@ -19,7 +20,8 @@ type logicMemberInfo struct {
 }
 
 type logicNodeMgr struct {
-	logicNodeMap sync.Map // map[string]*logicMemberInfo
+	logicNodeMap sync.Map // map[nodeId]*logicMemberInfo
+	connMap      sync.Map // map[connId]nodeId
 }
 
 func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, connId kknet.CONN_ID) {
@@ -29,14 +31,29 @@ func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, connI
 		connId:   connId,
 	}
 	slf.logicNodeMap.Store(nodeId, memberInfo)
+	slf.connMap.Store(connId, nodeId)
 }
 
 func (slf *logicNodeMgr) unregisterLogicNode(nodeId string) {
+	info, ok := slf.logicNodeMap.Load(nodeId)
+	if !ok {
+		return
+	}
+	memberInfo := info.(*logicMemberInfo)
+	slf.connMap.Delete(memberInfo.connId)
 	slf.logicNodeMap.Delete(nodeId)
 }
 
 func (slf *logicNodeMgr) getLogicNode(nodeId string) *logicMemberInfo {
 	value, ok := slf.logicNodeMap.Load(nodeId)
+	if !ok {
+		return nil
+	}
+	return value.(*logicMemberInfo)
+}
+
+func (slf *logicNodeMgr) getLogicNodeByConnId(connId kknet.CONN_ID) *logicMemberInfo {
+	value, ok := slf.connMap.Load(connId)
 	if !ok {
 		return nil
 	}
@@ -54,8 +71,15 @@ type transportorRpc struct {
 var _ transface.ITransportor = (*transportorRpc)(nil)
 
 func NewTransportorRpc(sessionMgr transface.ISessionManager) transface.ITransportor {
+	trans := &transportorRpc{
+		sessionMgr:   sessionMgr,
+		logicNodeMgr: &logicNodeMgr{},
+	}
+
 	rpcRouter := kkrpc.NewRpcReceiver()
-	rpcProcessor := &rpcHandler{}
+	rpcProcessor := &rpcHandler{
+		trans: trans,
+	}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2cs", rpcProcessor.onS2Clients)
@@ -67,11 +91,8 @@ func NewTransportorRpc(sessionMgr transface.ISessionManager) transface.ITranspor
 		return nil
 	}
 
-	return &transportorRpc{
-		rpcSvr:       rpcSvr,
-		sessionMgr:   sessionMgr,
-		logicNodeMgr: &logicNodeMgr{},
-	}
+	trans.rpcSvr = rpcSvr
+	return trans
 }
 
 func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
@@ -84,10 +105,10 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 		return err //客户端已下线
 	}
 	streamBytes := msgBytes
-	oneWayInvoker := kkrpc.NewOneWayInvoker[RpcC2S](slf.rpcSvr, memberInfo.connId, "c2s")
-	err = oneWayInvoker.InvokeNR(context.Background(), &RpcC2S{
-		clientId: sessionID,
-		payload:  streamBytes,
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](slf.rpcSvr, memberInfo.connId, "c2s")
+	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcC2S{
+		ClientId: sessionID,
+		Payload:  streamBytes,
 	}, kkrpc.CallConfig{})
 	return nil
 }
