@@ -142,12 +142,14 @@ func TxUpdate[T any](tx *gorm.DB, cond *T, data *T) (int64, error) {
 	return res.RowsAffected, nil
 }
 
-// TxUpdateAllCols 在事务内按主键 id 全量更新 data 所有列。
+// TxUpdateAllCols 在事务内按主键 id 全量更新 data 所有列。主键列名从模型 Schema 获取（如 uid、id）。
 func TxUpdateAllCols[T any](tx *gorm.DB, id interface{}, data *T) (int64, error) {
 	if e := txParamsCheck(tx, data); e != nil {
 		return 0, e
 	}
-	res := tx.Model(data).Where("id = ?", id).Select("*").Updates(data)
+	sess := tx.Model(data)
+	pkCol := getPrimaryKeyColumn(sess, data)
+	res := sess.Where(pkCol+" = ?", id).Select("*").Updates(data)
 	if res.Error != nil {
 		kklog.Error("TxUpdateAllCols err: ", getStructName(data), res.Error.Error())
 		return 0, res.Error

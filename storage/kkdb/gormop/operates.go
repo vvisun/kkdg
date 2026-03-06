@@ -112,10 +112,6 @@ func InsertMulty[T any](dbEng *gormeng.DbEngine, beans []*T) (int64, error) {
 			return 0, e
 		}
 	}
-	slice := make([]interface{}, len(beans))
-	for i := range beans {
-		slice[i] = beans[i]
-	}
 	tx := dbEng.GetInst().CreateInBatches(beans, len(beans))
 	if tx.Error != nil {
 		kklog.Error("批量插入err: ", getStructName(beans[0]), tx.Error.Error())
@@ -156,12 +152,14 @@ func Update[T any](dbEng *gormeng.DbEngine, cond *T, data *T) (int64, error) {
 	return tx.RowsAffected, nil
 }
 
-// UpdateAllCols 按主键 id 全量更新 data 所有列（含零值）。
+// UpdateAllCols 按主键 id 全量更新 data 所有列（含零值）。主键列名从模型 Schema 获取（如 uid、id）。
 func UpdateAllCols[T any](dbEng *gormeng.DbEngine, id interface{}, data *T) (int64, error) {
 	if e := paramsCheck(dbEng, data); e != nil {
 		return 0, e
 	}
-	tx := dbEng.GetInst().Model(data).Where("id = ?", id).Select("*").Updates(data)
+	sess := dbEng.GetInst().Model(data)
+	pkCol := getPrimaryKeyColumn(sess, data)
+	tx := sess.Where(pkCol+" = ?", id).Select("*").Updates(data)
 	if tx.Error != nil {
 		kklog.Error("全量更新数据err: ", getStructName(data), tx.Error.Error())
 		return 0, tx.Error

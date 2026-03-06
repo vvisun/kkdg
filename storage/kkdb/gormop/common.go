@@ -1,6 +1,22 @@
 package gormop
 
-import "reflect"
+import (
+	"reflect"
+
+	"gorm.io/gorm"
+)
+
+// getPrimaryKeyColumn 从模型的 GORM Schema 取主键列名，若无则返回 "id"。
+func getPrimaryKeyColumn(db *gorm.DB, model interface{}) string {
+	if db == nil || model == nil {
+		return "id"
+	}
+	stmt := db.Model(model).Statement
+	if stmt.Schema != nil && len(stmt.Schema.PrimaryFields) > 0 {
+		return stmt.Schema.PrimaryFields[0].DBName
+	}
+	return "id"
+}
 
 func getStructName(ptr interface{}) string {
 	t := reflect.TypeOf(ptr)
