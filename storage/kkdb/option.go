@@ -10,7 +10,7 @@ type DBOption struct {
 	DriverName  string
 	StoreEngine string
 	Charset     string
-	Dsn         string //"DB用户名:DB密码@tcp(127.0.0.1:3306)/ddqp?charset=utf8mb4"
+	Dsn         string //"用户名:密码@tcp(127.0.0.1:3306)/数据库名?charset=utf8mb4"
 	MaxIdle     int
 	MaxOpen     int
 	ShowSql     bool //是否显示sql日志打印
@@ -21,7 +21,7 @@ func DefaultDBOption() DBOption {
 		DriverName:  "mysql",
 		StoreEngine: "InnoDB",
 		Charset:     "utf8mb4",
-		Dsn:         "root:LIKEsql123@tcp(127.0.0.1:3306)/ddqp?charset=utf8mb4",
+		Dsn:         "用户名:密码@tcp(127.0.0.1:3306)/数据库名?charset=utf8mb4",
 		MaxIdle:     10,
 		MaxOpen:     10,
 		ShowSql:     false,

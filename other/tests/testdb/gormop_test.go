@@ -15,6 +15,7 @@ var testDbEng *gormeng.DbEngine
 
 func TestMain(m *testing.M) {
 	opt := kkdb.DefaultDBOption()
+	opt.Dsn = "root:LIKEsql123@tcp(127.0.0.1:3306)/ddqp?charset=utf8mb4"
 	eng := gormeng.NewDbEngine(opt)
 	if !eng.StartUp() {
 		os.Exit(1)
@@ -35,6 +36,8 @@ func setupGormTest(t *testing.T) *gormeng.DbEngine {
 	if testDbEng == nil {
 		t.Fatal("db engine not started")
 	}
+	testDbEng.DropTables(&User{})
+	testDbEng.SyncTables(&User{})
 	return testDbEng
 }
 
