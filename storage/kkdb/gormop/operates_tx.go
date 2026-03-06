@@ -41,7 +41,7 @@ func TxGetOne[T any](tx *gorm.DB, bean *T) (*T, error) {
 	return bean, nil
 }
 
-// TxGetByID 在事务内按主键 id 查询一条。
+// TxGetByID 在事务内按主键 id 查询一条。结果写回 bean。若未找到返回 (nil, nil)。
 func TxGetByID[T any](tx *gorm.DB, bean *T, id interface{}) (*T, error) {
 	if e := txParamsCheck(tx, bean); e != nil {
 		return nil, e

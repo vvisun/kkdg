@@ -36,7 +36,7 @@ func GetOneCtx[T any](ctx context.Context, dbEng *gormeng.DbEngine, bean *T) (*T
 	return bean, nil
 }
 
-// GetByIDCtx 带上下文的 GetByID。
+// GetByIDCtx 带上下文的 GetByID。结果写回 bean。若未找到返回 (nil, nil)。
 func GetByIDCtx[T any](ctx context.Context, dbEng *gormeng.DbEngine, bean *T, id interface{}) (*T, error) {
 	if e := paramsCheck(dbEng, bean); e != nil {
 		return nil, e

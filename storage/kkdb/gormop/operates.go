@@ -54,7 +54,7 @@ func GetOne[T any](dbEng *gormeng.DbEngine, bean *T) (*T, error) {
 	return bean, nil
 }
 
-// GetByID 根据主键 id 查询一条记录到 bean。
+// GetByID 根据主键 id 查询一条记录到 bean。结果写回 bean。若未找到返回 (nil, nil)。
 func GetByID[T any](dbEng *gormeng.DbEngine, bean *T, id interface{}) (*T, error) {
 	if e := paramsCheck(dbEng, bean); e != nil {
 		return nil, e
