@@ -10,6 +10,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/lxzan/gws v1.8.9
 	github.com/nats-io/nats.go v1.48.0
+	github.com/redis/go-redis/v9 v9.18.0
 	github.com/shamaton/msgpack/v2 v2.4.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/protobuf v1.36.11
@@ -42,7 +43,6 @@ require (
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/otlptranslator v0.0.2 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
-	github.com/redis/go-redis/v9 v9.18.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/twmb/murmur3 v1.1.8 // indirect
@@ -81,6 +81,6 @@ require (
 	gorm.io/gorm v1.25.10
 )
 
-replace github.com/lxzan/gws => ../gws
+//replace github.com/lxzan/gws => ../gws
 
-replace github.com/panjf2000/gnet/v2 => ../gnet
+//replace github.com/panjf2000/gnet/v2 => ../gnet
