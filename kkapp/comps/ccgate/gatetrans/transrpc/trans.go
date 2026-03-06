@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
@@ -64,14 +64,14 @@ func (slf *logicNodeMgr) getLogicNodeByConnId(connId kknet.CONN_ID) *logicMember
 // 逻辑服先连接到本网关, 然后发送[register:nodeId,nodeType]注册到本网关, 进行注册服务。
 type transportorRpc struct {
 	rpcSvr       *kkrpc.Server
-	sessionMgr   transface.ISessionManager
+	sessionMgr   gatetrans.ISessionManager
 	logicNodeMgr *logicNodeMgr
 	gateNodeId   string
 }
 
-var _ transface.ITransportor = (*transportorRpc)(nil)
+var _ gatetrans.ITransportor = (*transportorRpc)(nil)
 
-func NewTransportorRpc(sessionMgr transface.ISessionManager, gateNodeId string) transface.ITransportor {
+func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string) gatetrans.ITransportor {
 	trans := &transportorRpc{
 		sessionMgr:   sessionMgr,
 		logicNodeMgr: &logicNodeMgr{},

@@ -1,4 +1,4 @@
-package transface
+package gatetrans
 
 import (
 	"sync"

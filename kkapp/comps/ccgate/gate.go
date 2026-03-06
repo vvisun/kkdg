@@ -5,9 +5,9 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transnat"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transrpc"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans/transnat"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans/transrpc"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -29,9 +29,9 @@ type gateComponent struct {
 	discovery kkdiscovery.IDiscovery
 
 	clientMgr   clientManager
-	transportor transface.ITransportor
+	transportor gatetrans.ITransportor
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
-	sessionMgr  transface.ISessionManager
+	sessionMgr  gatetrans.ISessionManager
 }
 
 func (slf *gateComponent) GetID() string {
@@ -44,7 +44,7 @@ var _ component.IComponent = (*gateComponent)(nil)
 func NewGateComponent(opt Option) *gateComponent {
 	return &gateComponent{
 		opt:        opt,
-		sessionMgr: transface.NewSessionMgr(),
+		sessionMgr: gatetrans.NewSessionMgr(),
 	}
 }
 

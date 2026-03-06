@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -14,12 +14,12 @@ import (
 // transportorNats 使用Nats集群转发消息
 type transportorNats struct {
 	cluster    kkcluster.ICluster // cluster for forwarding messages to logic and client
-	sessionMgr transface.ISessionManager
+	sessionMgr gatetrans.ISessionManager
 }
 
-var _ transface.ITransportor = (*transportorNats)(nil)
+var _ gatetrans.ITransportor = (*transportorNats)(nil)
 
-func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr transface.ISessionManager) transface.ITransportor {
+func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr gatetrans.ISessionManager) gatetrans.ITransportor {
 	trans := &transportorNats{
 		cluster:    cluster,
 		sessionMgr: sessionMgr,
