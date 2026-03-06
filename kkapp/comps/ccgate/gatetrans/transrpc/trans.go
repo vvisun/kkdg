@@ -124,16 +124,47 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, msgBytes []byte) er
 	if len(msgBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
+
 	conn, err := slf.sessionMgr.GetConn(sessionID)
 	if err != nil {
 		return err //客户端已下线
 	}
 
+	// msgBytes指向flatbuffer的内存，所以需要复制一份。
 	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
 	streamBytes.WriteBytes(msgBytes)
 
 	if err := conn.SendBuffer(streamBytes); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
+	}
+	return nil
+}
+
+func (slf *transportorRpc) ForwardToClients(sessionIDs []string, msgBytes []byte) error {
+	if len(sessionIDs) == 0 {
+		return nil
+	}
+	if len(msgBytes) == 0 {
+		return kkerrors.ErrEmptyMsgBytes
+	}
+
+	for _, sessionID := range sessionIDs {
+		if sessionID == "" {
+			continue
+		}
+
+		conn, err := slf.sessionMgr.GetConn(sessionID)
+		if err != nil {
+			continue //客户端已下线
+		}
+
+		// SendBuffer会自动释放streamBytes。所以需要复制一份。
+		streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
+		streamBytes.WriteBytes(msgBytes)
+
+		if err := conn.SendBuffer(streamBytes); err != nil {
+			kklog.Errorf("[ccgate] send response error: %v", err)
+		}
 	}
 	return nil
 }

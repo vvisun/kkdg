@@ -71,13 +71,46 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 	if len(msgBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
+
 	conn, err := slf.sessionMgr.GetConn(sessionID)
 	if err != nil {
 		return err //客户端已下线
 	}
 
-	if err := conn.SendBuffer(kkbuffer.NewByteBuffer(msgBytes)); err != nil {
+	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
+	streamBytes.WriteBytes(msgBytes)
+
+	if err := conn.SendBuffer(streamBytes); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
+	}
+	return nil
+}
+
+func (slf *transportorNats) ForwardToClients(sessionIDs []string, msgBytes []byte) error {
+	if len(sessionIDs) == 0 {
+		return nil
+	}
+	if len(msgBytes) == 0 {
+		return kkerrors.ErrEmptyMsgBytes
+	}
+
+	for _, sessionID := range sessionIDs {
+		if sessionID == "" {
+			continue
+		}
+
+		conn, err := slf.sessionMgr.GetConn(sessionID)
+		if err != nil {
+			continue //客户端已下线
+		}
+
+		// SendBuffer会自动释放streamBytes。所以需要复制一份。
+		streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
+		streamBytes.WriteBytes(msgBytes)
+
+		if err := conn.SendBuffer(streamBytes); err != nil {
+			kklog.Errorf("[ccgate] send response error: %v", err)
+		}
 	}
 	return nil
 }

@@ -15,7 +15,7 @@ const (
 )
 
 const (
-	ClientConnNum      = 5000
+	ClientConnNum      = 200
 	ClientConnDelay    = 5 * time.Millisecond
-	ClientSendInterval = 200 * time.Millisecond
+	ClientSendInterval = 1000 * time.Millisecond
 )
