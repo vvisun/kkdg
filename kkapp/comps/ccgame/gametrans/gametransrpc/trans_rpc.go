@@ -22,15 +22,8 @@ type transportorRpc struct {
 }
 
 func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity) gametrans.ITransportor {
-	trans := &transportorRpc{
-		sessionMgr:  sessionMgr,
-		msgReceiver: msgReceiver,
-	}
-
 	rpcRouter := kkrpc.NewRpcReceiver()
-	rpcProcessor := &rpcHandler{
-		trans: trans,
-	}
+	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2cs", rpcProcessor.onS2Clients)
@@ -42,6 +35,13 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 		return nil
 	}
 
+	trans := &transportorRpc{
+		sessionMgr:  sessionMgr,
+		msgReceiver: msgReceiver,
+		rpcClient:   rpcClient,
+	}
+	rpcProcessor.trans = trans
+
 	// 注册到网关
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")
 	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
@@ -49,7 +49,6 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 		NodeType: node.GetNodeType(),
 	}, kkrpc.CallConfig{})
 
-	trans.rpcClient = rpcClient
 	return trans
 }
 

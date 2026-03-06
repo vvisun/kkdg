@@ -16,7 +16,7 @@ type testMsg struct {
 }
 
 func TestMsgHandler_OnRaw(t *testing.T) {
-	handler := NewMsgHandler[testMsg](1, kkcodec.GetCodec(kkcodec.CodecTypeJson), func(connId kknet.CONN_ID, msg *testMsg) error {
+	handler := newMsgHandler[testMsg](1, kkcodec.GetCodec(kkcodec.CodecTypeJson), func(connId kknet.CONN_ID, msg *testMsg) error {
 		fmt.Println(msg)
 		return nil
 	})

@@ -38,21 +38,8 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 		slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
 	}
 
-	slf.onRecvMsg(packet.Sid, packet.ArgBytes)
-}
-
-func (slf *transportorNats) onRecvMsg(sessionID string, streamBytes []byte) error {
-	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
-	}
-	if len(streamBytes) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
-	}
-
 	// 处理来自客户端的消息
-	slf.msgReceiver.OnSession(sessionID, streamBytes)
-
-	return nil
+	slf.msgReceiver.OnSession(packet.Sid, packet.ArgBytes)
 }
 
 // ForwardToClient 转发消息到客户端

@@ -72,16 +72,8 @@ type transportorRpc struct {
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
 
 func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string) gatetrans.ITransportor {
-	trans := &transportorRpc{
-		sessionMgr:   sessionMgr,
-		logicNodeMgr: &logicNodeMgr{},
-		gateNodeId:   gateNodeId,
-	}
-
 	rpcRouter := kkrpc.NewRpcReceiver()
-	rpcProcessor := &rpcHandler{
-		trans: trans,
-	}
+	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2cs", rpcProcessor.onS2Clients)
@@ -93,7 +85,14 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string) 
 		return nil
 	}
 
-	trans.rpcSvr = rpcSvr
+	trans := &transportorRpc{
+		sessionMgr:   sessionMgr,
+		logicNodeMgr: &logicNodeMgr{},
+		gateNodeId:   gateNodeId,
+		rpcSvr:       rpcSvr,
+	}
+	rpcProcessor.trans = trans
+
 	return trans
 }
 

@@ -85,6 +85,7 @@ func (h *gameHandler) onMsgTest3(sessionID string, msg *MsgTest3) error {
 func TestIntegration_GateGame_Echo(t *testing.T) {
 	natsURL := requireNATS(t)
 	tcpAddr := freePort(t)
+	const transType = kkapp.TransTypeRpc
 
 	settings := map[string]string{"nats_url": natsURL}
 
@@ -97,7 +98,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		TCPAddr:       tcpAddr,
 		NatsURL:       natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
-		TransType:     kkapp.TransTypeNats,
+		TransType:     transType,
 	}
 	gate := ccgate.NewGateComponent(gateOpt)
 	if err := gateApp.AddComponent(gate); err != nil {
@@ -112,7 +113,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", settings)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent(ccgame.Option{
-		TransType: kkapp.TransTypeNats,
+		TransType: transType,
 	})
 
 	msgReceiver := game.GetMsgReceiver()

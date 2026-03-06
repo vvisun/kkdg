@@ -4,7 +4,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type MetaParser func(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error)
@@ -99,17 +98,4 @@ func NewMsgReceiverWithParser[K any](messagePacket *kkpacket.MessagePacket, meta
 		hdMap:         make(map[kkpacket.MSGID]IMsgHandler[K]),
 		metaParser:    metaParser,
 	}
-}
-
-// RegisterMsgHandler 注册消息处理器
-// 非线程安全，一般在初始化时调用，故不考虑线程安全
-func RegisterMsgHandler[T any, K any](receiver *MsgReceiver[K], call MsgHandlerFunc[T, K]) {
-	var v T
-	msgID := receiver.messagePacket.GetRouter().GetMsgID(&v)
-	if msgID == 0 {
-		kklog.Error("message type not registered")
-		return
-	}
-	h := NewMsgHandler[T, K](msgID, receiver.messagePacket.GetBodyCodec(), call)
-	receiver.hdMap[msgID] = h
 }
