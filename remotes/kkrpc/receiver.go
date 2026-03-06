@@ -10,15 +10,15 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-type ReqRspHandlerFunc[T any, R any] func(ctx context.Context, msg *T, resp *R) error
-type OneWayHandlerFunc[T any] func(ctx context.Context, msg *T) error
+type ReqRspHandlerFunc[T any, R any] func(ctx context.Context, msg *T, resp *R, connId kknet.CONN_ID) error
+type OneWayHandlerFunc[T any] func(ctx context.Context, msg *T, connId kknet.CONN_ID) error
 
 // 消息接收器 req resp
 type IRpcHandler interface {
 	// GetMethod 返回 RPC 方法名
 	GetMethod() string
 	// 消息回调
-	OnMsg(ctx context.Context, payload []byte, frameType FrameType) ([]byte, error)
+	OnMsg(ctx context.Context, payload []byte, frameType FrameType, connId kknet.CONN_ID) ([]byte, error)
 }
 
 // 消息接收器 oneway
@@ -26,7 +26,7 @@ type IOneWayHandler interface {
 	// GetMethod 返回 RPC 方法名
 	GetMethod() string
 	// 消息回调
-	OnMsg(ctx context.Context, payload []byte, frameType FrameType) error
+	OnMsg(ctx context.Context, payload []byte, frameType FrameType, connId kknet.CONN_ID) error
 }
 
 //----------------------------------------------------------------
@@ -40,12 +40,12 @@ func (h *OneWayHandler[T]) GetMethod() string {
 	return h.method
 }
 
-func (h *OneWayHandler[T]) OnMsg(ctx context.Context, payload []byte, frameType FrameType) error {
+func (h *OneWayHandler[T]) OnMsg(ctx context.Context, payload []byte, frameType FrameType, connId kknet.CONN_ID) error {
 	var data T
 	if err := payloadCodec.Unmarshal(payload, &data); err != nil {
 		return err
 	}
-	err := h.call(ctx, &data)
+	err := h.call(ctx, &data, connId)
 	if err != nil {
 		return err
 	}
@@ -63,14 +63,14 @@ func (h *ReqRspHandler[T, R]) GetMethod() string {
 	return h.method
 }
 
-func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameType FrameType) ([]byte, error) {
+func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameType FrameType, connId kknet.CONN_ID) ([]byte, error) {
 	var data T
 	var resp R
 	if err := payloadCodec.Unmarshal(payload, &data); err != nil {
 		return nil, err
 	}
 	// kklog.Debugf("收到远程方法调用请求: %v", data)
-	err := h.call(ctx, &data, &resp)
+	err := h.call(ctx, &data, &resp, connId)
 	if err != nil {
 		return nil, err
 	}
@@ -109,11 +109,11 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 
 	switch fr.T {
 	case FrameTypeOneway:
-		r.dealOneWay(&fr)
+		r.dealOneWay(&fr, connId)
 		kkbuffer.Put(data)
 		return nil
 	case FrameTypeRequest:
-		bb := r.dealReqResp(&fr)
+		bb := r.dealReqResp(&fr, connId)
 		kkbuffer.Put(data)
 		return bb
 	case FrameTypeResponse:
@@ -139,7 +139,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	}
 }
 
-func (r *RpcReceiver) dealReqResp(fr *Frame) *kkbuffer.ByteBuffer {
+func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.ByteBuffer {
 	// 处理 FrameTypeRequest 类型的请求
 	rspFrame := Frame{
 		T:    FrameTypeResponse,
@@ -164,7 +164,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame) *kkbuffer.ByteBuffer {
 
 	ctx, cancel := deadlineCtx(fr.DL)
 	defer cancel()
-	respBytes, err := h.OnMsg(ctx, fr.P, fr.T)
+	respBytes, err := h.OnMsg(ctx, fr.P, fr.T, connId)
 	if err != nil {
 		rspFrame.Code = ErrorCodeMethodRetErr
 		rspFrame.Err = "远程方法执行失败: " + err.Error()
@@ -185,7 +185,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame) *kkbuffer.ByteBuffer {
 	return rspBB
 }
 
-func (r *RpcReceiver) dealOneWay(fr *Frame) error {
+func (r *RpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) error {
 	method := fr.M
 	h, ok := r.oneWayMap[method]
 	if !ok || h == nil {
@@ -193,5 +193,5 @@ func (r *RpcReceiver) dealOneWay(fr *Frame) error {
 	}
 	ctx, cancel := deadlineCtx(fr.DL)
 	defer cancel()
-	return h.OnMsg(ctx, fr.P, fr.T)
+	return h.OnMsg(ctx, fr.P, fr.T, connId)
 }

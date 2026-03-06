@@ -87,7 +87,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numConns := 64
-	callsPerConn := 888
+	callsPerConn := 2222
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
@@ -96,7 +96,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 
 	successCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver()
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
 		return nil
@@ -193,7 +193,7 @@ func TestStress_Rpc_ConnectDisconnect(t *testing.T) {
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 
 	rpcRouter := NewRpcReceiver()
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
 		return nil
@@ -245,7 +245,7 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 
 	successCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver()
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
 		return nil
@@ -320,7 +320,7 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 
 	recvCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver()
-	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq) error {
+	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		recvCount.Add(1)
 		return nil
 	})
@@ -402,7 +402,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numGoroutines := 32
-	callsPerGoroutine := 8888
+	callsPerGoroutine := 88888
 	totalCalls := int64(numGoroutines * callsPerGoroutine)
 
 	addr := freePortRpcStress(t)
@@ -411,7 +411,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 
 	recvCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver()
-	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq) error {
+	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		recvCount.Add(1)
 		return nil
 	})

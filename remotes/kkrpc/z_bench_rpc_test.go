@@ -22,7 +22,7 @@ func Benchmark_InvokeUnary(b *testing.B) {
 	_ = ln.Close()
 
 	rpcRouter := NewRpcReceiver()
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "test success"
 		return nil
@@ -66,7 +66,7 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 	_ = ln.Close()
 
 	rpcRouter := NewRpcReceiver()
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "test success"
 		return nil
@@ -112,7 +112,7 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 	_ = ln.Close()
 
 	rpcRouter := NewRpcReceiver()
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "test success"
 		return nil

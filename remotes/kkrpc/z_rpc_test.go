@@ -10,6 +10,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // setupTestRpcManager 测试前清理并注册 testReq/testRsp 相关方法
@@ -22,15 +23,15 @@ func setupTestRpcManager(t *testing.T) {
 
 type rpcProcessor struct{}
 
-func (rp *rpcProcessor) onTestReqTestRsp(ctx context.Context, msg *testReq, resp *testRsp) error {
-	//fmt.Println("remote reqrsp testReq", msg)
+func (rp *rpcProcessor) onTestReqTestRsp(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
+	kklog.Infof("[server] onTestReqTestRsp from %s, connId=%d", msg.Data, connId)
 	resp.Code = 0
 	resp.Msg = "test success"
 	return nil
 }
 
-func (rp *rpcProcessor) onTestReq(ctx context.Context, msg *testReq) error {
-	//fmt.Println("remote oneway testReq", msg)
+func (rp *rpcProcessor) onTestReq(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
+	kklog.Infof("[server] onTestReq from %s, connId=%d", msg.Data, connId)
 	return nil
 }
 
@@ -67,7 +68,7 @@ func Test_RpcProcessor(t *testing.T) {
 	RegistReqRspHandler(rpcRouter, "testReqRsp", rp.onTestReqTestRsp)
 	RegistOneWayHandler(rpcRouter, "testOneway", rp.onTestReq)
 
-	_, cli := newTestServerClient(t, rpcRouter)
+	svr, cli := newTestServerClient(t, rpcRouter)
 
 	var req testReq = testReq{
 		ID:   1,
@@ -83,8 +84,23 @@ func Test_RpcProcessor(t *testing.T) {
 		t.Fatalf("unexpected response: code=%d msg=%s", resp.Code, resp.Msg)
 	}
 
+	// client call server oneway
 	oneWayInvoker := NewOneWayInvoker[testReq](cli, 0, "testOneway")
 	err = oneWayInvoker.InvokeNR(context.Background(), &req, CallConfig{})
+	kklog.Infof("[client] onTestOneway from %s, connId=%d", req.Data, 0)
+	if err != nil {
+		t.Fatalf("invoke: %v", err)
+	}
+
+	// server call client oneway
+	var connId kknet.CONN_ID
+	svr.GetConnManager().RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
+		connId = id
+		return false
+	})
+	oneWayInvoker = NewOneWayInvoker[testReq](svr, connId, "testOneway")
+	err = oneWayInvoker.InvokeNR(context.Background(), &req, CallConfig{})
+	kklog.Infof("[server] onTestOneway from %s, connId=%d", req.Data, connId)
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
 	}
@@ -100,7 +116,7 @@ func newTestServerClientWithHandler(t *testing.T, handler ReqRspHandlerFunc[test
 }
 
 func Test_Invoke_Timeout(t *testing.T) {
-	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		time.Sleep(300 * time.Millisecond)
 		resp.Code = 0
 		resp.Msg = "late success"
@@ -117,7 +133,7 @@ func Test_Invoke_Timeout(t *testing.T) {
 }
 
 func Test_Invoke_ContextCanceled(t *testing.T) {
-	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "should not reach"
 		return nil
@@ -136,7 +152,7 @@ func Test_Invoke_ContextCanceled(t *testing.T) {
 }
 
 func Test_Invoke_OnClosedClient(t *testing.T) {
-	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
 		return nil
@@ -154,7 +170,7 @@ func Test_Invoke_OnClosedClient(t *testing.T) {
 }
 
 func Test_InvokeAsync_Success(t *testing.T) {
-	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "async success"
 		return nil
@@ -191,7 +207,7 @@ func Test_InvokeAsync_Success(t *testing.T) {
 }
 
 func Test_InvokeAsync_Error(t *testing.T) {
-	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		return errors.New("boom")
 	})
 
@@ -226,7 +242,7 @@ func Test_InvokeAsync_Error(t *testing.T) {
 }
 
 func Test_InvokeAsync_Timeout(t *testing.T) {
-	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		time.Sleep(300 * time.Millisecond)
 		resp.Code = 0
 		resp.Msg = "late"
@@ -267,7 +283,7 @@ func Test_InvokeNR(t *testing.T) {
 	setupTestRpcManager(t)
 	called := make(chan struct{}, 1)
 	rpcRouter := NewRpcReceiver()
-	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq) error {
+	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		select {
 		case called <- struct{}{}:
 		default:
@@ -291,7 +307,7 @@ func Test_InvokeNR(t *testing.T) {
 }
 
 func Test_ServerInvoker(t *testing.T) {
-	svr, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	svr, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "test success"
 		return nil

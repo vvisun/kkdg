@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
+	"github.com/vvisun/kkdg/kknet"
 )
 
 func TestRouter_ReqRsp(t *testing.T) {
 	router := NewRpcReceiver()
-	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp) error {
+	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		resp.Code = 0
 		resp.Msg = "success"
@@ -28,7 +30,7 @@ func TestRouter_ReqRsp(t *testing.T) {
 
 func TestRouter_OneWay(t *testing.T) {
 	router := NewRpcReceiver()
-	RegistOneWayHandler(router, "test", func(ctx context.Context, msg *testReq) error {
+	RegistOneWayHandler(router, "test", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		return nil
 	})

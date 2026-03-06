@@ -8,6 +8,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // examrpc 演示基于 TCP 的 RPC 用法（请求响应 + 单向）
@@ -100,12 +101,13 @@ func runRpcDemo(addr string) {
 	fmt.Println("examrpc demo ok")
 }
 
-func onEcho(ctx context.Context, req *EchoReq, rsp *EchoRsp) error {
+func onEcho(ctx context.Context, req *EchoReq, rsp *EchoRsp, connId kknet.CONN_ID) error {
+	kklog.Infof("[server] Echo from %s, connId=%d", req.Msg, connId)
 	rsp.Reply = "echo: " + req.Msg
 	return nil
 }
 
-func onPing(ctx context.Context, req *PingReq) error {
-	fmt.Printf("[server] Ping from %s\n", req.From)
+func onPing(ctx context.Context, req *PingReq, connId kknet.CONN_ID) error {
+	kklog.Infof("[server] Ping from %s, connId=%d", req.From, connId)
 	return nil
 }
