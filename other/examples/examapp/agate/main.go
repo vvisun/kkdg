@@ -8,14 +8,15 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
+	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 var (
-	natsURL  = "nats://127.0.0.1:4222"
-	tcpAddr  = "127.0.0.1:19090"
-	wsAddr   = "127.0.0.1:19091"
+	natsURL  = examapp.NatsURL
+	tcpAddr  = examapp.GateTCPAddr
+	wsAddr   = examapp.GateWSAddr
 	settings = map[string]string{"nats_url": natsURL}
 )
 
@@ -42,7 +43,7 @@ func runGate() *component.Application {
 		WSAddr:        wsAddr,
 		NatsURL:       natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
-		TransType:     kkapp.TransTypeNats,
+		TransType:     examapp.UseTransType,
 	}
 	gate := ccgate.NewGateComponent(gateOpt)
 	if err := gateApp.AddComponent(gate); err != nil {

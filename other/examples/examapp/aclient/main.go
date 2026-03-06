@@ -15,20 +15,21 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
+	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-var tcpAddr = "127.0.0.1:19090"
-var wsAddr = "127.0.0.1:19091"
+var tcpAddr = examapp.GateTCPAddr
+var wsAddr = examapp.GateWSAddr
 var autoId int64 = 0
 
 func main() {
 	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
 
-	connNum := 5000
-	connDelay := 5 * time.Millisecond
+	connNum := examapp.ClientConnNum
+	connDelay := examapp.ClientConnDelay
 	var wg sync.WaitGroup
 	wg.Add(connNum)
 
@@ -77,7 +78,7 @@ func runOneClient() kknet.IClient {
 	//定时发送消息
 	go func() {
 		for {
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(examapp.ClientSendInterval)
 			sendMsg(client)
 		}
 	}()

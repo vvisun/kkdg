@@ -10,15 +10,17 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
+	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 var (
-	natsURL  = "nats://127.0.0.1:4222"
-	tcpAddr  = "127.0.0.1:19090"
-	settings = map[string]string{"nats_url": natsURL}
-	withGate = false
+	natsURL     = examapp.NatsURL
+	gateTcpAddr = examapp.GateTCPAddr
+	gateWsAddr  = examapp.GateWSAddr
+	settings    = map[string]string{"nats_url": natsURL}
+	withGate    = false
 )
 
 func main() {
@@ -46,12 +48,14 @@ func main() {
 }
 
 func runGate() *component.Application {
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", settings)
+	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, gateTcpAddr, "", settings)
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
-		TCPAddr:       tcpAddr,
+		TCPAddr:       gateTcpAddr,
+		WSAddr:        gateWsAddr,
 		NatsURL:       natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
+		TransType:     examapp.UseTransType,
 	}
 	gate := ccgate.NewGateComponent(gateOpt)
 	if err := gateApp.AddComponent(gate); err != nil {
@@ -68,7 +72,7 @@ func runGame() *component.Application {
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", settings)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent(ccgame.Option{
-		TransType: kkapp.TransTypeNats,
+		TransType: examapp.UseTransType,
 	})
 
 	msgReceiver := game.GetMsgReceiver()
