@@ -42,6 +42,7 @@ func runGate() *component.Application {
 		WSAddr:        wsAddr,
 		NatsURL:       natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
+		TransType:     kkapp.TransTypeNats,
 	}
 	gate := ccgate.NewGateComponent(gateOpt)
 	if err := gateApp.AddComponent(gate); err != nil {

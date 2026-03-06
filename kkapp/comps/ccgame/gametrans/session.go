@@ -1,4 +1,4 @@
-package ccgame
+package gametrans
 
 import (
 	"sync"
@@ -48,7 +48,7 @@ type SessionManager struct {
 	userCount   int32
 }
 
-func newSessionManager() *SessionManager {
+func NewSessionManager() *SessionManager {
 	return &SessionManager{}
 }
 

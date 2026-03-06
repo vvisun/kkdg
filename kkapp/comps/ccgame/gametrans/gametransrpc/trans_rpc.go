@@ -1,9 +1,10 @@
-package ccgame
+package gametransrpc
 
 import (
 	"context"
 
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
 	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
@@ -16,13 +17,11 @@ import (
 
 type transportorRpc struct {
 	rpcClient   *kkrpc.Client
-	sessionMgr  *SessionManager
+	sessionMgr  *gametrans.SessionManager
 	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
-var _ ITransportor = (*transportorRpc)(nil)
-
-func newTransportorRpc(sessionMgr *SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity) *transportorRpc {
+func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity) gametrans.ITransportor {
 	trans := &transportorRpc{
 		sessionMgr:  sessionMgr,
 		msgReceiver: msgReceiver,

@@ -1,7 +1,8 @@
-package ccgame
+package gametransnats
 
 import (
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
@@ -13,13 +14,11 @@ import (
 // transportorNats 使用Nats集群转发消息
 type transportorNats struct {
 	cluster     kkcluster.ICluster // cluster for forwarding messages to client
-	sessionMgr  *SessionManager
+	sessionMgr  *gametrans.SessionManager
 	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
-var _ ITransportor = (*transportorNats)(nil)
-
-func newTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *SessionManager) ITransportor {
+func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *gametrans.SessionManager) gametrans.ITransportor {
 	trans := &transportorNats{
 		cluster:     cluster,
 		sessionMgr:  sessionManager,

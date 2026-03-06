@@ -67,7 +67,9 @@ func runGame() *component.Application {
 	// game 节点，nodeType 必须为 logic 以匹配 gate 的 LogicNodeType
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", settings)
 	gameApp := component.NewApplication(gameNode)
-	game := ccgame.NewGameComponent()
+	game := ccgame.NewGameComponent(ccgame.Option{
+		TransType: kkapp.TransTypeNats,
+	})
 
 	msgReceiver := game.GetMsgReceiver()
 	gh := &gameHandler{}

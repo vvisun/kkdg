@@ -1,9 +1,14 @@
 package ccgame
 
 import (
+	"errors"
+
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransnats"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransrpc"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
@@ -12,10 +17,11 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-func NewGameComponent() *gameComponent {
+func NewGameComponent(opt Option) *gameComponent {
 	return &gameComponent{
 		msgReceiver:    msgreceiver.NewMsgReceiver[string](kkapp.GetMsgPacket()),
-		sessionManager: newSessionManager(),
+		sessionManager: gametrans.NewSessionManager(),
+		opt:            opt,
 	}
 }
 
@@ -26,8 +32,9 @@ type gameComponent struct {
 	discovery      kkdiscovery.IDiscovery
 	cluster        kkcluster.ICluster
 	msgReceiver    *msgreceiver.MsgReceiver[string]
-	sessionManager *SessionManager
-	transportor    ITransportor
+	sessionManager *gametrans.SessionManager
+	transportor    gametrans.ITransportor
+	opt            Option
 }
 
 func (slf *gameComponent) GetID() string {
@@ -57,8 +64,15 @@ func (slf *gameComponent) Init() error {
 		return slf.sessionManager.OnlineCount(), kkdiscovery.NodeStatusOnline
 	})
 
-	// slf.transportor = newTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
-	slf.transportor = newTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication())
+	switch slf.opt.TransType {
+	case kkapp.TransTypeNats:
+		slf.transportor = gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
+	case kkapp.TransTypeRpc:
+		slf.transportor = gametransrpc.NewTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication())
+	default:
+		return errors.New("invalid trans type: " + slf.opt.TransType)
+	}
+
 	return nil
 }
 
@@ -100,6 +114,6 @@ func (slf *gameComponent) SendToClient(sessionID string, msg any) error {
 	return slf.transportor.SendToClient(sessionID, msg)
 }
 
-func (slf *gameComponent) GetSessionManager() *SessionManager {
+func (slf *gameComponent) GetSessionManager() *gametrans.SessionManager {
 	return slf.sessionManager
 }

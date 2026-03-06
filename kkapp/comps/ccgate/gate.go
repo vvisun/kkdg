@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transnat"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transrpc"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
@@ -77,8 +78,15 @@ func (slf *gateComponent) Init() error {
 		slf.discovery,
 		clusterOpts,
 	)
-	// slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
-	slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId())
+
+	switch slf.opt.TransType {
+	case kkapp.TransTypeNats:
+		slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
+	case kkapp.TransTypeRpc:
+		slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId())
+	default:
+		return errors.New("invalid trans type: " + slf.opt.TransType)
+	}
 
 	return nil
 }

@@ -5,6 +5,13 @@ const (
 	NodeTypeLogic = "logic" // 业务服
 )
 
+type TransType = string
+
+const (
+	TransTypeNats TransType = "nats"
+	TransTypeRpc  TransType = "rpc"
+)
+
 const (
 	SubEventNodeWeight = "EventNodeWeight" // 节点权重事件
 )
