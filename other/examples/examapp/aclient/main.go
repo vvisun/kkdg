@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -26,7 +27,20 @@ var autoId int64 = 0
 func main() {
 	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
 
+	connNum := 5000
+	connDelay := 5 * time.Millisecond
+	var wg sync.WaitGroup
+	wg.Add(connNum)
+
 	client := runOneClient()
+
+	for i := 0; i < connNum; i++ {
+		go func() {
+			defer wg.Done()
+			runOneClient()
+		}()
+		time.Sleep(connDelay)
+	}
 
 	// 等待信号退出
 	signalCh := make(chan os.Signal, 1)
@@ -63,7 +77,7 @@ func runOneClient() kknet.IClient {
 	//定时发送消息
 	go func() {
 		for {
-			time.Sleep(1 * time.Second)
+			time.Sleep(200 * time.Millisecond)
 			sendMsg(client)
 		}
 	}()
