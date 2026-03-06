@@ -2,6 +2,7 @@ package component
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
@@ -31,6 +32,7 @@ type Application struct {
 	actorSys  *actor.ActorSystem
 	compList  []IComponent
 	mu        sync.RWMutex
+	stoping   atomic.Bool
 	configDir string // 配置文件所在目录
 }
 
@@ -75,7 +77,7 @@ func (slf *Application) GetActorSystem() *actor.ActorSystem {
 
 func (slf *Application) Start() error {
 	nodeId := slf.nodeInfo.GetNodeId()
-	kklog.Infof("[kkapp] application [%s,%s] start", nodeId, slf.nodeInfo.GetNodeType())
+	kklog.Infof("[kkapp] application [%s,%s] starting", nodeId, slf.nodeInfo.GetNodeType())
 	slf.mu.RLock()
 	compList := slf.compList
 	slf.mu.RUnlock()
@@ -86,11 +88,16 @@ func (slf *Application) Start() error {
 		}
 		kklog.Infof("[kkapp] application %s start component %s success", nodeId, comp.GetID())
 	}
+	kklog.Infof("[kkapp] application [%s,%s] started", nodeId, slf.nodeInfo.GetNodeType())
 	return nil
 }
 
 func (slf *Application) Stop() error {
+	if !slf.stoping.CompareAndSwap(false, true) {
+		return nil // already stopping
+	}
 	nodeId := slf.nodeInfo.GetNodeId()
+	kklog.Infof("[kkapp] application [%s,%s] stopping", nodeId, slf.nodeInfo.GetNodeType())
 	slf.mu.RLock()
 	compList := slf.compList
 	slf.mu.RUnlock()
@@ -100,10 +107,15 @@ func (slf *Application) Stop() error {
 		}
 		kklog.Infof("[kkapp] application %s stop component %s success", nodeId, compList[i].GetID())
 	}
+	kklog.Infof("[kkapp] application [%s,%s] stopped", nodeId, slf.nodeInfo.GetNodeType())
 	return nil
 }
 
 func (slf *Application) AddComponent(comp IComponent) error {
+	if slf.stoping.Load() {
+		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetID(), kkerrors.ErrAppShutdown)
+		return kkerrors.ErrAppShutdown
+	}
 	if slf.HasComponent(comp) {
 		kklog.Errorf("[kkapp] application %s add component %s repeat: %v", slf.GetNodeId(), comp.GetID(), kkerrors.ErrComponentAlreadyAdded)
 		return kkerrors.ErrComponentAlreadyAdded

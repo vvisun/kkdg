@@ -18,8 +18,8 @@ type INodeIdentity interface {
 	GetNodeType() string // 获取节点类型。eg: gate、game、login等。用于标识一个节点的类型。
 }
 
-// CheckNodeID 检查节点ID是否有效
-func CheckNodeID(nodeId string) error {
+// checkNodeID 检查节点ID是否有效
+func checkNodeID(nodeId string) error {
 	if len(nodeId) < 1 {
 		kklog.Errorf("invalid node id: %s", nodeId)
 		return kkerrors.ErrInvalidNodeID
@@ -31,8 +31,8 @@ func CheckNodeID(nodeId string) error {
 	return nil
 }
 
-// CheckNodeType 检查节点类型是否有效
-func CheckNodeType(nodeType string) error {
+// checkNodeType 检查节点类型是否有效
+func checkNodeType(nodeType string) error {
 	if len(nodeType) < 1 {
 		kklog.Errorf("invalid node type: %s", nodeType)
 		return kkerrors.ErrInvalidNodeType
@@ -47,10 +47,10 @@ func CheckNodeType(nodeType string) error {
 // NewNodeInfo 创建节点信息
 // 一般在启动时，从配置文件中读取节点信息并创建节点信息。
 func NewNodeInfo(nodeId, nodeType, address, rpcAddress string, settings map[string]string) *NodeInfo {
-	if CheckNodeID(nodeId) != nil {
+	if checkNodeID(nodeId) != nil {
 		panic("invalid node id")
 	}
-	if CheckNodeType(nodeType) != nil {
+	if checkNodeType(nodeType) != nil {
 		panic("invalid node type")
 	}
 	return &NodeInfo{

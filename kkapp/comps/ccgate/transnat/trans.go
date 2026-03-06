@@ -1,6 +1,9 @@
 package transnat
 
 import (
+	"strings"
+
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
@@ -30,7 +33,14 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 	if packet == nil || packet.Sid == "" || len(packet.ArgBytes) == 0 {
 		return
 	}
-	slf.ForwardToClient(packet.Sid, packet.ArgBytes)
+	if packet.FuncName == kkapp.FuncNameSendToClient {
+		slf.ForwardToClient(packet.Sid, packet.ArgBytes)
+	} else if packet.FuncName == kkapp.FuncNameSendToClients {
+		sids := strings.Split(packet.Sid, ",")
+		for _, sid := range sids {
+			slf.ForwardToClient(sid, packet.ArgBytes)
+		}
+	}
 }
 
 // ForwardToLogic 转发消息到逻辑节点
@@ -46,8 +56,8 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, lo
 	}
 
 	pkt := kkcluster.NewClusterPacket()
-	pkt.FuncName = "c2s"    //暂时没用到
-	pkt.ArgBytes = msgBytes //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
+	pkt.FuncName = kkapp.FuncNameC2S //暂时没用到
+	pkt.ArgBytes = msgBytes          //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	pkt.Sid = sessionID
 	return slf.cluster.PublishRemote(logicNodeId, pkt)
 }

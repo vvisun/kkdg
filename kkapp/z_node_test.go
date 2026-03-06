@@ -19,7 +19,7 @@ func TestCheckNodeID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := CheckNodeID(tt.nodeId)
+			err := checkNodeID(tt.nodeId)
 			if tt.wantErr != nil {
 				if err == nil || !errors.Is(err, tt.wantErr) {
 					t.Errorf("CheckNodeID(%q) = %v, want %v", tt.nodeId, err, tt.wantErr)
@@ -45,7 +45,7 @@ func TestCheckNodeType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := CheckNodeType(tt.nodeType)
+			err := checkNodeType(tt.nodeType)
 			if tt.wantErr != nil {
 				if err == nil || !errors.Is(err, tt.wantErr) {
 					t.Errorf("CheckNodeType(%q) = %v, want %v", tt.nodeType, err, tt.wantErr)
