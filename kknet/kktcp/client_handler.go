@@ -17,6 +17,7 @@ func (h *gnetClientEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Ac
 	h.client.reconnecting.Store(false)
 	cc := newGnetClientConn(c, &h.client.opts, &h.client.stats)
 	c.SetContext(cc)
+	h.client.opts.Logger.Infof("kktcp client connect success... connId=%d", cc.id)
 
 	h.client.connMu.Lock()
 	h.client.conn = cc

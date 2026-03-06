@@ -37,9 +37,6 @@ func (printsLogger) Panicf(format string, args ...any) {
 
 var printsLoggerInstance = printsLogger{}
 
-// Stdout returns a logger that prints to stdout (debug-only convenience).
-func Stdout() ILogger { return printsLoggerInstance }
-
 func (printsLogger) Debug(args ...any) {
 	fmt.Println(args...)
 }
@@ -69,3 +66,6 @@ func (printsLogger) Panic(args ...any) {
 	fmt.Println(args...)
 	fmt.Printf("-----------panic]-----------\n")
 }
+
+// Stdout returns a logger that prints to stdout (debug-only convenience).
+func Stdout() ILogger { return printsLoggerInstance }

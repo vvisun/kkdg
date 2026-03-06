@@ -50,8 +50,7 @@ func (s *Server) Start() error {
 		return nil
 	}
 
-	// Apply middlewares to handler
-	// s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
+	s.opts.Logger.Infof("kktcp server start... listening on %s", s.addr)
 
 	s.booted = make(chan struct{})
 	s.done = make(chan error, 1)
@@ -93,6 +92,8 @@ func (s *Server) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	s.opts.Logger.Infof("kktcp server shutdown... waiting for %v", timeout)
+
 	// Stop the gnet engine with timeout
 	if err := s.engine.Stop(ctx); err != nil {
 		if ctx.Err() != nil {
@@ -109,6 +110,8 @@ func (s *Server) Stop() error {
 			s.opts.Logger.Warnf("kktcp server shutdown timeout after %v", timeout)
 		}
 	}
+
+	s.opts.Logger.Infof("kktcp server shutdown... done")
 
 	return nil
 }

@@ -63,9 +63,6 @@ func (s *Server) Start() error {
 		return nil
 	}
 
-	// Apply middlewares to handler
-	// s.handler = kknet.ApplyMiddlewares(s.handler, s.opts.Middlewares...)
-
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  s.opts.ReadBufferSize,
 		WriteBufferSize: s.opts.WriteBufferSize,
@@ -208,11 +205,14 @@ func (s *Server) Stop() error {
 		}
 	}
 
+	s.opts.Logger.Infof("kkws server shutdown... done")
+
 	return nil
 }
 
 // closeAllConnections closes all active connections with context timeout.
 func (s *Server) closeAllConnections(ctx context.Context) {
+	s.opts.Logger.Infof("kkws server shutdown... closing all connections... count=%d", s.connMgr.GetCount())
 	conns := make([]*wsConn, 0, s.connMgr.GetCount())
 	s.connMgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
 		conns = append(conns, conn.(*wsConn))
@@ -241,6 +241,7 @@ func (s *Server) closeAllConnections(ctx context.Context) {
 	case <-ctx.Done():
 		s.opts.Logger.Warnf("kkws server: some connections did not close within timeout")
 	}
+	s.opts.Logger.Infof("kkws server shutdown... closed all connections done")
 }
 
 // Addr returns the server address.

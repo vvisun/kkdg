@@ -92,8 +92,17 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 		rpcSvr:       rpcSvr,
 	}
 	rpcProcessor.trans = trans
+	rpcSvr.SetLifeCycleHandler(trans)
 
 	return trans
+}
+
+func (slf *transportorRpc) OnConnect(conn kknet.IConn) {
+	kklog.Infof("[ccgate] rpc server new connection... connId=%d", conn.ID())
+}
+
+func (slf *transportorRpc) OnClose(conn kknet.IConn, err error) {
+	kklog.Infof("[ccgate] rpc server connection closed... connId=%d, err=%v", conn.ID(), err)
 }
 
 func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
@@ -170,9 +179,11 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, msgBytes []byte
 }
 
 func (slf *transportorRpc) registerLogicNode(nodeId string, nodeType string, connId kknet.CONN_ID) {
+	kklog.Infof("[ccgate] register logic node... nodeId=%s, nodeType=%s, connId=%d", nodeId, nodeType, connId)
 	slf.logicNodeMgr.registerLogicNode(nodeId, nodeType, connId)
 }
 
 func (slf *transportorRpc) unregisterLogicNode(nodeId string) {
+	kklog.Infof("[ccgate] unregister logic node... nodeId=%s", nodeId)
 	slf.logicNodeMgr.unregisterLogicNode(nodeId)
 }

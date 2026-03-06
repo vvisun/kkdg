@@ -72,12 +72,15 @@ func (s *Server) Start() error {
 	var ln net.Listener
 	var err error
 	if s.opts.TLSConfig != nil {
+		s.opts.Logger.Infof("kkgws tls server start... listening on %s", s.addr)
 		ln, err = tls.Listen("tcp", s.addr, s.opts.TLSConfig)
 	} else {
+		s.opts.Logger.Infof("kkgws server start... listening on %s", s.addr)
 		ln, err = net.Listen("tcp", s.addr)
 	}
 	if err != nil {
 		s.started.Store(false)
+		s.opts.Logger.Infof("kkgws server start... failed: %v", err)
 		return err
 	}
 	s.listener = ln
@@ -89,7 +92,7 @@ func (s *Server) Start() error {
 	if s.opts.TLSConfig != nil {
 		proto = "wss"
 	}
-	s.opts.Logger.Infof("kkgws server listen on %s%s (%s)", s.addr, s.path, proto)
+	s.opts.Logger.Infof("kkgws server start... listening on %s%s (%s)", s.addr, s.path, proto)
 	close(s.booted)
 
 	go s.acceptLoop()
@@ -167,10 +170,13 @@ func (s *Server) Stop() error {
 		s.opts.Logger.Warnf("kkgws server shutdown timeout after %v", timeout)
 	}
 
+	s.opts.Logger.Infof("kkgws server shutdown... done")
+
 	return nil
 }
 
 func (s *Server) closeAllConnections(ctx context.Context) {
+	s.opts.Logger.Infof("kkgws server shutdown... closing all connections... count=%d", s.connMgr.GetCount())
 	conns := make([]*gwsConn, 0, s.connMgr.GetCount())
 	s.connMgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
 		conns = append(conns, conn.(*gwsConn))
@@ -197,6 +203,7 @@ func (s *Server) closeAllConnections(ctx context.Context) {
 	case <-ctx.Done():
 		s.opts.Logger.Warnf("kkgws server: some connections did not close within timeout")
 	}
+	s.opts.Logger.Infof("kkgws server shutdown... closed all connections done")
 }
 
 // Addr returns the server address.

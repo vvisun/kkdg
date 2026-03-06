@@ -8,8 +8,9 @@ import (
 )
 
 type Server struct {
-	tcp     kknet.IServer
-	pending *pendingMap
+	tcp              kknet.IServer
+	pending          *pendingMap
+	lifeCycleHandler kknet.IConnLifecycleHandler
 }
 
 var _ IRpcServer = (*Server)(nil)
@@ -60,6 +61,10 @@ func (s *Server) getPending() *pendingMap {
 	return s.pending
 }
 
+func (s *Server) SetLifeCycleHandler(handler kknet.IConnLifecycleHandler) {
+	s.lifeCycleHandler = handler
+}
+
 //----------------------------------------------------------------
 
 type serverHandler struct {
@@ -68,11 +73,15 @@ type serverHandler struct {
 }
 
 func (h *serverHandler) OnConnect(conn kknet.IConn) {
-
+	if h.svr.lifeCycleHandler != nil {
+		h.svr.lifeCycleHandler.OnConnect(conn)
+	}
 }
 
-func (h *serverHandler) OnClose(conn kknet.IConn, _ error) {
-
+func (h *serverHandler) OnClose(conn kknet.IConn, err error) {
+	if h.svr.lifeCycleHandler != nil {
+		h.svr.lifeCycleHandler.OnClose(conn, err)
+	}
 }
 
 func (h *serverHandler) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) {

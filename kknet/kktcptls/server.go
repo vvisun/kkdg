@@ -96,6 +96,7 @@ func (s *Server) Stop() error {
 
 	// Close all active connections
 	s.closeAllConnections(ctx)
+	s.opts.Logger.Infof("kktcptls server shutdown... done")
 	return nil
 }
 
@@ -138,6 +139,7 @@ func (s *Server) acceptLoop() {
 }
 
 func (s *Server) closeAllConnections(ctx context.Context) {
+	s.opts.Logger.Infof("kktcptls server shutdown... closing all connections... count=%d", s.connMgr.GetCount())
 	conns := make([]*tlsConn, 0, s.connMgr.GetCount())
 	s.connMgr.RangeAllConns(func(id kknet.CONN_ID, conn kknet.IConn) bool {
 		conns = append(conns, conn.(*tlsConn))
@@ -164,6 +166,7 @@ func (s *Server) closeAllConnections(ctx context.Context) {
 	case <-ctx.Done():
 		s.opts.Logger.Warnf("kktcptls server: some connections did not close within timeout")
 	}
+	s.opts.Logger.Infof("kktcptls server shutdown... closed all connections done")
 }
 
 func (s *Server) Addr() string {

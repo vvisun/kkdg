@@ -77,6 +77,7 @@ func (c *GnetClient) Connect() error {
 	}
 
 	if !c.started.Swap(true) {
+		c.opts.Logger.Infof("kktcp client start... connecting to %s", c.addr)
 		ev := &gnetClientEventHandler{client: c}
 		cli, err := gnet.NewClient(ev,
 			gnet.WithMulticore(false),
@@ -90,11 +91,13 @@ func (c *GnetClient) Connect() error {
 		if err != nil {
 			c.started.Store(false)
 			c.connected.Store(false)
+			c.opts.Logger.Infof("kktcp client start... failed to create client: %v", err)
 			return err
 		}
 		if err := cli.Start(); err != nil {
 			c.started.Store(false)
 			c.connected.Store(false)
+			c.opts.Logger.Infof("kktcp client start... failed to start client: %v", err)
 			return err
 		}
 		c.clientMu.Lock()
@@ -112,11 +115,13 @@ func (c *GnetClient) Connect() error {
 	c.clientMu.Unlock()
 	if cli == nil {
 		c.connected.Store(false)
+		c.opts.Logger.Infof("kktcp client start... failed to get client: %v", kkerrors.ErrClientNotConnected)
 		return kkerrors.ErrClientNotConnected
 	}
 
 	if _, err := cli.Dial("tcp", c.addr); err != nil {
 		c.connected.Store(false)
+		c.opts.Logger.Infof("kktcp client start... failed to dial: %v", err)
 		return err
 	}
 
@@ -164,6 +169,7 @@ func (c *GnetClient) Close() error {
 	c.closing.Store(true)
 	c.connected.Store(false)
 	c.reconnecting.Store(false)
+	c.opts.Logger.Infof("kktcp client close... closing connection")
 	select {
 	case <-c.stopCh:
 	default:
@@ -177,6 +183,7 @@ func (c *GnetClient) Close() error {
 	if cli != nil {
 		_ = cli.Stop()
 	}
+	c.opts.Logger.Infof("kktcp client close... done")
 	return nil
 }
 
