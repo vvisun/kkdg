@@ -62,7 +62,8 @@ func (r *MsgReceiver[K]) OnRaw(connId K, data *kkbuffer.ByteBuffer) {
 // @param sessionID 会话ID
 // @param messageBytes 消息数据 packet的[message]部分
 func (r *MsgReceiver[K]) OnSession(sessionID K, streamBytes []byte) {
-	data := kkbuffer.NewByteBuffer(streamBytes)
+	data := kkbuffer.GetWithCapacity(len(streamBytes))
+	data.WriteBytes(streamBytes)
 
 	msgID, bodyBytes, err := r.parseMsgInfo(data)
 	if err != nil {

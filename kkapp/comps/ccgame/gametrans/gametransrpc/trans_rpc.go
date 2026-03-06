@@ -88,6 +88,7 @@ func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 		kkbuffer.Put(bb)
 		return err
 	}
+
 	streamBytes := bb.B
 
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
@@ -112,6 +113,7 @@ func (slf *transportorRpc) SendToClients(sessionIDs []string, msg any) error {
 		kkbuffer.Put(bb)
 		return err
 	}
+
 	streamBytes := bb.B
 
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0, "s2cs")
@@ -145,7 +147,9 @@ func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kk
 	if rh.trans.sessionMgr.GetSession(msg.ClientId) == nil {
 		rh.trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
 	}
+
 	streamBytes := msg.Payload
+
 	rh.trans.msgReceiver.OnSession(msg.ClientId, streamBytes)
 	return nil
 }

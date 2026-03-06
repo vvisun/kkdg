@@ -105,7 +105,9 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 	if err != nil {
 		return err //客户端已下线
 	}
+
 	streamBytes := msgBytes
+
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](slf.rpcSvr, memberInfo.connId, "c2s")
 	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcC2S{
 		ClientId:   sessionID,
@@ -127,8 +129,9 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, msgBytes []byte) er
 		return err //客户端已下线
 	}
 
-	streamBytes := kkbuffer.GetWithLenCap(len(msgBytes), len(msgBytes))
-	copy(streamBytes.B, msgBytes)
+	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
+	streamBytes.WriteBytes(msgBytes)
+
 	if err := conn.SendBuffer(streamBytes); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
 	}
