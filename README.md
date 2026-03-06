@@ -11,6 +11,7 @@ Go 语言实现的游戏/分布式服务端引擎，提供网络层、集群通�
 | **kkprocessor** | `kknet/kkprocessor/` | 消息处理器：读/写队列、粘包拆包、批量发送 |
 | **kkpacket** | `kknet/kkpacket/` | 封包协议：流式封包、消息路由 |
 | **remotes** | `remotes/` | 远程能力：RPC、集群（NATS）、服务发现 |
+| **storage** | `storage/` | 存储：kkdb（MySQL/GORM 配置与 CRUD）、kkredis（Redis 单机客户端与常用命令封装） |
 | **proto** | `proto/` | 协议定义：FlatBuffers、Protobuf |
 | **utils** | `utils/` | 工具库：buffer、codec、时间轮、队列、转换等 |
 
@@ -65,6 +66,7 @@ go test -bench=. -benchmem ./...
 
 - **网络**：TCP / WebSocket / TLS，支持多 Codec（JSON、ProtoBuf、MsgPack、FlatBuffer）
 - **集群**：基于 NATS 的 Publish/Request，支持服务发现与节点类型订阅
+- **存储**：MySQL（kkdb + GORM 引擎与 CRUD）、Redis（kkredis 单机引擎与 Get/Set 等封装）
 - **队列**：BBQueue（环形数组）、NNQueue（链表，内存更省）
 - **应用**：`Application` + `Component` 生命周期管理
 
