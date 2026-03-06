@@ -1,6 +1,7 @@
 package transrpc
 
 import (
+	"context"
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
@@ -14,18 +15,18 @@ import (
 type logicMemberInfo struct {
 	nodeId   string
 	nodeType string
-	conn     kknet.IConn
+	connId   kknet.CONN_ID
 }
 
 type logicNodeMgr struct {
 	logicNodeMap sync.Map // map[string]*logicMemberInfo
 }
 
-func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, conn kknet.IConn) {
+func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, connId kknet.CONN_ID) {
 	memberInfo := &logicMemberInfo{
 		nodeId:   nodeId,
 		nodeType: nodeType,
-		conn:     conn,
+		connId:   connId,
 	}
 	slf.logicNodeMap.Store(nodeId, memberInfo)
 }
@@ -52,7 +53,7 @@ type transportorRpc struct {
 
 var _ transface.ITransportor = (*transportorRpc)(nil)
 
-func NewTransportorRpc() transface.ITransportor {
+func NewTransportorRpc(sessionMgr transface.ISessionManager) transface.ITransportor {
 	rpcRouter := kkrpc.NewRpcReceiver()
 	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
@@ -67,8 +68,9 @@ func NewTransportorRpc() transface.ITransportor {
 	}
 
 	return &transportorRpc{
-		rpcSvr:     rpcSvr,
-		sessionMgr: transface.NewSessionMgr(),
+		rpcSvr:       rpcSvr,
+		sessionMgr:   sessionMgr,
+		logicNodeMgr: &logicNodeMgr{},
 	}
 }
 
@@ -81,11 +83,12 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 	if err != nil {
 		return err //客户端已下线
 	}
-	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
-	copy(streamBytes.B, msgBytes)
-	if err := memberInfo.conn.SendBuffer(streamBytes); err != nil {
-		return err //发送失败
-	}
+	streamBytes := msgBytes
+	oneWayInvoker := kkrpc.NewOneWayInvoker[RpcC2S](slf.rpcSvr, memberInfo.connId, "c2s")
+	err = oneWayInvoker.InvokeNR(context.Background(), &RpcC2S{
+		clientId: sessionID,
+		payload:  streamBytes,
+	}, kkrpc.CallConfig{})
 	return nil
 }
 
@@ -109,12 +112,8 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, msgBytes []byte) er
 	return nil
 }
 
-func (slf *transportorRpc) GetSessionMgr() transface.ISessionManager {
-	return slf.sessionMgr
-}
-
-func (slf *transportorRpc) registerLogicNode(nodeId string, nodeType string, conn kknet.IConn) {
-	slf.logicNodeMgr.registerLogicNode(nodeId, nodeType, conn)
+func (slf *transportorRpc) registerLogicNode(nodeId string, nodeType string, connId kknet.CONN_ID) {
+	slf.logicNodeMgr.registerLogicNode(nodeId, nodeType, connId)
 }
 
 func (slf *transportorRpc) unregisterLogicNode(nodeId string) {

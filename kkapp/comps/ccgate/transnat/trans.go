@@ -19,10 +19,10 @@ type transportorNats struct {
 
 var _ transface.ITransportor = (*transportorNats)(nil)
 
-func NewTransportorNats(cluster kkcluster.ICluster) transface.ITransportor {
+func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr transface.ISessionManager) transface.ITransportor {
 	trans := &transportorNats{
 		cluster:    cluster,
-		sessionMgr: transface.NewSessionMgr(),
+		sessionMgr: sessionMgr,
 	}
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans
@@ -79,8 +79,4 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 		kklog.Errorf("[ccgate] send response error: %v", err)
 	}
 	return nil
-}
-
-func (slf *transportorNats) GetSessionMgr() transface.ISessionManager {
-	return slf.sessionMgr
 }

@@ -30,6 +30,7 @@ type gateComponent struct {
 	clientMgr   clientManager
 	transportor transface.ITransportor
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
+	sessionMgr  transface.ISessionManager
 }
 
 func (slf *gateComponent) GetID() string {
@@ -41,7 +42,8 @@ var _ component.IComponent = (*gateComponent)(nil)
 // NewGateComponent creates a new gate component.
 func NewGateComponent(opt Option) *gateComponent {
 	return &gateComponent{
-		opt: opt,
+		opt:        opt,
+		sessionMgr: transface.NewSessionMgr(),
 	}
 }
 
@@ -75,7 +77,7 @@ func (slf *gateComponent) Init() error {
 		slf.discovery,
 		clusterOpts,
 	)
-	slf.transportor = transnat.NewTransportorNats(slf.cluster)
+	slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
 
 	return nil
 }
@@ -218,13 +220,13 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
 	sessionID := getSessionId(c.ID(), h.gate.GetApplication().GetNodeId())
-	h.gate.transportor.GetSessionMgr().AddConn(sessionID, c)
+	h.gate.sessionMgr.AddConn(sessionID, c)
 	h.gate.clientMgr.addClient(c.ID(), sessionID)
 	kklog.Infof("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	h.gate.transportor.GetSessionMgr().RemoveConn(getSessionId(c.ID(), h.gate.GetApplication().GetNodeId()))
+	h.gate.sessionMgr.RemoveConn(getSessionId(c.ID(), h.gate.GetApplication().GetNodeId()))
 	h.gate.clientMgr.removeClient(c.ID())
 	kklog.Infof("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }

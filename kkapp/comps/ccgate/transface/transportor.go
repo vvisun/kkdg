@@ -7,6 +7,4 @@ type ITransportor interface {
 	ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error
 	// ForwardToClient forwards a logic message to client side.
 	ForwardToClient(sessionID string, msgBytes []byte) error
-	// GetSessionMgr gets the session manager
-	GetSessionMgr() ISessionManager
 }

@@ -11,7 +11,7 @@ type rpcHandler struct {
 }
 
 func (rh *rpcHandler) onRegister(ctx context.Context, msg *RpcMsgRegister, connId kknet.CONN_ID) error {
-	rh.trans.registerLogicNode(msg.NodeId, msg.NodeType, nil)
+	rh.trans.registerLogicNode(msg.NodeId, msg.NodeType, connId)
 	return nil
 }
 

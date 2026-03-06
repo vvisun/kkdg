@@ -7,6 +7,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 )
 
+// manager for client connections.
 type ISessionManager interface {
 	// GetConn gets a client connection by sessionID
 	GetConn(sessionID string) (kknet.IConn, error)
