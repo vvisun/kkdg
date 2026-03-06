@@ -157,9 +157,9 @@ func UpdateAllCols[T any](dbEng *gormeng.DbEngine, id interface{}, data *T) (int
 	if e := paramsCheck(dbEng, data); e != nil {
 		return 0, e
 	}
-	sess := dbEng.GetInst().Model(data)
-	pkCol := getPrimaryKeyColumn(sess, data)
-	tx := sess.Where(pkCol+" = ?", id).Select("*").Updates(data)
+	db := dbEng.GetInst()
+	pkCol := getPrimaryKeyColumn(db, data)
+	tx := db.Model(data).Where(pkCol+" = ?", id).Select("*").Updates(data)
 	if tx.Error != nil {
 		kklog.Error("全量更新数据err: ", getStructName(data), tx.Error.Error())
 		return 0, tx.Error

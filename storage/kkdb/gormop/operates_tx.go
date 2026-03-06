@@ -147,9 +147,8 @@ func TxUpdateAllCols[T any](tx *gorm.DB, id interface{}, data *T) (int64, error)
 	if e := txParamsCheck(tx, data); e != nil {
 		return 0, e
 	}
-	sess := tx.Model(data)
-	pkCol := getPrimaryKeyColumn(sess, data)
-	res := sess.Where(pkCol+" = ?", id).Select("*").Updates(data)
+	pkCol := getPrimaryKeyColumn(tx, data)
+	res := tx.Model(data).Where(pkCol+" = ?", id).Select("*").Updates(data)
 	if res.Error != nil {
 		kklog.Error("TxUpdateAllCols err: ", getStructName(data), res.Error.Error())
 		return 0, res.Error

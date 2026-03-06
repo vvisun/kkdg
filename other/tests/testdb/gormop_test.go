@@ -1,9 +1,11 @@
 package testdb
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/vvisun/kkdg/storage/kkdb"
 	"github.com/vvisun/kkdg/storage/kkdb/gormeng"
@@ -273,5 +275,212 @@ func TestGormop_TransactionRollback(t *testing.T) {
 	}
 	if got != nil {
 		t.Errorf("TransactionRollback: record should not exist, got %v", got)
+	}
+}
+
+// TestGormop_UpdateAllCols 验证按主键全量更新（含零值），主键列为 uid。
+func TestGormop_UpdateAllCols(t *testing.T) {
+	eng := setupGormTest(t)
+
+	u := &User{
+		Role:         RoleTypeNormal,
+		Status:       StatusNormal,
+		RegisterTime: 100,
+		PlatType:     1,
+		PlatId:       "allcols_plat",
+		NickName:     "before",
+		HeadUrl:      "http://before",
+		Exp:          10,
+		Grade:        1,
+	}
+	_, err := gormop.Insert(eng, u)
+	if err != nil {
+		t.Fatal("Insert: ", err)
+	}
+
+	// 全量更新为含零值的新 data（主键为 uid，由 Schema 解析）
+	data := &User{
+		Uid:            u.Uid,
+		Role:           RoleTypeNormal,
+		Status:         StatusNormal,
+		RegisterTime:   200,
+		LastLogoutTime: 0,
+		Exp:            0,
+		Grade:          0,
+		AvatarId:       0,
+		HeadFrame:      0,
+		ShowAreaId:     0,
+		PlatType:       1,
+		PlatId:         "allcols_plat",
+		NickName:       "after_all",
+		HeadUrl:        "",
+	}
+	n, err := gormop.UpdateAllCols(eng, u.Uid, data)
+	if err != nil {
+		t.Fatal("UpdateAllCols: ", err)
+	}
+	if n != 1 {
+		t.Errorf("UpdateAllCols RowsAffected = %d, want 1", n)
+	}
+
+	got, err := gormop.GetByID(eng, &User{}, u.Uid)
+	if err != nil {
+		t.Fatal("GetByID: ", err)
+	}
+	if got == nil {
+		t.Fatal("GetByID: nil")
+	}
+	if got.NickName != "after_all" || got.HeadUrl != "" || got.Exp != 0 || got.Grade != 0 {
+		t.Errorf("UpdateAllCols: got NickName=%s HeadUrl=%q Exp=%d Grade=%d", got.NickName, got.HeadUrl, got.Exp, got.Grade)
+	}
+}
+
+// TestGormop_GetList_WithCond 条件查询列表。
+func TestGormop_GetList_WithCond(t *testing.T) {
+	eng := setupGormTest(t)
+
+	_, _ = gormop.Insert(eng, &User{Role: RoleTypeNormal, Status: StatusNormal, RegisterTime: 1, PlatType: 1, PlatId: "cond_a", NickName: "na"})
+	_, _ = gormop.Insert(eng, &User{Role: RoleTypeNormal, Status: StatusNormal, RegisterTime: 2, PlatType: 1, PlatId: "cond_b", NickName: "nb"})
+	_, _ = gormop.Insert(eng, &User{Role: RoleTypeNormal, Status: StatusNormal, RegisterTime: 3, PlatType: 2, PlatId: "cond_c", NickName: "nc"})
+
+	list, err := gormop.GetList(eng, &User{PlatType: 1})
+	if err != nil {
+		t.Fatal("GetList: ", err)
+	}
+	if len(list) != 2 {
+		t.Errorf("GetList(PlatType=1) len = %d, want 2", len(list))
+	}
+}
+
+// TestGormop_Ctx 带 context 的接口（用 Background 做冒烟测试）。
+func TestGormop_Ctx(t *testing.T) {
+	eng := setupGormTest(t)
+	ctx := context.Background()
+
+	u := &User{
+		Role:         RoleTypeNormal,
+		Status:       StatusNormal,
+		RegisterTime: 1,
+		PlatType:     1,
+		PlatId:       "ctx_plat",
+		NickName:     "ctx_nick",
+	}
+	n, err := gormop.InsertCtx(ctx, eng, u)
+	if err != nil {
+		t.Fatal("InsertCtx: ", err)
+	}
+	if n != 1 || u.Uid <= 0 {
+		t.Errorf("InsertCtx: n=%d uid=%d", n, u.Uid)
+	}
+
+	got, err := gormop.GetByIDCtx(ctx, eng, &User{}, u.Uid)
+	if err != nil {
+		t.Fatal("GetByIDCtx: ", err)
+	}
+	if got == nil || got.NickName != "ctx_nick" {
+		t.Errorf("GetByIDCtx: got %v", got)
+	}
+
+	gotOne, err := gormop.GetOneCtx(ctx, eng, &User{Uid: u.Uid})
+	if err != nil {
+		t.Fatal("GetOneCtx: ", err)
+	}
+	if gotOne == nil || gotOne.NickName != "ctx_nick" {
+		t.Errorf("GetOneCtx: got %v", gotOne)
+	}
+
+	list, err := gormop.GetListCtx(ctx, eng, &User{PlatId: "ctx_plat"})
+	if err != nil {
+		t.Fatal("GetListCtx: ", err)
+	}
+	if len(list) != 1 {
+		t.Errorf("GetListCtx: len = %d", len(list))
+	}
+}
+
+// TestGormop_TransactionWithContext 带 context 的事务提交。
+func TestGormop_TransactionWithContext(t *testing.T) {
+	eng := setupGormTest(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := eng.TransactionWithContext(ctx, func(tx *gorm.DB) error {
+		u := &User{
+			Role:         RoleTypeNormal,
+			Status:       StatusNormal,
+			RegisterTime: 1,
+			PlatType:     1,
+			PlatId:       "txctx_plat",
+			NickName:     "txctx_nick",
+		}
+		_, e := gormop.TxInsert(tx, u)
+		return e
+	})
+	if err != nil {
+		t.Fatal("TransactionWithContext: ", err)
+	}
+
+	got, _ := gormop.GetOne(eng, &User{PlatId: "txctx_plat"})
+	if got == nil || got.NickName != "txctx_nick" {
+		t.Errorf("after TransactionWithContext: got %v", got)
+	}
+}
+
+// TestGormop_NilBean_ReturnsError 参数校验：nil bean 应返回错误而非 panic。
+func TestGormop_NilBean_ReturnsError(t *testing.T) {
+	eng := setupGormTest(t)
+
+	_, err := gormop.Insert(eng, (*User)(nil))
+	if err == nil {
+		t.Error("Insert(nil bean) want error, got nil")
+	}
+
+	_, err = gormop.GetByID(eng, (*User)(nil), int64(1))
+	if err == nil {
+		t.Error("GetByID(nil bean) want error, got nil")
+	}
+
+	_, err = gormop.GetOne(eng, (*User)(nil))
+	if err == nil {
+		t.Error("GetOne(nil bean) want error, got nil")
+	}
+}
+
+// TestGormop_Transaction_TxGetAndUpdate 事务内 TxGetByID + TxUpdate。
+func TestGormop_Transaction_TxGetAndUpdate(t *testing.T) {
+	eng := setupGormTest(t)
+
+	var uid int64
+	err := eng.Transaction(func(tx *gorm.DB) error {
+		u := &User{
+			Role:         RoleTypeNormal,
+			Status:       StatusNormal,
+			RegisterTime: 1,
+			PlatType:     1,
+			PlatId:       "txget_plat",
+			NickName:     "orig",
+		}
+		if _, e := gormop.TxInsert(tx, u); e != nil {
+			return e
+		}
+		uid = u.Uid
+		got, e := gormop.TxGetByID(tx, &User{}, uid)
+		if e != nil {
+			return e
+		}
+		if got == nil || got.NickName != "orig" {
+			return fmt.Errorf("TxGetByID: got %v", got)
+		}
+		got.NickName = "updated_in_tx"
+		_, e = gormop.TxUpdate(tx, &User{Uid: uid}, got)
+		return e
+	})
+	if err != nil {
+		t.Fatal("Transaction: ", err)
+	}
+
+	got, _ := gormop.GetByID(eng, &User{}, uid)
+	if got == nil || got.NickName != "updated_in_tx" {
+		t.Errorf("after tx Update: got %v", got)
 	}
 }
