@@ -78,7 +78,7 @@ func (slf *gateComponent) Init() error {
 		clusterOpts,
 	)
 	// slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
-	slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr)
+	slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId())
 
 	return nil
 }

@@ -92,8 +92,8 @@ func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 	}
 	streamBytes := bb.B
 
-	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](slf.rpcClient, 0, "c2s")
-	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcC2S{
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
+	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
 		Payload:  streamBytes,
 	}, kkrpc.CallConfig{})
@@ -144,6 +144,9 @@ func (rh *rpcHandler) onS2Clients(ctx context.Context, msg *ptotrans.RpcS2Client
 }
 
 func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kknet.CONN_ID) error {
+	if rh.trans.sessionMgr.GetSession(msg.ClientId) == nil {
+		rh.trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
+	}
 	streamBytes := msg.Payload
 	rh.trans.msgReceiver.OnSession(msg.ClientId, streamBytes)
 	return nil

@@ -26,6 +26,12 @@ func GetWithCapacity(capacity int) *ByteBuffer {
 	return defaultPool.GetWithCap(capacity)
 }
 
+func GetWithLenCap(len int, capacity int) *ByteBuffer {
+	bb := defaultPool.GetWithCap(capacity)
+	bb.B = bb.B[:len]
+	return bb
+}
+
 // Put returns byte buffer to the pool.
 //
 // ByteBuffer.B mustn't be touched after returning it to the pool.

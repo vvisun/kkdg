@@ -66,14 +66,16 @@ type transportorRpc struct {
 	rpcSvr       *kkrpc.Server
 	sessionMgr   transface.ISessionManager
 	logicNodeMgr *logicNodeMgr
+	gateNodeId   string
 }
 
 var _ transface.ITransportor = (*transportorRpc)(nil)
 
-func NewTransportorRpc(sessionMgr transface.ISessionManager) transface.ITransportor {
+func NewTransportorRpc(sessionMgr transface.ISessionManager, gateNodeId string) transface.ITransportor {
 	trans := &transportorRpc{
 		sessionMgr:   sessionMgr,
 		logicNodeMgr: &logicNodeMgr{},
+		gateNodeId:   gateNodeId,
 	}
 
 	rpcRouter := kkrpc.NewRpcReceiver()
@@ -107,8 +109,9 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 	streamBytes := msgBytes
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](slf.rpcSvr, memberInfo.connId, "c2s")
 	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcC2S{
-		ClientId: sessionID,
-		Payload:  streamBytes,
+		ClientId:   sessionID,
+		GateNodeId: slf.gateNodeId,
+		Payload:    streamBytes,
 	}, kkrpc.CallConfig{})
 	return nil
 }
@@ -125,7 +128,7 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, msgBytes []byte) er
 		return err //客户端已下线
 	}
 
-	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
+	streamBytes := kkbuffer.GetWithLenCap(len(msgBytes), len(msgBytes))
 	copy(streamBytes.B, msgBytes)
 	if err := conn.SendBuffer(streamBytes); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
