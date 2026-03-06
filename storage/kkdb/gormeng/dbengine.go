@@ -1,6 +1,7 @@
 package gormeng
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -47,6 +48,17 @@ func (e *DbEngine) Transaction(fn func(tx *gorm.DB) error) error {
 		return errNotStarted
 	}
 	return e.dbInst.Transaction(fn)
+}
+
+// TransactionWithContext 在事务中执行 fn，并绑定 ctx（超时/取消会传播到 DB 操作）。若 fn 返回非 nil 错误则回滚，否则提交。
+func (e *DbEngine) TransactionWithContext(ctx context.Context, fn func(tx *gorm.DB) error) error {
+	if e.dbInst == nil {
+		return errNotStarted
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return e.dbInst.WithContext(ctx).Transaction(fn)
 }
 
 func (e *DbEngine) initDB() bool {
