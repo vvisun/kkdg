@@ -11,7 +11,17 @@ func (rh *rpcHandler) onRegister(ctx context.Context, msg *RpcMsgRegister) error
 	return nil
 }
 
-func (rh *rpcHandler) onS2C(ctx context.Context, msg *RpcS2C) error {
+func (rh *rpcHandler) onS2C(ctx context.Context, msg *RpcS2Client) error {
 	rh.trans.ForwardToClient(msg.clientId, msg.payload)
+	return nil
+}
+
+func (rh *rpcHandler) onS2Clients(ctx context.Context, msg *RpcS2Clients) error {
+	// rh.trans.ForwardToClients(msg.clientIds, msg.payload)
+	return nil
+}
+
+func (rh *rpcHandler) onC2S(ctx context.Context, msg *RpcC2S) error {
+	// rh.trans.ForwardToLogic(msg.clientId, msg.payload, msg.logicNodeId)
 	return nil
 }

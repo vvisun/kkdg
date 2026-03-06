@@ -6,8 +6,8 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/transface"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -17,12 +17,37 @@ type logicMemberInfo struct {
 	conn     kknet.IConn
 }
 
+type logicNodeMgr struct {
+	logicNodeMap sync.Map // map[string]*logicMemberInfo
+}
+
+func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, conn kknet.IConn) {
+	memberInfo := &logicMemberInfo{
+		nodeId:   nodeId,
+		nodeType: nodeType,
+		conn:     conn,
+	}
+	slf.logicNodeMap.Store(nodeId, memberInfo)
+}
+
+func (slf *logicNodeMgr) unregisterLogicNode(nodeId string) {
+	slf.logicNodeMap.Delete(nodeId)
+}
+
+func (slf *logicNodeMgr) getLogicNode(nodeId string) *logicMemberInfo {
+	value, ok := slf.logicNodeMap.Load(nodeId)
+	if !ok {
+		return nil
+	}
+	return value.(*logicMemberInfo)
+}
+
 // transportorRpc 使用RPC转发消息
 // 逻辑服先连接到本网关, 然后发送[register:nodeId,nodeType]注册到本网关, 进行注册服务。
 type transportorRpc struct {
 	rpcSvr       *kkrpc.Server
 	sessionMgr   transface.ISessionManager
-	logicNodeMap sync.Map // map[string]*logicMemberInfo
+	logicNodeMgr *logicNodeMgr
 }
 
 var _ transface.ITransportor = (*transportorRpc)(nil)
@@ -32,6 +57,8 @@ func NewTransportorRpc() transface.ITransportor {
 	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)
+	kkrpc.RegistOneWayHandler(rpcRouter, "s2cs", rpcProcessor.onS2Clients)
+	kkrpc.RegistOneWayHandler(rpcRouter, "c2s", rpcProcessor.onC2S)
 
 	rpcSvr := kkrpc.NewServer("", kknet.DefaultOptions(), rpcRouter)
 	if err := rpcSvr.Start(); err != nil {
@@ -46,7 +73,7 @@ func NewTransportorRpc() transface.ITransportor {
 }
 
 func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
-	memberInfo := slf.getLogicNode(logicNodeId)
+	memberInfo := slf.logicNodeMgr.getLogicNode(logicNodeId)
 	if memberInfo == nil {
 		return ErrLogicNodeNotRegistered //逻辑节点未注册
 	}
@@ -54,11 +81,9 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 	if err != nil {
 		return err //客户端已下线
 	}
-	bb, err := kkpacket.DefaultStreamPacket().Pack(msgBytes)
-	if err != nil {
-		return err //打包失败
-	}
-	if err := memberInfo.conn.SendBuffer(bb); err != nil {
+	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
+	copy(streamBytes.B, msgBytes)
+	if err := memberInfo.conn.SendBuffer(streamBytes); err != nil {
 		return err //发送失败
 	}
 	return nil
@@ -76,13 +101,9 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, msgBytes []byte) er
 		return err //客户端已下线
 	}
 
-	// packet.ArgBytes is [message], pack it to [length,message] then send back to client.
-	bb, err := kkpacket.DefaultStreamPacket().Pack(msgBytes)
-	if err != nil {
-		kklog.Errorf("[ccgate] pack response error: %v", err)
-		return err //打包失败
-	}
-	if err := conn.SendBuffer(bb); err != nil {
+	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
+	copy(streamBytes.B, msgBytes)
+	if err := conn.SendBuffer(streamBytes); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
 	}
 	return nil
@@ -93,22 +114,9 @@ func (slf *transportorRpc) GetSessionMgr() transface.ISessionManager {
 }
 
 func (slf *transportorRpc) registerLogicNode(nodeId string, nodeType string, conn kknet.IConn) {
-	memberInfo := &logicMemberInfo{
-		nodeId:   nodeId,
-		nodeType: nodeType,
-		conn:     conn,
-	}
-	slf.logicNodeMap.Store(nodeId, memberInfo)
+	slf.logicNodeMgr.registerLogicNode(nodeId, nodeType, conn)
 }
 
 func (slf *transportorRpc) unregisterLogicNode(nodeId string) {
-	slf.logicNodeMap.Delete(nodeId)
-}
-
-func (slf *transportorRpc) getLogicNode(nodeId string) *logicMemberInfo {
-	value, ok := slf.logicNodeMap.Load(nodeId)
-	if !ok {
-		return nil
-	}
-	return value.(*logicMemberInfo)
+	slf.logicNodeMgr.unregisterLogicNode(nodeId)
 }
