@@ -1,12 +1,14 @@
 package testdb
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/vvisun/kkdg/storage/kkdb"
 	"github.com/vvisun/kkdg/storage/kkdb/gormeng"
 	"github.com/vvisun/kkdg/storage/kkdb/gormop"
+	"gorm.io/gorm"
 )
 
 var testDbEng *gormeng.DbEngine
@@ -199,5 +201,74 @@ func TestGormop_InsertMulty(t *testing.T) {
 	}
 	if beans[0].Uid <= 0 || beans[1].Uid <= 0 {
 		t.Errorf("InsertMulty did not set Uid")
+	}
+}
+
+func TestGormop_Transaction(t *testing.T) {
+	eng := setupGormTest(t)
+
+	err := eng.Transaction(func(tx *gorm.DB) error {
+		u1 := &User{
+			Role:         RoleTypeNormal,
+			Status:       StatusNormal,
+			RegisterTime: 1,
+			PlatType:     1,
+			PlatId:       "tx_plat_1",
+			NickName:     "tx_nick_1",
+		}
+		if _, e := gormop.TxInsert(tx, u1); e != nil {
+			return e
+		}
+		u2 := &User{
+			Role:         RoleTypeNormal,
+			Status:       StatusNormal,
+			RegisterTime: 2,
+			PlatType:     1,
+			PlatId:       "tx_plat_2",
+			NickName:     "tx_nick_2",
+		}
+		_, e := gormop.TxInsert(tx, u2)
+		return e
+	})
+	if err != nil {
+		t.Fatal("Transaction: ", err)
+	}
+
+	// 事务提交后应能查到
+	list, err := gormop.GetList(eng, &User{PlatId: "tx_plat_1"})
+	if err != nil {
+		t.Fatal("GetList: ", err)
+	}
+	if len(list) != 1 || list[0].NickName != "tx_nick_1" {
+		t.Errorf("after transaction: got %v", list)
+	}
+}
+
+func TestGormop_TransactionRollback(t *testing.T) {
+	eng := setupGormTest(t)
+
+	_ = eng.Transaction(func(tx *gorm.DB) error {
+		u := &User{
+			Role:         RoleTypeNormal,
+			Status:       StatusNormal,
+			RegisterTime: 1,
+			PlatType:     1,
+			PlatId:       "tx_rollback_plat",
+			NickName:     "tx_rollback_nick",
+		}
+		if _, e := gormop.TxInsert(tx, u); e != nil {
+			return e
+		}
+		// 返回错误触发回滚
+		return fmt.Errorf("intentional rollback")
+	})
+
+	// 回滚后不应存在该条
+	got, err := gormop.GetOne(eng, &User{PlatId: "tx_rollback_plat"})
+	if err != nil {
+		t.Fatal("GetOne: ", err)
+	}
+	if got != nil {
+		t.Errorf("TransactionRollback: record should not exist, got %v", got)
 	}
 }

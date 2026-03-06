@@ -41,6 +41,14 @@ func (e *DbEngine) GetInst() *gorm.DB {
 	return e.dbInst
 }
 
+// Transaction 在事务中执行 fn。若 fn 返回非 nil 错误则回滚，否则提交。
+func (e *DbEngine) Transaction(fn func(tx *gorm.DB) error) error {
+	if e.dbInst == nil {
+		return errNotStarted
+	}
+	return e.dbInst.Transaction(fn)
+}
+
 func (e *DbEngine) initDB() bool {
 	e.tbMutex.RLock()
 	defer e.tbMutex.RUnlock()
