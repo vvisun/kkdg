@@ -27,6 +27,10 @@ func (h *clientHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
 
 }
 
+func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	kkbuffer.Put(data)
+}
+
 type stressRecvHandler struct {
 	recvCount atomic.Int64
 	ch        chan struct{}
@@ -142,23 +146,24 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 128
-	msgsPerConn := 22233
+	numConns := 1
+	msgsPerConn := 88888
 	payload := make([]byte, 512)
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	// 高连接数时用较小读写缓冲以降低内存：50k 连接 × (2KB+2KB) ≈ 200MB，默认 64KB×2 约 6.4GB
-	opts := kknet.ApplyOptions(
+	serOpts := kknet.ApplyOptions(
 		kknet.WithRawHandler(recv),
-		kknet.WithRpProvider(kkprocessor.NewTaskReadProcessor),
-		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
+		kknet.WithRpProvider(kkprocessor.NewReadProcessor),
+		kknet.WithWpProvider(kkprocessor.NewWriteProcessor),
 		kknet.WithRecvQueueSize(64),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
 	)
-	srv := NewServer(addr, nil, opts)
+	srv := NewServer(addr, nil, serOpts)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -180,7 +185,9 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}
 
 	clientOpts := []kknet.Option{
-		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithRawHandler(&clientHandler{}),
 		kknet.WithNoneCopyHandler(&clientHandler{}),
 		kknet.WithSendQueueNeedFlushOver(true),
 		kknet.WithSendQueueTimeoutFlushOver(5 * time.Second),

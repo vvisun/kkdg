@@ -11,13 +11,13 @@ import (
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
-// TaskReadProcessor 使用全局 workerQueue 并发执行 RawHandler，适合 CPU 绑定型解码/业务处理。
+// WorkerReadProcessor 使用全局 workerQueue 并发执行 RawHandler，适合 CPU 绑定型解码/业务处理。
 // 与 ReadProcessor 的区别：
 //   - 不再为每个连接维护 recvQueue + 消费协程；
 //   - 每个完整 [length,message] 解析后封装为 task，投递到 workerQueue 执行。
 //
 // 仅支持 RawHandler；如果设置了 NoneCopyHandler，应使用 SyncReadProcessor。
-type TaskReadProcessor struct {
+type WorkerReadProcessor struct {
 	conn   kknet.IConn
 	connID kknet.CONN_ID
 	opts   kknet.ReadOptions
@@ -31,15 +31,15 @@ type TaskReadProcessor struct {
 	workers *WorkerQueue
 }
 
-var _ kknet.IReadProcessor = (*TaskReadProcessor)(nil)
+var _ kknet.IReadProcessor = (*WorkerReadProcessor)(nil)
 
-// NewTaskReadProcessor 创建基于 workerQueue 的 ReadProcessor。RawHandler必须设置，NoneCopyHandler会忽略。
+// NewWorkerReadProcessor 创建基于 workerQueue 的 ReadProcessor。RawHandler必须设置，NoneCopyHandler会忽略。
 // maxConcurrency 取自 ReadOptions.WorkerQueueMaxConcurrency（经 CheckReadOptions 归一化后范围在 [1,64]）。
 // 默认 1，表示不并发，保证顺序性。大于1时并发，不保证顺序性。
-func NewTaskReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
+func NewWorkerReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	if opts.RawHandler == nil {
-		panic("RawHandler is required for TaskReadProcessor")
+		panic("RawHandler is required for WorkerReadProcessor")
 	}
 
 	// 不保证RawHandler的顺序性，如果需要保证顺序，可以将RecvBatchSize设置为1。
@@ -47,14 +47,14 @@ func NewTaskReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	if maxConc <= 0 {
 		maxConc = 1
 	}
-	return &TaskReadProcessor{
+	return &WorkerReadProcessor{
 		opts:    opts,
 		workers: NewWorkerQueue(maxConc),
 	}
 }
 
-// Start 记录连接信息；TaskReadProcessor 不需要单独消费协程。
-func (rp *TaskReadProcessor) Start(conn kknet.IConn) {
+// Start 记录连接信息
+func (rp *WorkerReadProcessor) Start(conn kknet.IConn) {
 	rp.conn = conn
 	if conn == nil {
 		return
@@ -63,12 +63,12 @@ func (rp *TaskReadProcessor) Start(conn kknet.IConn) {
 }
 
 // Stop 标记关闭；已入队但未执行的任务在执行时会检测 closing 标志并安全退出。
-func (rp *TaskReadProcessor) Stop() {
+func (rp *WorkerReadProcessor) Stop() {
 	rp.closing.Store(true)
 }
 
 // EnqueuePacket 适用于上层已完成切包的场景（如 gnet SplitSR 得到完整 [length,message]）。
-func (rp *TaskReadProcessor) EnqueuePacket(packet []byte) {
+func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) {
 	if len(packet) == 0 {
 		return
 	}
@@ -82,7 +82,7 @@ func (rp *TaskReadProcessor) EnqueuePacket(packet []byte) {
 }
 
 // OnRecvBytes 负责从字节流中拆出 [length,message] 帧，并将每帧封装为 task 投递到 workerQueue。
-func (rp *TaskReadProcessor) OnRecvBytes(data []byte) error {
+func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
@@ -135,7 +135,7 @@ func (rp *TaskReadProcessor) OnRecvBytes(data []byte) error {
 }
 
 // reRecvBuf 重新分配残包缓冲区。
-func (rp *TaskReadProcessor) reRecvBuf(capacity int) {
+func (rp *WorkerReadProcessor) reRecvBuf(capacity int) {
 	if rp.recvBuf == nil {
 		rp.recvBuf = byteslice.GetZero(capacity)
 		return
@@ -146,7 +146,7 @@ func (rp *TaskReadProcessor) reRecvBuf(capacity int) {
 }
 
 // submitTask 将一个完整包提交到 workerQueue，异步调用 RawHandler。
-func (rp *TaskReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
+func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	if bb == nil {
 		return
 	}

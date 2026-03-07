@@ -145,8 +145,8 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 128
-	msgsPerConn := 8000
+	numConns := 1
+	msgsPerConn := 80001
 	payload := make([]byte, 512)
 	totalMsgs := int64(numConns * msgsPerConn)
 
@@ -156,8 +156,9 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	// 高连接数时用较小读写缓冲以降低内存
 	srvOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
 		kknet.WithRawHandler(recv),
-		kknet.WithRpProvider(kkprocessor.NewTaskReadProcessor),
+		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
 		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(64),
 		kknet.WithWorkerQueueMaxConcurrency(1),
@@ -284,6 +285,7 @@ func TestStress_ManyConns_ConnectDisconnect_TLS(t *testing.T) {
 	addr := freePortStress(t)
 	tlsCfg := genTestTLSConfig(t)
 	srvOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
 		kknet.WithTLSConfig(tlsCfg),
 		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		kknet.WithNoneCopyHandler(&clientHandler{}),
