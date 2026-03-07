@@ -1,3 +1,5 @@
+// Package kkbuffer 提供字节缓冲池与 ByteBuffer，供网络封包等场景复用。
+// Get/GetWithCapacity 从池中获取，Put 归还；归还后 ByteBuffer.B 不可再访问。
 package kkbuffer
 
 const (

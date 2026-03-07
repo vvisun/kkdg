@@ -1,10 +1,4 @@
-/*
-*
-
-基于gnet实现的TCP客户端和服务器。
-不支持tls。需要tls请使用kktcptls。
-
-gnet: 是一个高性能的网络库，支持TCP和UDP协议。
-地址: https://github.com/panjf2000/gnet
-*/
+// Package kktcp 基于 gnet 实现 TCP 服务端与客户端，不支持 TLS；需要 TLS 请使用 kktcptls。
+//
+// gnet: https://github.com/panjf2000/gnet
 package kktcp
