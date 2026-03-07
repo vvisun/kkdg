@@ -146,8 +146,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 1
-	msgsPerConn := 88888
+	numConns := 16
+	msgsPerConn := 8888
 	payload := make([]byte, 512)
 	totalMsgs := int64(numConns * msgsPerConn)
 
@@ -155,10 +155,11 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	// 高连接数时用较小读写缓冲以降低内存：50k 连接 × (2KB+2KB) ≈ 200MB，默认 64KB×2 约 6.4GB
 	serOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
 		kknet.WithRawHandler(recv),
 		kknet.WithNoneCopyHandler(&clientHandler{}),
-		kknet.WithRpProvider(kkprocessor.NewReadProcessor),
-		kknet.WithWpProvider(kkprocessor.NewWriteProcessor),
+		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(64),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
@@ -185,6 +186,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}
 
 	clientOpts := []kknet.Option{
+		kknet.WithLogger(kklog.Nop()),
 		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
 		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRawHandler(&clientHandler{}),

@@ -34,7 +34,10 @@ func BenchmarkWSConn_SendBuffer(b *testing.B) {
 	}
 	defer client.Close()
 
-	payload := []byte("bench")
+	payload := make([]byte, 512)
+	for i := range payload {
+		payload[i] = 0x01
+	}
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {

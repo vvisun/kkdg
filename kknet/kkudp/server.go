@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/xos"
 )
 
 // Server represents a UDP server.
@@ -63,7 +64,12 @@ func (s *Server) Start() error {
 
 	handler := &udpEventHandler{server: s}
 	go func() {
-		err := gnet.Run(handler, "udp://"+s.addr, gnet.WithMulticore(true))
+		err := gnet.Run(handler, "udp://"+s.addr,
+			gnet.WithMulticore(true),
+			gnet.WithNumEventLoop(xos.NumCPU()),
+			gnet.WithReadBufferCap(s.opts.ReadBufferSize),
+			gnet.WithWriteBufferCap(s.opts.WriteBufferSize),
+		)
 		s.done <- err
 	}()
 
