@@ -101,46 +101,59 @@ func CheckOptions(opts *Options) {
 
 	// 读写缓冲区大小。太大连接数一多内存消耗非常高。太小影响性能。
 	if opts.ReadBufferSize < 1024 {
+		kklog.Debugf("opts ReadBufferSize fixed from %d to %d", opts.ReadBufferSize, 1024)
 		opts.ReadBufferSize = 1024
 	}
 	if opts.ReadBufferSize > 32*1024 {
+		kklog.Debugf("opts ReadBufferSize fixed from %d to %d", opts.ReadBufferSize, 32*1024)
 		opts.ReadBufferSize = 32 * 1024
 	}
 	if opts.WriteBufferSize < 1024 {
+		kklog.Debugf("opts WriteBufferSize fixed from %d to %d", opts.WriteBufferSize, 1024)
 		opts.WriteBufferSize = 1024
 	}
 	if opts.WriteBufferSize > 32*1024 {
+		kklog.Debugf("opts WriteBufferSize fixed from %d to %d", opts.WriteBufferSize, 32*1024)
 		opts.WriteBufferSize = 32 * 1024
 	}
 
 	if opts.ReadTimeout > 0 && opts.ReadTimeout < 1*time.Second {
+		kklog.Debugf("opts ReadTimeout fixed from %d to %d", opts.ReadTimeout, 1*time.Second)
 		opts.ReadTimeout = 1 * time.Second
 	}
 	if opts.WriteTimeout > 0 && opts.WriteTimeout < 1*time.Second {
+		kklog.Debugf("opts WriteTimeout fixed from %d to %d", opts.WriteTimeout, 1*time.Second)
 		opts.WriteTimeout = 1 * time.Second
 	}
 	if opts.PingInterval > 0 && opts.PingInterval < 3*time.Second {
+		kklog.Debugf("opts PingInterval fixed from %d to %d", opts.PingInterval, 3*time.Second)
 		opts.PingInterval = 3 * time.Second
 	}
 
 	if opts.ReconnectInterval > 0 && opts.ReconnectInterval < 500*time.Millisecond {
+		kklog.Debugf("opts ReconnectInterval fixed from %d to %d", opts.ReconnectInterval, 500*time.Millisecond)
 		opts.ReconnectInterval = 500 * time.Millisecond
 	}
 	if opts.ReconnectMaxInterval <= 0 {
+		kklog.Debugf("opts ReconnectMaxInterval fixed from %d to %d", opts.ReconnectMaxInterval, 30*time.Second)
 		opts.ReconnectMaxInterval = 30 * time.Second
 	}
 	if opts.ReconnectMaxInterval < opts.ReconnectInterval {
+		kklog.Debugf("opts ReconnectMaxInterval fixed from %d to %d", opts.ReconnectMaxInterval, opts.ReconnectInterval)
 		opts.ReconnectMaxInterval = opts.ReconnectInterval
 	}
 
 	if opts.ShutdownTimeout > 0 && opts.ShutdownTimeout < 500*time.Millisecond {
+		kklog.Debugf("opts ShutdownTimeout fixed from %d to %d", opts.ShutdownTimeout, 500*time.Millisecond)
 		opts.ShutdownTimeout = 500 * time.Millisecond
 	}
 
 	if opts.UDPConnIdleTimeout > 0 && opts.UDPConnIdleTimeout < 500*time.Millisecond {
+		kklog.Debugf("opts UDPConnIdleTimeout fixed from %d to %d", opts.UDPConnIdleTimeout, 500*time.Millisecond)
 		opts.UDPConnIdleTimeout = 500 * time.Millisecond
 	}
 	if opts.UDPCleanupInterval > 0 && opts.UDPCleanupInterval < 500*time.Millisecond {
+		kklog.Debugf("opts UDPCleanupInterval fixed from %d to %d", opts.UDPCleanupInterval, 500*time.Millisecond)
 		opts.UDPCleanupInterval = 500 * time.Millisecond
 	}
 
@@ -304,6 +317,8 @@ func WithRpProvider(provider RpProvider) Option {
 	}
 }
 
+//--------------------------------------------------
+
 // WithRawHandler sets raw handler.
 func WithRawHandler(handler IRawHandler) Option {
 	return func(o *Options) {
@@ -350,6 +365,8 @@ func WithRecvQueueFullCallback(callback func(conn IConn)) Option {
 		o.RpOptions.RecvQueueFullCallback = callback
 	}
 }
+
+//--------------------------------------------------
 
 // WithSendQueueSize sets the send queue size for WebSocket connections.
 func WithSendQueueSize(size int) Option {
