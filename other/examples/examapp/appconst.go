@@ -8,14 +8,14 @@ import (
 
 const (
 	NatsURL      = "nats://127.0.0.1:4222"
-	UseTransType = kkapp.TransTypeRpc
+	UseTransType = kkapp.TransTypeNats
 	GateTCPAddr  = "127.0.0.1:19090"
 	GateWSAddr   = "127.0.0.1:19091"
 	RpcAddr      = "127.0.0.1:19092"
 )
 
 const (
-	ClientConnNum      = 200
+	ClientConnNum      = 2000
 	ClientConnDelay    = 5 * time.Millisecond
 	ClientSendInterval = 1000 * time.Millisecond
 )

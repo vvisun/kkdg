@@ -77,6 +77,7 @@ func (slf *transportorNats) ForwardToClient(sessionID string, msgBytes []byte) e
 		return err //客户端已下线
 	}
 
+	// 这里需要复制，因为传递过来的msgBytes可能会被其他地方回收修改。
 	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
 	streamBytes.WriteBytes(msgBytes)
 
@@ -104,7 +105,8 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, msgBytes []byt
 			continue //客户端已下线
 		}
 
-		// SendBuffer会自动释放streamBytes。所以需要复制一份。
+		// 这里需要复制，因为传递过来的msgBytes可能会被其他地方回收修改。
+		// 而且SendBuffer会自动释放streamBytes。所以需要复制一份。
 		streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
 		streamBytes.WriteBytes(msgBytes)
 

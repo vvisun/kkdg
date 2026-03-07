@@ -115,6 +115,7 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 		return err //客户端已下线
 	}
 
+	// 这里无需复制，因为InvokeNR会编码自动复制一次。
 	streamBytes := msgBytes
 
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](slf.rpcSvr, memberInfo.connId, "c2s")
@@ -139,7 +140,7 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, msgBytes []byte) er
 		return err //客户端已下线
 	}
 
-	// msgBytes指向flatbuffer的内存，所以需要复制一份。
+	// 这里需要复制，因为传递过来的msgBytes可能会被其他地方回收修改。
 	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
 	streamBytes.WriteBytes(msgBytes)
 
@@ -167,7 +168,8 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, msgBytes []byte
 			continue //客户端已下线
 		}
 
-		// SendBuffer会自动释放streamBytes。所以需要复制一份。
+		// 这里需要复制，因为传递过来的msgBytes可能会被其他地方回收修改。
+		// 而且SendBuffer会自动释放streamBytes。所以需要复制一份。
 		streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
 		streamBytes.WriteBytes(msgBytes)
 

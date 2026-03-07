@@ -63,8 +63,8 @@ func TestMsgReceiver_OnRawWithParser(t *testing.T) {
 	router.Register(1, &testMsg{}, "test")
 	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
-	receiver := NewMsgReceiverWithParser[kknet.CONN_ID](msgPacket, func(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error) {
-		return 1, data.Bytes(), nil
+	receiver := NewMsgReceiverWithParser[kknet.CONN_ID](msgPacket, func(data []byte) (kkpacket.MSGID, []byte, error) {
+		return 1, data, nil
 	})
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
 		fmt.Println(msg)

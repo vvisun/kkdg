@@ -6,7 +6,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-type MetaParser func(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error)
+type MetaParser func(data []byte) (kkpacket.MSGID, []byte, error)
 
 // MsgReceiver 消息接收器
 type MsgReceiver[K any] struct {
@@ -23,13 +23,14 @@ func (r *MsgReceiver[K]) SetNeedCopyInOnSession(isNeedCopy bool) {
 	r.needCopyInOnSession = isNeedCopy
 }
 
-// 解析出: msgID-消息ID，bodyBytes-消息对象二进制数据
-func (r *MsgReceiver[K]) parseMsgInfo(data *kkbuffer.ByteBuffer) (kkpacket.MSGID, []byte, error) {
+// 解析出: msgID-消息ID，bodyBytes-消息对象二进制数据.
+// 注意，返回的bodyBytes是指向data内部的切片
+func (r *MsgReceiver[K]) parseMsgInfo(data []byte) (kkpacket.MSGID, []byte, error) {
 	if r.metaParser != nil {
 		return r.metaParser(data)
 	}
 	// 默认实现
-	messageBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	messageBytes, err := kkpacket.DefaultStreamPacket().Unpack(data)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -50,7 +51,7 @@ var _ kknet.IRawHandler = (*MsgReceiver[kknet.CONN_ID])(nil)
 // @param connId 连接ID
 // @param data 原始数据 完整包[length,message]
 func (r *MsgReceiver[K]) OnRaw(connId K, data *kkbuffer.ByteBuffer) {
-	msgID, bodyBytes, err := r.parseMsgInfo(data)
+	msgID, bodyBytes, err := r.parseMsgInfo(data.Bytes())
 	if err != nil {
 		kkbuffer.Put(data)
 		return
@@ -70,30 +71,17 @@ func (r *MsgReceiver[K]) OnRaw(connId K, data *kkbuffer.ByteBuffer) {
 // @param sessionID 会话ID
 // @param messageBytes 消息数据 packet的[message]部分
 func (r *MsgReceiver[K]) OnSession(sessionID K, streamBytes []byte) {
-	// if use transportor rpc. need copy streamBytes to a new buffer.
-	// if use transportor nats. not need copy.
-	var data *kkbuffer.ByteBuffer
-	if r.needCopyInOnSession {
-		data = kkbuffer.GetWithCapacity(len(streamBytes))
-		data.WriteBytes(streamBytes)
-	} else {
-		data = kkbuffer.NewByteBuffer(streamBytes)
-	}
-
-	msgID, bodyBytes, err := r.parseMsgInfo(data)
+	msgID, bodyBytes, err := r.parseMsgInfo(streamBytes)
 	if err != nil {
-		kkbuffer.Put(data)
 		return
 	}
 
 	h, ok := r.hdMap[msgID]
 	if !ok || h == nil {
-		kkbuffer.Put(data)
 		return
 	}
 
 	h.OnRaw(sessionID, bodyBytes)
-	kkbuffer.Put(data)
 }
 
 //--------------------------------------------------
