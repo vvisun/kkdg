@@ -6,13 +6,19 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+const (
+	defaultRequestTimeout time.Duration = 2 * time.Second // request timeout default value
+)
+
 func defaultNatsOptions() nats.Options {
 	opts := nats.GetDefaultOptions()
 	opts.Url = "nats://127.0.0.1:4222"
+	opts.RetryOnFailedConnect = true
 	opts.AllowReconnect = true
 	opts.MaxReconnect = -1
 	opts.ReconnectWait = 2 * time.Second
 	opts.Timeout = 5 * time.Second
+	opts.PingInterval = 15 * time.Second
 	return opts
 }
 

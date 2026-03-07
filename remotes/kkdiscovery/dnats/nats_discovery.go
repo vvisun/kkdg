@@ -305,6 +305,7 @@ func (d *NatsDiscovery) publishSelf() error {
 	if d.closing.Load() {
 		status = kkdiscovery.NodeStatusOffline // 正在关闭，设置为离线
 	}
+
 	memberInfo := kkdiscovery.MemberInfo{
 		NodeID:   d.nodeID,
 		NodeType: d.nodeType,
@@ -335,7 +336,7 @@ func (d *NatsDiscovery) publishSelf() error {
 
 // heartbeatLoop 心跳循环
 func (d *NatsDiscovery) heartbeatLoop() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(defaultPublishSelfInterval)
 	defer ticker.Stop()
 
 	for {
@@ -406,10 +407,10 @@ func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 
 // checkMemberTimeout 检查成员超时
 func (d *NatsDiscovery) checkMemberTimeout() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(defaultCheckMemberInterval)
 	defer ticker.Stop()
 
-	timeout := 15 * time.Second // 成员超时时间
+	timeout := defaultMemberTimeout // 成员超时时间
 
 	for {
 		select {

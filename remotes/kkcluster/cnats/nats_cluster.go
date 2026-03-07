@@ -20,24 +20,24 @@ type NatsCluster struct {
 	discovery kkdiscovery.IDiscovery
 	conn      *nats.Conn
 
+	stopCh chan struct{}
+
 	// 请求响应处理
-	requestSub  *nats.Subscription
-	responseSub *nats.Subscription
-	requestMap  map[string]chan *kkcluster.ClusterResponse
-	requestMu   sync.RWMutex
-	reqMap      map[string]*asyncReq
-	reqMu       sync.Mutex
+	requestSub   *nats.Subscription
+	responseSub  *nats.Subscription
+	requestMap   map[string]chan *kkcluster.ClusterResponse //同步请求的响应通道
+	requestMapMu sync.RWMutex
+	reqMap       map[string]*asyncReq //异步请求的回调函数
+	reqMu        sync.Mutex
 
 	// 发布消息订阅
 	publishSub *nats.Subscription
-
-	// 类型发布消息订阅（使用队列组）
+	// 类型发布消息订阅
 	typePublishSub *nats.Subscription
 
-	// 发布消息处理器
+	// 发布消息处理器. 外部设置，内部调用
 	publishHandler func(nodeID string, packet *kkcluster.ClusterPacket)
-
-	// 请求处理器
+	// 请求处理器. 外部设置，内部调用
 	requestHandler func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error)
 
 	// 订阅管理（用于重连时重新订阅）
@@ -46,8 +46,7 @@ type NatsCluster struct {
 	// 统计信息
 	stats kkcluster.ClusterStats
 
-	stopCh chan struct{}
-
+	// NATS配置
 	options nats.Options
 }
 
@@ -231,7 +230,7 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 	return nil
 }
 
-// PublishRemoteType 根据节点类型发布消息
+// PublishRemoteType 发布消息到指定类型的所有节点
 // 优化：只需发布一次到类型主题，所有订阅了该类型主题的节点都会收到消息
 // 注意：节点在 Init() 时会订阅自己类型的主题，使用普通 Subscribe（不是 QueueSubscribe）
 // 如果需要负载均衡（消息只被一个节点接收），应使用 QueueSubscribe
@@ -286,7 +285,7 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		return kkerrors.ErrMemberNotFound
 	}
 
-	reqTimeout := 5 * time.Second
+	reqTimeout := defaultRequestTimeout
 	if len(timeout) > 0 && timeout[0] > 0 {
 		reqTimeout = timeout[0]
 	}
@@ -365,7 +364,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	}
 
 	// 设置超时
-	reqTimeout := 5 * time.Second
+	reqTimeout := defaultRequestTimeout
 	if len(timeout) > 0 && timeout[0] > 0 {
 		reqTimeout = timeout[0]
 	}
@@ -376,15 +375,15 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 
 	// 创建响应通道（不关闭，避免超时后晚到响应向已关闭 channel 发送导致 panic）
 	responseCh := make(chan *kkcluster.ClusterResponse, 1)
-	c.requestMu.Lock()
+	c.requestMapMu.Lock()
 	c.requestMap[requestID] = responseCh
-	c.requestMu.Unlock()
+	c.requestMapMu.Unlock()
 
 	// 确保清理
 	defer func() {
-		c.requestMu.Lock()
+		c.requestMapMu.Lock()
 		delete(c.requestMap, requestID)
-		c.requestMu.Unlock()
+		c.requestMapMu.Unlock()
 	}()
 
 	// 创建请求消息
@@ -484,9 +483,9 @@ func (c *NatsCluster) handleResponse(msg *nats.Msg) {
 	}
 
 	// 1) 优先投递同步请求（如果还在等待）
-	c.requestMu.RLock()
+	c.requestMapMu.RLock()
 	ch := c.requestMap[resp.RequestID]
-	c.requestMu.RUnlock()
+	c.requestMapMu.RUnlock()
 	if ch != nil {
 		select {
 		case ch <- &resp:
