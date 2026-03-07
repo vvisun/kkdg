@@ -14,10 +14,6 @@ type IConn interface {
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 	//发送结构体对象。内部会使用kkpacket编码
 	SendMsg(msg any) error
-
-	BindUser(uid USER_ID)
-	UnbindUser()
-	GetUserId() USER_ID
 }
 
 // IConnLifecycleHandler handles connection lifecycle.
@@ -39,10 +35,6 @@ type IConnManager interface {
 	GetConn(id CONN_ID) IConn                           //获取指定连接
 	KickConn(id CONN_ID)                                //踢出指定连接
 	GetCount() int                                      //获取连接数量
-	KickUser(uid USER_ID)                               //踢出指定用户
-	GetConnByUser(uid USER_ID) IConn                    //获取指定用户连接
-	BindUser(c IConn, uid USER_ID)                      //绑定用户到连接
-	UnbindUser(c IConn)                                 //解绑用户从连接
 }
 
 // IServer represents a server.

@@ -1,7 +1,6 @@
 package kkprocessor
 
 import (
-	"context"
 	"sync"
 	"testing"
 	"time"
@@ -50,13 +49,8 @@ type mockConnForRead struct {
 func (m *mockConnForRead) ID() kknet.CONN_ID                     { return m.id }
 func (m *mockConnForRead) Close() error                          { return nil }
 func (m *mockConnForRead) RemoteAddr() string                    { return "mock:0" }
-func (m *mockConnForRead) Context() context.Context              { return context.Background() }
-func (m *mockConnForRead) SetContext(context.Context)            {}
 func (m *mockConnForRead) SendBuffer(*kkbuffer.ByteBuffer) error { return nil }
 func (m *mockConnForRead) SendMsg(any) error                     { return nil }
-func (m *mockConnForRead) BindUser(kknet.USER_ID)                {}
-func (m *mockConnForRead) UnbindUser()                           {}
-func (m *mockConnForRead) GetUserId() kknet.USER_ID              { return kknet.NULL_USER_ID }
 
 func TestReadProcessor_OnRecvBytes_SinglePacket(t *testing.T) {
 	h := &collectingRawHandler{}

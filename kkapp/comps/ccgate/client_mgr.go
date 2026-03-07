@@ -3,6 +3,7 @@ package ccgate
 import (
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
 )
@@ -17,8 +18,8 @@ type clientInfo struct {
 	connId    kknet.CONN_ID // 客户端连接ID
 	userId    kknet.USER_ID // 用户ID
 	sessionId string        // 客户端会话ID
-	// key: nodeType。
-	// 本客户端链接的逻辑节点列表。
+	// key: nodeType, value: *logicNodeInfo。
+	// 本客户端链接的逻辑节点字典。
 	// 同一个客户端可能链接不同类型的逻辑服，比如充值服，大厅服，游戏服，聊天服等。
 	logicNodeMap sync.Map // map[string]*logicNodeInfo
 }
@@ -59,14 +60,21 @@ func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {
 
 // 客户端管理器。
 type clientManager struct {
-	clientMap sync.Map // map[kknet.CONN_ID]*clientInfo
-	userMap   sync.Map // map[kknet.USER_ID]*clientInfo
+	clientMap   sync.Map // map[kknet.CONN_ID]*clientInfo
+	userMap     sync.Map // map[kknet.USER_ID]*clientInfo
+	clientCount int32
+	userCount   int32
 }
 
 // 添加连接connId的客户端。
 func (m *clientManager) addClient(connId kknet.CONN_ID, sessionId string) *clientInfo {
+	if info := m.getClient(connId); info != nil {
+		info.sessionId = sessionId
+		return info
+	}
 	cliInfo := newClientInfo(connId, sessionId)
 	m.clientMap.Store(connId, cliInfo)
+	atomic.AddInt32(&m.clientCount, 1)
 	return cliInfo
 }
 
@@ -79,6 +87,10 @@ func (m *clientManager) removeClient(connId kknet.CONN_ID) {
 	uid := cliInfo.userId
 	m.clientMap.Delete(connId)
 	m.userMap.Delete(uid)
+	atomic.AddInt32(&m.clientCount, -1)
+	if uid != kknet.NULL_USER_ID {
+		atomic.AddInt32(&m.userCount, -1)
+	}
 }
 
 // 根据connId获取客户端信息。
@@ -106,23 +118,6 @@ func (m *clientManager) allocLogicNode(connId kknet.CONN_ID, nodeType string, no
 		return nil
 	}
 	return cliInfo.allocLogicNode(nodeType, nodeId)
-}
-
-// 连接connId的客户端登录到nodeType类型的逻辑节点。
-func (m *clientManager) loginToLogicNode(connId kknet.CONN_ID, nodeType string, userId kknet.USER_ID) bool {
-	if userId == kknet.NULL_USER_ID {
-		return false
-	}
-	cliInfo := m.getClient(connId)
-	if cliInfo == nil {
-		return false
-	}
-	lgcInfo := cliInfo.getLogicNode(nodeType)
-	if lgcInfo == nil {
-		return false
-	}
-	lgcInfo.userId = userId
-	return true
 }
 
 // 检查是否需要踢出旧用户。如果需要踢出，则返回需要踢出的connId。
@@ -161,7 +156,25 @@ func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId kknet.USER_ID) 
 
 	cliInfo.userId = userId
 	m.userMap.Store(userId, cliInfo)
+	atomic.AddInt32(&m.userCount, 1)
 	return true, kickConnId
+}
+
+// 连接connId的客户端登录到nodeType类型的逻辑节点。
+func (m *clientManager) loginToLogicNode(connId kknet.CONN_ID, nodeType string, userId kknet.USER_ID) bool {
+	if userId == kknet.NULL_USER_ID {
+		return false
+	}
+	cliInfo := m.getClient(connId)
+	if cliInfo == nil {
+		return false
+	}
+	lgcInfo := cliInfo.getLogicNode(nodeType)
+	if lgcInfo == nil {
+		return false
+	}
+	lgcInfo.userId = userId
+	return true
 }
 
 //------------------------------------------------------------

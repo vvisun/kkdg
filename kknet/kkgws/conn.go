@@ -19,7 +19,6 @@ const sessionKeyConn = "_kkgws"
 
 type gwsConn struct {
 	id     kknet.CONN_ID
-	uid    kknet.USER_ID
 	socket *gws.Conn
 	opts   *kknet.Options
 	stats  *kknet.Stats
@@ -66,18 +65,6 @@ func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsC
 
 func (c *gwsConn) ID() kknet.CONN_ID {
 	return c.id
-}
-
-func (c *gwsConn) BindUser(uid kknet.USER_ID) {
-	c.uid = uid
-}
-
-func (c *gwsConn) UnbindUser() {
-	c.uid = kknet.NULL_USER_ID
-}
-
-func (c *gwsConn) GetUserId() kknet.USER_ID {
-	return c.uid
 }
 
 func (c *gwsConn) RemoteAddr() string {

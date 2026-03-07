@@ -12,7 +12,6 @@ import (
 
 type gnetClientConn struct {
 	id    kknet.CONN_ID
-	uid   kknet.USER_ID
 	conn  gnet.Conn
 	opts  *kknet.Options
 	stats *kknet.Stats
@@ -56,18 +55,6 @@ func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gn
 
 func (c *gnetClientConn) ID() kknet.CONN_ID {
 	return c.id
-}
-
-func (c *gnetClientConn) BindUser(uid kknet.USER_ID) {
-	c.uid = uid
-}
-
-func (c *gnetClientConn) UnbindUser() {
-	c.uid = kknet.NULL_USER_ID
-}
-
-func (c *gnetClientConn) GetUserId() kknet.USER_ID {
-	return c.uid
 }
 
 func (c *gnetClientConn) RemoteAddr() string {

@@ -1,7 +1,6 @@
 package kkprocessor
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -23,13 +22,8 @@ type mockConn struct {
 func (m *mockConn) ID() kknet.CONN_ID                       { return m.id }
 func (m *mockConn) Close() error                            { return nil }
 func (m *mockConn) RemoteAddr() string                      { return "mock:0" }
-func (m *mockConn) Context() context.Context                { return context.Background() }
-func (m *mockConn) SetContext(ctx context.Context)          {}
 func (m *mockConn) SendBuffer(_ *kkbuffer.ByteBuffer) error { return nil }
 func (m *mockConn) SendMsg(_ any) error                     { return nil }
-func (m *mockConn) BindUser(_ kknet.USER_ID)                {}
-func (m *mockConn) UnbindUser()                             {}
-func (m *mockConn) GetUserId() kknet.USER_ID                { return kknet.NULL_USER_ID }
 
 func TestWriteProcessor_DropMode(t *testing.T) {
 	opts := kknet.WriteOptions{

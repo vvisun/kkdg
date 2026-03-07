@@ -12,7 +12,6 @@ import (
 
 type tcpConn struct {
 	id    kknet.CONN_ID
-	uid   kknet.USER_ID
 	conn  gnet.Conn
 	opts  *kknet.Options
 	stats *kknet.Stats
@@ -57,18 +56,6 @@ func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
 
 func (c *tcpConn) ID() kknet.CONN_ID {
 	return c.id
-}
-
-func (c *tcpConn) BindUser(uid kknet.USER_ID) {
-	c.uid = uid
-}
-
-func (c *tcpConn) UnbindUser() {
-	c.uid = kknet.NULL_USER_ID
-}
-
-func (c *tcpConn) GetUserId() kknet.USER_ID {
-	return c.uid
 }
 
 func (c *tcpConn) RemoteAddr() string {

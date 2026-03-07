@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
@@ -21,7 +20,6 @@ import (
 type TaskReadProcessor struct {
 	conn   kknet.IConn
 	connID kknet.CONN_ID
-	userID kknet.USER_ID
 	opts   kknet.ReadOptions
 
 	recvBuf  []byte                        // 残包缓冲区
@@ -35,13 +33,11 @@ type TaskReadProcessor struct {
 
 var _ kknet.IReadProcessor = (*TaskReadProcessor)(nil)
 
-// NewTaskReadProcessor 创建基于 workerQueue 的 ReadProcessor。
-// maxConcurrency 取自 ReadOptions.RecvBatchSize（经 CheckReadOptions 归一化后范围在 [8,64]）。
+// NewTaskReadProcessor 创建基于 workerQueue 的 ReadProcessor。RawHandler必须设置，NoneCopyHandler会忽略。
+// maxConcurrency 取自 ReadOptions.WorkerQueueMaxConcurrency（经 CheckReadOptions 归一化后范围在 [1,64]）。
+// 默认 1，表示不并发，保证顺序性。大于1时并发，不保证顺序性。
 func NewTaskReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
-	if opts.NoneCopyHandler != nil {
-		kklog.Warnf("TaskReadProcessor with NoneCopyHandler, NoneCopyHandler will be ignored")
-	}
 	if opts.RawHandler == nil {
 		panic("RawHandler is required for TaskReadProcessor")
 	}

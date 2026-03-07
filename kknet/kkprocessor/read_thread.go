@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -23,7 +22,6 @@ const defaultRecvBufSize int = 1 * 1024 // 接收缓冲区大小，1KB
 type ReadProcessor struct {
 	conn   kknet.IConn       //连接
 	connID kknet.CONN_ID     //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
-	userID kknet.USER_ID     //用户ID，记录下来，方便业务逻辑层使用。记录conn绑定的用户ID。
 	opts   kknet.ReadOptions //选项
 
 	recvBuf  []byte                        //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
@@ -44,11 +42,9 @@ var _ kknet.IReadProcessor = (*ReadProcessor)(nil)
 // per connection per goroutine
 // 每个连接一个携程，消费recvQueue中的数据，并分发消息。
 // 保证顺序性，适合RawHandler逻辑较重的场景。
+// RawHandler必须设置，NoneCopyHandler会忽略。
 func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
-	if opts.NoneCopyHandler != nil {
-		kklog.Warnf("ReadProcessor with NoneCopyHandler, NoneCopyHandler will be ignored")
-	}
 	if opts.RawHandler == nil {
 		panic("RawHandler is required")
 	}

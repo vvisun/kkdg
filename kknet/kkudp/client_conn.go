@@ -11,7 +11,6 @@ import (
 
 type clientConn struct {
 	id    kknet.CONN_ID
-	uid   kknet.USER_ID
 	conn  *net.UDPConn
 	opts  kknet.Options
 	stats *kknet.Stats
@@ -33,18 +32,6 @@ func newClientConn(conn *net.UDPConn, opts kknet.Options, stats *kknet.Stats) *c
 
 func (c *clientConn) ID() kknet.CONN_ID {
 	return c.id
-}
-
-func (c *clientConn) BindUser(uid kknet.USER_ID) {
-	c.uid = uid
-}
-
-func (c *clientConn) UnbindUser() {
-	c.uid = kknet.NULL_USER_ID
-}
-
-func (c *clientConn) GetUserId() kknet.USER_ID {
-	return c.uid
 }
 
 func (c *clientConn) RemoteAddr() string {

@@ -19,7 +19,6 @@ import (
 
 type wsConn struct {
 	id    kknet.CONN_ID
-	uid   kknet.USER_ID
 	conn  *websocket.Conn
 	opts  *kknet.Options // 配置
 	stats *kknet.Stats   // 统计信息
@@ -65,18 +64,6 @@ func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *w
 
 func (c *wsConn) ID() kknet.CONN_ID {
 	return c.id
-}
-
-func (c *wsConn) BindUser(uid kknet.USER_ID) {
-	c.uid = uid
-}
-
-func (c *wsConn) UnbindUser() {
-	c.uid = kknet.NULL_USER_ID
-}
-
-func (c *wsConn) GetUserId() kknet.USER_ID {
-	return c.uid
 }
 
 func (c *wsConn) RemoteAddr() string {
