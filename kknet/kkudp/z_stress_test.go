@@ -56,9 +56,9 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 8
-	msgsPerConn := 666
-	payload := make([]byte, 256)
+	numConns := 666
+	msgsPerConn := 8
+	payload := make([]byte, 128)
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freeUDPPort(t)
@@ -114,8 +114,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 					errCh <- err
 					return
 				}
-				if (j+1)%512 == 0 {
-					time.Sleep(1 * time.Millisecond)
+				if (j+1)%64 == 0 {
+					time.Sleep(2 * time.Millisecond)
 				}
 			}
 			clientsMu.Lock()
@@ -136,7 +136,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	select {
 	case <-recv.ch:
 		// 收齐
-	case <-time.After(20 * time.Second):
+	case <-time.After(15 * time.Second):
 		got := recv.Count()
 		kklog.Debugf("stress: timeout %d/%d received", got, totalMsgs)
 	}
