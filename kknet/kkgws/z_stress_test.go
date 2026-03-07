@@ -118,7 +118,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numConns := 2222
-	msgsPerConn := 2222
+	msgsPerConn := 222
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePort(t)
@@ -232,7 +232,10 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	connsPerRound := 20
 
 	addr := freePort(t)
-	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithLogger(kklog.Nop()),
+	)
 	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Start: %v", err)

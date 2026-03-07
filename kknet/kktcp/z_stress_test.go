@@ -273,7 +273,16 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	connsPerRound := 20
 
 	addr := freePortStress(t)
-	srv := NewServer(addr, nil, kknet.DefaultOptions())
+	srv := NewServer(addr, nil, kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
+		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithWorkerQueueMaxConcurrency(1),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+	))
 	if err := srv.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -287,7 +296,14 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				client := NewClient(addr, nil, kknet.DefaultOptions())
+				client := NewClient(addr, nil, kknet.ApplyOptions(
+					kknet.WithLogger(kklog.Nop()),
+					kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
+					kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+					kknet.WithRawHandler(&clientHandler{}),
+					kknet.WithNoneCopyHandler(&clientHandler{}),
+					kknet.WithRecvQueueSize(64),
+				))
 				_ = client.Connect()
 				time.Sleep(5 * time.Millisecond)
 				_ = client.Close()
