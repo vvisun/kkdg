@@ -11,7 +11,7 @@ import (
 func BenchmarkWorkerQueue_PushNoOp(b *testing.B) {
 	var chk int64 = 0
 	var nnn int64 = 0
-	wq := newWorkerQueue(1)
+	wq := NewWorkerQueue(1)
 	noOp := func() {
 		preNNN := nnn
 		nnn++
@@ -34,7 +34,7 @@ func BenchmarkWorkerQueue_PushNoOp(b *testing.B) {
 // Benchmark workerQueue 端到端：每轮 push 一批并等待完成，maxConcurrency=1。
 func BenchmarkWorkerQueue_ThroughputConcurrency1(b *testing.B) {
 	const batch = 64
-	wq := newWorkerQueue(1)
+	wq := NewWorkerQueue(1)
 	var wg sync.WaitGroup
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -50,7 +50,7 @@ func BenchmarkWorkerQueue_ThroughputConcurrency1(b *testing.B) {
 // Benchmark workerQueue 端到端：每轮 push 一批并等待完成，maxConcurrency=4。
 func BenchmarkWorkerQueue_ThroughputConcurrency4(b *testing.B) {
 	const batch = 64
-	wq := newWorkerQueue(4)
+	wq := NewWorkerQueue(4)
 	var wg sync.WaitGroup
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -66,7 +66,7 @@ func BenchmarkWorkerQueue_ThroughputConcurrency4(b *testing.B) {
 // Benchmark workerQueue 端到端：每轮 push 一批并等待完成，maxConcurrency=16。
 func BenchmarkWorkerQueue_ThroughputConcurrency16(b *testing.B) {
 	const batch = 64
-	wq := newWorkerQueue(16)
+	wq := NewWorkerQueue(16)
 	var wg sync.WaitGroup
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -82,7 +82,7 @@ func BenchmarkWorkerQueue_ThroughputConcurrency16(b *testing.B) {
 // Benchmark workerQueue 批量 Push 后等待全部执行完（模拟 TaskReadProcessor 场景）。
 func BenchmarkWorkerQueue_BatchPushThenWait(b *testing.B) {
 	const batch = 64
-	wq := newWorkerQueue(4)
+	wq := NewWorkerQueue(4)
 	var wg sync.WaitGroup
 	b.ReportAllocs()
 	b.ResetTimer()

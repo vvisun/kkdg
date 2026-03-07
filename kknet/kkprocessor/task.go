@@ -21,7 +21,7 @@ type RecvMessage struct {
 type (
 	// 任务队列
 	// Task queue
-	workerQueue struct {
+	WorkerQueue struct {
 		// mu 互斥锁
 		// mutex
 		mu sync.Mutex
@@ -47,8 +47,8 @@ type (
 // 创建一个任务队列
 // Creates a task queue
 // @param maxConcurrency 最大并发数，1表示串行，大于1表示并发
-func newWorkerQueue(maxConcurrency int32) *workerQueue {
-	c := &workerQueue{
+func NewWorkerQueue(maxConcurrency int32) *WorkerQueue {
+	c := &WorkerQueue{
 		mu:             sync.Mutex{},
 		maxConcurrency: maxConcurrency,
 		curConcurrency: 0,
@@ -58,7 +58,7 @@ func newWorkerQueue(maxConcurrency int32) *workerQueue {
 
 // 获取一个任务
 // Retrieves a job from the worker queue
-func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
+func (c *WorkerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -79,7 +79,7 @@ func (c *workerQueue) getJob(newJob asyncJob, delta int32) asyncJob {
 
 // 循环执行任务
 // Do continuously executes jobs in the worker queue
-func (c *workerQueue) do(job asyncJob) {
+func (c *WorkerQueue) do(job asyncJob) {
 	for job != nil {
 		job()
 		job = c.getJob(nil, -1)
@@ -88,7 +88,7 @@ func (c *workerQueue) do(job asyncJob) {
 
 // Push 追加任务, 有资源空闲的话会立即执行
 // Adds a job to the queue and executes it immediately if resources are available
-func (c *workerQueue) Push(job asyncJob) {
+func (c *WorkerQueue) Push(job asyncJob) {
 	if nextJob := c.getJob(job, 0); nextJob != nil {
 		go c.do(nextJob)
 	}

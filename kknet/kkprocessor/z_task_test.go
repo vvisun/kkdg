@@ -9,7 +9,7 @@ import (
 
 func TestWorkerQueue_ExecutesAllJobs(t *testing.T) {
 	const N = 100
-	wq := newWorkerQueue(4)
+	wq := NewWorkerQueue(4)
 	var count atomic.Int32
 	var wg sync.WaitGroup
 	wg.Add(N)
@@ -27,7 +27,7 @@ func TestWorkerQueue_ExecutesAllJobs(t *testing.T) {
 
 func TestWorkerQueue_OrderWhenConcurrencyOne(t *testing.T) {
 	const N = 500000
-	wq := newWorkerQueue(1)
+	wq := NewWorkerQueue(1)
 	//var mu sync.Mutex
 	var order []int = make([]int, 0, N)
 	done := make(chan struct{})
@@ -63,7 +63,7 @@ func TestWorkerQueue_OrderWhenConcurrencyOne(t *testing.T) {
 func TestWorkerQueue_RespectsMaxConcurrency(t *testing.T) {
 	const maxConc = 3
 	const numJobs = 20
-	wq := newWorkerQueue(maxConc)
+	wq := NewWorkerQueue(maxConc)
 	var current atomic.Int32
 	var maxSeen atomic.Int32
 	var wg sync.WaitGroup
@@ -94,7 +94,7 @@ func TestWorkerQueue_RespectsMaxConcurrency(t *testing.T) {
 }
 
 func TestWorkerQueue_PushNilNoPanic(t *testing.T) {
-	wq := newWorkerQueue(1)
+	wq := NewWorkerQueue(1)
 	wq.Push(nil)
 	wq.Push(nil)
 	// 再推一个真实任务，确保队列能继续工作

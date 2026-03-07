@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/kktime"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
@@ -52,9 +53,10 @@ type NatsCluster struct {
 
 var _ kkcluster.ICluster = (*NatsCluster)(nil)
 
-// asyncReq 异步请求，直接用 callback 避免 channel 分配
+// asyncReq 异步请求，直接用 callback 避免 channel 分配；timer 用于超时，响应先到时需 Stop 取消
 type asyncReq struct {
-	cb func(data []byte, errCode kkcluster.ClusterErrorCode)
+	cb    func(data []byte, errCode kkcluster.ClusterErrorCode)
+	timer interface{ Stop() bool } // *timingwheel.Timer，响应到达时 Stop 避免重复回调
 }
 
 // NewNatsCluster 创建新的NATS集群
@@ -327,8 +329,9 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 
 	c.stats.AddRequestSent(len(data))
 
-	go func() {
-		time.Sleep(reqTimeout)
+	// 使用时间轮统一调度超时，避免每个异步请求起一个 goroutine
+	tw := kktime.GetNetTimingWheel()
+	timer := tw.AfterFunc(reqTimeout, func() {
 		c.reqMu.Lock()
 		p := c.reqMap[requestID]
 		delete(c.reqMap, requestID)
@@ -346,7 +349,12 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 				cb(nil, kkcluster.ClusterErrorCodeTimeout)
 			})
 		}
-	}()
+	})
+	c.reqMu.Lock()
+	if p := c.reqMap[requestID]; p != nil {
+		p.timer = timer
+	}
+	c.reqMu.Unlock()
 
 	return nil
 }
@@ -502,6 +510,10 @@ func (c *NatsCluster) handleResponse(msg *nats.Msg) {
 	c.reqMu.Unlock()
 	if p == nil || p.cb == nil {
 		return
+	}
+	// 取消超时 timer，避免响应到达后超时回调再次触发
+	if p.timer != nil {
+		p.timer.Stop()
 	}
 
 	// 记录接收响应统计（异步路径只有这里能统计）

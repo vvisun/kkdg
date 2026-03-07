@@ -12,7 +12,7 @@ var (
 	onceNetTWStart sync.Once
 	onceNetTWStop  sync.Once
 	netTWTick            = 500 * time.Millisecond
-	netTWWheelSize int64 = 60
+	netTWWheelSize int64 = 120 // 120 * 500ms = 1min
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 	onceGameTWStart sync.Once
 	onceGameTWStop  sync.Once
 	gameTWTick            = 1 * time.Millisecond
-	gameTWWheelSize int64 = 20
+	gameTWWheelSize int64 = 100 // 100 * 1ms = 100ms
 )
 
 func GetNetTimingWheel() *timingwheel.TimingWheel {

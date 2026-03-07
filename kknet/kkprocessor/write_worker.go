@@ -31,7 +31,7 @@ type WorkerWriteProcessor struct {
 	closing   atomic.Bool
 	stopErr   error // Stop(err) 传入，供 shutdownJob 判断是否 flush
 
-	wq *workerQueue // 写任务队列，maxConcurrency=1 保证顺序
+	wq *WorkerQueue // 写任务队列，maxConcurrency=1 保证顺序
 
 	drainedCh chan struct{}
 	doneCh    chan struct{}
@@ -48,7 +48,7 @@ func NewWorkerWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	wp := &WorkerWriteProcessor{
 		opts:      opts,
 		sendQueue: bbqueue.NewFIFOQueue(opts.SendQueueSize, opts.SendQueueStrict),
-		wq:        newWorkerQueue(1), // 单 worker 串行写，保证顺序
+		wq:        NewWorkerQueue(1), // 单 worker 串行写，保证顺序
 		drainedCh: make(chan struct{}),
 		doneCh:    make(chan struct{}),
 	}

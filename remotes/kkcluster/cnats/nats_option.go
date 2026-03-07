@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 const (
@@ -25,7 +26,10 @@ func defaultNatsOptions() nats.Options {
 func ApplyNatsOptions(options ...nats.Option) nats.Options {
 	opts := defaultNatsOptions()
 	for _, option := range options {
-		option(&opts)
+		err := option(&opts)
+		if err != nil {
+			kklog.Errorf("ApplyNatsOptions error: %v", err)
+		}
 	}
 	return opts
 }

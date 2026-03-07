@@ -28,7 +28,7 @@ type TaskReadProcessor struct {
 	mu      sync.Mutex
 	closing atomic.Bool
 
-	workers *workerQueue
+	workers *WorkerQueue
 }
 
 var _ kknet.IReadProcessor = (*TaskReadProcessor)(nil)
@@ -49,7 +49,7 @@ func NewTaskReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	}
 	return &TaskReadProcessor{
 		opts:    opts,
-		workers: newWorkerQueue(maxConc),
+		workers: NewWorkerQueue(maxConc),
 	}
 }
 
