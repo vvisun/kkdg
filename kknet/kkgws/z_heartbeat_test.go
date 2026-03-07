@@ -42,7 +42,7 @@ func TestHeartbeat_OnlyPing_NoAppData(t *testing.T) {
 		t.Skip("skipping heartbeat test in short mode")
 	}
 
-	addr := freePortStress(t)
+	addr := freePort(t)
 
 	// 服务端：读超时 4s，Ping 间隔 2s，只要心跳正常就不会因读超时关闭。
 	srvOpts := kknet.ApplyOptions(
@@ -87,7 +87,7 @@ func TestPingPong_Keepalive(t *testing.T) {
 		t.Skip("skipping ping/pong test in short mode")
 	}
 
-	addr := freePortStress(t)
+	addr := freePort(t)
 	recvCh := make(chan []byte, 4)
 	opts := kknet.ApplyOptions(
 		kknet.WithReadTimeout(4*time.Second),

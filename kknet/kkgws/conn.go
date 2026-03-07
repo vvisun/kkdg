@@ -16,6 +16,7 @@ import (
 )
 
 const sessionKeyConn = "_kkgws"
+const enableWP = false
 
 type gwsConn struct {
 	id     kknet.CONN_ID
@@ -44,14 +45,16 @@ func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsC
 		stats:  stats,
 	}
 
-	if opts.WpProvider != nil {
-		c.wp = opts.WpProvider(opts.WpOptions)
-	} else {
-		c.wp = defaultWpProvider(opts.WpOptions)
+	if enableWP {
+		if opts.WpProvider != nil {
+			c.wp = opts.WpProvider(opts.WpOptions)
+		} else {
+			c.wp = defaultWpProvider(opts.WpOptions)
+		}
+		c.wp.Start(c, c.writeBatch, func(_ error) {
+			_ = socket.WriteClose(1011, nil)
+		})
 	}
-	c.wp.Start(c, c.writeBatch, func(_ error) {
-		_ = socket.WriteClose(1011, nil)
-	})
 
 	if opts.RpProvider != nil {
 		c.rp = opts.RpProvider(opts.RpOptions)
@@ -192,11 +195,13 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrConnectionClosed
 	}
-	// if c.wp == nil {
-	// 	kkbuffer.Put(buffer)
-	// 	return kkerrors.ErrConnectionClosed
-	// }
-	// return c.wp.SendBuffer(buffer)
+	if enableWP {
+		if c.wp == nil {
+			kkbuffer.Put(buffer)
+			return kkerrors.ErrConnectionClosed
+		}
+		return c.wp.SendBuffer(buffer)
+	}
 	c.socket.WriteAsync(gws.OpcodeBinary, buffer.B, func(err error) {
 		if err != nil {
 			if c.stats != nil {

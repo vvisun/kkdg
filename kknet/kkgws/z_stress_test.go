@@ -60,17 +60,6 @@ func (h *noopRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	kkbuffer.Put(data)
 }
 
-func freePortStress(t *testing.T) string {
-	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
-	addr := ln.Addr().String()
-	_ = ln.Close()
-	return addr
-}
-
 func waitTCPReady(t *testing.T, addr string, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -128,11 +117,11 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 5555
-	msgsPerConn := 555
+	numConns := 2222
+	msgsPerConn := 2222
 	totalMsgs := int64(numConns * msgsPerConn)
 
-	addr := freePortStress(t)
+	addr := freePort(t)
 	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
 		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
@@ -242,7 +231,7 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	rounds := 100
 	connsPerRound := 20
 
-	addr := freePortStress(t)
+	addr := freePort(t)
 	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
 	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {

@@ -1,6 +1,7 @@
 package kkgws
 
 import (
+	"net"
 	"testing"
 	"time"
 
@@ -9,6 +10,17 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
+
+func freePort(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	addr := ln.Addr().String()
+	_ = ln.Close()
+	return addr
+}
 
 func TestServer_NewServer(t *testing.T) {
 	addr := "127.0.0.1:0"
@@ -40,7 +52,7 @@ func TestServer_SetPath(t *testing.T) {
 }
 
 func TestServer_Start_Stop(t *testing.T) {
-	addr := freePortStress(t)
+	addr := freePort(t)
 	s := NewServer(addr, nil, kknet.DefaultOptions())
 	if err := s.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
@@ -67,7 +79,7 @@ func TestServer_Stop_WithoutStart(t *testing.T) {
 }
 
 func TestServer_Addr_Stats_GetConnManager(t *testing.T) {
-	addr := freePortStress(t)
+	addr := freePort(t)
 	s := NewServer(addr, nil, kknet.DefaultOptions())
 	if s.Addr() != addr {
 		t.Errorf("Addr() = %q, want %q", s.Addr(), addr)
@@ -93,7 +105,7 @@ func TestServer_Addr_Stats_GetConnManager(t *testing.T) {
 }
 
 func TestServer_ConnManager_GetConn_KickConn(t *testing.T) {
-	addr := freePortStress(t)
+	addr := freePort(t)
 	handler := &testHandler{
 		onConnect: func(c kknet.IConn) {},
 		onClose:   func(c kknet.IConn, err error) {},
@@ -163,7 +175,7 @@ func (h *testHandler) OnClose(c kknet.IConn, err error) {
 }
 
 func TestServer_Stop_ClosesConnections(t *testing.T) {
-	addr := freePortStress(t)
+	addr := freePort(t)
 	closed := make(chan struct{})
 	handler := &testHandler{
 		onClose: func(c kknet.IConn, err error) { close(closed) },
@@ -191,7 +203,7 @@ func TestServer_Stop_ClosesConnections(t *testing.T) {
 }
 
 func TestServerClient_Integration_Echo(t *testing.T) {
-	addr := freePortStress(t)
+	addr := freePort(t)
 	recvCh := make(chan []byte, 16)
 	var serverConn kknet.IConn
 	echoHandler := &echoHandler{
