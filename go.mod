@@ -68,7 +68,7 @@ require (
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
-	github.com/google/uuid v1.6.0
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/lestrrat-go/strftime v1.1.1
 	github.com/panjf2000/ants/v2 v2.11.4
