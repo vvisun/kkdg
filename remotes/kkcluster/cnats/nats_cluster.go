@@ -7,6 +7,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -49,6 +50,8 @@ type NatsCluster struct {
 
 	// NATS配置
 	options nats.Options
+
+	workerQueue *kkprocessor.WorkerQueue
 }
 
 var _ kkcluster.ICluster = (*NatsCluster)(nil)
@@ -59,16 +62,21 @@ type asyncReq struct {
 	timer interface{ Stop() bool } // *timingwheel.Timer，响应到达时 Stop 避免重复回调
 }
 
+var asyncReqPool = sync.Pool{
+	New: func() interface{} { return &asyncReq{} },
+}
+
 // NewNatsCluster 创建新的NATS集群
 func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options nats.Options) kkcluster.ICluster {
 	return &NatsCluster{
-		nodeID:     nodeID,
-		nodeType:   nodeType,
-		discovery:  discovery,
-		requestMap: make(map[string]chan *kkcluster.ClusterResponse),
-		reqMap:     make(map[string]*asyncReq),
-		stopCh:     make(chan struct{}),
-		options:    options,
+		nodeID:      nodeID,
+		nodeType:    nodeType,
+		discovery:   discovery,
+		requestMap:  make(map[string]chan *kkcluster.ClusterResponse),
+		reqMap:      make(map[string]*asyncReq),
+		stopCh:      make(chan struct{}),
+		options:     options,
+		workerQueue: kkprocessor.NewWorkerQueue(1),
 	}
 }
 
@@ -295,7 +303,9 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 
 	requestID := c.generateRequestID()
 
-	pending := &asyncReq{cb: callback}
+	pending := asyncReqPool.Get().(*asyncReq)
+	pending.cb = callback
+	pending.timer = nil
 	c.reqMu.Lock()
 	c.reqMap[requestID] = pending
 	c.reqMu.Unlock()
@@ -312,6 +322,8 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		c.reqMu.Lock()
 		delete(c.reqMap, requestID)
 		c.reqMu.Unlock()
+		pending.cb, pending.timer = nil, nil
+		asyncReqPool.Put(pending)
 		c.stats.AddError()
 		kklog.Errorf("NatsCluster(%s) marshal async request failed: requestID=%s targetNode=%s err=%v", c.nodeID, requestID, nodeID, err)
 		return err
@@ -322,6 +334,8 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		c.reqMu.Lock()
 		delete(c.reqMap, requestID)
 		c.reqMu.Unlock()
+		pending.cb, pending.timer = nil, nil
+		asyncReqPool.Put(pending)
 		c.stats.AddError()
 		kklog.Errorf("NatsCluster(%s) publish async request failed: subject=%s requestID=%s targetNode=%s bytes=%d err=%v", c.nodeID, requestSubject, requestID, nodeID, len(data), err)
 		return err
@@ -339,6 +353,8 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		if p != nil {
 			c.stats.AddError()
 			cb := p.cb
+			p.cb, p.timer = nil, nil
+			asyncReqPool.Put(p)
 			xcall.AntsGo(func() {
 				defer func() {
 					if r := recover(); r != nil {
@@ -523,6 +539,8 @@ func (c *NatsCluster) handleResponse(msg *nats.Msg) {
 	copy(data, resp.Data)
 	code := kkcluster.ClusterErrorCode(resp.Code)
 	cb := p.cb
+	p.cb, p.timer = nil, nil
+	asyncReqPool.Put(p)
 	xcall.AntsGo(func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -594,25 +612,27 @@ func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 	// 记录接收发布消息统计
 	c.stats.AddPublishReceived(len(msg.Data))
 
-	var packet kkcluster.ClusterPacket
-	if err := msgCodec.Unmarshal(msg.Data, &packet); err != nil {
-		kklog.Errorf("NatsCluster(%s) unmarshal publish packet failed: %v", c.nodeID, err)
-		c.stats.AddError()
-		return
-	}
+	c.workerQueue.Push(func() {
+		var packet kkcluster.ClusterPacket
+		if err := msgCodec.Unmarshal(msg.Data, &packet); err != nil {
+			kklog.Errorf("NatsCluster(%s) unmarshal publish packet failed: %v", c.nodeID, err)
+			c.stats.AddError()
+			return
+		}
 
-	// 调用用户注册的处理器
-	if c.publishHandler != nil {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					c.stats.AddError()
-					kklog.Errorf("NatsCluster(%s) publish handler panic: %v", c.nodeID, r)
-				}
+		// 调用用户注册的处理器
+		if c.publishHandler != nil {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						c.stats.AddError()
+						kklog.Errorf("NatsCluster(%s) publish handler panic: %v", c.nodeID, r)
+					}
+				}()
+				c.publishHandler(packet.SourcePath, &packet)
 			}()
-			c.publishHandler(packet.SourcePath, &packet)
-		}()
-	}
+		}
+	})
 }
 
 // handleTypePublish 处理类型发布消息（来自类型主题）
@@ -620,25 +640,27 @@ func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 	// 记录接收发布消息统计
 	c.stats.AddPublishReceived(len(msg.Data))
 
-	var packet kkcluster.ClusterPacket
-	if err := msgCodec.Unmarshal(msg.Data, &packet); err != nil {
-		kklog.Errorf("NatsCluster(%s) unmarshal type publish packet failed: %v", c.nodeID, err)
-		c.stats.AddError()
-		return
-	}
+	c.workerQueue.Push(func() {
+		var packet kkcluster.ClusterPacket
+		if err := msgCodec.Unmarshal(msg.Data, &packet); err != nil {
+			kklog.Errorf("NatsCluster(%s) unmarshal type publish packet failed: %v", c.nodeID, err)
+			c.stats.AddError()
+			return
+		}
 
-	// 调用用户注册的处理器
-	if c.publishHandler != nil {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					c.stats.AddError()
-					kklog.Errorf("NatsCluster(%s) type publish handler panic: %v", c.nodeID, r)
-				}
+		// 调用用户注册的处理器
+		if c.publishHandler != nil {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						c.stats.AddError()
+						kklog.Errorf("NatsCluster(%s) type publish handler panic: %v", c.nodeID, r)
+					}
+				}()
+				c.publishHandler(packet.SourcePath, &packet)
 			}()
-			c.publishHandler(packet.SourcePath, &packet)
-		}()
-	}
+		}
+	})
 }
 
 // generateRequestID 生成请求ID

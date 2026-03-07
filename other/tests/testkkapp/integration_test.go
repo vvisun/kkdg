@@ -90,7 +90,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	natsURL := requireNATS(t)
 	tcpAddr := freePort(t)
 	rpcAddr := freePort(t)
-	const transType = kkapp.TransTypeRpc
+	const transType = kkapp.TransTypeNats
 
 	InitMsgs(t)
 

@@ -151,6 +151,7 @@ func BenchmarkRequestRemote(b *testing.B) {
 	}
 }
 
+// BenchmarkRequestRemoteAsync 测量异步请求往返。建议加 -benchtime=5s 获得更多迭代与稳定 ns/op。
 func BenchmarkRequestRemoteAsync(b *testing.B) {
 	cluster1, cluster2, cleanup := setupBenchCluster(b)
 	defer cleanup()
@@ -165,21 +166,23 @@ func BenchmarkRequestRemoteAsync(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
+	var wg sync.WaitGroup
 	for i := 0; i < b.N; i++ {
 		packet := kkcluster.NewClusterPacket()
 		packet.FuncName = "test"
 		packet.ArgBytes = []byte("bench")
-		done := make(chan struct{})
+		wg.Add(1)
 		err := cluster1.RequestRemoteAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
 			if code != kkcluster.ClusterErrorCodeSuccess {
 				b.Errorf("RequestRemoteAsync code = %v", code)
 			}
-			close(done)
+			wg.Done()
 		}, 5*time.Second)
 		if err != nil {
+			wg.Done()
 			b.Fatalf("RequestRemoteAsync: %v", err)
 		}
-		<-done
+		wg.Wait()
 	}
 }
 
