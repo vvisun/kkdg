@@ -85,7 +85,7 @@ func CheckWriteOptions(opts *WriteOptions) {
 		opts.BatchWriteLimitBytes = 512
 	}
 	if opts.BatchWriteLimitBytes > 4096 {
-		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 2048)
+		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 4096)
 		opts.BatchWriteLimitBytes = 4096
 	}
 	if opts.SendQueueRetryInterval <= 0 {
