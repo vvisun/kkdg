@@ -1,4 +1,4 @@
-package kkspsc
+package kkspmc
 
 import (
 	"sync/atomic"
@@ -10,15 +10,15 @@ type node[T any] struct {
 	value *T
 }
 
-// Queue 单生产者单消费者无锁队列，基于链表，不限制容量。
-// 仅一个 goroutine 可调用 Push，仅一个 goroutine 可调用 Pop。
+// Queue 单生产者多消费者无锁队列，基于链表，不限制容量。
+// 仅一个 goroutine 可调用 Push，多个 goroutine 可并发调用 Pop。
 type Queue[T any] struct {
-	head   atomic.Pointer[node[T]] // 哨兵节点，首个元素在 head.next
-	tail   atomic.Pointer[node[T]] // 队尾节点
+	head   atomic.Pointer[node[T]] // 哨兵节点，首个元素在 head.next，多消费者 CAS 竞争
+	tail   atomic.Pointer[node[T]] // 队尾节点，仅生产者写入
 	length atomic.Int64            // 当前长度，供 Len() 观测
 }
 
-// NewQueue 创建无界 SPSC 队列。
+// NewQueue 创建无界 SPMC 队列。
 func NewQueue[T any]() *Queue[T] {
 	dummy := &node[T]{}
 	q := &Queue[T]{}
@@ -28,6 +28,7 @@ func NewQueue[T any]() *Queue[T] {
 }
 
 // Push 由生产者调用，将 item 入队，永不因容量失败。
+// 仅允许一个 goroutine 调用。
 func (q *Queue[T]) Push(item *T) {
 	n := &node[T]{value: item}
 	tail := q.tail.Load()
@@ -36,17 +37,20 @@ func (q *Queue[T]) Push(item *T) {
 	q.length.Add(1)
 }
 
-// Pop 由消费者调用，出队一个元素。队列空时返回 (nil, false)。
+// Pop 由任意消费者调用，出队一个元素。队列空时返回 (nil, false)。
+// 多 goroutine 可并发调用。
 func (q *Queue[T]) Pop() (*T, bool) {
-	head := q.head.Load()
-	next := head.next.Load()
-	if next == nil {
-		return nil, false
+	for {
+		head := q.head.Load()
+		next := head.next.Load()
+		if next == nil {
+			return nil, false
+		}
+		if q.head.CompareAndSwap(head, next) {
+			q.length.Add(-1)
+			return next.value, true
+		}
 	}
-	head.next.Store(nil)
-	q.head.Store(next)
-	q.length.Add(-1)
-	return next.value, true
 }
 
 // Len 返回当前队列中的元素个数（近似值，仅用于观测）。
