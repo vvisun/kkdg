@@ -1,7 +1,4 @@
-package kkpacket
-
 /*
-
 整包格式：packet = [length,head,body]
 
 [length]: 存放[message]的长度。占2或4个字节。默认占4个字节。
@@ -10,5 +7,5 @@ package kkpacket
 
 stream = [length,message]
 message = [head,body]
-
 */
+package kkpacket

@@ -1,23 +1,22 @@
 package kkapp
 
 const (
-	NodeTypeGate  = "gate"  // 网关服
-	NodeTypeLogic = "logic" // 业务服
+	NodeTypeGate    = "gate"    // 网关服
+	NodeTypeLogic   = "logic"   // 业务服|游戏服
+	NodeTypeLogin   = "login"   // 登录服
+	NodeTypeChat    = "chat"    // 聊天服
+	NodeTypeWorld   = "world"   // 世界服
+	NodeTypeMatch   = "match"   // 匹配服
+	NodeTypeBattle  = "battle"  // 战斗服
+	NodeTypeSocial  = "social"  // 社交服
+	NodeTypeEconomy = "economy" // 经济服
+	NodeTypeAdmin   = "admin"   // 管理服|后台
 )
 
+// 传输层类型。用于网关与业务服之间的消息转发。
 type TransType = string
 
 const (
-	TransTypeNats TransType = "nats"
-	TransTypeRpc  TransType = "rpc"
+	TransTypeNats TransType = "nats" // 使用nats集群转发消息
+	TransTypeRpc  TransType = "rpc"  // 使用rpc转发消息
 )
-
-const (
-	SubEventNodeWeight = "EventNodeWeight" // 节点权重事件
-)
-
-type EventNodeWeight struct {
-	NodeID string
-	Weight int // 权重（目前直接用在线连接数作为权重）
-	Status int // 状态（NodeStatusOnline或NodeStatusOffline）
-}
