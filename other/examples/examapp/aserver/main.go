@@ -15,20 +15,13 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-var (
-	natsURL     = examapp.NatsURL
-	gateTcpAddr = examapp.GateTCPAddr
-	gateWsAddr  = examapp.GateWSAddr
-	rpcAddr     = examapp.RpcAddr
-	withGate    = false
-)
-
 func main() {
+	examapp.ParseFlags(nil)
 	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
 
 	// gate 节点
 	var gateApp *component.Application
-	if withGate {
+	if examapp.WithGate {
 		gateApp = runGate()
 	}
 
@@ -48,13 +41,13 @@ func main() {
 }
 
 func runGate() *component.Application {
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, gateTcpAddr, "", nil)
+	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, examapp.GateTCPAddr, "", nil)
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
-		TCPAddr:       gateTcpAddr,
-		WSAddr:        gateWsAddr,
-		RpcAddr:       rpcAddr,
-		NatsURL:       natsURL,
+		TCPAddr:       examapp.GateTCPAddr,
+		WSAddr:        examapp.GateWSAddr,
+		RpcAddr:       examapp.RpcAddr,
+		NatsURL:       examapp.NatsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     examapp.UseTransType,
 	}
@@ -74,8 +67,8 @@ func runGame() *component.Application {
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent(ccgame.Option{
 		TransType: examapp.UseTransType,
-		RpcAddr:   rpcAddr,
-		NatsURL:   natsURL,
+		RpcAddr:   examapp.RpcAddr,
+		NatsURL:   examapp.NatsURL,
 	})
 
 	msgReceiver := game.GetMsgReceiver()

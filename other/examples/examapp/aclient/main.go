@@ -20,23 +20,19 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-var tcpAddr = examapp.GateTCPAddr
-var wsAddr = examapp.GateWSAddr
 var autoId int64 = 0
 
 func main() {
+	examapp.ParseFlags(nil)
 	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
-
-	connNum := examapp.ClientConnNum
-	connDelay := examapp.ClientConnDelay
 
 	client := runOneClient()
 
-	for i := 0; i < connNum; i++ {
+	for i := 0; i < examapp.ClientConnNum; i++ {
 		go func() {
 			runOneClient()
 		}()
-		time.Sleep(connDelay)
+		time.Sleep(examapp.ClientConnDelay)
 	}
 
 	// 等待信号退出
@@ -63,11 +59,11 @@ func runOneClient() kknet.IClient {
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(msgReceiver),
 	)
-	if wsAddr != "" {
-		u := url.URL{Scheme: "ws", Host: wsAddr, Path: "/ws"}
+	if examapp.GateWSAddr != "" {
+		u := url.URL{Scheme: "ws", Host: examapp.GateWSAddr, Path: "/ws"}
 		client = kkgws.NewClient(u.String(), handler, opts)
-	} else if tcpAddr != "" {
-		client = kktcp.NewClient(tcpAddr, handler, opts)
+	} else if examapp.GateTCPAddr != "" {
+		client = kktcp.NewClient(examapp.GateTCPAddr, handler, opts)
 	} else {
 		kklog.Errorf("tcpAddr or wsAddr is empty")
 		return nil

@@ -13,14 +13,8 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-var (
-	natsURL = examapp.NatsURL
-	tcpAddr = examapp.GateTCPAddr
-	wsAddr  = examapp.GateWSAddr
-	rpcAddr = examapp.RpcAddr
-)
-
 func main() {
+	examapp.ParseFlags(nil)
 	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
 
 	// gate 节点
@@ -36,13 +30,13 @@ func main() {
 }
 
 func runGate() *component.Application {
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", nil)
+	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, examapp.GateTCPAddr, "", nil)
 	gateApp := component.NewApplication(gateNode)
 	gateOpt := ccgate.Option{
-		TCPAddr:       tcpAddr,
-		WSAddr:        wsAddr,
-		RpcAddr:       rpcAddr,
-		NatsURL:       natsURL,
+		TCPAddr:       examapp.GateTCPAddr,
+		WSAddr:        examapp.GateWSAddr,
+		RpcAddr:       examapp.RpcAddr,
+		NatsURL:       examapp.NatsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     examapp.UseTransType,
 	}
