@@ -12,18 +12,6 @@ type Member struct {
 
 var _ IMember = (*Member)(nil)
 
-// NewMember 创建新的成员
-func NewMember(nodeID, nodeType, address string, weight int, status int, settings map[string]string) *Member {
-	return &Member{
-		nodeID:   nodeID,
-		nodeType: nodeType,
-		address:  address,
-		weight:   weight,
-		status:   status,
-		settings: settings,
-	}
-}
-
 // GetNodeID 获取节点ID
 func (m *Member) GetNodeID() string {
 	return m.nodeID

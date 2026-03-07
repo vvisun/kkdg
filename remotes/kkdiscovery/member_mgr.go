@@ -99,21 +99,23 @@ func (m *MemberMgr) RemoveMember(nodeID string) {
 // 获取成员
 func (m *MemberMgr) GetMember(nodeID string) (IMember, bool) {
 	m.membersMu.RLock()
-	defer m.membersMu.RUnlock()
 	member, ok := m.members[nodeID]
+	m.membersMu.RUnlock()
 	if !ok {
 		return nil, false
 	}
 	return member, true
 }
 
+// 获取成员数量
 func (m *MemberMgr) MemberCount() int {
 	m.membersMu.RLock()
-	defer m.membersMu.RUnlock()
-	return len(m.members)
+	count := len(m.members)
+	m.membersMu.RUnlock()
+	return count
 }
 
-// 遍历成员 fn返回false时停止遍历
+// 遍历成员, fn返回false时停止遍历
 func (m *MemberMgr) Range(fn func(nodeID string, member IMember) bool) {
 	m.membersMu.RLock()
 	defer m.membersMu.RUnlock()
@@ -124,7 +126,7 @@ func (m *MemberMgr) Range(fn func(nodeID string, member IMember) bool) {
 	}
 }
 
-// 根据节点类型获取列表
+// 根据节点类型获取成员列表
 func (m *MemberMgr) ListByType(nodeType string) []IMember {
 	m.membersMu.RLock()
 	listOfType := m.typeMap[nodeType]
@@ -132,7 +134,7 @@ func (m *MemberMgr) ListByType(nodeType string) []IMember {
 	return listOfType
 }
 
-// 根据节点类型随机一个
+// 根据节点类型随机一个成员
 func (m *MemberMgr) Random(nodeType string) (IMember, bool) {
 	m.membersMu.RLock()
 	listOfType := m.typeMap[nodeType]
@@ -144,18 +146,18 @@ func (m *MemberMgr) Random(nodeType string) (IMember, bool) {
 	return listOfType[idx], true
 }
 
-// 根据节点id获取类型
+// 根据节点id获取成员类型
 func (m *MemberMgr) GetType(nodeID string) (string, error) {
 	m.membersMu.RLock()
-	defer m.membersMu.RUnlock()
 	member, ok := m.members[nodeID]
+	m.membersMu.RUnlock()
 	if !ok {
 		return "", kkerrors.ErrMemberNotFound
 	}
 	return member.GetNodeType(), nil
 }
 
-// 添加成员监听函数
+// 监听添加成员
 func (m *MemberMgr) OnAddMember(listener MemberListener) {
 	if listener == nil {
 		return
@@ -165,7 +167,7 @@ func (m *MemberMgr) OnAddMember(listener MemberListener) {
 	m.listenersMu.Unlock()
 }
 
-// 移除成员监听函数
+// 监听移除成员
 func (m *MemberMgr) OnRemoveMember(listener MemberListener) {
 	if listener == nil {
 		return
@@ -175,7 +177,7 @@ func (m *MemberMgr) OnRemoveMember(listener MemberListener) {
 	m.listenersMu.Unlock()
 }
 
-// notifyAddListeners 通知添加监听器
+// notifyAddListeners 通知添加
 func (m *MemberMgr) notifyAddListeners(member IMember) {
 	m.listenersMu.RLock()
 	listeners := make([]MemberListener, len(m.addListeners))
@@ -194,7 +196,7 @@ func (m *MemberMgr) notifyAddListeners(member IMember) {
 	}
 }
 
-// notifyRemoveListeners 通知移除监听器
+// notifyRemoveListeners 通知移除
 func (m *MemberMgr) notifyRemoveListeners(member IMember) {
 	m.listenersMu.RLock()
 	listeners := make([]MemberListener, len(m.removeListeners))
