@@ -53,9 +53,6 @@ type Options struct {
 	WpProvider WpProvider   // 写处理器提供者
 	RpProvider RpProvider   // 读处理器提供者
 
-	UDPConnIdleTimeout time.Duration // UDP连接空闲超时时间（为0时，不启用空闲清理）
-	UDPCleanupInterval time.Duration // UDP清理间隔时间（为0时，不启用清理）
-
 	WsOriginChecker OriginCheckFunc // websocket原始检查器
 }
 
@@ -84,9 +81,6 @@ func DefaultOptions() Options {
 		TLSConfig:            nil,
 
 		WsOriginChecker: defaultWSOriginChecker,
-
-		UDPConnIdleTimeout: 5 * time.Minute, // 5分钟
-		UDPCleanupInterval: 1 * time.Minute, // 1分钟
 
 		WpOptions: DefaultWriteOptions(),
 		RpOptions: DefaultReadOptions(),
@@ -145,15 +139,6 @@ func CheckOptions(opts *Options) {
 	if opts.ShutdownTimeout > 0 && opts.ShutdownTimeout < 500*time.Millisecond {
 		kklog.Debugf("opts ShutdownTimeout fixed from %d to %d", opts.ShutdownTimeout, 500*time.Millisecond)
 		opts.ShutdownTimeout = 500 * time.Millisecond
-	}
-
-	if opts.UDPConnIdleTimeout > 0 && opts.UDPConnIdleTimeout < 500*time.Millisecond {
-		kklog.Debugf("opts UDPConnIdleTimeout fixed from %d to %d", opts.UDPConnIdleTimeout, 500*time.Millisecond)
-		opts.UDPConnIdleTimeout = 500 * time.Millisecond
-	}
-	if opts.UDPCleanupInterval > 0 && opts.UDPCleanupInterval < 500*time.Millisecond {
-		kklog.Debugf("opts UDPCleanupInterval fixed from %d to %d", opts.UDPCleanupInterval, 500*time.Millisecond)
-		opts.UDPCleanupInterval = 500 * time.Millisecond
 	}
 
 	CheckWriteOptions(&opts.WpOptions)
@@ -281,22 +266,6 @@ func WithWsOriginChecker(checker OriginCheckFunc) Option {
 		if checker != nil {
 			o.WsOriginChecker = checker
 		}
-	}
-}
-
-// WithUDPConnIdleTimeout sets UDP connection idle timeout.
-// Set to 0 to disable idle cleanup.
-func WithUDPConnIdleTimeout(timeout time.Duration) Option {
-	return func(o *Options) {
-		o.UDPConnIdleTimeout = timeout
-	}
-}
-
-// WithUDPCleanupInterval sets UDP cleanup interval.
-// Set to 0 to disable idle cleanup.
-func WithUDPCleanupInterval(interval time.Duration) Option {
-	return func(o *Options) {
-		o.UDPCleanupInterval = interval
 	}
 }
 

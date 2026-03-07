@@ -63,12 +63,6 @@ func TestDefaultOptions(t *testing.T) {
 	if opt.WsOriginChecker == nil {
 		t.Error("DefaultOptions WsOriginChecker should be non-nil")
 	}
-	if opt.UDPConnIdleTimeout != 5*time.Minute {
-		t.Errorf("DefaultOptions UDPConnIdleTimeout = %v, want 5m", opt.UDPConnIdleTimeout)
-	}
-	if opt.UDPCleanupInterval != 1*time.Minute {
-		t.Errorf("DefaultOptions UDPCleanupInterval = %v, want 1m", opt.UDPCleanupInterval)
-	}
 }
 
 func TestApplyOptions(t *testing.T) {

@@ -48,9 +48,6 @@ cd other/examples/examtcp && go run main.go
 # TCP TLS Echo 示例（使用自签名证书）
 cd other/examples/examtcptls && go run main.go
 
-# UDP Echo 示例
-cd other/examples/examudp && go run main.go
-
 # RPC 示例（请求响应 + 单向 + 异步）
 cd other/examples/examrpc && go run main.go
 ```
