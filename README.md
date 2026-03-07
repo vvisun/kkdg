@@ -7,7 +7,7 @@ Go 语言实现的游戏/分布式服务端引擎，提供网络层、集群通�
 | 模块 | 路径 | 说明 |
 |------|------|------|
 | **kkapp** | `kkapp/` | 应用框架：基于 ProtoActor 的组件化节点，支持 Gate、Game 等业务组件 |
-| **kknet** | `kknet/` | 网络层：TCP / TCP TLS / WebSocket / UDP 服务端与客户端 |
+| **kknet** | `kknet/` | 网络层：TCP / TCP TLS / WebSocket 服务端与客户端。未来可考虑加入UDP、KCP |
 | **kkprocessor** | `kknet/kkprocessor/` | 消息处理器：读/写队列、粘包拆包、批量发送 |
 | **kkpacket** | `kknet/kkpacket/` | 封包协议：流式封包、消息路由 |
 | **remotes** | `remotes/` | 远程能力：RPC、集群（NATS）、服务发现 |
