@@ -49,6 +49,7 @@ func Test_Compare_KKChan_vs_KKSCSPSend_DrainNoLoss(t *testing.T) {
 		wp.Start(nil, writeFn, func(_ error) {})
 
 		var pwg sync.WaitGroup
+		var sendErr atomic.Pointer[error]
 		pwg.Add(producers)
 		for p := 0; p < producers; p++ {
 			go func() {
@@ -66,13 +67,17 @@ func Test_Compare_KKChan_vs_KKSCSPSend_DrainNoLoss(t *testing.T) {
 							time.Sleep(0)
 							continue
 						}
-						// connection closed: should not happen here
-						t.Fatalf("SendBuffer err=%v", err)
+						// connection closed: should not happen here; report in main goroutine
+						sendErr.CompareAndSwap(nil, &err)
+						return
 					}
 				}
 			}()
 		}
 		pwg.Wait()
+		if err := sendErr.Load(); err != nil {
+			t.Fatalf("SendBuffer err=%v", *err)
+		}
 
 		// Wait for flush/drain and stop.
 		wp.Stop(nil)

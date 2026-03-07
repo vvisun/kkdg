@@ -201,12 +201,11 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 			connSem <- struct{}{}
 			defer func() { <-connSem }()
 
-			// 为客户端克隆一份 TLS 配置
+			// 为客户端克隆一份 TLS 配置（避免值拷贝含锁的 tls.Config）
 			clientCfg := tlsCfg.Clone()
 			if clientCfg == nil {
-				// 保守处理，避免 nil panic
-				tmp := *tlsCfg
-				clientCfg = &tmp
+				errCh <- errors.New("failed to clone TLS config")
+				return
 			}
 			clientCfg.InsecureSkipVerify = true
 
@@ -306,8 +305,7 @@ func TestStress_ManyConns_ConnectDisconnect_TLS(t *testing.T) {
 				defer wg.Done()
 				clientCfg := tlsCfg.Clone()
 				if clientCfg == nil {
-					tmp := *tlsCfg
-					clientCfg = &tmp
+					return
 				}
 				clientCfg.InsecureSkipVerify = true
 				cliOpts := kknet.ApplyOptions(

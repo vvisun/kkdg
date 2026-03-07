@@ -3,6 +3,7 @@ package gametrans
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet"
@@ -230,6 +231,7 @@ func TestSessionManager_ConcurrentAddLoginRemove_DisjointSessions(t *testing.T) 
 	const perG = 256
 
 	var wg sync.WaitGroup
+	var loginFailCount atomic.Int32
 	wg.Add(goroutines)
 
 	for g := 0; g < goroutines; g++ {
@@ -248,7 +250,7 @@ func TestSessionManager_ConcurrentAddLoginRemove_DisjointSessions(t *testing.T) 
 
 				ok := mgr.Login(sessionID, userID)
 				if !ok {
-					t.Fatalf("Login(%s, %d) = false", sessionID, userID)
+					loginFailCount.Add(1)
 				}
 
 				// 使用 RemoveSessionByUserID 删除，间接校验 userMap 与 sessionMap 的一致性。
@@ -259,6 +261,9 @@ func TestSessionManager_ConcurrentAddLoginRemove_DisjointSessions(t *testing.T) 
 
 	wg.Wait()
 
+	if n := loginFailCount.Load(); n != 0 {
+		t.Errorf("Login failed %d times in concurrent test", n)
+	}
 	if gotOnline, gotUser := mgr.OnlineCount(), mgr.UserCount(); gotOnline != 0 || gotUser != 0 {
 		t.Fatalf("after concurrent add/login/remove: online=%d user=%d, want 0,0", gotOnline, gotUser)
 	}
