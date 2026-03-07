@@ -5,7 +5,7 @@ import (
 )
 
 func BenchmarkQueue_Push(b *testing.B) {
-	q := New(1000)
+	q := New[int](1000)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -14,7 +14,7 @@ func BenchmarkQueue_Push(b *testing.B) {
 }
 
 func BenchmarkQueue_Pop(b *testing.B) {
-	q := New(1000)
+	q := New[int](1000)
 	for i := 0; i < b.N; i++ {
 		q.Push(i)
 	}
@@ -26,7 +26,7 @@ func BenchmarkQueue_Pop(b *testing.B) {
 }
 
 func BenchmarkQueue_PushPop(b *testing.B) {
-	q := New(1000)
+	q := New[int](1000)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -36,22 +36,20 @@ func BenchmarkQueue_PushPop(b *testing.B) {
 }
 
 func BenchmarkQueue_PushPopMany(b *testing.B) {
-	q := New(1000)
+	q := New[int](1000)
 	batchSize := int64(100)
 	b.ResetTimer()
-	buffer := make([]interface{}, batchSize)
+	buffer := make([]int, batchSize)
 	for i := 0; i < b.N; i++ {
-		// Push batch
 		for j := int64(0); j < batchSize; j++ {
 			q.Push(i*int(batchSize) + int(j))
 		}
-		// Pop batch
 		q.PopMany(batchSize, buffer)
 	}
 }
 
 func BenchmarkQueue_Length(b *testing.B) {
-	q := New(1000)
+	q := New[int](1000)
 	for i := 0; i < 1000; i++ {
 		q.Push(i)
 	}
@@ -63,7 +61,7 @@ func BenchmarkQueue_Length(b *testing.B) {
 }
 
 func BenchmarkQueue_Empty(b *testing.B) {
-	q := New(1000)
+	q := New[int](1000)
 	for i := 0; i < 1000; i++ {
 		q.Push(i)
 	}
@@ -75,7 +73,7 @@ func BenchmarkQueue_Empty(b *testing.B) {
 }
 
 func BenchmarkQueue_ConcurrentPush(b *testing.B) {
-	q := New(10000)
+	q := New[int](10000)
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -88,7 +86,7 @@ func BenchmarkQueue_ConcurrentPush(b *testing.B) {
 }
 
 func BenchmarkQueue_Resize(b *testing.B) {
-	q := New(4) // Small initial size to trigger resizes
+	q := New[int](4)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -97,11 +95,11 @@ func BenchmarkQueue_Resize(b *testing.B) {
 }
 
 func BenchmarkQueue_PopMany_Small(b *testing.B) {
-	q := New(1000)
+	q := New[int](1000)
 	for i := 0; i < 10000; i++ {
 		q.Push(i)
 	}
-	buffer := make([]interface{}, 10)
+	buffer := make([]int, 10)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		q.PopMany(10, buffer)
@@ -109,11 +107,11 @@ func BenchmarkQueue_PopMany_Small(b *testing.B) {
 }
 
 func BenchmarkQueue_PopMany_Large(b *testing.B) {
-	q := New(1000)
+	q := New[int](1000)
 	for i := 0; i < 10000; i++ {
 		q.Push(i)
 	}
-	buffer := make([]interface{}, 100)
+	buffer := make([]int, 100)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		q.PopMany(100, buffer)
