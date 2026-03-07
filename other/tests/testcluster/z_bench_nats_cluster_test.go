@@ -124,7 +124,7 @@ func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkclu
 
 func BenchmarkRequestRemote(b *testing.B) {
 	cluster1, cluster2, cleanup := setupBenchCluster(b)
-	defer cleanup()
+	defer func() { b.StopTimer(); cleanup() }()
 
 	// 设置请求处理器，返回成功响应
 	cluster2.SetRequestHandler(func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {
@@ -154,7 +154,7 @@ func BenchmarkRequestRemote(b *testing.B) {
 // BenchmarkRequestRemoteAsync 测量异步请求往返。建议加 -benchtime=5s 获得更多迭代与稳定 ns/op。
 func BenchmarkRequestRemoteAsync(b *testing.B) {
 	cluster1, cluster2, cleanup := setupBenchCluster(b)
-	defer cleanup()
+	defer func() { b.StopTimer(); cleanup() }()
 
 	cluster2.SetRequestHandler(func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {
 		return &kkcluster.ClusterResponse{
@@ -188,7 +188,7 @@ func BenchmarkRequestRemoteAsync(b *testing.B) {
 
 func BenchmarkPublishRemote(b *testing.B) {
 	cluster1, cluster2, cleanup := setupBenchCluster(b)
-	defer cleanup()
+	defer func() { b.StopTimer(); cleanup() }()
 
 	// 使用无操作 handler，避免接收端阻塞影响发送性能
 	cluster2.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {})
@@ -207,7 +207,7 @@ func BenchmarkPublishRemote(b *testing.B) {
 
 func BenchmarkPublishRemoteType(b *testing.B) {
 	cluster1, cluster2, cluster3, cleanup := setupBenchClusterWithType(b)
-	defer cleanup()
+	defer func() { b.StopTimer(); cleanup() }()
 
 	cluster2.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {})
 	cluster3.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {})
@@ -227,7 +227,7 @@ func BenchmarkPublishRemoteType(b *testing.B) {
 // BenchmarkPublishRemoteParallel 并行 PublishRemote
 func BenchmarkPublishRemoteParallel(b *testing.B) {
 	cluster1, cluster2, cleanup := setupBenchCluster(b)
-	defer cleanup()
+	defer func() { b.StopTimer(); cleanup() }()
 
 	cluster2.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {})
 
@@ -246,7 +246,7 @@ func BenchmarkPublishRemoteParallel(b *testing.B) {
 // BenchmarkRequestRemoteParallel 并行 RequestRemote
 func BenchmarkRequestRemoteParallel(b *testing.B) {
 	cluster1, cluster2, cleanup := setupBenchCluster(b)
-	defer cleanup()
+	defer func() { b.StopTimer(); cleanup() }()
 
 	var mu sync.Mutex
 	cluster2.SetRequestHandler(func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {

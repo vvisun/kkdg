@@ -131,8 +131,8 @@ func (d *NatsDiscovery) Stop() error {
 	d.closing.Store(true)
 	kklog.Infof("NatsDiscovery(%s) shutdown", d.nodeID)
 
-	d.publishSelf()                    //将离线通知出去
-	time.Sleep(500 * time.Millisecond) //等待500毫秒，让离线通知出去
+	d.publishSelf()                    // 将离线通知出去
+	time.Sleep(500 * time.Millisecond) // 等待500毫秒，让离线通知出去
 
 	select {
 	case <-d.stopCh:
