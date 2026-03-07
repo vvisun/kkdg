@@ -2,7 +2,6 @@ package transrpc
 
 import (
 	"context"
-	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
@@ -12,53 +11,6 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
-
-type logicMemberInfo struct {
-	nodeId   string
-	nodeType string
-	connId   kknet.CONN_ID
-}
-
-type logicNodeMgr struct {
-	logicNodeMap sync.Map // map[nodeId]*logicMemberInfo
-	connMap      sync.Map // map[connId]nodeId
-}
-
-func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, connId kknet.CONN_ID) {
-	memberInfo := &logicMemberInfo{
-		nodeId:   nodeId,
-		nodeType: nodeType,
-		connId:   connId,
-	}
-	slf.logicNodeMap.Store(nodeId, memberInfo)
-	slf.connMap.Store(connId, nodeId)
-}
-
-func (slf *logicNodeMgr) unregisterLogicNode(nodeId string) {
-	info, ok := slf.logicNodeMap.Load(nodeId)
-	if !ok {
-		return
-	}
-	memberInfo := info.(*logicMemberInfo)
-	slf.connMap.Delete(memberInfo.connId)
-	slf.logicNodeMap.Delete(nodeId)
-}
-
-func (slf *logicNodeMgr) getLogicNode(nodeId string) *logicMemberInfo {
-	value, ok := slf.logicNodeMap.Load(nodeId)
-	if !ok {
-		return nil
-	}
-	return value.(*logicMemberInfo)
-}
-
-func (slf *logicNodeMgr) getLogicNodeByConnId(connId kknet.CONN_ID) *logicMemberInfo {
-	value, ok := slf.connMap.Load(connId)
-	if !ok {
-		return nil
-	}
-	return value.(*logicMemberInfo)
-}
 
 // transportorRpc 使用RPC转发消息
 // 逻辑服先连接到本网关, 然后发送[register:nodeId,nodeType]注册到本网关, 进行注册服务。
@@ -178,14 +130,4 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, msgBytes []byte
 		}
 	}
 	return nil
-}
-
-func (slf *transportorRpc) registerLogicNode(nodeId string, nodeType string, connId kknet.CONN_ID) {
-	kklog.Infof("[ccgate] register logic node... nodeId=%s, nodeType=%s, connId=%d", nodeId, nodeType, connId)
-	slf.logicNodeMgr.registerLogicNode(nodeId, nodeType, connId)
-}
-
-func (slf *transportorRpc) unregisterLogicNode(nodeId string) {
-	kklog.Infof("[ccgate] unregister logic node... nodeId=%s", nodeId)
-	slf.logicNodeMgr.unregisterLogicNode(nodeId)
 }
