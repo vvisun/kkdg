@@ -15,8 +15,8 @@ import (
 const (
 	GatewayWSAddr     = "ws://127.0.0.1:8080/ws"
 	TargetConnections = 50000 // 目标总连接数
-	CPS               = 100   // 每秒新建连接数
-	MsgIntervalMS     = 200   // 消息发送间隔(ms)
+	CPS               = 1000  // 每秒新建连接数
+	MsgIntervalMS     = 1000  // 消息发送间隔(ms)
 	EnableHeartbeat   = true  // 开启心跳
 )
 
@@ -28,7 +28,7 @@ var (
 
 	msgSend     uint64 = 0
 	msgRecv     uint64 = 0
-	msgDelaySum uint64 = 0
+	msgDelaySum uint64 = 0 // 消息延迟总和(微秒)
 	msgDelayCnt uint64 = 0
 )
 
@@ -100,6 +100,10 @@ func (c *clientCtx) dial() error {
 	return nil
 }
 
+func delayTime() int64 {
+	return time.Now().UnixNano()
+}
+
 func (c *clientCtx) run() {
 	defer func() {
 		atomic.StoreInt32(&c.closed, 1)
@@ -123,7 +127,7 @@ func (c *clientCtx) run() {
 		if atomic.LoadInt32(&c.closed) == 1 {
 			return
 		}
-		ts := time.Now().UnixMilli()
+		ts := delayTime()
 		msg, _ := json.Marshal(map[string]any{
 			"uid":  c.uid,
 			"cmd":  "ping",
@@ -150,7 +154,7 @@ func (c *clientCtx) readLoop() {
 		// 计算延迟
 		var m struct{ TS int64 }
 		if json.Unmarshal(body, &m) == nil && m.TS > 0 {
-			delay := time.Now().UnixMilli() - m.TS
+			delay := delayTime() - m.TS
 			atomic.AddUint64(&msgDelaySum, uint64(delay))
 			atomic.AddUint64(&msgDelayCnt, 1)
 		}
@@ -168,13 +172,13 @@ func stat() {
 
 	delaySum := atomic.SwapUint64(&msgDelaySum, 0)
 	delayCnt := atomic.SwapUint64(&msgDelayCnt, 0)
-	avgDelay := 0
+	avgDelay := float64(0.0)
 	if delayCnt > 0 {
-		avgDelay = int(delaySum / delayCnt)
+		avgDelay = float64(float64(delaySum) / float64(delayCnt))
 	}
 
 	log.Printf(
-		"[压测] 在线: %4d | SendQPS: %4d | RecvQPS: %4d | 延迟: %3dms | Goroutine: %4d | Heap: %.1fMB",
+		"[压测] 在线: %4d | SendQPS: %4d | RecvQPS: %4d | 延迟: %3.2fns | Goroutine: %4d | Heap: %.1fMB",
 		currConn,
 		send, recv,
 		avgDelay,

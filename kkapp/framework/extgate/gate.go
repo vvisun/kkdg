@@ -1,4 +1,4 @@
-package main
+package extgate
 
 import (
 	"encoding/json"
@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/lxzan/gws"
+	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/other/examples/examext/extcomm"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/queues/kkmpsc"
 	"github.com/vvisun/kkdg/utils/xnet"
@@ -119,7 +119,7 @@ type LogicServerMgr struct {
 	logicServerMap sync.Map // map[string]*LogicServer
 }
 
-func (m *LogicServerMgr) addLogicServer(info *extcomm.RegisterMsg) {
+func (m *LogicServerMgr) addLogicServer(info *extmsg.RegisterMsg) {
 	_, ok := m.logicServerMap.Load(info.NodeId)
 	if ok {
 		return
@@ -211,12 +211,12 @@ func StartGatewayTCPListener() {
 func logicReadLoop(conn net.Conn) {
 	dec := json.NewDecoder(conn)
 	for {
-		var m extcomm.DownMsg
+		var m extmsg.DownMsg
 		if err := dec.Decode(&m); err != nil {
 			return
 		}
-		if m.Cmd == extcomm.CmdRegister {
-			var registerMsg extcomm.RegisterMsg
+		if m.Cmd == extmsg.CmdRegister {
+			var registerMsg extmsg.RegisterMsg
 			_ = json.Unmarshal(m.Data, &registerMsg)
 			log.Printf("逻辑服注册: nodeId=%s nodeType=%s shardIdx=%d", registerMsg.NodeId, registerMsg.NodeType, registerMsg.ShardIdx)
 		} else {
@@ -263,8 +263,8 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 	_ = json.Unmarshal(msg.Bytes(), &req)
 
 	// 心跳包直接响应，不上发逻辑服
-	if req.Cmd == extcomm.CmdHeartbeat {
-		resp, _ := json.Marshal(map[string]string{"cmd": extcomm.CmdHeartbeatAck})
+	if req.Cmd == extmsg.CmdHeartbeat {
+		resp, _ := json.Marshal(map[string]string{"cmd": extmsg.CmdHeartbeatAck})
 		sendToClient(c.connID, resp)
 		return
 	}
@@ -275,7 +275,7 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 	}
 
 	// 转发逻辑服
-	bs, _ := json.Marshal(extcomm.UpMsg{
+	bs, _ := json.Marshal(extmsg.UpMsg{
 		ConnID: c.connID,
 		Uid:    c.uid,
 		Data:   msg.Bytes(),
@@ -304,10 +304,10 @@ func (h *WsHandler) OnClose(s *gws.Conn, err error) {
 
 		// 通知逻辑服：玩家断开
 		go func() {
-			bs, _ := json.Marshal(extcomm.UpMsg{
+			bs, _ := json.Marshal(extmsg.UpMsg{
 				ConnID: c.connID,
 				Uid:    c.uid,
-				Cmd:    extcomm.CmdClientDisconnect,
+				Cmd:    extmsg.CmdClientDisconnect,
 			})
 			if conn := RouteLogicConn(c.uid, c.connID); conn != nil {
 				_, _ = conn.Write(append(bs, '\n'))

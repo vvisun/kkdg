@@ -1,4 +1,4 @@
-package main
+package extlogic
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/vvisun/kkdg/other/examples/examext/extcomm"
+	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
 	"github.com/vvisun/kkdg/utils/xnet"
 )
 
@@ -42,13 +42,13 @@ func connectGateway(idx int) net.Conn {
 			log.Printf("分流[%d] 连接网关成功", idx)
 			xnet.SetNoDelay(conn, true)
 			// 将自己注册到网关
-			registerMsg := extcomm.RegisterMsg{
+			registerMsg := extmsg.RegisterMsg{
 				ShardIdx: idx,
 				NodeId:   nodeId,
 				NodeType: nodeType,
 			}
 			registerBytes, _ := json.Marshal(registerMsg)
-			down := extcomm.DownMsg{Cmd: extcomm.CmdRegister, Data: registerBytes}
+			down := extmsg.DownMsg{Cmd: extmsg.CmdRegister, Data: registerBytes}
 			downBytes, _ := json.Marshal(down)
 			_, _ = conn.Write(append(downBytes, '\n'))
 
@@ -69,13 +69,13 @@ func businessLoop(idx int, conn net.Conn) {
 
 	dec := json.NewDecoder(conn)
 	for {
-		var msg extcomm.UpMsg
+		var msg extmsg.UpMsg
 		if err := dec.Decode(&msg); err != nil {
 			return
 		}
 
 		// ====================== 客户端断开事件 ======================
-		if msg.Cmd == extcomm.CmdClientDisconnect {
+		if msg.Cmd == extmsg.CmdClientDisconnect {
 			log.Printf("[逻辑服%d] 玩家断开 uid=%d connID=%d", idx, msg.Uid, msg.ConnID)
 			// 在这里写：离线清理、存库、踢下线、房间退出等逻辑
 			continue
@@ -91,7 +91,7 @@ func businessLoop(idx int, conn net.Conn) {
 		}
 		respBytes, _ := json.Marshal(resp)
 
-		down := extcomm.DownMsg{ConnID: msg.ConnID, Data: respBytes}
+		down := extmsg.DownMsg{ConnID: msg.ConnID, Data: respBytes}
 		sendBytes, _ := json.Marshal(down)
 		_, _ = conn.Write(append(sendBytes, '\n'))
 	}

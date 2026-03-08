@@ -1,7 +1,9 @@
 package xnet
 
 import (
+	"crypto/tls"
 	"encoding/binary"
+	"errors"
 	"net"
 	"strconv"
 
@@ -157,4 +159,20 @@ func Long2IP(v uint32) string {
 	ip := make(net.IP, 4)
 	binary.BigEndian.PutUint32(ip, v)
 	return ip.String()
+}
+
+func SetNoDelay(conn net.Conn, noDelay bool) error {
+	if conn == nil {
+		return errors.New("conn is nil")
+	}
+	switch v := conn.(type) {
+	case *net.TCPConn:
+		return v.SetNoDelay(noDelay)
+
+	case *tls.Conn:
+		if netConn, ok := v.NetConn().(*net.TCPConn); ok {
+			return netConn.SetNoDelay(noDelay)
+		}
+	}
+	return nil
 }

@@ -1,4 +1,4 @@
-package extcomm
+package extmsg
 
 import "encoding/json"
 
