@@ -84,7 +84,7 @@ func (slf *gateComponent) Init() error {
 	case kkapp.TransTypeRpc:
 		slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId(), slf.opt.RpcAddr)
 	case kkapp.TransTypeShard:
-		slf.transportor = transshard.NewTransportorShard(slf.opt.RpcAddr, slf.sessionMgr)
+		slf.transportor = transshard.NewTransportorShard(slf.opt.RpcAddr, slf.sessionMgr, slf.GetApplication().GetNodeId())
 	default:
 		return errors.New("invalid trans type: " + slf.opt.TransType)
 	}

@@ -20,11 +20,12 @@ type transportorShard struct {
 	logicConnMgr   sync.Map // map[connId]*ShardConn
 	server         kknet.IServer
 	sessionMgr     gatetrans.ISessionManager
+	gateNodeId     string
 }
 
 var _ gatetrans.ITransportor = (*transportorShard)(nil)
 
-func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager) gatetrans.ITransportor {
+func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, nodeId string) gatetrans.ITransportor {
 	handler := &shardHandler{}
 	serOpts := kknet.ApplyOptions(
 		kknet.WithRawHandler(handler),
@@ -39,11 +40,14 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager) gate
 		kklog.Fatalf("start shard server error: %v", err)
 	}
 
-	return &transportorShard{
+	trans := &transportorShard{
 		logicServerMgr: &LogicServerMgr{},
 		server:         srv,
 		sessionMgr:     sessionMgr,
+		gateNodeId:     nodeId,
 	}
+	handler.transporter = trans
+	return trans
 }
 
 func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
@@ -58,9 +62,9 @@ func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 
 	var msg ptotrans.RpcC2S
 	msg.ClientId = sessionID
-	msg.GateNodeId = ""
+	msg.GateNodeId = slf.gateNodeId
 	msg.Payload = msgBytes
-	bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err

@@ -131,7 +131,7 @@ func connectGateway(idx int, trans *transportorShard) net.Conn {
 					NodeId:   trans.nodeId,
 					NodeType: trans.nodeType,
 				}
-				bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+				bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
 				if err == nil {
 					_, _ = conn.Write(bb.B)
 				}
