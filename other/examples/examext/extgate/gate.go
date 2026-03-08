@@ -12,15 +12,21 @@ import (
 
 	"github.com/lxzan/gws"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/other/examples/examext/extcomm"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/queues/kkmpsc"
 )
+
+//设计思路：
+// 客户端与网关之间建立WebSocket连接，每条连接一个读携程 + WriteGroupCnt个分组写携程。
+// 逻辑服与网关之间建立TCP连接，每个逻辑服与网关之间建立BackendShardCnt条连接，组成一个LogicServer。
 
 // ====================== 配置 ======================
 const (
 	GatewayTCPPort       = "9981"
 	GatewayWSPort        = "8080"
-	WriteGroups          = 8
-	BackendShards        = 8
+	WriteGroupCnt        = 8
+	BackendShardCnt      = 8
 	ClientHeartbeatSec   = 30
 	ClientMaxMiss        = 2
 	sessionKeyClientConn = "clientConn"
@@ -44,23 +50,32 @@ type writeTask struct {
 
 // ====================== 全局 ======================
 var (
-	clientMap     sync.Map
-	writeGroup    [WriteGroups]*kkmpsc.Queue[writeTask]
-	connIDSeq     uint64 = 10000
+	// 客户端连接列表
+	clientMap sync.Map
+
+	// 开启WriteGroupCnt个写协程，每个协程负责一个写队列。
+	// 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
+	writeGroup [WriteGroupCnt]*kkmpsc.Queue[writeTask]
+
+	// 逻辑服列表
 	logicBackends []*LogicServer
 	logicMu       sync.RWMutex
 
+	// 逻辑服连接列表，当逻辑服连接满8条时，组成一个LogicServer。
 	pendingConns []net.Conn
 	pendingMu    sync.Mutex
 )
 
+// 初始化WriteGroupCnt个写协程, 负责将writeTask写入客户端。
 func initWriteGroups() {
-	for i := 0; i < WriteGroups; i++ {
+	for i := 0; i < WriteGroupCnt; i++ {
 		writeGroup[i] = kkmpsc.NewQueue[writeTask]()
+		// 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
 		go writeLoop(i)
 	}
 }
 
+// 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
 func writeLoop(gid int) {
 	q := writeGroup[gid]
 	for {
@@ -78,32 +93,23 @@ func writeLoop(gid int) {
 			continue
 		}
 		_ = c.ws.WriteMessage(gws.OpcodeText, t.data)
+		byteslice.Put(t.data)
 	}
 }
 
+// 发送数据到客户端。
 func sendToClient(connID uint64, data []byte) {
-	gid := int(connID % WriteGroups)
+	gid := int(connID % WriteGroupCnt)
 	// 复制 data，避免调用方复用缓冲区导致竞态
-	wt := &writeTask{connID: connID, data: append([]byte(nil), data...)}
+	dataCpy := byteslice.GetWithLenCap(len(data), len(data))
+	copy(dataCpy, data)
+	wt := &writeTask{connID: connID, data: dataCpy}
 	writeGroup[gid].Push(wt)
-}
-
-// ====================== 消息结构 ======================
-type UpMsg struct {
-	ConnID uint64          `json:"connID"`
-	Uid    uint64          `json:"uid"`
-	Data   json.RawMessage `json:"data"`
-	Cmd    string          `json:"cmd,omitempty"`
-}
-
-type DownMsg struct {
-	ConnID uint64          `json:"connID"`
-	Data   json.RawMessage `json:"data"`
 }
 
 // ====================== 逻辑服管理 ======================
 type LogicServer struct {
-	conns [BackendShards]net.Conn
+	conns [BackendShardCnt]net.Conn
 }
 
 func AddLogicServer(ls *LogicServer) {
@@ -120,7 +126,7 @@ func RouteLogicConn(uid uint64) net.Conn {
 		return nil
 	}
 	srvIdx := uid % uint64(len(logicBackends))
-	shardIdx := uid % BackendShards
+	shardIdx := uid % BackendShardCnt
 	return logicBackends[srvIdx].conns[shardIdx]
 }
 
@@ -139,7 +145,7 @@ func StartGatewayTCPListener() {
 		}
 		pendingMu.Lock()
 		pendingConns = append(pendingConns, conn)
-		if len(pendingConns) < BackendShards {
+		if len(pendingConns) < BackendShardCnt {
 			pendingMu.Unlock()
 			continue
 		}
@@ -147,7 +153,7 @@ func StartGatewayTCPListener() {
 		copy(ls.conns[:], pendingConns)
 		pendingConns = pendingConns[:0]
 		pendingMu.Unlock()
-		for i := 0; i < BackendShards; i++ {
+		for i := 0; i < BackendShardCnt; i++ {
 			go logicReadLoop(ls.conns[i])
 		}
 		AddLogicServer(ls)
@@ -157,7 +163,7 @@ func StartGatewayTCPListener() {
 func logicReadLoop(conn net.Conn) {
 	dec := json.NewDecoder(conn)
 	for {
-		var m DownMsg
+		var m extcomm.DownMsg
 		if err := dec.Decode(&m); err != nil {
 			return
 		}
@@ -169,11 +175,11 @@ func logicReadLoop(conn net.Conn) {
 type WsHandler struct{}
 
 func (h *WsHandler) OnOpen(s *gws.Conn) {
-	connID := atomic.AddUint64(&connIDSeq, 1)
+	connID := kknet.NextConnID()
 	c := &ClientConn{
 		ws:         s,
 		connID:     connID,
-		writeGroup: int(connID % WriteGroups),
+		writeGroup: int(connID % WriteGroupCnt),
 		lastBeat:   time.Now().Unix(),
 	}
 	clientMap.Store(connID, c)
@@ -203,8 +209,8 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 	_ = json.Unmarshal(msg.Bytes(), &req)
 
 	// 心跳包直接响应，不上发逻辑服
-	if req.Cmd == "heartbeat" {
-		resp, _ := json.Marshal(map[string]string{"cmd": "heartbeat_ack"})
+	if req.Cmd == extcomm.CmdHeartbeat {
+		resp, _ := json.Marshal(map[string]string{"cmd": extcomm.CmdHeartbeatAck})
 		sendToClient(c.connID, resp)
 		return
 	}
@@ -215,7 +221,7 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 	}
 
 	// 转发逻辑服
-	bs, _ := json.Marshal(UpMsg{
+	bs, _ := json.Marshal(extcomm.UpMsg{
 		ConnID: c.connID,
 		Uid:    c.uid,
 		Data:   msg.Bytes(),
@@ -244,10 +250,10 @@ func (h *WsHandler) OnClose(s *gws.Conn, err error) {
 
 		// 通知逻辑服：玩家断开
 		go func() {
-			bs, _ := json.Marshal(UpMsg{
+			bs, _ := json.Marshal(extcomm.UpMsg{
 				ConnID: c.connID,
 				Uid:    c.uid,
-				Cmd:    "client_disconnect",
+				Cmd:    extcomm.CmdClientDisconnect,
 			})
 			if conn := RouteLogicConn(c.uid); conn != nil {
 				_, _ = conn.Write(append(bs, '\n'))

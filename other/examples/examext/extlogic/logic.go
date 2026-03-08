@@ -5,37 +5,26 @@ import (
 	"log"
 	"net"
 	"time"
+
+	"github.com/vvisun/kkdg/other/examples/examext/extcomm"
 )
 
 // ====================== 配置 ======================
 const (
-	GatewayAddr   = "127.0.0.1:9981"
-	BackendShards = 8
+	GatewayAddr     = "127.0.0.1:9981"
+	BackendShardCnt = 8
 )
-
-// ====================== 消息结构 ======================
-type UpMsg struct {
-	ConnID uint64          `json:"connID"`
-	Uid    uint64          `json:"uid"`
-	Data   json.RawMessage `json:"data"`
-	Cmd    string          `json:"cmd,omitempty"`
-}
-
-type DownMsg struct {
-	ConnID uint64          `json:"connID"`
-	Data   json.RawMessage `json:"data"`
-}
 
 // ====================== 主函数 ======================
 func main() {
 	log.Println("=== 独立逻辑服启动 ===")
-	var conns [BackendShards]net.Conn
+	var conns [BackendShardCnt]net.Conn
 
-	for i := 0; i < BackendShards; i++ {
+	for i := 0; i < BackendShardCnt; i++ {
 		conns[i] = connectGateway(i)
 	}
 
-	for i := 0; i < BackendShards; i++ {
+	for i := 0; i < BackendShardCnt; i++ {
 		go businessLoop(i, conns[i])
 	}
 
@@ -65,13 +54,13 @@ func businessLoop(idx int, conn net.Conn) {
 
 	dec := json.NewDecoder(conn)
 	for {
-		var msg UpMsg
+		var msg extcomm.UpMsg
 		if err := dec.Decode(&msg); err != nil {
 			return
 		}
 
 		// ====================== 客户端断开事件 ======================
-		if msg.Cmd == "client_disconnect" {
+		if msg.Cmd == extcomm.CmdClientDisconnect {
 			log.Printf("[逻辑服%d] 玩家断开 uid=%d connID=%d", idx, msg.Uid, msg.ConnID)
 			// 在这里写：离线清理、存库、踢下线、房间退出等逻辑
 			continue
@@ -87,7 +76,7 @@ func businessLoop(idx int, conn net.Conn) {
 		}
 		respBytes, _ := json.Marshal(resp)
 
-		down := DownMsg{ConnID: msg.ConnID, Data: respBytes}
+		down := extcomm.DownMsg{ConnID: msg.ConnID, Data: respBytes}
 		sendBytes, _ := json.Marshal(down)
 		_, _ = conn.Write(append(sendBytes, '\n'))
 	}
