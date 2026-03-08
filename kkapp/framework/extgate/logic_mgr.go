@@ -120,9 +120,9 @@ func (m *LogicServerMgr) getShardConn(nodeId string, shardIdx int) *ShardConn {
 func startGatewayTCPListener() {
 	lis, err := net.Listen("tcp", ":"+GatewayTCPPort)
 	if err != nil {
-		kklog.Fatal("网关TCP监听失败:", err)
+		kklog.Fatal("网关TCP监听失败: %v", err)
 	}
-	kklog.Infof("网关TCP监听端口:", GatewayTCPPort)
+	kklog.Infof("网关TCP监听端口: %s", GatewayTCPPort)
 	for {
 		conn, err := lis.Accept()
 		if err != nil {

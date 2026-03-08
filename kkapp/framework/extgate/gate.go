@@ -107,9 +107,9 @@ func StartUp() {
 			time.Sleep(5 * time.Second)
 			heapUsedMB, heapKBPerConn := kknet.ReadMetricsStress(int64(connCount))
 			kklog.Debugf("------------------------")
-			kklog.Debugf("当前连接数:", connCount)
-			kklog.Debugf("堆内存占用:", heapUsedMB, "MB")
-			kklog.Debugf("单连接堆内存:", heapKBPerConn)
+			kklog.Debugf("当前连接数: %d", connCount)
+			kklog.Debugf("堆内存占用: %d MB", heapUsedMB)
+			kklog.Debugf("单连接堆内存: %.2f KB/conn", heapKBPerConn)
 		}
 	}()
 
