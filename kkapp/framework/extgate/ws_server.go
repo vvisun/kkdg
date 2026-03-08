@@ -26,6 +26,7 @@ func (h *WsHandler) OnOpen(s *gws.Conn) {
 	}
 	clientMap.Store(connID, c)
 	s.Session().Store(sessionKeyClientConn, c)
+	atomic.AddInt32(&clientCount, 1)
 	go h.startHeartbeat(c)
 }
 
@@ -82,6 +83,7 @@ func (h *WsHandler) OnClose(s *gws.Conn, err error) {
 	c := cc.(*ClientConn)
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		clientMap.Delete(c.connID)
+		atomic.AddInt32(&clientCount, -1)
 		kklog.Debugf("客户端已清理 connID=%d uid=%d err=%v", c.connID, c.uid, err)
 
 		// 通知逻辑服：玩家断开
@@ -111,6 +113,7 @@ func (h *WsHandler) startHeartbeat(c *ClientConn) {
 		if now-last > ClientHeartbeatSec*ClientMaxMiss {
 			if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 				clientMap.Delete(c.connID)
+				atomic.AddInt32(&clientCount, -1)
 				kklog.Debugf("心跳超时关闭 connID=%d uid=%d", c.connID, c.uid)
 			}
 			_ = c.ws.WriteClose(1000, []byte("heartbeat_timeout"))

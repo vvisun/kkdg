@@ -47,7 +47,8 @@ type writeTask struct {
 // ====================== 全局 ======================
 var (
 	// 客户端连接列表
-	clientMap sync.Map
+	clientMap   sync.Map
+	clientCount int32
 
 	// 开启WriteGroupCnt个写协程，每个协程负责一个写队列。
 	// 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
@@ -102,10 +103,11 @@ func StartUp() {
 
 	go func() {
 		for {
+			connCount := atomic.LoadInt32(&clientCount)
 			time.Sleep(5 * time.Second)
-			heapUsedMB, heapKBPerConn := kknet.ReadMetricsStress(1000)
+			heapUsedMB, heapKBPerConn := kknet.ReadMetricsStress(int64(connCount))
 			kklog.Debugf("------------------------")
-			kklog.Debugf("当前连接数:", 1000)
+			kklog.Debugf("当前连接数:", connCount)
 			kklog.Debugf("堆内存占用:", heapUsedMB, "MB")
 			kklog.Debugf("单连接堆内存:", heapKBPerConn)
 		}

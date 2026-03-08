@@ -212,6 +212,7 @@ func transToLogic(connId uint64, data []byte, uid uint64, cmd string) {
 //	@param connId 客户端连接ID
 //	@return 逻辑服连接
 func routeLogicConn(connId uint64) net.Conn {
+	// 选择一个逻辑服。todo: 优化选择策略
 	var chooseServer *LogicServer
 	logicServerMgr.logicServerMap.Range(func(key any, value any) bool {
 		ls := value.(*LogicServer)
@@ -221,6 +222,7 @@ func routeLogicConn(connId uint64) net.Conn {
 	if chooseServer == nil {
 		return nil
 	}
+
 	shardIdx := connId % BackendShardCnt
 	chooseServer.muConns.RLock()
 	sconn := chooseServer.conns[shardIdx]
