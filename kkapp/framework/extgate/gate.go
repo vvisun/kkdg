@@ -82,10 +82,12 @@ func writeLoop(gid int) {
 		}
 		v, ok := clientMap.Load(t.connID)
 		if !ok {
+			byteslice.Put(t.data)
 			continue
 		}
 		c := v.(*ClientConn)
 		if atomic.LoadInt32(&c.closed) == 1 {
+			byteslice.Put(t.data)
 			continue
 		}
 		_ = c.ws.WriteMessage(gws.OpcodeText, t.data)
@@ -126,7 +128,9 @@ func sendToClient(connID uint64, data []byte) {
 func StartUp() {
 	go startGatewayTCPListener()
 
-	initWriteGroups()
+	if EnableWriteGroup {
+		initWriteGroups()
+	}
 
 	go func() {
 		for {
