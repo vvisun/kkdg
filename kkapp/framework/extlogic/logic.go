@@ -19,7 +19,7 @@ const (
 )
 
 // ====================== 主函数 ======================
-func main() {
+func StartUp() {
 	log.Println("=== 独立逻辑服启动 ===")
 	var conns [BackendShardCnt]net.Conn
 

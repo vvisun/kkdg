@@ -19,13 +19,6 @@ const (
 
 // ====================== 消息结构 ======================
 
-// 注册逻辑服信息，逻辑服注册到网关. 逻辑服 -> 网关
-type RegisterMsg struct {
-	ShardIdx int    `json:"shardIdx"` // 逻辑服分片索引
-	NodeId   string `json:"nodeId"`   // 逻辑服节点ID
-	NodeType string `json:"nodeType"` // 逻辑服节点类型
-}
-
 // 上行消息，网关转发客户端消息(Data)到逻辑服. 客户端 -> 【网关 -> 逻辑服】
 type UpMsg struct {
 	ConnID uint64          `json:"connID"`        // 客户端连接ID(网关分配), 暂时当做sessionId用，后续需要优化，因为不同网关connId都从1开始，可能重复，缺乏唯一性。
@@ -39,4 +32,11 @@ type DownMsg struct {
 	Cmd    string          `json:"cmd"`    // 消息ID
 	ConnID uint64          `json:"connID"` // 客户端连接ID(网关分配), 暂时当做sessionId用，后续需要优化，因为不同网关connId都从1开始，可能重复，缺乏唯一性。
 	Data   json.RawMessage `json:"data"`   //消息数据
+}
+
+// 注册逻辑服信息，逻辑服注册到网关. 逻辑服 -> 网关
+type RegisterMsg struct {
+	ShardIdx int    `json:"shardIdx"` // 逻辑服分片索引
+	NodeId   string `json:"nodeId"`   // 逻辑服节点ID
+	NodeType string `json:"nodeType"` // 逻辑服节点类型
 }
