@@ -102,7 +102,7 @@ func StartUp() {
 
 	go func() {
 		for {
-			time.Sleep(1 * time.Second)
+			time.Sleep(5 * time.Second)
 			heapUsedMB, heapKBPerConn := kknet.ReadMetricsStress(1000)
 			log.Println("------------------------")
 			log.Println("当前连接数:", 1000)

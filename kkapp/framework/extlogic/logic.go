@@ -41,16 +41,20 @@ func connectGateway(idx int) net.Conn {
 		if err == nil {
 			log.Printf("分流[%d] 连接网关成功", idx)
 			xnet.SetNoDelay(conn, true)
-			// 将自己注册到网关
-			registerMsg := extmsg.RegisterMsg{
-				ShardIdx: idx,
-				NodeId:   nodeId,
-				NodeType: nodeType,
-			}
-			registerBytes, _ := json.Marshal(registerMsg)
-			down := extmsg.DownMsg{Cmd: extmsg.CmdRegister, Data: registerBytes}
-			downBytes, _ := json.Marshal(down)
-			_, _ = conn.Write(append(downBytes, '\n'))
+
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				// 将自己注册到网关
+				registerMsg := extmsg.RegisterMsg{
+					ShardIdx: idx,
+					NodeId:   nodeId,
+					NodeType: nodeType,
+				}
+				registerBytes, _ := json.Marshal(registerMsg)
+				down := extmsg.DownMsg{Cmd: extmsg.CmdRegister, Data: registerBytes}
+				downBytes, _ := json.Marshal(down)
+				_, _ = conn.Write(append(downBytes, '\n'))
+			}()
 
 			return conn
 		}

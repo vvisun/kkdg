@@ -5,9 +5,11 @@ import (
 	"log"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/lxzan/gws"
 	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/xnet"
@@ -15,20 +17,31 @@ import (
 
 var (
 	// 逻辑服列表
-	logicBackends []*LogicServer
-	logicMu       sync.RWMutex
+	// logicBackends  []*LogicServer
+	// logicMu        sync.RWMutex
+	logicServerMgr = &LogicServerMgr{}
+	logicConnMgr   sync.Map // map[connId]*ShardConn
 
 	// 逻辑服连接列表，当逻辑服连接满8条时，组成一个LogicServer。
-	pendingConns []net.Conn
-	pendingMu    sync.Mutex
+	// pendingConns []net.Conn
+	// pendingMu    sync.Mutex
 )
 
 // ====================== 逻辑服管理 ======================
 
+type ShardConn struct {
+	conn     net.Conn
+	connId   uint64
+	shardIdx int
+	nodeId   string
+	closed   atomic.Bool
+}
+
 type LogicServer struct {
 	nodeId   string
 	nodeType string
-	conns    [BackendShardCnt]net.Conn
+	conns    [BackendShardCnt]*ShardConn
+	muConns  sync.RWMutex
 }
 
 type LogicServerMgr struct {
@@ -59,12 +72,16 @@ func (m *LogicServerMgr) getLogicServer(nodeId string) *LogicServer {
 	return ls.(*LogicServer)
 }
 
-func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn net.Conn) {
+func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardConn) {
 	ls := m.getLogicServer(nodeId)
 	if ls == nil {
 		return
 	}
+	ls.muConns.Lock()
+	conn.nodeId = nodeId
+	conn.shardIdx = shardIdx
 	ls.conns[shardIdx] = conn
+	ls.muConns.Unlock()
 }
 
 func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
@@ -72,14 +89,23 @@ func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
 	if ls == nil {
 		return
 	}
+	ls.muConns.Lock()
+	if ls.conns[shardIdx] != nil {
+		ls.conns[shardIdx].shardIdx = -1
+	}
 	ls.conns[shardIdx] = nil
+	ls.muConns.Unlock()
 }
 
-func AddLogicServer(ls *LogicServer) {
-	logicMu.Lock()
-	logicBackends = append(logicBackends, ls)
-	logicMu.Unlock()
-	log.Println("新逻辑服接入，当前服数量:", len(logicBackends))
+func (m *LogicServerMgr) getShardConn(nodeId string, shardIdx int) *ShardConn {
+	ls := m.getLogicServer(nodeId)
+	if ls == nil {
+		return nil
+	}
+	ls.muConns.RLock()
+	conn := ls.conns[shardIdx]
+	ls.muConns.RUnlock()
+	return conn
 }
 
 // ====================== 网关TCP监听逻辑服 ======================
@@ -96,45 +122,50 @@ func startGatewayTCPListener() {
 			continue
 		}
 		xnet.SetNoDelay(conn, true)
-		pendingMu.Lock()
-		pendingConns = append(pendingConns, conn)
-		if len(pendingConns) < BackendShardCnt {
-			pendingMu.Unlock()
-			continue
-		}
-		ls := &LogicServer{}
-		copy(ls.conns[:], pendingConns)
-		pendingConns = pendingConns[:0]
-		pendingMu.Unlock()
 
-		AddLogicServer(ls)
-
-		for i := 0; i < BackendShardCnt; i++ {
-			go logicReadLoop(ls.conns[i])
+		shardConn := &ShardConn{
+			conn:     conn,
+			connId:   kknet.NextConnID(),
+			shardIdx: -1,
+			nodeId:   "",
 		}
+		logicConnMgr.Store(shardConn.connId, shardConn)
+
+		// for i := 0; i < BackendShardCnt; i++ {
+		// 	go logicReadLoop(ls.conns[i])
+		// }
+		go logicReadLoop(shardConn)
 	}
 }
 
 // 每个逻辑服连接一个读携程。
-func logicReadLoop(conn net.Conn) {
-	dec := json.NewDecoder(conn)
+func logicReadLoop(shardConn *ShardConn) {
+	dec := json.NewDecoder(shardConn.conn)
 	for {
 		var m extmsg.DownMsg
 		if err := dec.Decode(&m); err != nil {
+			shardConn.closed.Store(true)
+			logicConnMgr.Delete(shardConn.connId)
+			logicServerMgr.removeShardConn(shardConn.nodeId, shardConn.shardIdx)
+			log.Printf("逻辑服连接已关闭 connId=%d shardIdx=%d nodeId=%s err=%v", shardConn.connId, shardConn.shardIdx, shardConn.nodeId, err)
 			return
 		}
 		if m.Cmd == extmsg.CmdRegister {
+			// 注册逻辑服
 			var registerMsg extmsg.RegisterMsg
 			_ = json.Unmarshal(m.Data, &registerMsg)
-			log.Printf("逻辑服注册: nodeId=%s nodeType=%s shardIdx=%d", registerMsg.NodeId, registerMsg.NodeType, registerMsg.ShardIdx)
+			logicServerMgr.addLogicServer(&registerMsg)
+			logicServerMgr.addShardConn(registerMsg.NodeId, registerMsg.ShardIdx, shardConn)
 		} else {
+			// 转发逻辑服消息到客户端
 			sendToClient(m.ConnID, m.Data)
 		}
 	}
 }
 
 var (
-	transThread = kkprocessor.NewWorkerQueue(1)
+	// 每个逻辑服连接一个写携程。
+	logicWriteThread = kkprocessor.NewWorkerQueue(1)
 )
 
 // 将客户端消息转发到逻辑服。
@@ -152,7 +183,7 @@ func transToLogic(connId uint64, data []byte, uid uint64, cmd string) {
 	dataCpy := byteslice.GetWithLenCap(len(data), len(data))
 	copy(dataCpy, data)
 
-	transThread.Push(func() {
+	logicWriteThread.Push(func() {
 		bs, _ := json.Marshal(extmsg.UpMsg{
 			ConnID: connId,
 			Uid:    uid,
@@ -177,7 +208,7 @@ func transToLogicNoCopy(connId uint64, msg *gws.Message, uid uint64, cmd string)
 		return
 	}
 	dataCpy := msg.Bytes()
-	transThread.Push(func() {
+	logicWriteThread.Push(func() {
 		bs, _ := json.Marshal(extmsg.UpMsg{
 			ConnID: connId,
 			Uid:    uid,
@@ -194,12 +225,18 @@ func transToLogicNoCopy(connId uint64, msg *gws.Message, uid uint64, cmd string)
 //	@param connId 客户端连接ID
 //	@return 逻辑服连接
 func routeLogicConn(connId uint64) net.Conn {
-	logicMu.RLock()
-	defer logicMu.RUnlock()
-	if len(logicBackends) == 0 {
+	var chooseServer *LogicServer
+	logicServerMgr.logicServerMap.Range(func(key any, value any) bool {
+		ls := value.(*LogicServer)
+		chooseServer = ls
+		return false
+	})
+	if chooseServer == nil {
 		return nil
 	}
-	srvIdx := connId % uint64(len(logicBackends))
 	shardIdx := connId % BackendShardCnt
-	return logicBackends[srvIdx].conns[shardIdx]
+	if chooseServer.conns[shardIdx] == nil {
+		return nil
+	}
+	return chooseServer.conns[shardIdx].conn
 }
