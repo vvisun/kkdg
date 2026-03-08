@@ -9,9 +9,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/lxzan/gws"
+	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/queues/kkmpsc"
 )
 
 // ====================== 配置 ======================
@@ -35,68 +36,27 @@ type ClientConn struct {
 	lastBeat   int64
 }
 
-// ====================== MPSC无锁队列 ======================
+// ====================== MPSC 写队列（使用 kkmpsc） ======================
 type writeTask struct {
 	connID uint64
 	data   []byte
 }
 
-type node struct {
-	task writeTask
-	next unsafe.Pointer
-}
-
-type MPSCQueue struct {
-	head unsafe.Pointer
-	tail unsafe.Pointer
-}
-
-func NewMPSC() *MPSCQueue {
-	n := unsafe.Pointer(&node{})
-	return &MPSCQueue{head: n, tail: n}
-}
-
-func (q *MPSCQueue) Enqueue(t writeTask) {
-	n := unsafe.Pointer(&node{task: t})
-	for {
-		tail := atomic.LoadPointer(&q.tail)
-		next := atomic.LoadPointer(&(*node)(tail).next)
-		if tail == atomic.LoadPointer(&q.tail) {
-			if next == nil {
-				if atomic.CompareAndSwapPointer(&(*node)(tail).next, next, n) {
-					atomic.CompareAndSwapPointer(&q.tail, tail, n)
-					return
-				}
-			} else {
-				atomic.CompareAndSwapPointer(&q.tail, tail, next)
-			}
-		}
-	}
-}
-
-func (q *MPSCQueue) Dequeue() (writeTask, bool) {
-	head := atomic.LoadPointer(&q.head)
-	next := atomic.LoadPointer(&(*node)(head).next)
-	if next == nil {
-		return writeTask{}, false
-	}
-	t := (*node)(next).task
-	atomic.StorePointer(&q.head, next)
-	return t, true
-}
-
 // ====================== 全局 ======================
 var (
 	clientMap     sync.Map
-	writeGroup    [WriteGroups]*MPSCQueue
+	writeGroup    [WriteGroups]*kkmpsc.Queue[writeTask]
 	connIDSeq     uint64 = 10000
 	logicBackends []*LogicServer
 	logicMu       sync.RWMutex
+
+	pendingConns []net.Conn
+	pendingMu    sync.Mutex
 )
 
 func initWriteGroups() {
 	for i := 0; i < WriteGroups; i++ {
-		writeGroup[i] = NewMPSC()
+		writeGroup[i] = kkmpsc.NewQueue[writeTask]()
 		go writeLoop(i)
 	}
 }
@@ -104,7 +64,7 @@ func initWriteGroups() {
 func writeLoop(gid int) {
 	q := writeGroup[gid]
 	for {
-		t, ok := q.Dequeue()
+		t, ok := q.Pop()
 		if !ok {
 			runtime.Gosched()
 			continue
@@ -123,7 +83,9 @@ func writeLoop(gid int) {
 
 func sendToClient(connID uint64, data []byte) {
 	gid := int(connID % WriteGroups)
-	writeGroup[gid].Enqueue(writeTask{connID: connID, data: data})
+	// 复制 data，避免调用方复用缓冲区导致竞态
+	wt := &writeTask{connID: connID, data: append([]byte(nil), data...)}
+	writeGroup[gid].Push(wt)
 }
 
 // ====================== 消息结构 ======================
@@ -163,6 +125,7 @@ func RouteLogicConn(uid uint64) net.Conn {
 }
 
 // ====================== 网关TCP监听逻辑服 ======================
+// 逻辑服主动向网关建立 BackendShards 条连接；网关收集满 8 条后组成一个 LogicServer。
 func StartGatewayTCPListener() {
 	lis, err := net.Listen("tcp", ":"+GatewayTCPPort)
 	if err != nil {
@@ -174,27 +137,21 @@ func StartGatewayTCPListener() {
 		if err != nil {
 			continue
 		}
-		go handleLogicInConn(conn)
-	}
-}
-
-func handleLogicInConn(conn net.Conn) {
-	ls := &LogicServer{}
-	ls.conns[0] = conn
-
-	for i := 1; i < BackendShards; i++ {
-		c, err := net.Dial("tcp", conn.RemoteAddr().String())
-		if err != nil {
-			log.Println("逻辑服分流创建失败:", err)
-			return
+		pendingMu.Lock()
+		pendingConns = append(pendingConns, conn)
+		if len(pendingConns) < BackendShards {
+			pendingMu.Unlock()
+			continue
 		}
-		ls.conns[i] = c
+		ls := &LogicServer{}
+		copy(ls.conns[:], pendingConns)
+		pendingConns = pendingConns[:0]
+		pendingMu.Unlock()
+		for i := 0; i < BackendShards; i++ {
+			go logicReadLoop(ls.conns[i])
+		}
+		AddLogicServer(ls)
 	}
-
-	for i := 0; i < BackendShards; i++ {
-		go logicReadLoop(ls.conns[i])
-	}
-	AddLogicServer(ls)
 }
 
 func logicReadLoop(conn net.Conn) {
@@ -224,7 +181,7 @@ func (h *WsHandler) OnOpen(s *gws.Conn) {
 	go h.startHeartbeat(c)
 }
 
-func (h *WsHandler) OnMessage(s *gws.Conn, msg gws.Message) {
+func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 	defer msg.Close()
 	cc, ok := s.Session().Load(sessionKeyClientConn)
 	if !ok {
@@ -269,6 +226,12 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg gws.Message) {
 	}
 }
 
+func (h *WsHandler) OnPing(s *gws.Conn, payload []byte) {
+	_ = s.WritePong(nil)
+}
+
+func (h *WsHandler) OnPong(s *gws.Conn, payload []byte) {}
+
 func (h *WsHandler) OnClose(s *gws.Conn, err error) {
 	cc, ok := s.Session().Load(sessionKeyClientConn)
 	if !ok {
@@ -304,6 +267,10 @@ func (h *WsHandler) startHeartbeat(c *ClientConn) {
 		now := time.Now().Unix()
 		last := atomic.LoadInt64(&c.lastBeat)
 		if now-last > ClientHeartbeatSec*ClientMaxMiss {
+			if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
+				clientMap.Delete(c.connID)
+				log.Printf("心跳超时关闭 connID=%d uid=%d", c.connID, c.uid)
+			}
 			_ = c.ws.WriteClose(1000, []byte("heartbeat_timeout"))
 			return
 		}
@@ -315,8 +282,24 @@ func main() {
 	go StartGatewayTCPListener()
 	initWriteGroups()
 
+	go func() {
+		for {
+			time.Sleep(1 * time.Second)
+			heapUsedMB, heapKBPerConn := kknet.ReadMetricsStress(1000)
+			log.Println("------------------------")
+			log.Println("当前连接数:", 1000)
+			log.Println("堆内存占用:", heapUsedMB, "MB")
+			log.Println("单连接堆内存:", heapKBPerConn)
+		}
+	}()
+
+	upgrader := gws.NewUpgrader(new(WsHandler), &gws.ServerOption{})
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		gws.Upgrade(w, r, new(WsHandler), nil)
+		socket, err := upgrader.Upgrade(w, r)
+		if err != nil {
+			return
+		}
+		go socket.ReadLoop()
 	})
 	log.Println("网关WS启动: ws://127.0.0.1:8080/ws")
 	log.Fatal(http.ListenAndServe(":"+GatewayWSPort, nil))

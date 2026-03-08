@@ -86,7 +86,7 @@ func (s *Stats) Snapshot() StatsSnapshot {
 const metricHeapObjectsBytes = "/memory/classes/heap/objects:bytes"
 
 func PrintStress(stats *StatsSnapshot) {
-	heapUsedMB, heapKBPerConn := readMetricsStress(stats.ActiveConns)
+	heapUsedMB, heapKBPerConn := ReadMetricsStress(stats.ActiveConns)
 
 	kklog.Debugf("=== kknet 指标 ===")
 	kklog.Debugf("并发连接数：%d", stats.ActiveConns)
@@ -100,9 +100,9 @@ func PrintStress(stats *StatsSnapshot) {
 	kklog.Debugf("------------------------")
 }
 
-// readMetricsStress 通过 runtime/metrics 读取堆内存（无 stop-the-world）。
+// ReadMetricsStress 通过 runtime/metrics 读取堆内存（无 stop-the-world）。
 // 返回 (堆对象占用 MB, 单连接堆内存 KB)。
-func readMetricsStress(activeConns int64) (heapUsedMB uint64, heapKBPerConn float64) {
+func ReadMetricsStress(activeConns int64) (heapUsedMB uint64, heapKBPerConn float64) {
 	samples := []metrics.Sample{
 		{Name: metricHeapObjectsBytes},
 	}
