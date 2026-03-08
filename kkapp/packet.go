@@ -13,6 +13,8 @@ const (
 	FuncNameSendToClient = "1"
 	// 逻辑服->网关->多个客户端的消息转发函数名
 	FuncNameSendToClients = "N"
+	// 网关 -> 逻辑服：客户端断开事件
+	FuncNameClientDisconnect = "cliMiss"
 )
 
 // 网关与客户端之间的消息编码解码器

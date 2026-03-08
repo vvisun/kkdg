@@ -131,3 +131,18 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, msgBytes []byte
 	}
 	return nil
 }
+
+func (slf *transportorRpc) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	memberInfo := slf.logicNodeMgr.getLogicNode(logicNodeId)
+	if memberInfo == nil {
+		return ErrLogicNodeNotRegistered //逻辑节点未注册
+	}
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](slf.rpcSvr, memberInfo.connId, "clientDisconnect")
+	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcClientDisconnect{
+		ClientId: sessionID,
+	}, kkrpc.CallConfig{})
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -60,8 +60,16 @@ func (slf *transportorShard) ForwardToClient(sessionID string, messageBytes []by
 	if conn == nil {
 		return kkerrors.ErrConnNotFound
 	}
-	streamBytes := messageBytes
-	_, _ = conn.Write(streamBytes)
+	// 下行必须走转发协议 RpcS2Client，网关按 msgID=2 解析后 ForwardToClient(Payload)
+	payload := make([]byte, len(messageBytes))
+	copy(payload, messageBytes)
+	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
+	bb, err := kkpacket.EncodeStream(rpcMsg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	if err != nil {
+		return err
+	}
+	_, _ = conn.Write(bb.B)
+	kkbuffer.Put(bb)
 	return nil
 }
 
@@ -96,9 +104,17 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 		kkbuffer.Put(bb)
 		return err
 	}
-	streamBytes := bb.B
-	_, _ = conn.Write(streamBytes)
+	// 下行必须走转发协议 RpcS2Client，网关按 msgID=2 解析后 ForwardToClient(Payload) 再写 WS
+	payload := make([]byte, len(bb.B))
+	copy(payload, bb.B)
 	kkbuffer.Put(bb)
+	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
+	bbTrans, err := kkpacket.EncodeStream(rpcMsg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	if err != nil {
+		return err
+	}
+	_, _ = conn.Write(bbTrans.B)
+	kkbuffer.Put(bbTrans)
 	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -115,4 +116,19 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, msgBytes []byt
 		}
 	}
 	return nil
+}
+
+func (slf *transportorNats) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	if slf.cluster == nil {
+		return kkerrors.ErrClusterNotInitialized
+	}
+	if sessionID == "" {
+		return kkerrors.ErrEmptySessionID
+	}
+
+	pkt := kkcluster.NewClusterPacket()
+	pkt.FuncName = kkapp.FuncNameClientDisconnect
+	pkt.ArgBytes = nil
+	pkt.Sid = sessionID
+	return slf.cluster.PublishRemote(logicNodeId, pkt)
 }

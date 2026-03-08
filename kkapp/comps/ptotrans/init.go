@@ -10,6 +10,7 @@ func init() {
 	kkrpc.RegisterOneWayMethod[RpcS2Client]("s2c")
 	kkrpc.RegisterOneWayMethod[RpcS2Clients]("s2cs")
 	kkrpc.RegisterOneWayMethod[RpcC2S]("c2s")
+	kkrpc.RegisterOneWayMethod[RpcClientDisconnect]("clientDisconnect")
 
 	kkapp.GetTransMsgPacket().GetRouter().Register(1, &RpcMsgRegister{}, "logic")
 	kkapp.GetTransMsgPacket().GetRouter().Register(2, &RpcS2Client{}, "logic")

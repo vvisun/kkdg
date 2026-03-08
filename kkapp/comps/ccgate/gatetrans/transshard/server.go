@@ -50,6 +50,36 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 	return trans
 }
 
+func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
+	if chooseServer == nil {
+		return kkerrors.ErrLogicNodeNotRegistered //逻辑节点未注册
+	}
+
+	var msg ptotrans.RpcClientDisconnect
+	msg.ClientId = sessionID
+	bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	if err != nil {
+		kkbuffer.Put(bb)
+		return err
+	}
+
+	shardIdx := connId % kkapp.BackendShardCnt
+	chooseServer.muConns.RLock()
+	sconn := chooseServer.conns[shardIdx]
+	chooseServer.muConns.RUnlock()
+	if sconn == nil {
+		kkbuffer.Put(bb)
+		return nil
+	}
+
+	if err := sconn.conn.SendBuffer(bb); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
 	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
 	if chooseServer == nil {

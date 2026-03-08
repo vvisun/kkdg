@@ -236,7 +236,14 @@ func (h *gateHandler) OnConnect(c kknet.IConn) {
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	h.gate.sessionMgr.RemoveConn(getSessionId(c.ID(), h.gate.GetApplication().GetNodeId()))
+	sid := getSessionId(c.ID(), h.gate.GetApplication().GetNodeId())
+	cid := c.ID()
+	gateNodeId := h.gate.GetApplication().GetNodeId()
+	go func() {
+		// 通知逻辑服：玩家断开
+		h.gate.transportor.NotifyClientDisconnect(sid, gateNodeId, cid)
+	}()
+	h.gate.sessionMgr.RemoveConn(sid)
 	h.gate.clientMgr.removeClient(c.ID())
 	kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 }
