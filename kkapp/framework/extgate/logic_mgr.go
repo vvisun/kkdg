@@ -6,7 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/lxzan/gws"
 	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
@@ -211,31 +210,6 @@ func transToLogic(connId uint64, data []byte, uid uint64, cmd string) {
 // 将客户端消息转发到逻辑服。
 //
 //	@param connId 客户端连接ID
-//	@param msg 客户端消息
-//	@param uid 用户ID
-//	@param cmd 命令
-func transToLogicNoCopy(connId uint64, msg *gws.Message, uid uint64, cmd string) {
-	conn := routeLogicConn(connId)
-	if conn == nil {
-		msg.Close()
-		return
-	}
-	dataCpy := msg.Bytes()
-	logicWriteThread.Push(func() {
-		bs, _ := json.Marshal(extmsg.UpMsg{
-			ConnID: connId,
-			Uid:    uid,
-			Data:   dataCpy,
-			Cmd:    cmd,
-		})
-		_, _ = conn.Write(append(bs, '\n'))
-		msg.Close()
-	})
-}
-
-// 将客户端消息转发到逻辑服。
-//
-//	@param connId 客户端连接ID
 //	@return 逻辑服连接
 func routeLogicConn(connId uint64) net.Conn {
 	var chooseServer *LogicServer
@@ -248,8 +222,11 @@ func routeLogicConn(connId uint64) net.Conn {
 		return nil
 	}
 	shardIdx := connId % BackendShardCnt
-	if chooseServer.conns[shardIdx] == nil {
+	chooseServer.muConns.RLock()
+	sconn := chooseServer.conns[shardIdx]
+	chooseServer.muConns.RUnlock()
+	if sconn == nil {
 		return nil
 	}
-	return chooseServer.conns[shardIdx].conn
+	return sconn.conn
 }

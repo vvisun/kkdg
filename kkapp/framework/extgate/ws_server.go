@@ -30,15 +30,13 @@ func (h *WsHandler) OnOpen(s *gws.Conn) {
 }
 
 func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
-	// defer msg.Close()
+	defer msg.Close()
 	cc, ok := s.Session().Load(sessionKeyClientConn)
 	if !ok {
-		msg.Close()
 		return
 	}
 	c := cc.(*ClientConn)
 	if atomic.LoadInt32(&c.closed) == 1 {
-		msg.Close()
 		return
 	}
 
@@ -54,7 +52,6 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 
 	// 心跳包直接响应，不上发逻辑服
 	if req.Cmd == extmsg.CmdHeartbeat {
-		msg.Close()
 		resp, _ := json.Marshal(map[string]string{"cmd": extmsg.CmdHeartbeatAck})
 		sendToClient(c.connID, resp)
 		return
@@ -66,7 +63,7 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 	}
 
 	// 转发逻辑服
-	transToLogicNoCopy(c.connID, msg, c.uid, req.Cmd)
+	transToLogic(c.connID, msg.Bytes(), c.uid, req.Cmd)
 }
 
 func (h *WsHandler) OnPing(s *gws.Conn, payload []byte) {
