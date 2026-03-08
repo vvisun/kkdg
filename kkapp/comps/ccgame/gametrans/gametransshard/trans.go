@@ -24,9 +24,10 @@ type transportorShard struct {
 	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
-func NewTransportorShard(sessionMgr *gametrans.SessionManager, gatewayAddr string, nodeID, nodeType string) gametrans.ITransportor {
+func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], gatewayAddr, nodeID, nodeType string) gametrans.ITransportor {
 	trans := &transportorShard{
 		sessionMgr:  sessionMgr,
+		msgReceiver: msgReceiver,
 		gatewayAddr: gatewayAddr,
 		nodeId:      nodeID,
 		nodeType:    nodeType,

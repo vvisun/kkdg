@@ -9,6 +9,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransnats"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransrpc"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransshard"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
@@ -68,6 +69,10 @@ func (slf *gameComponent) Init() error {
 		slf.transportor = gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
 	case kkapp.TransTypeRpc:
 		slf.transportor = gametransrpc.NewTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication(), slf.opt.RpcAddr)
+	case kkapp.TransTypeShard:
+		nodeId := slf.GetApplication().GetNodeId()
+		nodeType := slf.GetApplication().GetNodeType()
+		slf.transportor = gametransshard.NewTransportorShard(slf.sessionManager, slf.msgReceiver, slf.opt.RpcAddr, nodeId, nodeType)
 	default:
 		return errors.New("invalid trans type: " + slf.opt.TransType)
 	}
