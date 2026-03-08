@@ -2,6 +2,7 @@ package extgate
 
 import (
 	"encoding/json"
+	"math"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -16,17 +17,9 @@ import (
 
 var (
 	// 逻辑服列表
-	// logicBackends  []*LogicServer
-	// logicMu        sync.RWMutex
 	logicServerMgr = &LogicServerMgr{}
 	logicConnMgr   sync.Map // map[connId]*ShardConn
-
-	// 逻辑服连接列表，当逻辑服连接满8条时，组成一个LogicServer。
-	// pendingConns []net.Conn
-	// pendingMu    sync.Mutex
 )
-
-// ====================== 逻辑服管理 ======================
 
 type ShardConn struct {
 	conn     net.Conn
@@ -37,14 +30,16 @@ type ShardConn struct {
 }
 
 type LogicServer struct {
-	nodeId   string
-	nodeType string
-	conns    [BackendShardCnt]*ShardConn
-	muConns  sync.RWMutex
+	nodeId      string
+	nodeType    string
+	conns       [BackendShardCnt]*ShardConn
+	muConns     sync.RWMutex
+	clientCount int64
 }
 
 type LogicServerMgr struct {
 	logicServerMap sync.Map // map[string]*LogicServer
+	registerMu     sync.Mutex
 }
 
 // addLogicServer 确保 nodeId 对应的 LogicServer 存在（多连接并发注册时只创建一次），
@@ -54,10 +49,12 @@ func (m *LogicServerMgr) addLogicServer(info *extmsg.RegisterMsg) {
 		nodeId:   info.NodeId,
 		nodeType: info.NodeType,
 	}
+	m.registerMu.Lock()
 	actual, loaded := m.logicServerMap.LoadOrStore(info.NodeId, newLS)
 	if !loaded {
 		kklog.Infof("逻辑服注册: nodeId=%s nodeType=%s（首条连接）", info.NodeId, info.NodeType)
 	}
+	m.registerMu.Unlock()
 	_ = actual // 已存在或新建的 *LogicServer，addShardConn 会通过 getLogicServer 取到
 }
 
@@ -217,10 +214,14 @@ func transToLogic(connId uint64, data []byte, uid uint64, cmd string) {
 func routeLogicConn(connId uint64) net.Conn {
 	// 选择一个逻辑服。todo: 优化选择策略
 	var chooseServer *LogicServer
+	minClientCount := int64(math.MaxInt64)
 	logicServerMgr.logicServerMap.Range(func(key any, value any) bool {
 		ls := value.(*LogicServer)
-		chooseServer = ls
-		return false
+		if atomic.LoadInt64(&ls.clientCount) < minClientCount {
+			minClientCount = atomic.LoadInt64(&ls.clientCount)
+			chooseServer = ls
+		}
+		return true
 	})
 	if chooseServer == nil {
 		return nil

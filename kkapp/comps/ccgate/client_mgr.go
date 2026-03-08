@@ -40,7 +40,7 @@ func (c *clientInfo) allocLogicNode(nodeType string, nodeId string) *logicNodeIn
 		return lgcInfo
 	}
 	lgcInfo = newLogicNodeInfo(nodeId, nodeType)
-	c.logicNodeMap.Store(nodeType, lgcInfo)
+	c.logicNodeMap.LoadOrStore(nodeType, lgcInfo)
 	return lgcInfo
 }
 

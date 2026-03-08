@@ -22,6 +22,7 @@ import (
 const (
 	GatewayTCPPort     = "9981"
 	GatewayWSPort      = "8080"
+	EnableWriteGroup   = false
 	WriteGroupCnt      = 8
 	BackendShardCnt    = 8
 	ClientHeartbeatSec = 30
@@ -57,6 +58,9 @@ var (
 
 // 初始化WriteGroupCnt个写协程, 负责将writeTask写入客户端。
 func initWriteGroups() {
+	if !EnableWriteGroup {
+		return
+	}
 	for i := 0; i < WriteGroupCnt; i++ {
 		writeGroup[i] = kkmpsc.NewQueue[writeTask]()
 		// 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
@@ -66,6 +70,9 @@ func initWriteGroups() {
 
 // 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
 func writeLoop(gid int) {
+	if !EnableWriteGroup {
+		panic("EnableWriteGroup is false")
+	}
 	q := writeGroup[gid]
 	for {
 		t, ok := q.Pop()
@@ -88,17 +95,37 @@ func writeLoop(gid int) {
 
 // 发送数据到客户端。
 func sendToClient(connID uint64, data []byte) {
-	gid := int(connID % WriteGroupCnt)
 	// 复制 data，避免调用方复用缓冲区导致竞态
 	dataCpy := byteslice.GetWithLenCap(len(data), len(data))
 	copy(dataCpy, data)
-	wt := &writeTask{connID: connID, data: dataCpy}
-	writeGroup[gid].Push(wt)
+
+	if EnableWriteGroup {
+		wt := &writeTask{connID: connID, data: dataCpy}
+		gid := int(connID % WriteGroupCnt)
+		writeGroup[gid].Push(wt)
+		return
+	}
+
+	v, ok := clientMap.Load(connID)
+	if !ok {
+		return
+	}
+	c := v.(*ClientConn)
+	if atomic.LoadInt32(&c.closed) == 1 {
+		return
+	}
+	c.ws.WriteAsync(gws.OpcodeText, data, func(err error) {
+		if err != nil {
+			return
+		}
+		byteslice.Put(data)
+	})
 }
 
 // ====================== 主函数 ======================
 func StartUp() {
 	go startGatewayTCPListener()
+
 	initWriteGroups()
 
 	go func() {
