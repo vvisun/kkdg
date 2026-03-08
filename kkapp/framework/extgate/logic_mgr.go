@@ -47,16 +47,18 @@ type LogicServerMgr struct {
 	logicServerMap sync.Map // map[string]*LogicServer
 }
 
+// addLogicServer 确保 nodeId 对应的 LogicServer 存在（多连接并发注册时只创建一次），
+// 然后由调用方再调用 addShardConn 挂上当前连接。
 func (m *LogicServerMgr) addLogicServer(info *extmsg.RegisterMsg) {
-	_, ok := m.logicServerMap.Load(info.NodeId)
-	if ok {
-		return
-	}
-	m.logicServerMap.Store(info.NodeId, &LogicServer{
+	newLS := &LogicServer{
 		nodeId:   info.NodeId,
 		nodeType: info.NodeType,
-	})
-	kklog.Infof("逻辑服注册: nodeId=%s nodeType=%s shardIdx=%d", info.NodeId, info.NodeType, info.ShardIdx)
+	}
+	actual, loaded := m.logicServerMap.LoadOrStore(info.NodeId, newLS)
+	if !loaded {
+		kklog.Infof("逻辑服注册: nodeId=%s nodeType=%s（首条连接）", info.NodeId, info.NodeType)
+	}
+	_ = actual // 已存在或新建的 *LogicServer，addShardConn 会通过 getLogicServer 取到
 }
 
 func (m *LogicServerMgr) removeLogicServer(nodeId string) {
@@ -86,6 +88,7 @@ func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardCo
 	conn.shardIdx = shardIdx
 	ls.conns[shardIdx] = conn
 	ls.muConns.Unlock()
+	kklog.Infof("逻辑服 shard 已挂接: nodeId=%s shardIdx=%d", nodeId, shardIdx)
 }
 
 func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
