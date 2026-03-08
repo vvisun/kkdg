@@ -57,8 +57,9 @@ func (slf *transportorShard) getConn(shardIdx int) net.Conn {
 	return conn
 }
 
-func (slf *transportorShard) ForwardToClient(sessionID string, messageBytes []byte) error {
-	if sessionID == "" || len(messageBytes) == 0 {
+// @param packet is a full stream packet [length,message]
+func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) error {
+	if sessionID == "" || len(packet) == 0 {
 		return nil
 	}
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
@@ -70,7 +71,7 @@ func (slf *transportorShard) ForwardToClient(sessionID string, messageBytes []by
 		return kkerrors.ErrConnNotFound
 	}
 	// 下行必须走转发协议 RpcS2Client，网关按 msgID=2 解析后 ForwardToClient(Payload)
-	payload := messageBytes //EncodeStream会进行复制，这里可以直接传引用
+	payload := packet //EncodeStream会进行复制，这里可以直接传引用
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
 	bb, err := kkpacket.EncodeStream(rpcMsg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
 	if err != nil {
@@ -81,15 +82,16 @@ func (slf *transportorShard) ForwardToClient(sessionID string, messageBytes []by
 	return nil
 }
 
-func (slf *transportorShard) ForwardToClients(sessionIDs []string, messageBytes []byte) error {
-	if len(sessionIDs) == 0 || len(messageBytes) == 0 {
+// @param packet is a full stream packet [length,message]
+func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
+	if len(sessionIDs) == 0 || len(packet) == 0 {
 		return nil
 	}
 	for _, sessionID := range sessionIDs {
 		if sessionID == "" {
 			continue
 		}
-		slf.ForwardToClient(sessionID, messageBytes)
+		slf.ForwardToClient(sessionID, packet)
 	}
 	return nil
 }

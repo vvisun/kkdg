@@ -103,11 +103,12 @@ func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 	return nil
 }
 
-func (slf *transportorShard) ForwardToClient(sessionID string, msgBytes []byte) error {
+// @param packet is a full stream packet [length,message]
+func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) error {
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
-	if len(msgBytes) == 0 {
+	if len(packet) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
 
@@ -117,8 +118,8 @@ func (slf *transportorShard) ForwardToClient(sessionID string, msgBytes []byte) 
 	}
 
 	// 这里需要复制，因为传递过来的msgBytes可能会被其他地方回收修改。
-	streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
-	streamBytes.WriteBytes(msgBytes)
+	streamBytes := kkbuffer.GetWithCapacity(len(packet))
+	streamBytes.WriteBytes(packet)
 
 	if err := conn.SendBuffer(streamBytes); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
@@ -126,11 +127,12 @@ func (slf *transportorShard) ForwardToClient(sessionID string, msgBytes []byte) 
 	return nil
 }
 
-func (slf *transportorShard) ForwardToClients(sessionIDs []string, msgBytes []byte) error {
+// @param packet is a full stream packet [length,message]
+func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if len(sessionIDs) == 0 {
 		return nil
 	}
-	if len(msgBytes) == 0 {
+	if len(packet) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
 
@@ -146,8 +148,8 @@ func (slf *transportorShard) ForwardToClients(sessionIDs []string, msgBytes []by
 
 		// 这里需要复制，因为传递过来的msgBytes可能会被其他地方回收修改。
 		// 而且SendBuffer会自动释放streamBytes。所以需要复制一份。
-		streamBytes := kkbuffer.GetWithCapacity(len(msgBytes))
-		streamBytes.WriteBytes(msgBytes)
+		streamBytes := kkbuffer.GetWithCapacity(len(packet))
+		streamBytes.WriteBytes(packet)
 
 		if err := conn.SendBuffer(streamBytes); err != nil {
 			kklog.Errorf("[ccgate] send response error: %v", err)

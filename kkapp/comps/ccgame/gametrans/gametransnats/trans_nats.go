@@ -44,11 +44,12 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 }
 
 // ForwardToClient 转发消息到客户端
-func (slf *transportorNats) ForwardToClient(sessionID string, streamBytes []byte) error {
+// @param packet is a full stream packet [length,message]
+func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) error {
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
-	if len(streamBytes) == 0 {
+	if len(packet) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
 
@@ -59,7 +60,7 @@ func (slf *transportorNats) ForwardToClient(sessionID string, streamBytes []byte
 
 	resp := kkcluster.NewClusterPacket()
 	resp.FuncName = kkapp.FuncNameSendToClient
-	resp.ArgBytes = streamBytes //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
+	resp.ArgBytes = packet //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	resp.Sid = sessionID
 	if err := slf.cluster.PublishRemote(sessionInfo.GateNodeID, resp); err != nil {
 		kklog.Errorf("[ccgame] publish response to %s error: %v", sessionInfo.GateNodeID, err)
@@ -68,16 +69,17 @@ func (slf *transportorNats) ForwardToClient(sessionID string, streamBytes []byte
 	return nil
 }
 
-func (slf *transportorNats) ForwardToClients(sessionIDs []string, streamBytes []byte) error {
+// @param packet is a full stream packet [length,message]
+func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if len(sessionIDs) == 0 {
 		return nil
 	}
-	if len(streamBytes) == 0 {
+	if len(packet) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
 
 	if len(sessionIDs) == 1 {
-		return slf.ForwardToClient(sessionIDs[0], streamBytes)
+		return slf.ForwardToClient(sessionIDs[0], packet)
 	}
 
 	sidByGateNodeID := make(map[string]string)
@@ -92,7 +94,7 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, streamBytes []
 	for gateNodeID, sids := range sidByGateNodeID {
 		resp := kkcluster.NewClusterPacket()
 		resp.FuncName = kkapp.FuncNameSendToClients
-		resp.ArgBytes = streamBytes //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
+		resp.ArgBytes = packet //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 		resp.Sid = sids
 		if err := slf.cluster.PublishRemote(gateNodeID, resp); err != nil {
 			kklog.Errorf("[ccgame] publish response to %s error: %v", gateNodeID, err)

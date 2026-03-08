@@ -53,20 +53,22 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	return trans
 }
 
-func (slf *transportorRpc) ForwardToClient(sessionID string, msgBytes []byte) error {
+// @param packet is a full stream packet [length,message]
+func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) error {
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
 	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
-		Payload:  msgBytes,
+		Payload:  packet,
 	}, kkrpc.CallConfig{})
 	return nil
 }
 
-func (slf *transportorRpc) ForwardToClients(sessionIDs []string, msgBytes []byte) error {
+// @param packet is a full stream packet [length,message]
+func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) error {
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0, "s2cs")
 	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,
-		Payload:   msgBytes,
+		Payload:   packet,
 	}, kkrpc.CallConfig{})
 	return nil
 }
