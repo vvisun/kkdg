@@ -238,10 +238,17 @@ func (h *gateHandler) OnConnect(c kknet.IConn) {
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 	sid := getSessionId(c.ID(), h.gate.GetApplication().GetNodeId())
 	cid := c.ID()
-	gateNodeId := h.gate.GetApplication().GetNodeId()
+	// 在 removeClient 前取出该客户端已分配的逻辑服 nodeId，用于通知断开
+	var logicNodeId string
+	if cliInfo := h.gate.clientMgr.getClient(c.ID()); cliInfo != nil {
+		if lgc := cliInfo.getLogicNode(h.gate.opt.LogicNodeType); lgc != nil {
+			logicNodeId = lgc.nodeId
+		}
+	}
 	go func() {
-		// 通知逻辑服：玩家断开
-		h.gate.transportor.NotifyClientDisconnect(sid, gateNodeId, cid)
+		if logicNodeId != "" {
+			h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
+		}
 	}()
 	h.gate.sessionMgr.RemoveConn(sid)
 	h.gate.clientMgr.removeClient(c.ID())
