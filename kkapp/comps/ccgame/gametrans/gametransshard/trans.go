@@ -153,45 +153,73 @@ func businessLoop(idx int, conn net.Conn, trans *transportorShard) {
 		businessLoop(idx, connectGateway(idx, trans), trans)
 	}()
 
+	stream := kkpacket.DefaultStreamPacket()
+	lfb := stream.LengthFieldByteCount()
+	recvBuf := make([]byte, 0, 16*1024)
+	tmp := make([]byte, 4*1024)
+	recvs := make([][]byte, 0, 8)
+
 	for {
-		data := []byte{} //这里应该读网络数据
+		n, err := conn.Read(tmp)
+		if err != nil {
+			return
+		}
+		if n == 0 {
+			continue
+		}
+		recvBuf = append(recvBuf, tmp[:n]...)
+		packets, left, err := stream.Split(recvBuf, recvs)
+		if err != nil {
+			kklog.Warnf("[逻辑服%d] 拆包错误: %v", idx, err)
+			return
+		}
+		recvBuf = recvBuf[:0]
+		if len(left) > 0 {
+			recvBuf = append(recvBuf, left...)
+		}
 
-		messageBytes, err := kkpacket.DefaultStreamPacket().MessageBytes(data)
-		if err != nil {
-			return
-		}
-		msgID, err := kkapp.GetTransMsgPacket().GetMsgID(messageBytes)
-		if err != nil {
-			return
-		}
-		bodyBytes, err := kkapp.GetTransMsgPacket().BodyBytes(messageBytes)
-		if err != nil {
-			return
-		}
+		for _, pkt := range packets {
+			if len(pkt) < lfb {
+				continue
+			}
+			messageBytes, err := stream.MessageBytes(pkt)
+			if err != nil {
+				continue
+			}
+			msgID, err := kkapp.GetTransMsgPacket().GetMsgID(messageBytes)
+			if err != nil {
+				kklog.Warnf("[逻辑服%d] GetMsgID: %v", idx, err)
+				continue
+			}
+			bodyBytes, err := kkapp.GetTransMsgPacket().BodyBytes(messageBytes)
+			if err != nil {
+				continue
+			}
 
-		switch msgID {
-		case 4: // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
-			var msg ptotrans.RpcC2S
-			err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
-			if err != nil {
-				return
-			}
-			if trans.sessionMgr.GetSession(msg.ClientId) == nil {
-				trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
-			}
-			streamBytes := msg.Payload
-			trans.msgReceiver.OnSession(msg.ClientId, streamBytes)
-		case 5: // 客户端断开事件
-			var msg ptotrans.RpcClientDisconnect
-			err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
-			if err != nil {
-				return
-			}
-			// 在这里写：离线清理、存库、踢下线、房间退出等逻辑
-			kklog.Debugf("[逻辑服%d] 玩家断开 clientId=%s clientIds=%v", idx, msg.ClientId, msg.ClientIds)
-			trans.sessionMgr.RemoveSession(msg.ClientId)
-			for _, clientId := range msg.ClientIds {
-				trans.sessionMgr.RemoveSession(clientId)
+			switch msgID {
+			case 4: // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
+				var msg ptotrans.RpcC2S
+				err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+				if err != nil {
+					kklog.Warnf("[逻辑服%d] 解析 RpcC2S: %v", idx, err)
+					continue
+				}
+				if trans.sessionMgr.GetSession(msg.ClientId) == nil {
+					trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
+				}
+				trans.msgReceiver.OnSession(msg.ClientId, msg.Payload)
+			case 5: // 客户端断开事件
+				var msg ptotrans.RpcClientDisconnect
+				err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+				if err != nil {
+					kklog.Warnf("[逻辑服%d] 解析 RpcClientDisconnect: %v", idx, err)
+					continue
+				}
+				kklog.Debugf("[逻辑服%d] 玩家断开 clientId=%s clientIds=%v", idx, msg.ClientId, msg.ClientIds)
+				trans.sessionMgr.RemoveSession(msg.ClientId)
+				for _, clientId := range msg.ClientIds {
+					trans.sessionMgr.RemoveSession(clientId)
+				}
 			}
 		}
 	}

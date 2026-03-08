@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/vvisun/kkdg/kkapp/framework/extlogic"
+	"github.com/vvisun/kkdg/other/examples/examext/framework/extlogic"
 )
 
 // ====================== 主函数 ======================

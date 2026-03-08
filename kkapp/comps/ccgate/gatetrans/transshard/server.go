@@ -165,6 +165,9 @@ func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		var msg ptotrans.RpcMsgRegister
 		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.logicServerMgr.addLogicServer(&msg)
+		if sc, ok := h.transporter.logicConnMgr.Load(connID); ok {
+			h.transporter.logicServerMgr.addShardConn(msg.NodeId, msg.ShardIdx, sc.(*ShardConn))
+		}
 	case 2: // 网关转发消息到客户端: 逻辑服->网关->客户端
 		var msg ptotrans.RpcS2Client
 		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)

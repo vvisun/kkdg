@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
+	"github.com/vvisun/kkdg/other/examples/examext/framework/extmsg"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
