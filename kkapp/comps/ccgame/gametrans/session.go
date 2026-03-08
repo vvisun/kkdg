@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -12,6 +13,7 @@ type SessionInfo struct {
 	UserID     kknet.USER_ID
 	SessionID  string
 	GateNodeID string
+	ShardIdx   int
 }
 
 var sessionInfoPool = sync.Pool{
@@ -40,6 +42,8 @@ func putSessionInfo(si *SessionInfo) {
 
 //--------------------------------------------------
 
+var autoShardIdx int64 = 0 // 自动分配的shardIdx
+
 // SessionManager 会话管理器
 type SessionManager struct {
 	sessionMap  sync.Map // map[sessionID]*SessionInfo
@@ -57,9 +61,11 @@ func (slf *SessionManager) AddSession(sessionID string, gateNodeID string) {
 	if oldInfo != nil {
 		return
 	}
+	shardIdx := atomic.AddInt64(&autoShardIdx, 1) % kkapp.BackendShardCnt
 	si := newSessionInfo()
 	si.SessionID = sessionID
 	si.GateNodeID = gateNodeID
+	si.ShardIdx = int(shardIdx)
 	slf.sessionMap.Store(sessionID, si)
 	atomic.AddInt32(&slf.onlineCount, 1)
 }

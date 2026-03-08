@@ -7,6 +7,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
 	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -14,11 +15,9 @@ import (
 	"github.com/vvisun/kkdg/utils/xnet"
 )
 
-const BackendShardCnt = 8
-
 type transportorShard struct {
 	sessionMgr  *gametrans.SessionManager
-	conns       [BackendShardCnt]net.Conn
+	conns       [kkapp.BackendShardCnt]net.Conn
 	gatewayAddr string
 	nodeId      string
 	nodeType    string
@@ -33,11 +32,11 @@ func NewTransportorShard(sessionMgr *gametrans.SessionManager, gatewayAddr strin
 		nodeType:    nodeType,
 	}
 
-	for i := 0; i < BackendShardCnt; i++ {
+	for i := 0; i < kkapp.BackendShardCnt; i++ {
 		trans.conns[i] = connectGateway(i, trans)
 	}
 
-	for i := 0; i < BackendShardCnt; i++ {
+	for i := 0; i < kkapp.BackendShardCnt; i++ {
 		go businessLoop(i, trans.conns[i], trans)
 	}
 
@@ -45,18 +44,73 @@ func NewTransportorShard(sessionMgr *gametrans.SessionManager, gatewayAddr strin
 }
 
 func (slf *transportorShard) ForwardToClient(sessionID string, messageBytes []byte) error {
+	if sessionID == "" || len(messageBytes) == 0 {
+		return nil
+	}
+	sessionInfo := slf.sessionMgr.GetSession(sessionID)
+	if sessionInfo == nil {
+		return kkerrors.ErrSessionNotFound
+	}
+	shardIdx := sessionInfo.ShardIdx % kkapp.BackendShardCnt
+	if shardIdx < 0 {
+		shardIdx = 0
+	}
+	conn := slf.conns[shardIdx]
+	if conn == nil {
+		return kkerrors.ErrConnNotFound
+	}
+	streamBytes := messageBytes
+	_, _ = conn.Write(streamBytes)
 	return nil
 }
 
 func (slf *transportorShard) ForwardToClients(sessionIDs []string, messageBytes []byte) error {
+	if len(sessionIDs) == 0 || len(messageBytes) == 0 {
+		return nil
+	}
+	for _, sessionID := range sessionIDs {
+		if sessionID == "" {
+			continue
+		}
+		slf.ForwardToClient(sessionID, messageBytes)
+	}
 	return nil
 }
 
 func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
+	if sessionID == "" || msg == nil {
+		return nil
+	}
+	sessionInfo := slf.sessionMgr.GetSession(sessionID)
+	if sessionInfo == nil {
+		return kkerrors.ErrSessionNotFound
+	}
+	shardIdx := sessionInfo.ShardIdx % kkapp.BackendShardCnt
+	conn := slf.conns[shardIdx]
+	if conn == nil {
+		return kkerrors.ErrConnNotFound
+	}
+	bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
+	if err != nil {
+		kkbuffer.Put(bb)
+		return err
+	}
+	streamBytes := bb.B
+	_, _ = conn.Write(streamBytes)
+	kkbuffer.Put(bb)
 	return nil
 }
 
 func (slf *transportorShard) SendToClients(sessionIDs []string, msg any) error {
+	if len(sessionIDs) == 0 || msg == nil {
+		return nil
+	}
+	for _, sessionID := range sessionIDs {
+		if sessionID == "" {
+			continue
+		}
+		slf.SendToClient(sessionID, msg)
+	}
 	return nil
 }
 

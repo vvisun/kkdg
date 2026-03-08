@@ -4,12 +4,11 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
-
-const BackendShardCnt = 8
 
 type ShardConn struct {
 	conn     kknet.IConn
@@ -30,7 +29,7 @@ func (sc *ShardConn) clear() {
 type LogicServer struct {
 	nodeId      string
 	nodeType    string
-	conns       [BackendShardCnt]*ShardConn
+	conns       [kkapp.BackendShardCnt]*ShardConn
 	muConns     sync.RWMutex
 	clientCount int64
 }
@@ -69,7 +68,7 @@ func (m *LogicServerMgr) getLogicServer(nodeId string) *LogicServer {
 }
 
 func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardConn) {
-	if shardIdx < 0 || shardIdx >= BackendShardCnt {
+	if shardIdx < 0 || shardIdx >= kkapp.BackendShardCnt {
 		kklog.Errorf("逻辑服[nodeId=%s]添加连接失败 shardIdx=%d 超出范围", nodeId, shardIdx)
 		return
 	}
@@ -87,7 +86,7 @@ func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardCo
 }
 
 func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
-	if shardIdx < 0 || shardIdx >= BackendShardCnt {
+	if shardIdx < 0 || shardIdx >= kkapp.BackendShardCnt {
 		return
 	}
 	ls := m.getLogicServer(nodeId)

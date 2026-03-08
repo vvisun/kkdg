@@ -21,3 +21,5 @@ const (
 	TransTypeRpc   TransType = "rpc"   // 使用rpc转发消息
 	TransTypeShard TransType = "shard" // 使用shard转发消息
 )
+
+const BackendShardCnt = 8

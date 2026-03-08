@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
@@ -129,7 +130,7 @@ func routeLogicConn(connId uint64) net.Conn {
 		return nil
 	}
 
-	shardIdx := connId % BackendShardCnt
+	shardIdx := connId % kkapp.BackendShardCnt
 	chooseServer.muConns.RLock()
 	sconn := chooseServer.conns[shardIdx]
 	chooseServer.muConns.RUnlock()

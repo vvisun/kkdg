@@ -24,7 +24,6 @@ const (
 	GatewayWSPort      = "8080"
 	EnableWriteGroup   = false
 	WriteGroupCnt      = 8
-	BackendShardCnt    = 8
 	ClientHeartbeatSec = 30
 	ClientMaxMiss      = 2
 )

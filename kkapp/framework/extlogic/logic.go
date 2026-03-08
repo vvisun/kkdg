@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xnet"
@@ -12,22 +13,21 @@ import (
 
 // ====================== 配置 ======================
 const (
-	GatewayAddr     = "127.0.0.1:9981"
-	BackendShardCnt = 8
-	nodeId          = "logic_1"
-	nodeType        = "logic"
+	GatewayAddr = "127.0.0.1:9981"
+	nodeId      = "logic_1"
+	nodeType    = "logic"
 )
 
 // ====================== 主函数 ======================
 func StartUp() {
 	kklog.Infof("=== 独立逻辑服启动 ===")
-	var conns [BackendShardCnt]net.Conn
+	var conns [kkapp.BackendShardCnt]net.Conn
 
-	for i := 0; i < BackendShardCnt; i++ {
+	for i := 0; i < kkapp.BackendShardCnt; i++ {
 		conns[i] = connectGateway(i)
 	}
 
-	for i := 0; i < BackendShardCnt; i++ {
+	for i := 0; i < kkapp.BackendShardCnt; i++ {
 		go businessLoop(i, conns[i])
 	}
 

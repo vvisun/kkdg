@@ -66,7 +66,7 @@ func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 		return err
 	}
 
-	shardIdx := cConn.ID() % BackendShardCnt
+	shardIdx := cConn.ID() % kkapp.BackendShardCnt
 	chooseServer.muConns.RLock()
 	sconn := chooseServer.conns[shardIdx]
 	chooseServer.muConns.RUnlock()
