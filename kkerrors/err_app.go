@@ -19,8 +19,9 @@ var (
 
 // -------------- for session -------------------
 var (
-	ErrEmptySessionID        = errors.New("empty sessionID")
-	ErrSessionNotFound       = errors.New("session not found")
-	ErrEmptyMsgBytes         = errors.New("empty msgBytes")
-	ErrClusterNotInitialized = errors.New("cluster not initialized")
+	ErrEmptySessionID         = errors.New("empty sessionID")
+	ErrSessionNotFound        = errors.New("session not found")
+	ErrEmptyMsgBytes          = errors.New("empty msgBytes")
+	ErrClusterNotInitialized  = errors.New("cluster not initialized")
+	ErrLogicNodeNotRegistered = errors.New("logic node not registered")
 )

@@ -31,3 +31,18 @@ func GetMsgPacket() *kkpacket.MessagePacket {
 func SetMsgPacket(head *kkpacket.PacketHead, bodyCodec kkcodec.ICodec, router *kkpacket.MsgRouter) {
 	gMsgPacket = kkpacket.NewMessagePacket(head, bodyCodec, router)
 }
+
+// 网关与业务服之间的消息编码解码器
+var gTransMsgPacket = kkpacket.NewMessagePacket(
+	kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+	kkcodec.GetCodec(kkcodec.CodecTypeJson),
+	kkpacket.NewMsgRouter(),
+)
+
+func GetTransMsgPacket() *kkpacket.MessagePacket {
+	return gTransMsgPacket
+}
+
+func SetTransMsgPacket(head *kkpacket.PacketHead, bodyCodec kkcodec.ICodec, router *kkpacket.MsgRouter) {
+	gTransMsgPacket = kkpacket.NewMessagePacket(head, bodyCodec, router)
+}
