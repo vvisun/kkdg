@@ -2,6 +2,7 @@ package gametransshard
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
@@ -18,6 +19,7 @@ import (
 type transportorShard struct {
 	sessionMgr  *gametrans.SessionManager
 	conns       [kkapp.BackendShardCnt]net.Conn
+	muConns     sync.RWMutex
 	gatewayAddr string
 	nodeId      string
 	nodeType    string
@@ -44,6 +46,17 @@ func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgr
 	return trans
 }
 
+func (slf *transportorShard) getConn(shardIdx int) net.Conn {
+	if shardIdx < 0 {
+		shardIdx = 0
+	}
+	shardIdx = shardIdx % kkapp.BackendShardCnt
+	slf.muConns.RLock()
+	conn := slf.conns[shardIdx]
+	slf.muConns.RUnlock()
+	return conn
+}
+
 func (slf *transportorShard) ForwardToClient(sessionID string, messageBytes []byte) error {
 	if sessionID == "" || len(messageBytes) == 0 {
 		return nil
@@ -52,17 +65,12 @@ func (slf *transportorShard) ForwardToClient(sessionID string, messageBytes []by
 	if sessionInfo == nil {
 		return kkerrors.ErrSessionNotFound
 	}
-	shardIdx := sessionInfo.ShardIdx % kkapp.BackendShardCnt
-	if shardIdx < 0 {
-		shardIdx = 0
-	}
-	conn := slf.conns[shardIdx]
+	conn := slf.getConn(sessionInfo.ShardIdx)
 	if conn == nil {
 		return kkerrors.ErrConnNotFound
 	}
 	// 下行必须走转发协议 RpcS2Client，网关按 msgID=2 解析后 ForwardToClient(Payload)
-	payload := make([]byte, len(messageBytes))
-	copy(payload, messageBytes)
+	payload := messageBytes //EncodeStream会进行复制，这里可以直接传引用
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
 	bb, err := kkpacket.EncodeStream(rpcMsg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
 	if err != nil {
@@ -94,8 +102,7 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	if sessionInfo == nil {
 		return kkerrors.ErrSessionNotFound
 	}
-	shardIdx := sessionInfo.ShardIdx % kkapp.BackendShardCnt
-	conn := slf.conns[shardIdx]
+	conn := slf.getConn(sessionInfo.ShardIdx)
 	if conn == nil {
 		return kkerrors.ErrConnNotFound
 	}
@@ -105,11 +112,10 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 		return err
 	}
 	// 下行必须走转发协议 RpcS2Client，网关按 msgID=2 解析后 ForwardToClient(Payload) 再写 WS
-	payload := make([]byte, len(bb.B))
-	copy(payload, bb.B)
-	kkbuffer.Put(bb)
+	payload := bb.B //EncodeStream编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
 	bbTrans, err := kkpacket.EncodeStream(rpcMsg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	kkbuffer.Put(bb)
 	if err != nil {
 		return err
 	}
@@ -166,7 +172,11 @@ func businessLoop(idx int, conn net.Conn, trans *transportorShard) {
 	defer func() {
 		_ = conn.Close()
 		time.Sleep(1 * time.Second)
-		businessLoop(idx, connectGateway(idx, trans), trans)
+		newConn := connectGateway(idx, trans)
+		trans.muConns.Lock()
+		trans.conns[idx] = newConn
+		trans.muConns.Unlock()
+		businessLoop(idx, newConn, trans)
 	}()
 
 	stream := kkpacket.DefaultStreamPacket()
@@ -221,7 +231,7 @@ func businessLoop(idx int, conn net.Conn, trans *transportorShard) {
 					continue
 				}
 				if trans.sessionMgr.GetSession(msg.ClientId) == nil {
-					trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
+					trans.sessionMgr.AddSessionWithShard(msg.ClientId, msg.GateNodeId, idx)
 				}
 				trans.msgReceiver.OnSession(msg.ClientId, msg.Payload)
 			case 5: // 客户端断开事件

@@ -50,12 +50,22 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 	return trans
 }
 
-func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+// sendToLogicShard 向指定逻辑服的指定 shard 发送已编码包。调用方在返回 err 时负责 Put(bb)。
+func (slf *transportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
 	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
 	if chooseServer == nil {
-		return kkerrors.ErrLogicNodeNotRegistered //逻辑节点未注册
+		return kkerrors.ErrLogicNodeNotRegistered
 	}
+	chooseServer.muConns.RLock()
+	sconn := chooseServer.conns[shardIdx%kkapp.BackendShardCnt]
+	chooseServer.muConns.RUnlock()
+	if sconn == nil {
+		return nil
+	}
+	return sconn.conn.SendBuffer(bb)
+}
 
+func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
 	var msg ptotrans.RpcClientDisconnect
 	msg.ClientId = sessionID
 	bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
@@ -63,33 +73,19 @@ func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 		kkbuffer.Put(bb)
 		return err
 	}
-
-	shardIdx := connId % kkapp.BackendShardCnt
-	chooseServer.muConns.RLock()
-	sconn := chooseServer.conns[shardIdx]
-	chooseServer.muConns.RUnlock()
-	if sconn == nil {
+	shardIdx := int(connId % kkapp.BackendShardCnt)
+	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
 		kkbuffer.Put(bb)
-		return nil
-	}
-
-	if err := sconn.conn.SendBuffer(bb); err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
-	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
-	if chooseServer == nil {
-		return kkerrors.ErrLogicNodeNotRegistered //逻辑节点未注册
-	}
 	cConn, err := slf.sessionMgr.GetConn(sessionID)
 	if err != nil {
-		return err //客户端已下线
+		return err
 	}
-
 	var msg ptotrans.RpcC2S
 	msg.ClientId = sessionID
 	msg.GateNodeId = slf.gateNodeId
@@ -99,20 +95,11 @@ func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 		kkbuffer.Put(bb)
 		return err
 	}
-
-	shardIdx := cConn.ID() % kkapp.BackendShardCnt
-	chooseServer.muConns.RLock()
-	sconn := chooseServer.conns[shardIdx]
-	chooseServer.muConns.RUnlock()
-	if sconn == nil {
+	shardIdx := int(cConn.ID() % kkapp.BackendShardCnt)
+	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
 		kkbuffer.Put(bb)
-		return nil
-	}
-
-	if err := sconn.conn.SendBuffer(bb); err != nil {
 		return err
 	}
-
 	return nil
 }
 

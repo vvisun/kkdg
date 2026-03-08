@@ -57,15 +57,23 @@ func NewSessionManager() *SessionManager {
 }
 
 func (slf *SessionManager) AddSession(sessionID string, gateNodeID string) {
+	slf.AddSessionWithShard(sessionID, gateNodeID, -1)
+}
+
+// AddSessionWithShard 与 AddSession 相同，但可指定 shardIdx（用于 shard 模式绑定到收到 C2S 的那条连接）。
+// shardIdx < 0 或 >= BackendShardCnt 时使用轮询分配。
+func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID string, shardIdx int) {
 	oldInfo := slf.GetSession(sessionID)
 	if oldInfo != nil {
 		return
 	}
-	shardIdx := atomic.AddInt64(&autoShardIdx, 1) % kkapp.BackendShardCnt
+	if shardIdx < 0 || shardIdx >= kkapp.BackendShardCnt {
+		shardIdx = int(atomic.AddInt64(&autoShardIdx, 1) % kkapp.BackendShardCnt)
+	}
 	si := newSessionInfo()
 	si.SessionID = sessionID
 	si.GateNodeID = gateNodeID
-	si.ShardIdx = int(shardIdx)
+	si.ShardIdx = shardIdx
 	slf.sessionMap.Store(sessionID, si)
 	atomic.AddInt32(&slf.onlineCount, 1)
 }
