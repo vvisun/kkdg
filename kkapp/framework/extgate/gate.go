@@ -1,7 +1,6 @@
 package extgate
 
 import (
-	"log"
 	"net/http"
 	"runtime"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	"github.com/lxzan/gws"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/kkmpsc"
 )
 
@@ -104,10 +104,10 @@ func StartUp() {
 		for {
 			time.Sleep(5 * time.Second)
 			heapUsedMB, heapKBPerConn := kknet.ReadMetricsStress(1000)
-			log.Println("------------------------")
-			log.Println("当前连接数:", 1000)
-			log.Println("堆内存占用:", heapUsedMB, "MB")
-			log.Println("单连接堆内存:", heapKBPerConn)
+			kklog.Debugf("------------------------")
+			kklog.Debugf("当前连接数:", 1000)
+			kklog.Debugf("堆内存占用:", heapUsedMB, "MB")
+			kklog.Debugf("单连接堆内存:", heapKBPerConn)
 		}
 	}()
 
@@ -120,6 +120,6 @@ func StartUp() {
 		// 每个客户端连接一个独立的读携程。
 		go socket.ReadLoop()
 	})
-	log.Println("网关WS启动: ws://127.0.0.1:8080/ws")
-	log.Fatal(http.ListenAndServe(":"+GatewayWSPort, nil))
+	kklog.Debugf("网关WS启动: ws://127.0.0.1:8080/ws")
+	kklog.Fatal(http.ListenAndServe(":"+GatewayWSPort, nil))
 }

@@ -2,11 +2,11 @@ package extlogic
 
 import (
 	"encoding/json"
-	"log"
 	"net"
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xnet"
 )
 
@@ -20,7 +20,7 @@ const (
 
 // ====================== 主函数 ======================
 func StartUp() {
-	log.Println("=== 独立逻辑服启动 ===")
+	kklog.Infof("=== 独立逻辑服启动 ===")
 	var conns [BackendShardCnt]net.Conn
 
 	for i := 0; i < BackendShardCnt; i++ {
@@ -39,7 +39,7 @@ func connectGateway(idx int) net.Conn {
 	for {
 		conn, err := net.Dial("tcp", GatewayAddr)
 		if err == nil {
-			log.Printf("分流[%d] 连接网关成功", idx)
+			kklog.Infof("分流[%d] 连接网关成功", idx)
 			xnet.SetNoDelay(conn, true)
 
 			go func() {
@@ -58,7 +58,7 @@ func connectGateway(idx int) net.Conn {
 
 			return conn
 		}
-		log.Printf("分流[%d] 连接失败，重试中", idx)
+		kklog.Infof("分流[%d] 连接失败，重试中", idx)
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -80,7 +80,7 @@ func businessLoop(idx int, conn net.Conn) {
 
 		// ====================== 客户端断开事件 ======================
 		if msg.Cmd == extmsg.CmdClientDisconnect {
-			log.Printf("[逻辑服%d] 玩家断开 uid=%d connID=%d", idx, msg.Uid, msg.ConnID)
+			kklog.Debugf("[逻辑服%d] 玩家断开 uid=%d connID=%d", idx, msg.Uid, msg.ConnID)
 			// 在这里写：离线清理、存库、踢下线、房间退出等逻辑
 			continue
 		}

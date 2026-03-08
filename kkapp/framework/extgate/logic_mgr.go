@@ -2,7 +2,6 @@ package extgate
 
 import (
 	"encoding/json"
-	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -12,6 +11,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xnet"
 )
 
@@ -57,7 +57,7 @@ func (m *LogicServerMgr) addLogicServer(info *extmsg.RegisterMsg) {
 		nodeId:   info.NodeId,
 		nodeType: info.NodeType,
 	})
-	log.Printf("逻辑服注册: nodeId=%s nodeType=%s shardIdx=%d", info.NodeId, info.NodeType, info.ShardIdx)
+	kklog.Infof("逻辑服注册: nodeId=%s nodeType=%s shardIdx=%d", info.NodeId, info.NodeType, info.ShardIdx)
 }
 
 func (m *LogicServerMgr) removeLogicServer(nodeId string) {
@@ -73,8 +73,13 @@ func (m *LogicServerMgr) getLogicServer(nodeId string) *LogicServer {
 }
 
 func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardConn) {
+	if shardIdx < 0 || shardIdx >= BackendShardCnt {
+		kklog.Errorf("逻辑服[nodeId=%s]添加连接失败 shardIdx=%d 超出范围", nodeId, shardIdx)
+		return
+	}
 	ls := m.getLogicServer(nodeId)
 	if ls == nil {
+		kklog.Errorf("逻辑服[nodeId=%s]添加连接失败 nodeId不存在", nodeId)
 		return
 	}
 	ls.muConns.Lock()
@@ -85,6 +90,9 @@ func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardCo
 }
 
 func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
+	if shardIdx < 0 || shardIdx >= BackendShardCnt {
+		return
+	}
 	ls := m.getLogicServer(nodeId)
 	if ls == nil {
 		return
@@ -113,9 +121,9 @@ func (m *LogicServerMgr) getShardConn(nodeId string, shardIdx int) *ShardConn {
 func startGatewayTCPListener() {
 	lis, err := net.Listen("tcp", ":"+GatewayTCPPort)
 	if err != nil {
-		log.Fatal("网关TCP监听失败:", err)
+		kklog.Fatal("网关TCP监听失败:", err)
 	}
-	log.Println("网关TCP监听端口:", GatewayTCPPort)
+	kklog.Infof("网关TCP监听端口:", GatewayTCPPort)
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
@@ -131,11 +139,19 @@ func startGatewayTCPListener() {
 		}
 		logicConnMgr.Store(shardConn.connId, shardConn)
 
-		// for i := 0; i < BackendShardCnt; i++ {
-		// 	go logicReadLoop(ls.conns[i])
-		// }
 		go logicReadLoop(shardConn)
 	}
+}
+
+// 逻辑服连接关闭事件处理
+//
+//	@param shardConn 逻辑服连接
+//	@param err 错误
+func onLogicConnClose(shardConn *ShardConn, err error) {
+	shardConn.closed.Store(true)
+	logicConnMgr.Delete(shardConn.connId)
+	logicServerMgr.removeShardConn(shardConn.nodeId, shardConn.shardIdx)
+	kklog.Infof("逻辑服[nodeId=%s]连接已关闭 connId=%d shardIdx=%d err=%v", shardConn.nodeId, shardConn.connId, shardConn.shardIdx, err)
 }
 
 // 每个逻辑服连接一个读携程。
@@ -144,10 +160,7 @@ func logicReadLoop(shardConn *ShardConn) {
 	for {
 		var m extmsg.DownMsg
 		if err := dec.Decode(&m); err != nil {
-			shardConn.closed.Store(true)
-			logicConnMgr.Delete(shardConn.connId)
-			logicServerMgr.removeShardConn(shardConn.nodeId, shardConn.shardIdx)
-			log.Printf("逻辑服连接已关闭 connId=%d shardIdx=%d nodeId=%s err=%v", shardConn.connId, shardConn.shardIdx, shardConn.nodeId, err)
+			onLogicConnClose(shardConn, err)
 			return
 		}
 		if m.Cmd == extmsg.CmdRegister {

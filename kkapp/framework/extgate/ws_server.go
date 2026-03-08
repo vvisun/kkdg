@@ -2,13 +2,13 @@ package extgate
 
 import (
 	"encoding/json"
-	"log"
 	"sync/atomic"
 	"time"
 
 	"github.com/lxzan/gws"
 	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 const sessionKeyClientConn = "clientConn"
@@ -85,7 +85,7 @@ func (h *WsHandler) OnClose(s *gws.Conn, err error) {
 	c := cc.(*ClientConn)
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		clientMap.Delete(c.connID)
-		log.Printf("客户端已清理 connID=%d uid=%d err=%v", c.connID, c.uid, err)
+		kklog.Debugf("客户端已清理 connID=%d uid=%d err=%v", c.connID, c.uid, err)
 
 		// 通知逻辑服：玩家断开
 		go func() {
@@ -114,7 +114,7 @@ func (h *WsHandler) startHeartbeat(c *ClientConn) {
 		if now-last > ClientHeartbeatSec*ClientMaxMiss {
 			if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 				clientMap.Delete(c.connID)
-				log.Printf("心跳超时关闭 connID=%d uid=%d", c.connID, c.uid)
+				kklog.Debugf("心跳超时关闭 connID=%d uid=%d", c.connID, c.uid)
 			}
 			_ = c.ws.WriteClose(1000, []byte("heartbeat_timeout"))
 			return
