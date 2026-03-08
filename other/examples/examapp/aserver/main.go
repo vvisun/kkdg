@@ -49,7 +49,7 @@ func runGate() *component.Application {
 		RpcAddr:       examapp.RpcAddr,
 		NatsURL:       examapp.NatsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
-		TransType:     "shard",
+		TransType:     examapp.UseTransType,
 	}
 	gate := ccgate.NewGateComponent(gateOpt)
 	if err := gateApp.AddComponent(gate); err != nil {
@@ -66,7 +66,7 @@ func runGame() *component.Application {
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent(ccgame.Option{
-		TransType: "shard",
+		TransType: examapp.UseTransType,
 		RpcAddr:   examapp.RpcAddr,
 		NatsURL:   examapp.NatsURL,
 	})
