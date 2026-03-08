@@ -30,13 +30,15 @@ func (h *WsHandler) OnOpen(s *gws.Conn) {
 }
 
 func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
-	defer msg.Close()
+	// defer msg.Close()
 	cc, ok := s.Session().Load(sessionKeyClientConn)
 	if !ok {
+		msg.Close()
 		return
 	}
 	c := cc.(*ClientConn)
 	if atomic.LoadInt32(&c.closed) == 1 {
+		msg.Close()
 		return
 	}
 
@@ -52,6 +54,7 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 
 	// 心跳包直接响应，不上发逻辑服
 	if req.Cmd == extmsg.CmdHeartbeat {
+		msg.Close()
 		resp, _ := json.Marshal(map[string]string{"cmd": extmsg.CmdHeartbeatAck})
 		sendToClient(c.connID, resp)
 		return
@@ -63,15 +66,7 @@ func (h *WsHandler) OnMessage(s *gws.Conn, msg *gws.Message) {
 	}
 
 	// 转发逻辑服
-	bs, _ := json.Marshal(extmsg.UpMsg{
-		ConnID: c.connID,
-		Uid:    c.uid,
-		Data:   msg.Bytes(),
-		Cmd:    req.Cmd,
-	})
-	if conn := RouteLogicConn(c.uid, c.connID); conn != nil {
-		_, _ = conn.Write(append(bs, '\n'))
-	}
+	transToLogicNoCopy(c.connID, msg, c.uid, req.Cmd)
 }
 
 func (h *WsHandler) OnPing(s *gws.Conn, payload []byte) {
@@ -94,12 +89,12 @@ func (h *WsHandler) OnClose(s *gws.Conn, err error) {
 
 		// 通知逻辑服：玩家断开
 		go func() {
-			bs, _ := json.Marshal(extmsg.UpMsg{
-				ConnID: c.connID,
-				Uid:    c.uid,
-				Cmd:    extmsg.CmdClientDisconnect,
-			})
-			if conn := RouteLogicConn(c.uid, c.connID); conn != nil {
+			if conn := routeLogicConn(c.connID); conn != nil {
+				bs, _ := json.Marshal(extmsg.UpMsg{
+					ConnID: c.connID,
+					Uid:    c.uid,
+					Cmd:    extmsg.CmdClientDisconnect,
+				})
 				_, _ = conn.Write(append(bs, '\n'))
 			}
 		}()

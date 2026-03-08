@@ -97,7 +97,7 @@ func sendToClient(connID uint64, data []byte) {
 
 // ====================== 主函数 ======================
 func StartUp() {
-	go StartGatewayTCPListener()
+	go startGatewayTCPListener()
 	initWriteGroups()
 
 	go func() {

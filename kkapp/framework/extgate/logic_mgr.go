@@ -6,7 +6,10 @@ import (
 	"net"
 	"sync"
 
+	"github.com/lxzan/gws"
 	"github.com/vvisun/kkdg/kkapp/framework/extmsg"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/xnet"
 )
 
@@ -79,20 +82,9 @@ func AddLogicServer(ls *LogicServer) {
 	log.Println("新逻辑服接入，当前服数量:", len(logicBackends))
 }
 
-func RouteLogicConn(uid uint64, connId uint64) net.Conn {
-	logicMu.RLock()
-	defer logicMu.RUnlock()
-	if len(logicBackends) == 0 {
-		return nil
-	}
-	srvIdx := connId % uint64(len(logicBackends))
-	shardIdx := connId % BackendShardCnt
-	return logicBackends[srvIdx].conns[shardIdx]
-}
-
 // ====================== 网关TCP监听逻辑服 ======================
 // 逻辑服主动向网关建立 BackendShards 条连接；网关收集满 8 条后组成一个 LogicServer。
-func StartGatewayTCPListener() {
+func startGatewayTCPListener() {
 	lis, err := net.Listen("tcp", ":"+GatewayTCPPort)
 	if err != nil {
 		log.Fatal("网关TCP监听失败:", err)
@@ -114,13 +106,16 @@ func StartGatewayTCPListener() {
 		copy(ls.conns[:], pendingConns)
 		pendingConns = pendingConns[:0]
 		pendingMu.Unlock()
+
+		AddLogicServer(ls)
+
 		for i := 0; i < BackendShardCnt; i++ {
 			go logicReadLoop(ls.conns[i])
 		}
-		AddLogicServer(ls)
 	}
 }
 
+// 每个逻辑服连接一个读携程。
 func logicReadLoop(conn net.Conn) {
 	dec := json.NewDecoder(conn)
 	for {
@@ -136,4 +131,75 @@ func logicReadLoop(conn net.Conn) {
 			sendToClient(m.ConnID, m.Data)
 		}
 	}
+}
+
+var (
+	transThread = kkprocessor.NewWorkerQueue(1)
+)
+
+// 将客户端消息转发到逻辑服。
+//
+//	@param connId 客户端连接ID
+//	@param data 数据
+//	@param uid 用户ID
+//	@param cmd 命令
+func transToLogic(connId uint64, data []byte, uid uint64, cmd string) {
+	conn := routeLogicConn(connId)
+	if conn == nil {
+		return
+	}
+
+	dataCpy := byteslice.GetWithLenCap(len(data), len(data))
+	copy(dataCpy, data)
+
+	transThread.Push(func() {
+		bs, _ := json.Marshal(extmsg.UpMsg{
+			ConnID: connId,
+			Uid:    uid,
+			Data:   dataCpy,
+			Cmd:    cmd,
+		})
+		_, _ = conn.Write(append(bs, '\n'))
+		byteslice.Put(dataCpy)
+	})
+}
+
+// 将客户端消息转发到逻辑服。
+//
+//	@param connId 客户端连接ID
+//	@param msg 客户端消息
+//	@param uid 用户ID
+//	@param cmd 命令
+func transToLogicNoCopy(connId uint64, msg *gws.Message, uid uint64, cmd string) {
+	conn := routeLogicConn(connId)
+	if conn == nil {
+		msg.Close()
+		return
+	}
+	dataCpy := msg.Bytes()
+	transThread.Push(func() {
+		bs, _ := json.Marshal(extmsg.UpMsg{
+			ConnID: connId,
+			Uid:    uid,
+			Data:   dataCpy,
+			Cmd:    cmd,
+		})
+		_, _ = conn.Write(append(bs, '\n'))
+		msg.Close()
+	})
+}
+
+// 将客户端消息转发到逻辑服。
+//
+//	@param connId 客户端连接ID
+//	@return 逻辑服连接
+func routeLogicConn(connId uint64) net.Conn {
+	logicMu.RLock()
+	defer logicMu.RUnlock()
+	if len(logicBackends) == 0 {
+		return nil
+	}
+	srvIdx := connId % uint64(len(logicBackends))
+	shardIdx := connId % BackendShardCnt
+	return logicBackends[srvIdx].conns[shardIdx]
 }

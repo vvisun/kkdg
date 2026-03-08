@@ -16,7 +16,7 @@ const (
 	GatewayWSAddr     = "ws://127.0.0.1:8080/ws"
 	TargetConnections = 50000 // 目标总连接数
 	CPS               = 1000  // 每秒新建连接数
-	MsgIntervalMS     = 1000  // 消息发送间隔(ms)
+	MsgIntervalMS     = 250   // 消息发送间隔(ms)
 	EnableHeartbeat   = true  // 开启心跳
 )
 
