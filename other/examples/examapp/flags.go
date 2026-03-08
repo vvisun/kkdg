@@ -15,7 +15,7 @@ func ParseFlags(args []string) {
 	fs.StringVar(&GateTCPAddr, "gate-tcp", GateTCPAddr, "Gate TCP 监听地址")
 	fs.StringVar(&GateWSAddr, "gate-ws", GateWSAddr, "Gate WebSocket 监听地址")
 	fs.StringVar(&RpcAddr, "rpc-addr", RpcAddr, "RPC 地址")
-	fs.StringVar(&UseTransType, "trans", UseTransType, "转发类型: nats | rpc")
+	fs.StringVar(&UseTransType, "trans", UseTransType, "转发类型: nats | rpc | shard")
 
 	fs.IntVar(&ClientConnNum, "conn-num", ClientConnNum, "客户端连接数（仅 aclient）")
 	fs.DurationVar(&ClientConnDelay, "conn-delay", ClientConnDelay, "客户端建连间隔（仅 aclient）")
@@ -29,7 +29,7 @@ func ParseFlags(args []string) {
 	}
 
 	// 归一化 trans
-	if UseTransType != kkapp.TransTypeNats && UseTransType != kkapp.TransTypeRpc {
+	if UseTransType != kkapp.TransTypeNats && UseTransType != kkapp.TransTypeRpc && UseTransType != kkapp.TransTypeShard {
 		UseTransType = kkapp.TransTypeNats
 	}
 }
