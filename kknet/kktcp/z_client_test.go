@@ -117,3 +117,26 @@ func TestClient_SendBuffer_NotConnected(t *testing.T) {
 		t.Errorf("SendBuffer when not connected = %v, want ErrClientNotConnected", err)
 	}
 }
+
+func TestClient_Stats_Addr(t *testing.T) {
+	addr := freePort(t)
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	s := NewServer(addr, nil, opts)
+	s.Start()
+	defer s.Stop()
+
+	client := NewClient(addr, nil, opts)
+	if client.Addr() != addr {
+		t.Errorf("Addr() = %q, want %q", client.Addr(), addr)
+	}
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer client.Close()
+	time.Sleep(50 * time.Millisecond)
+
+	stats := client.Stats()
+	if stats.ActiveConns != 1 {
+		t.Errorf("Stats().ActiveConns = %d, want 1", stats.ActiveConns)
+	}
+}

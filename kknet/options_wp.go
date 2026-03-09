@@ -79,7 +79,7 @@ func CheckWriteOptions(opts *WriteOptions) {
 		return
 	}
 	if opts.MsgPacket == nil {
-		kklog.Warnf("wp MsgPacket is nil, SendMsg will work error")
+		// kklog.Warnf("wp MsgPacket is nil, SendMsg will work error")
 	}
 	if opts.SendQueueSize <= 0 {
 		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 128)
