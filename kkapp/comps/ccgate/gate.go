@@ -270,31 +270,31 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	// Best-effort: derive route from msgID if it is registered.
 	msgBytes, err := kkpacket.DefaultStreamPacket().MessageBytes(data.B)
 	if err != nil {
-		kklog.Errorf("[ccgate] get message bytes error: %v", err)
+		kklog.Warnf("[ccgate] get message bytes error: %v", err)
 		return
 	}
 	msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
 	if err != nil {
-		kklog.Errorf("[ccgate] get message id error: %v", err)
+		kklog.Warnf("[ccgate] get message id error: %v", err)
 		return
 	}
 	route, err := kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
 	if err != nil {
-		kklog.Errorf("[ccgate] get message route error: %v", err)
+		kklog.Warnf("[ccgate] get message route error: %v", err)
 		return
 	}
 
 	// 这里应该先为client选择一个逻辑服
 	logicNode := h.gate.allocLogicNode(connID, route)
 	if logicNode == nil {
-		kklog.Errorf("[ccgate] alloc logic node failed")
+		kklog.Debugf("[ccgate] alloc logic node failed")
 		return
 	}
 
 	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	sessionID := cliInfo.sessionId
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
-		kklog.Errorf("[ccgate] forward to logic error: %v", err)
+		kklog.Warnf("[ccgate] forward to logic error: %v", err)
 	}
 	kkbuffer.Put(data)
 }

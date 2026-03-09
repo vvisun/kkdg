@@ -1,9 +1,7 @@
 package gametransshard
 
 import (
-	"net"
 	"sync"
-	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
@@ -12,18 +10,18 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xnet"
 )
 
 type transportorShard struct {
+	// conns   [kkapp.BackendShardCnt]net.Conn
+	conns   [kkapp.BackendShardCnt]*gatewayClient // 每个shard一个客户端，用于连接网关
+	muConns sync.RWMutex
+
 	sessionMgr  *gametrans.SessionManager
-	conns       [kkapp.BackendShardCnt]net.Conn
-	muConns     sync.RWMutex
+	msgReceiver *msgreceiver.MsgReceiver[string]
 	gatewayAddr string
 	nodeId      string
 	nodeType    string
-	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
 func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], gatewayAddr, nodeID, nodeType string) gametrans.ITransportor {
@@ -36,17 +34,18 @@ func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgr
 	}
 
 	for i := 0; i < kkapp.BackendShardCnt; i++ {
-		trans.conns[i] = connectGateway(i, trans)
+		// trans.conns[i] = connectGateway(i, trans)
+		trans.conns[i] = NewGatewayClient(i, trans)
 	}
 
-	for i := 0; i < kkapp.BackendShardCnt; i++ {
-		go businessLoop(i, trans.conns[i], trans)
-	}
+	// for i := 0; i < kkapp.BackendShardCnt; i++ {
+	// 	go businessLoop(i, trans.conns[i], trans)
+	// }
 
 	return trans
 }
 
-func (slf *transportorShard) getConn(shardIdx int) net.Conn {
+func (slf *transportorShard) getConn(shardIdx int) *gatewayClient {
 	if shardIdx < 0 {
 		shardIdx = 0
 	}
@@ -77,9 +76,7 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 	if err != nil {
 		return err
 	}
-	_, _ = conn.Write(bb.B)
-	kkbuffer.Put(bb)
-	return nil
+	return conn.cli.SendBuffer(bb)
 }
 
 // @param packet is a full stream packet [length,message]
@@ -121,9 +118,7 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	if err != nil {
 		return err
 	}
-	_, _ = conn.Write(bbTrans.B)
-	kkbuffer.Put(bbTrans)
-	return nil
+	return conn.cli.SendBuffer(bbTrans)
 }
 
 func (slf *transportorShard) SendToClients(sessionIDs []string, msg any) error {
@@ -137,118 +132,4 @@ func (slf *transportorShard) SendToClients(sessionIDs []string, msg any) error {
 		slf.SendToClient(sessionID, msg)
 	}
 	return nil
-}
-
-// 重连网关
-func connectGateway(idx int, trans *transportorShard) net.Conn {
-	for {
-		conn, err := net.Dial("tcp", trans.gatewayAddr)
-		if err == nil {
-			kklog.Infof("分流[%d] 连接网关成功", idx)
-			xnet.SetNoDelay(conn, true)
-
-			go func() {
-				time.Sleep(100 * time.Millisecond)
-				// 将自己注册到网关
-				msg := ptotrans.RpcMsgRegister{
-					ShardIdx: idx,
-					NodeId:   trans.nodeId,
-					NodeType: trans.nodeType,
-				}
-				bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
-				if err == nil {
-					_, _ = conn.Write(bb.B)
-				}
-				kkbuffer.Put(bb)
-			}()
-
-			return conn
-		}
-		kklog.Infof("分流[%d] 连接失败，重试中", idx)
-		time.Sleep(1 * time.Second)
-	}
-}
-
-// 业务处理 + 断开事件清理
-func businessLoop(idx int, conn net.Conn, trans *transportorShard) {
-	defer func() {
-		_ = conn.Close()
-		time.Sleep(1 * time.Second)
-		newConn := connectGateway(idx, trans)
-		trans.muConns.Lock()
-		trans.conns[idx] = newConn
-		trans.muConns.Unlock()
-		businessLoop(idx, newConn, trans)
-	}()
-
-	stream := kkpacket.DefaultStreamPacket()
-	lfb := stream.LengthFieldByteCount()
-	recvBuf := make([]byte, 0, 16*1024)
-	tmp := make([]byte, 4*1024)
-	recvs := make([][]byte, 0, 8)
-
-	for {
-		n, err := conn.Read(tmp)
-		if err != nil {
-			return
-		}
-		if n == 0 {
-			continue
-		}
-		recvBuf = append(recvBuf, tmp[:n]...)
-		packets, left, err := stream.Split(recvBuf, recvs)
-		if err != nil {
-			kklog.Warnf("[逻辑服%d] 拆包错误: %v", idx, err)
-			return
-		}
-		recvBuf = recvBuf[:0]
-		if len(left) > 0 {
-			recvBuf = append(recvBuf, left...)
-		}
-
-		for _, pkt := range packets {
-			if len(pkt) < lfb {
-				continue
-			}
-			messageBytes, err := stream.MessageBytes(pkt)
-			if err != nil {
-				continue
-			}
-			msgID, err := kkapp.GetTransMsgPacket().GetMsgID(messageBytes)
-			if err != nil {
-				kklog.Warnf("[逻辑服%d] GetMsgID: %v", idx, err)
-				continue
-			}
-			bodyBytes, err := kkapp.GetTransMsgPacket().BodyBytes(messageBytes)
-			if err != nil {
-				continue
-			}
-
-			switch msgID {
-			case 4: // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
-				var msg ptotrans.RpcC2S
-				err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
-				if err != nil {
-					kklog.Warnf("[逻辑服%d] 解析 RpcC2S: %v", idx, err)
-					continue
-				}
-				if trans.sessionMgr.GetSession(msg.ClientId) == nil {
-					trans.sessionMgr.AddSessionWithShard(msg.ClientId, msg.GateNodeId, idx)
-				}
-				trans.msgReceiver.OnSession(msg.ClientId, msg.Payload)
-			case 5: // 客户端断开事件
-				var msg ptotrans.RpcClientDisconnect
-				err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
-				if err != nil {
-					kklog.Warnf("[逻辑服%d] 解析 RpcClientDisconnect: %v", idx, err)
-					continue
-				}
-				kklog.Debugf("[逻辑服%d] 玩家断开 clientId=%s clientIds=%v", idx, msg.ClientId, msg.ClientIds)
-				trans.sessionMgr.RemoveSession(msg.ClientId)
-				for _, clientId := range msg.ClientIds {
-					trans.sessionMgr.RemoveSession(clientId)
-				}
-			}
-		}
-	}
 }
