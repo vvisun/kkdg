@@ -11,12 +11,15 @@ import (
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
-// WorkerReadProcessor 使用全局 workerQueue 并发执行 RawHandler，适合 CPU 绑定型解码/业务处理。
+// 消息处理器-接收器。
+//
 // 与 ReadProcessor 的区别：
 //   - 不再为每个连接维护 recvQueue + 消费协程；
 //   - 每个完整 [length,message] 解析后封装为 task，投递到 workerQueue 执行。
+//   - workerQueue并发数设为1时，和ReadProcessor基本一致，区别只在ReadProcessor为每个连接一个固定携程，而WorkerReadProcessor临时启动一个携程。
+//   - workerQueue并发数大于1时，和ReadProcessor区别较大，WorkerReadProcessor不再保证顺序性。
 //
-// 仅支持 RawHandler；如果设置了 NoneCopyHandler，应使用 SyncReadProcessor。
+// 主动关闭Server或Client后，只消费，不再接受数据入队。
 type WorkerReadProcessor struct {
 	conn   kknet.IConn
 	connID kknet.CONN_ID

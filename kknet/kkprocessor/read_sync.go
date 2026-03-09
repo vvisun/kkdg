@@ -9,6 +9,12 @@ import (
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
+// 消息处理器-接收器。
+//
+//	同步消费数据，实现0拷贝优化。NoneCopyHandler必须设置，RawHandler会忽略。
+//	保证顺序性，适合NoneCopyHandler逻辑非常轻的场景。
+//
+// 主动关闭Server或Client后，只消费，不再接受数据入队。
 type SyncReadProcessor struct {
 	conn   kknet.IConn
 	connID kknet.CONN_ID     //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。

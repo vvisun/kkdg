@@ -12,11 +12,13 @@ import (
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
-/**
- * 消息处理器-发送器。每个连接一个发送器。
- * 负责编码、然后将编码后的数据投入发送队列，供连接发送。
- * 使用 workerQueue(maxConcurrency=1) 串行执行写任务，替代原 writeLoop 协程。
- */
+// 消息处理器-发送器。
+//
+//	每个连接一个workerQueue，使用workerQueue执行WriteFunc
+//	当workerQueue的并发数设为1时，串行执行写任务，保证顺序性。
+//	当workerQueue的并发数大于1时，并发执行写任务，不保证顺序性。
+//
+// 主动关闭Server或Client后，只消费，不再接受数据入队。
 type WorkerWriteProcessor struct {
 	conn   kknet.IConn   //连接(用于 flush 超时回调传参)
 	connID kknet.CONN_ID //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。

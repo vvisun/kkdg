@@ -12,10 +12,11 @@ import (
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
-/**
- * 消息处理器-发送器。每个连接一个发送器。
- * 负责编码、然后将编码后的数据投入发送队列，供连接发送。
- */
+// 消息处理器-发送器。
+//
+//	每个连接一个携程，消费sendQueue中的数据，并发送。
+//
+//	主动关闭Server或Client后，只消费，不再接受数据入队。
 type WriteProcessor struct {
 	conn   kknet.IConn   //连接(用于 flush 超时回调传参)
 	connID kknet.CONN_ID //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
