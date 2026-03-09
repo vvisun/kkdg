@@ -22,6 +22,11 @@ import (
 
 var autoId int64 = 0
 
+var (
+	sendedId   int64 = 0
+	receivedId int64 = 0
+)
+
 func main() {
 	examapp.ParseFlags(nil)
 	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
@@ -91,6 +96,7 @@ func runOneClient() kknet.IClient {
 func sendMsg(client kknet.IClient) {
 	curId := atomic.AddInt64(&autoId, 1)
 	payload := []byte("hello")
+	atomic.StoreInt64(&sendedId, curId)
 	bb, err := kkpacket.EncodeStream(
 		&ptoexam.Msg1Req{ID: int32(curId), Data: string(payload)},
 		kkpacket.DefaultStreamPacket(),
@@ -126,7 +132,11 @@ func (h *gameHandler) onMsg1Req(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Req) e
 }
 
 func (h *gameHandler) onMsg1Resp(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Resp) error {
-	kklog.Infof("onMsg1Resp: %v", msg)
+	atomic.StoreInt64(&receivedId, int64(msg.ID))
+	kklog.Infof("onMsg1Resp: sendedId=%d, receivedId=%d diff=%d",
+		atomic.LoadInt64(&sendedId),
+		atomic.LoadInt64(&receivedId),
+		atomic.LoadInt64(&sendedId)-atomic.LoadInt64(&receivedId))
 	return nil
 }
 
