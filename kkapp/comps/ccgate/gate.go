@@ -24,14 +24,14 @@ import (
 // 网关服
 type gateComponent struct {
 	component.Component
-	opt       Option
-	server    kknet.IServer
-	handler   *gateHandler
-	discovery kkdiscovery.IDiscovery
+	opt     Option
+	server  kknet.IServer
+	handler *gateHandler
 
-	clientMgr   *clientManager
-	transportor gatetrans.ITransportor
+	discovery   kkdiscovery.IDiscovery
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
+	transportor gatetrans.ITransportor
+	clientMgr   *clientManager
 	sessionMgr  gatetrans.ISessionManager
 }
 
@@ -237,25 +237,20 @@ func (slf *gateComponent) chooseFromShard(nodeType string) (string, bool) {
 
 // 从discovery中选择权重最小的逻辑节点. return nodeId, found
 func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
-	var chooseNode kkdiscovery.IMember = nil
-	finded := false
-	slf.discovery.GetMemberMgr().Range(func(nodeID string, member kkdiscovery.IMember) bool {
-		if member.GetNodeType() != nodeType {
-			return true
-		}
+	typeList := slf.discovery.GetMemberMgr().ListByType(nodeType)
+	if len(typeList) == 0 {
+		return "", false
+	}
+	var chooseNode kkdiscovery.IMember = typeList[0]
+	for _, member := range typeList {
 		if chooseNode == nil {
 			chooseNode = member
-			finded = true
-			return true
+			break
 		}
 		if member.GetWeight() < chooseNode.GetWeight() {
 			chooseNode = member
-			finded = true
+			break
 		}
-		return true
-	})
-	if chooseNode == nil || !finded {
-		return "", false
 	}
 	return chooseNode.GetNodeID(), true
 }
