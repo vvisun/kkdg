@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
+	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -40,6 +41,12 @@ func runGate() *component.Application {
 		ClusterUrl:    examapp.NatsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     examapp.UseTransType,
+		RecvQueueFullCallback: func(conn kknet.IConn) {
+			conn.SendMsg(&ptoexam.TipServerBusy{
+				Code:    1,
+				Message: "server busy",
+			})
+		},
 	}
 	gate := ccgate.NewGateComponent(gateOpt)
 	if err := gateApp.AddComponent(gate); err != nil {

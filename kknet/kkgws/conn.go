@@ -177,10 +177,18 @@ func (c *gwsConn) SendMsg(msg any) error {
 	if c.closing.Load() {
 		return kkerrors.ErrConnectionClosed
 	}
-	if c.wp == nil {
-		return kkerrors.ErrConnectionClosed
+	if enableWP {
+		if c.wp == nil {
+			return kkerrors.ErrConnectionClosed
+		}
+		return c.wp.SendMsg(msg)
 	}
-	return c.wp.SendMsg(msg)
+	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), c.opts.WpOptions.MsgPacket)
+	if err != nil {
+		kkbuffer.Put(buffer)
+		return err
+	}
+	return c.SendBuffer(buffer)
 }
 
 func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {

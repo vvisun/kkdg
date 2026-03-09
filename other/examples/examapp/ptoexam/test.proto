@@ -17,3 +17,8 @@ message Msg2Broadcast {
 	int32 ID = 1;
 	repeated string Names = 2;
 }
+
+message TipServerBusy {
+	int32 Code = 1;
+	string Message = 2;
+}

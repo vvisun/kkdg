@@ -8,6 +8,7 @@ func InitMsgs(router *kkpacket.MsgRouter) {
 	router.Register(1, &Msg1Req{}, "logic")
 	router.Register(2, &Msg1Resp{}, "logic")
 	router.Register(3, &Msg2Broadcast{}, "logic")
+	router.Register(4, &TipServerBusy{}, "logic")
 	// test1.proto
 	router.Register(1000, &AaaaReq{}, "combat")
 	router.Register(1001, &AaaaResp{}, "combat")

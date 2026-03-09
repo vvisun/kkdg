@@ -7,6 +7,8 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+// SendQueue full 动作。严格模式下，队列满时才会触发。非严格模式下，队列满时会自动扩容。
+// 默认 Drop，表示丢弃。
 type EWpQueueFullAction int
 
 const (
@@ -34,7 +36,8 @@ type WriteOptions struct {
 	BatchWriteSize int
 	// 单次批量写入的最大字节数(<=0 不限制)
 	BatchWriteLimitBytes int
-	// SendQueue full 动作
+	// SendQueue full 动作。严格模式下，队列满时才会触发。非严格模式下，队列满时会自动扩容。
+	// 默认 Drop，表示丢弃。
 	SendQueueFullAction EWpQueueFullAction
 	// Retry 模式：重试间隔（默认 2ms）
 	SendQueueRetryInterval time.Duration
@@ -67,6 +70,9 @@ func DefaultWriteOptions() WriteOptions {
 func CheckWriteOptions(opts *WriteOptions) {
 	if opts == nil {
 		return
+	}
+	if opts.MsgPacket == nil {
+		kklog.Warnf("wp MsgPacket is nil, SendMsg will work error")
 	}
 	if opts.SendQueueSize <= 0 {
 		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 128)

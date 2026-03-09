@@ -11,12 +11,10 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -57,12 +55,14 @@ func runOneClient() kknet.IClient {
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg2Broadcast)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onTipServerBusy)
 
 	handler := &clientHandler{}
 
 	var client kknet.IClient
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(msgReceiver),
+		kknet.WithMsgPacket(kkapp.GetMsgPacket()),
 	)
 	if examapp.GateWSAddr != "" {
 		u := url.URL{Scheme: "ws", Host: examapp.GateWSAddr, Path: "/ws"}
@@ -97,18 +97,8 @@ func sendMsg(client kknet.IClient) {
 	curId := atomic.AddInt64(&autoId, 1)
 	payload := []byte("hello")
 	atomic.StoreInt64(&sendedId, curId)
-	bb, err := kkpacket.EncodeStream(
-		&ptoexam.Msg1Req{ID: int32(curId), Data: string(payload)},
-		kkpacket.DefaultStreamPacket(),
-		kkapp.GetMsgPacket(),
-	)
-	if err != nil {
-		kkbuffer.Put(bb)
-		kklog.Errorf("pack: %v", err)
-	} else {
-		if err := client.SendBuffer(bb); err != nil {
-			kklog.Errorf("send: %v", err)
-		}
+	if err := client.SendMsg(&ptoexam.Msg1Req{ID: int32(curId), Data: string(payload)}); err != nil {
+		kklog.Errorf("send: %v", err)
 	}
 }
 
@@ -133,6 +123,9 @@ func (h *gameHandler) onMsg1Req(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Req) e
 
 func (h *gameHandler) onMsg1Resp(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Resp) error {
 	atomic.StoreInt64(&receivedId, int64(msg.ID))
+	if receivedId%1000 != 0 {
+		return nil
+	}
 	kklog.Infof("onMsg1Resp: sendedId=%d, receivedId=%d diff=%d",
 		atomic.LoadInt64(&sendedId),
 		atomic.LoadInt64(&receivedId),
@@ -142,5 +135,14 @@ func (h *gameHandler) onMsg1Resp(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Resp)
 
 func (h *gameHandler) onMsg2Broadcast(sessionID kknet.CONN_ID, msg *ptoexam.Msg2Broadcast) error {
 	kklog.Infof("onMsg2Broadcast: %v", msg)
+	return nil
+}
+
+func (h *gameHandler) onTipServerBusy(sessionID kknet.CONN_ID, msg *ptoexam.TipServerBusy) error {
+	atomic.AddInt64(&receivedId, 1)
+	kklog.Infof("onTipServerBusy: sendedId=%d, receivedId=%d diff=%d",
+		atomic.LoadInt64(&sendedId),
+		atomic.LoadInt64(&receivedId),
+		atomic.LoadInt64(&sendedId)-atomic.LoadInt64(&receivedId))
 	return nil
 }

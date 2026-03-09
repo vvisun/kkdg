@@ -167,7 +167,13 @@ func (slf *gateComponent) startWSServer() error {
 	// 创建 WebSocket 服务器
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(slf.handler),
+		kknet.WithWorkerQueueMaxConcurrency(1),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithRecvBufShrinkCap(2*1024),
+		kknet.WithRecvQueueStrict(true),
 		kknet.WithRecvQueueFullCallback(slf.opt.RecvQueueFullCallback),
+		kknet.WithMsgPacket(kkapp.GetMsgPacket()),
 	)
 	server := kkgws.NewServer(slf.opt.WSAddr, slf.handler, opts)
 
