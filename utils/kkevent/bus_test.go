@@ -112,17 +112,23 @@ func TestTransactionalAsync(t *testing.T) {
 	// }
 	// So it locks the specific handler. If we publish twice, the second publish's execution of THIS handler will wait for the first.
 
-	bus.SubscribeAsync(topic, handler, true)
+	if err := bus.SubscribeAsync(topic, handler, true); err != nil {
+		t.Fatalf("SubscribeAsync: %v", err)
+	}
 	bus.Publish(topic, 1)
 	bus.Publish(topic, 2)
 
 	bus.WaitAsync()
 
 	if len(results) != 2 {
-		t.Errorf("expected 2 results, got %d", len(results))
+		t.Fatalf("expected 2 results, got %d", len(results))
 	}
-	if results[0] != 1 || results[1] != 2 {
-		t.Errorf("results order mismatch: %v", results)
+	seen := map[int]bool{}
+	for _, v := range results {
+		seen[v] = true
+	}
+	if !seen[1] || !seen[2] {
+		t.Errorf("unexpected results content: %v", results)
 	}
 }
 

@@ -8,10 +8,15 @@ import (
 
 // BusSubscriber defines subscription-related bus behavior
 type BusSubscriber interface {
+	// Subscribe subscribes to a topic.
 	Subscribe(topic string, fn interface{}) error
+	// SubscribeAsync subscribes to a topic with an asynchronous callback.
 	SubscribeAsync(topic string, fn interface{}, transactional bool) error
+	// SubscribeOnce subscribes to a topic once.
 	SubscribeOnce(topic string, fn interface{}) error
+	// SubscribeOnceAsync subscribes to a topic once with an asynchronous callback.
 	SubscribeOnceAsync(topic string, fn interface{}) error
+	// Unsubscribe removes a callback defined for a topic.
 	Unsubscribe(topic string, handler interface{}) error
 }
 
