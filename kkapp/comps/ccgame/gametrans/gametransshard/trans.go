@@ -13,7 +13,6 @@ import (
 )
 
 type transportorShard struct {
-	// conns   [kkapp.BackendShardCnt]net.Conn
 	conns   [kkapp.BackendShardCnt]*gatewayClient // 每个shard一个客户端，用于连接网关
 	muConns sync.RWMutex
 
@@ -34,13 +33,8 @@ func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgr
 	}
 
 	for i := 0; i < kkapp.BackendShardCnt; i++ {
-		// trans.conns[i] = connectGateway(i, trans)
 		trans.conns[i] = NewGatewayClient(i, trans)
 	}
-
-	// for i := 0; i < kkapp.BackendShardCnt; i++ {
-	// 	go businessLoop(i, trans.conns[i], trans)
-	// }
 
 	return trans
 }
@@ -69,7 +63,6 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 	if conn == nil {
 		return kkerrors.ErrConnNotFound
 	}
-	// 下行必须走转发协议 RpcS2Client，网关按 msgID=2 解析后 ForwardToClient(Payload)
 	payload := packet //EncodeStream会进行复制，这里可以直接传引用
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
 	bb, err := kkpacket.EncodeStream(rpcMsg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())

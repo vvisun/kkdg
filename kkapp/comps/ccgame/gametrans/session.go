@@ -62,6 +62,8 @@ func (slf *SessionManager) AddSession(sessionID string, gateNodeID string) {
 
 // AddSessionWithShard 与 AddSession 相同，但可指定 shardIdx（用于 shard 模式绑定到收到 C2S 的那条连接）。
 // shardIdx < 0 或 >= BackendShardCnt 时使用轮询分配。
+// 实际上并不需要接收shardIdx和发送shardIdx必须一致，
+// 只需要关心同一个客户端(sessionId)分配到同一个shardIdx即可，因为这样就能保证同一个客户端的接收和发送是顺序性的。
 func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID string, shardIdx int) {
 	oldInfo := slf.GetSession(sessionID)
 	if oldInfo != nil {

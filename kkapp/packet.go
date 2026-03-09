@@ -37,14 +37,16 @@ func SetMsgPacket(head *kkpacket.PacketHead, bodyCodec kkcodec.ICodec, router *k
 // 网关与业务服之间的消息编码解码器
 var gTransMsgPacket = kkpacket.NewMessagePacket(
 	kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-	kkcodec.GetCodec(kkcodec.CodecTypeJson),
+	kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
 	kkpacket.NewMsgRouter(),
 )
 
+// GetTransMsgPacket 获取网关与业务服之间的消息编码解码器
 func GetTransMsgPacket() *kkpacket.MessagePacket {
 	return gTransMsgPacket
 }
 
+// SetTransMsgPacket 设置网关与业务服之间的消息编码解码器
 func SetTransMsgPacket(head *kkpacket.PacketHead, bodyCodec kkcodec.ICodec, router *kkpacket.MsgRouter) {
 	gTransMsgPacket = kkpacket.NewMessagePacket(head, bodyCodec, router)
 }

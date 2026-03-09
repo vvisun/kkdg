@@ -50,6 +50,11 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 	return trans
 }
 
+// 为了保证单个连接的消息顺序性，需要将连接分配到固定的分片索引。
+func (slf *transportorShard) getShardIdx(connId kknet.CONN_ID) int {
+	return int(connId % kkapp.BackendShardCnt)
+}
+
 // sendToLogicShard 向指定逻辑服的指定 shard 发送已编码包。调用方在返回 err 时负责 Put(bb)。
 func (slf *transportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
 	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
@@ -73,7 +78,7 @@ func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 		kkbuffer.Put(bb)
 		return err
 	}
-	shardIdx := int(connId % kkapp.BackendShardCnt)
+	shardIdx := slf.getShardIdx(connId)
 	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -95,7 +100,7 @@ func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 		kkbuffer.Put(bb)
 		return err
 	}
-	shardIdx := int(cConn.ID() % kkapp.BackendShardCnt)
+	shardIdx := slf.getShardIdx(cConn.ID())
 	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
 		kkbuffer.Put(bb)
 		return err

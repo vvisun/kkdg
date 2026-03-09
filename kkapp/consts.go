@@ -22,4 +22,4 @@ const (
 	TransTypeShard TransType = "shard" // 使用shard转发消息
 )
 
-const BackendShardCnt = 8
+const BackendShardCnt = 16
