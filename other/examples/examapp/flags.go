@@ -20,7 +20,6 @@ func ParseFlags(args []string) {
 	fs.IntVar(&ClientConnNum, "conn-num", ClientConnNum, "客户端连接数（仅 aclient）")
 	fs.DurationVar(&ClientConnDelay, "conn-delay", ClientConnDelay, "客户端建连间隔（仅 aclient）")
 	fs.DurationVar(&ClientSendInterval, "send-interval", ClientSendInterval, "客户端发送间隔（仅 aclient）")
-	fs.BoolVar(&WithGate, "with-gate", WithGate, "aserver 是否同时启动 gate")
 
 	if args == nil {
 		_ = fs.Parse(os.Args[1:])

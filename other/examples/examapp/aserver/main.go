@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
@@ -19,12 +18,6 @@ func main() {
 	examapp.ParseFlags(nil)
 	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
 
-	// gate 节点
-	var gateApp *component.Application
-	if examapp.WithGate {
-		gateApp = runGate()
-	}
-
 	// game 节点
 	gameApp := runGame()
 
@@ -34,32 +27,7 @@ func main() {
 	<-signalCh
 	kklog.Infof("receive interrupt signal, exit")
 	gameApp.Stop()
-	if gateApp != nil {
-		gateApp.Stop()
-	}
 	os.Exit(0)
-}
-
-func runGate() *component.Application {
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, examapp.GateTCPAddr, "", nil)
-	gateApp := component.NewApplication(gateNode)
-	gateOpt := ccgate.Option{
-		TCPAddr:       examapp.GateTCPAddr,
-		WSAddr:        examapp.GateWSAddr,
-		RpcAddr:       examapp.RpcAddr,
-		DiscoveryUrl:  examapp.NatsURL,
-		ClusterUrl:    examapp.NatsURL,
-		LogicNodeType: kkapp.NodeTypeLogic,
-		TransType:     examapp.UseTransType,
-	}
-	gate := ccgate.NewGateComponent(gateOpt)
-	if err := gateApp.AddComponent(gate); err != nil {
-		kklog.Errorf("add gate: %v", err)
-	}
-	if err := gateApp.Start(); err != nil {
-		kklog.Errorf("gate start: %v", err)
-	}
-	return gateApp
 }
 
 func runGame() *component.Application {
