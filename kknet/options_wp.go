@@ -17,13 +17,19 @@ const (
 	EWpQueueFullActionRetry                           // 重试
 )
 
+// 多包合并发送时，限制的包数量。
+const BatchPacketSize = 32
+
 type WriteOptions struct {
 	// 消息包解码器
 	MsgPacket *kkpacket.MessagePacket
-	// 发送队列大小
-	SendQueueSize int
+
 	// 发送队列是否严格容量控制
 	SendQueueStrict bool
+	// 发送队列大小。默认 128。
+	// 需配合 SendQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
+	SendQueueSize int
+
 	// 关闭时是否需要等待 flush 完成。
 	// 客户端没必要等待 flush 完成，因为实际中客户端会是web/app/小程序等，
 	// 服务端 以及 rpc中的client端一般需要等待 flush 完成。
@@ -32,10 +38,7 @@ type WriteOptions struct {
 	SendQueueTimeoutFlushOver time.Duration
 	// flush 超时回调
 	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration)
-	// 单次批量写入的帧数。会创建这个大小的缓存数组以复用实现零分配
-	BatchWriteSize int
-	// 单次批量写入的最大字节数(<=0 不限制)
-	BatchWriteLimitBytes int
+
 	// SendQueue full 动作。严格模式下，队列满时才会触发。非严格模式下，队列满时会自动扩容。
 	// 默认 Drop，表示丢弃。
 	SendQueueFullAction EWpQueueFullAction
@@ -43,6 +46,11 @@ type WriteOptions struct {
 	SendQueueRetryInterval time.Duration
 	// Retry 模式：最大重试次数（0 表示无限，默认 100）
 	SendQueueRetryMaxCount int
+
+	// 多包合并发送时，限制的写入的字节数(<=0 不限制)
+	// 合并时限制的包数量为常量 BatchPacketSize。
+	BatchWriteLimitBytes int
+
 	// writeFn 失败时的最大重试次数（0 表示不重试，直接放弃并关闭写协程）
 	WriteFnRetryMaxCount int
 	// writeFn 失败时的重试间隔（默认 5ms）
@@ -57,7 +65,6 @@ func DefaultWriteOptions() WriteOptions {
 		SendQueueStrict:           false,
 		SendQueueNeedFlushOver:    true,
 		SendQueueTimeoutFlushOver: 5 * time.Second,
-		BatchWriteSize:            32,
 		BatchWriteLimitBytes:      1024,
 		SendQueueFullAction:       EWpQueueFullActionDrop,
 		SendQueueRetryInterval:    2 * time.Millisecond,
@@ -77,14 +84,6 @@ func CheckWriteOptions(opts *WriteOptions) {
 	if opts.SendQueueSize <= 0 {
 		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 128)
 		opts.SendQueueSize = 128
-	}
-	if opts.BatchWriteSize < 8 {
-		kklog.Debugf("wp BatchWriteSize fixed from %d to %d", opts.BatchWriteSize, 8)
-		opts.BatchWriteSize = 8
-	}
-	if opts.BatchWriteSize > 64 {
-		kklog.Debugf("wp BatchWriteSize fixed from %d to %d", opts.BatchWriteSize, 64)
-		opts.BatchWriteSize = 64
 	}
 	if opts.BatchWriteLimitBytes < 512 {
 		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 512)
@@ -150,13 +149,6 @@ func WithSendQueueTimeoutFlushOver(timeout time.Duration) Option {
 func WithSendQueueFlushTimeoutCallback(cb func(conn IConn, timeout time.Duration)) Option {
 	return func(o *Options) {
 		o.WpOptions.SendQueueFlushTimeoutCallback = cb
-	}
-}
-
-// WithBatchWriteSize sets batch write size.
-func WithBatchWriteSize(size int) Option {
-	return func(o *Options) {
-		o.WpOptions.BatchWriteSize = size
 	}
 }
 

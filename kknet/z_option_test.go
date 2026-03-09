@@ -178,8 +178,8 @@ func TestCheckReadOptions(t *testing.T) {
 		opt := DefaultReadOptions()
 		opt.RecvQueueSize = 0
 		CheckReadOptions(&opt)
-		if opt.RecvQueueSize != 512 {
-			t.Errorf("CheckReadOptions RecvQueueSize = %d, want 512", opt.RecvQueueSize)
+		if opt.RecvQueueSize != 256 {
+			t.Errorf("CheckReadOptions RecvQueueSize = %d, want 256", opt.RecvQueueSize)
 		}
 	})
 	t.Run("worker_concurrency_zero", func(t *testing.T) {
@@ -208,9 +208,6 @@ func TestDefaultWriteOptions(t *testing.T) {
 	if opt.SendQueueSize != 128 {
 		t.Errorf("DefaultWriteOptions SendQueueSize = %d, want 128", opt.SendQueueSize)
 	}
-	if opt.BatchWriteSize != 32 {
-		t.Errorf("DefaultWriteOptions BatchWriteSize = %d, want 32", opt.BatchWriteSize)
-	}
 	if opt.BatchWriteLimitBytes != 1024 {
 		t.Errorf("DefaultWriteOptions BatchWriteLimitBytes = %d, want 1024", opt.BatchWriteLimitBytes)
 	}
@@ -228,22 +225,7 @@ func TestCheckWriteOptions(t *testing.T) {
 			t.Errorf("CheckWriteOptions SendQueueSize = %d, want 128", opt.SendQueueSize)
 		}
 	})
-	t.Run("batch_write_size_too_small", func(t *testing.T) {
-		opt := DefaultWriteOptions()
-		opt.BatchWriteSize = 4
-		CheckWriteOptions(&opt)
-		if opt.BatchWriteSize != 8 {
-			t.Errorf("CheckWriteOptions BatchWriteSize = %d, want 8", opt.BatchWriteSize)
-		}
-	})
-	t.Run("batch_write_size_too_large", func(t *testing.T) {
-		opt := DefaultWriteOptions()
-		opt.BatchWriteSize = 128
-		CheckWriteOptions(&opt)
-		if opt.BatchWriteSize != 64 {
-			t.Errorf("CheckWriteOptions BatchWriteSize = %d, want 64", opt.BatchWriteSize)
-		}
-	})
+
 	t.Run("batch_write_limit_bytes_low", func(t *testing.T) {
 		opt := DefaultWriteOptions()
 		opt.BatchWriteLimitBytes = 100

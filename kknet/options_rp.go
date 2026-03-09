@@ -7,14 +7,18 @@ type ReadOptions struct {
 	RawHandler IRawHandler
 	//消费函数, data: [length,message], 如果同步调用已经快过拷贝，可以直接同步消费数据。
 	NoneCopyHandler INoneCopyHandler
-	//接收队列大小
-	RecvQueueSize int
+
 	//接收队列是否严格容量控制
 	RecvQueueStrict bool
-	//当拆包缓冲区 cap 超过该值且当前为空时，缩容到默认值(<=0 使用默认值defaultRecvBufSize)
-	RecvBufShrinkCap int
-	// RecvQueue full 回调。当 Push 因队列满失败时调用（需 RecvQueueStrict=true 才会出现队列满）
+	//接收队列大小。默认 256。
+	// 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
+	RecvQueueSize int
+	// RecvQueue full 回调。当 Push 因队列满失败时调用。
+	// 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
+	// 例如，可以在回调里限流/向客户端发送提示“服务器繁忙”等。
 	RecvQueueFullCallback func(conn IConn)
+	//当拆包缓冲区 cap 超过该值且当前为空时，会缩容到默认值。防止内存浪费。
+	RecvBufShrinkCap int
 	// WorkerQueue 最大并发数。用于TaskReadProcessor。
 	// 默认 1，表示不并发，保证顺序性。大于1时并发，不保证顺序性。
 	// 取值范围会自动归一化到 [1,64]。
@@ -35,8 +39,8 @@ func CheckReadOptions(opts *ReadOptions) {
 		return
 	}
 	if opts.RecvQueueSize <= 0 {
-		kklog.Debugf("rp RecvQueueSize fixed from %d to %d", opts.RecvQueueSize, 512)
-		opts.RecvQueueSize = 512
+		kklog.Debugf("rp RecvQueueSize fixed from %d to %d", opts.RecvQueueSize, 256)
+		opts.RecvQueueSize = 256
 	}
 	if opts.RecvBufShrinkCap <= 0 || opts.RecvBufShrinkCap > 2*1024 {
 		kklog.Debugf("rp RecvBufShrinkCap fixed from %d to %d", opts.RecvBufShrinkCap, 2048)
@@ -67,6 +71,7 @@ func WithNoneCopyHandler(handler INoneCopyHandler) Option {
 }
 
 // WithRecvQueueSize sets recv queue size.
+// 默认 256，RecvQueueStrict 为 true 时，会有队列满回调。否则会自动扩容，这里设置的值会忽略。
 func WithRecvQueueSize(size int) Option {
 	return func(o *Options) {
 		if size > 0 {

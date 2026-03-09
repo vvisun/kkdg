@@ -9,7 +9,7 @@ import (
 // 默认值；通过 ParseFlags() 可由命令行参数覆盖
 var (
 	NatsURL      = "nats://127.0.0.1:4222"
-	UseTransType = kkapp.TransTypeNats
+	UseTransType = kkapp.TransTypeShard
 	GateTCPAddr  = "127.0.0.1:19090"
 	GateWSAddr   = "127.0.0.1:19091"
 	RpcAddr      = "127.0.0.1:19092"

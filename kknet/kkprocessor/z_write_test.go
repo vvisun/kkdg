@@ -31,7 +31,6 @@ func TestWriteProcessor_DropMode(t *testing.T) {
 		SendQueueStrict:        true,
 		SendQueueFullAction:    kknet.EWpQueueFullActionDrop,
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 	}
 	wp := NewWriteProcessor(opts).(*WriteProcessor)
@@ -86,7 +85,6 @@ func TestWriteProcessor_BlockMode(t *testing.T) {
 		SendQueueStrict:        true,
 		SendQueueFullAction:    kknet.EWpQueueFullActionBlock,
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 		SendQueueRetryInterval: 2 * time.Millisecond,
 		SendQueueRetryMaxCount: 10,
@@ -162,7 +160,6 @@ func TestWriteProcessor_RetryMode(t *testing.T) {
 		SendQueueRetryInterval: 2 * time.Millisecond,
 		SendQueueRetryMaxCount: 3,
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 	}
 	wp := NewWriteProcessor(opts).(*WriteProcessor)
@@ -234,7 +231,6 @@ func TestWriteProcessor_WriteFnRetry_Retryable(t *testing.T) {
 		WriteFnRetryMaxCount:   5,
 		WriteFnRetryInterval:   2 * time.Millisecond,
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 	}
 	wp := NewWriteProcessor(opts).(*WriteProcessor)
@@ -280,7 +276,6 @@ func TestWriteProcessor_WriteFnRetry_NonRetryable(t *testing.T) {
 		WriteFnRetryMaxCount:   5,
 		WriteFnRetryInterval:   2 * time.Millisecond,
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 	}
 	wp := NewWriteProcessor(opts).(*WriteProcessor)
@@ -318,7 +313,6 @@ func TestWriteProcessor_WriteFnRetry_CustomIsRetryable(t *testing.T) {
 		WriteFnRetryMaxCount:   3,
 		WriteFnRetryInterval:   1 * time.Millisecond,
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 		WriteFnIsRetryable: func(err error) bool {
 			return err != nil && err.Error() == "retry-me"
@@ -365,7 +359,6 @@ func TestWriteProcessor_Pending(t *testing.T) {
 		SendQueueSize:          8,
 		SendQueueStrict:        false,
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 	}
 	wp := NewWriteProcessor(opts).(*WriteProcessor)
@@ -408,7 +401,6 @@ func TestWriteProcessor_SendMsg_UnregisteredType(t *testing.T) {
 	opts := kknet.WriteOptions{
 		SendQueueSize:          8,
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 		MsgPacket:              msgPacket,
 	}
@@ -440,7 +432,6 @@ func TestWriteProcessor_DefaultAction_Unknown(t *testing.T) {
 		SendQueueStrict:        true,
 		SendQueueFullAction:    kknet.EWpQueueFullAction(99), // 未知 action
 		SendQueueNeedFlushOver: false,
-		BatchWriteSize:         8,
 		BatchWriteLimitBytes:   1024,
 	}
 	wp := NewWriteProcessor(opts).(*WriteProcessor)
@@ -487,7 +478,6 @@ func TestWriteProcessor_FlushTimeout(t *testing.T) {
 		SendQueueStrict:           false,
 		SendQueueNeedFlushOver:    true,
 		SendQueueTimeoutFlushOver: 50 * time.Millisecond,
-		BatchWriteSize:            8,
 		BatchWriteLimitBytes:      1024,
 	}
 	flushTimeoutCh := make(chan time.Duration, 1)

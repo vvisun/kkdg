@@ -23,7 +23,6 @@ func Benchmark_KKSCSPSendDrain(b *testing.B) {
 		SendQueueStrict:           false,
 		SendQueueNeedFlushOver:    true,
 		SendQueueTimeoutFlushOver: 30 * time.Second,
-		BatchWriteSize:            64,
 		BatchWriteLimitBytes:      2048,
 	}
 	wp := NewWriteProcessor(opts)

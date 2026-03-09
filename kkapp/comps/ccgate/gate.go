@@ -169,9 +169,9 @@ func (slf *gateComponent) startWSServer() error {
 		kknet.WithRawHandler(slf.handler),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
-		kknet.WithRecvQueueSize(64),
-		kknet.WithRecvBufShrinkCap(2*1024),
+		kknet.WithRecvQueueSize(128),
 		kknet.WithRecvQueueStrict(true),
+		kknet.WithRecvBufShrinkCap(2*1024),
 		kknet.WithRecvQueueFullCallback(slf.opt.RecvQueueFullCallback),
 		kknet.WithMsgPacket(kkapp.GetMsgPacket()),
 	)
