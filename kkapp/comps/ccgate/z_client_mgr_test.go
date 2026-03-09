@@ -30,7 +30,7 @@ func Test_clientInfo_getLogicNode_allocLogicNode_removeLogicNode(t *testing.T) {
 		t.Error("getLogicNode on empty should return nil")
 	}
 
-	lgcNode := ci.allocLogicNode("game", "node1")
+	lgcNode := ci.bindLogicNode("game", "node1")
 	if lgcNode == nil {
 		t.Error("allocLogicNode should return non-nil")
 	}
@@ -38,12 +38,12 @@ func Test_clientInfo_getLogicNode_allocLogicNode_removeLogicNode(t *testing.T) {
 		t.Errorf("allocLogicNode result nodeId=%v nodeType=%v", lgcNode.nodeId, lgcNode.nodeType)
 	}
 
-	ci.removeLogicNode("game")
+	ci.unbindLogicNode("game")
 	if ci.getLogicNode("game") != nil {
 		t.Error("getLogicNode after removeLogicNode should return nil")
 	}
 
-	ci.allocLogicNode("game", "node2")
+	ci.bindLogicNode("game", "node2")
 	lgcNode = ci.getLogicNode("game")
 	if lgcNode.nodeId != "node2" || lgcNode.nodeType != "game" {
 		t.Errorf("allocLogicNode result nodeId=%v nodeType=%v", lgcNode.nodeId, lgcNode.nodeType)
@@ -65,7 +65,7 @@ func Test_logicNodeInfo_isLogin_login(t *testing.T) {
 }
 
 func Test_clientManager_addClient_removeClient_getClient(t *testing.T) {
-	m := &clientManager{}
+	m := newClientManager()
 
 	// add and get
 	connID := kknet.CONN_ID(100)
@@ -99,7 +99,7 @@ func Test_clientManager_addClient_removeClient_getClient(t *testing.T) {
 }
 
 func Test_clientManager_getClientByUserId_loginToGate(t *testing.T) {
-	m := &clientManager{}
+	m := newClientManager()
 	connID := kknet.CONN_ID(200)
 	m.addClient(connID, getSessionId(connID, "gate1"))
 
@@ -128,7 +128,7 @@ func Test_clientManager_getClientByUserId_loginToGate(t *testing.T) {
 }
 
 func Test_clientManager_allocLogicNode(t *testing.T) {
-	m := &clientManager{}
+	m := newClientManager()
 	connID := kknet.CONN_ID(300)
 	m.addClient(connID, getSessionId(connID, "gate1"))
 
@@ -154,7 +154,7 @@ func Test_clientManager_allocLogicNode(t *testing.T) {
 }
 
 func Test_clientManager_loginToLogicNode(t *testing.T) {
-	m := &clientManager{}
+	m := newClientManager()
 	connID := kknet.CONN_ID(400)
 	m.addClient(connID, getSessionId(connID, "gate1"))
 	m.allocLogicNode(connID, "game", "game1")
@@ -180,7 +180,7 @@ func Test_clientManager_loginToLogicNode(t *testing.T) {
 }
 
 func Test_clientManager_removeClient_clearsUserMap(t *testing.T) {
-	m := &clientManager{}
+	m := newClientManager()
 	connID := kknet.CONN_ID(500)
 	m.addClient(connID, getSessionId(connID, "gate1"))
 	m.loginToGate(connID, 200)

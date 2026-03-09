@@ -38,8 +38,8 @@ func (m *mockTransportor) ForwardToLogic(sessionID string, packet []byte, logicN
 	m.lastLogicID = logicNodeId
 	return nil
 }
-func (m *mockTransportor) ForwardToClient(string, []byte) error          { return nil }
-func (m *mockTransportor) ForwardToClients([]string, []byte) error       { return nil }
+func (m *mockTransportor) ForwardToClient(string, []byte) error    { return nil }
+func (m *mockTransportor) ForwardToClients([]string, []byte) error { return nil }
 func (m *mockTransportor) NotifyClientDisconnect(string, string, kknet.CONN_ID) error {
 	return nil
 }
@@ -51,44 +51,55 @@ type mockMember struct {
 	weight int
 }
 
-func (m *mockMember) GetNodeID() string                  { return m.id }
-func (m *mockMember) GetNodeType() string                { return m.nType }
-func (m *mockMember) GetAddress() string                 { return "" }
-func (m *mockMember) GetSetting(string) (string, bool)   { return "", false }
-func (m *mockMember) GetWeight() int                     { return m.weight }
-func (m *mockMember) SetWeight(int)                      {}
-func (m *mockMember) GetStatus() int                     { return kkdiscovery.NodeStatusOnline }
-func (m *mockMember) SetStatus(int)                      {}
+func (m *mockMember) GetNodeID() string                { return m.id }
+func (m *mockMember) GetNodeType() string              { return m.nType }
+func (m *mockMember) GetAddress() string               { return "" }
+func (m *mockMember) GetSetting(string) (string, bool) { return "", false }
+func (m *mockMember) GetWeight() int                   { return m.weight }
+func (m *mockMember) SetWeight(int)                    {}
+func (m *mockMember) GetStatus() int                   { return kkdiscovery.NodeStatusOnline }
+func (m *mockMember) SetStatus(int)                    {}
 
 type mockMemberMgr struct {
 	member kkdiscovery.IMember
 }
 
-func (m *mockMemberMgr) MemberCount() int { if m.member != nil { return 1 }; return 0 }
+func (m *mockMemberMgr) MemberCount() int {
+	if m.member != nil {
+		return 1
+	}
+	return 0
+}
 func (m *mockMemberMgr) Range(fn func(nodeID string, member kkdiscovery.IMember) bool) {
 	if m.member == nil {
 		return
 	}
 	fn(m.member.GetNodeID(), m.member)
 }
-func (m *mockMemberMgr) ListByType(string) []kkdiscovery.IMember         { return []kkdiscovery.IMember{m.member} }
-func (m *mockMemberMgr) Random(string) (kkdiscovery.IMember, bool)       { return m.member, m.member != nil }
-func (m *mockMemberMgr) GetType(string) (string, error)                  { return m.member.GetNodeType(), nil }
-func (m *mockMemberMgr) GetMember(string) (kkdiscovery.IMember, bool)    { return m.member, m.member != nil }
-func (m *mockMemberMgr) OnAddMember(kkdiscovery.MemberListener)          {}
-func (m *mockMemberMgr) OnRemoveMember(kkdiscovery.MemberListener)       {}
+func (m *mockMemberMgr) ListByType(string) []kkdiscovery.IMember {
+	return []kkdiscovery.IMember{m.member}
+}
+func (m *mockMemberMgr) Random(string) (kkdiscovery.IMember, bool) { return m.member, m.member != nil }
+func (m *mockMemberMgr) GetType(string) (string, error)            { return m.member.GetNodeType(), nil }
+func (m *mockMemberMgr) GetMember(string) (kkdiscovery.IMember, bool) {
+	return m.member, m.member != nil
+}
+func (m *mockMemberMgr) OnAddMember(kkdiscovery.MemberListener)    {}
+func (m *mockMemberMgr) OnRemoveMember(kkdiscovery.MemberListener) {}
 
 type mockDiscovery struct {
 	mgr *mockMemberMgr
 }
 
-func (d *mockDiscovery) Name() string                                      { return "mock" }
-func (d *mockDiscovery) Start() error                                      { return nil }
-func (d *mockDiscovery) Stop() error                                       { return nil }
-func (d *mockDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot         { return kkdiscovery.DiscoveryStatsSnapshot{} }
-func (d *mockDiscovery) SetInfoGetter(func() (int, int))                   {}
-func (d *mockDiscovery) GetMemberMgr() kkdiscovery.IMemberMgr              { return d.mgr }
-func (d *mockDiscovery) IsRunning() bool                                   { return true }
+func (d *mockDiscovery) Name() string { return "mock" }
+func (d *mockDiscovery) Start() error { return nil }
+func (d *mockDiscovery) Stop() error  { return nil }
+func (d *mockDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot {
+	return kkdiscovery.DiscoveryStatsSnapshot{}
+}
+func (d *mockDiscovery) SetInfoGetter(func() (int, int))      {}
+func (d *mockDiscovery) GetMemberMgr() kkdiscovery.IMemberMgr { return d.mgr }
+func (d *mockDiscovery) IsRunning() bool                      { return true }
 
 // Test_gateHandler_OnRaw_end_to_end verifies connect -> OnRaw -> ForwardToLogic path.
 func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
@@ -114,7 +125,7 @@ func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
 	// 2) construct gateComponent with mocks (bypassing Init/Start)
 	gate := &gateComponent{}
 	gate.opt.LogicNodeType = routeGame
-	gate.clientMgr = clientManager{}
+	gate.clientMgr = newClientManager()
 	gate.sessionMgr = gatetrans.NewSessionMgr()
 	mt := &mockTransportor{}
 	gate.transportor = mt
@@ -180,7 +191,7 @@ func Benchmark_gateHandler_OnRaw_throughput(b *testing.B) {
 
 	gate := &gateComponent{}
 	gate.opt.LogicNodeType = routeGame
-	gate.clientMgr = clientManager{}
+	gate.clientMgr = newClientManager()
 	gate.sessionMgr = gatetrans.NewSessionMgr()
 	mt := &mockTransportor{}
 	gate.transportor = mt
@@ -238,7 +249,7 @@ func Benchmark_gateHandler_OnRaw_withEncode(b *testing.B) {
 
 	gate := &gateComponent{}
 	gate.opt.LogicNodeType = routeGame
-	gate.clientMgr = clientManager{}
+	gate.clientMgr = newClientManager()
 	gate.sessionMgr = gatetrans.NewSessionMgr()
 	mt := &mockTransportor{}
 	gate.transportor = mt
@@ -266,4 +277,3 @@ func Benchmark_gateHandler_OnRaw_withEncode(b *testing.B) {
 		}
 	})
 }
-

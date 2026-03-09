@@ -29,7 +29,7 @@ type gateComponent struct {
 	handler   *gateHandler
 	discovery kkdiscovery.IDiscovery
 
-	clientMgr   clientManager
+	clientMgr   *clientManager
 	transportor gatetrans.ITransportor
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
 	sessionMgr  gatetrans.ISessionManager
@@ -49,6 +49,7 @@ func NewGateComponent(opt Option) *gateComponent {
 	return &gateComponent{
 		opt:        opt,
 		sessionMgr: gatetrans.NewSessionMgr(),
+		clientMgr:  newClientManager(),
 	}
 }
 
@@ -210,7 +211,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	}
 
 	// 分配逻辑节点
-	return cliInfo.allocLogicNode(nodeType, chooseNode)
+	return cliInfo.bindLogicNode(nodeType, chooseNode)
 }
 
 func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
