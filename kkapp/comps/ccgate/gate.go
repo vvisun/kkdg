@@ -65,12 +65,16 @@ func (slf *gateComponent) Init() error {
 	slf.handler = newGateHandler(slf)
 
 	// 初始化 discovery
-	nodeInfo1 := slf.GetApplication().GetNodeInfo()
-	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.NatsURL))
-	slf.discovery = dnats.NewNatsDiscovery("gate."+slf.GetApplication().GetNodeId(), nodeInfo1, nil, discoveryOpts)
+	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.DiscoveryUrl))
+	slf.discovery = dnats.NewNatsDiscovery(
+		"gate."+slf.GetApplication().GetNodeId(),
+		slf.GetApplication().GetNodeInfo(),
+		nil,
+		discoveryOpts,
+	)
 
 	// 初始化 cluster（用于 gate <-> logic 转发）
-	clusterOpts := cnats.ApplyNatsOptions(cnats.WithUrl(slf.opt.NatsURL))
+	clusterOpts := cnats.ApplyNatsOptions(cnats.WithUrl(slf.opt.ClusterUrl))
 	slf.cluster = cnats.NewNatsCluster(
 		slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeType(),
@@ -78,6 +82,7 @@ func (slf *gateComponent) Init() error {
 		clusterOpts,
 	)
 
+	// 初始化 transportor
 	switch slf.opt.TransType {
 	case kkapp.TransTypeNats:
 		slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
@@ -162,6 +167,7 @@ func (slf *gateComponent) startWSServer() error {
 	// 创建 WebSocket 服务器
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(slf.handler),
+		kknet.WithRecvQueueFullCallback(slf.opt.RecvQueueFullCallback),
 	)
 	server := kkgws.NewServer(slf.opt.WSAddr, slf.handler, opts)
 

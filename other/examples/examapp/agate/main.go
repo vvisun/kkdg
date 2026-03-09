@@ -36,7 +36,8 @@ func runGate() *component.Application {
 		TCPAddr:       examapp.GateTCPAddr,
 		WSAddr:        examapp.GateWSAddr,
 		RpcAddr:       examapp.RpcAddr,
-		NatsURL:       examapp.NatsURL,
+		DiscoveryUrl:  examapp.NatsURL,
+		ClusterUrl:    examapp.NatsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     examapp.UseTransType,
 	}

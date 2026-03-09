@@ -47,7 +47,8 @@ func runGate() *component.Application {
 		TCPAddr:       examapp.GateTCPAddr,
 		WSAddr:        examapp.GateWSAddr,
 		RpcAddr:       examapp.RpcAddr,
-		NatsURL:       examapp.NatsURL,
+		DiscoveryUrl:  examapp.NatsURL,
+		ClusterUrl:    examapp.NatsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     examapp.UseTransType,
 	}
@@ -66,9 +67,10 @@ func runGame() *component.Application {
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent(ccgame.Option{
-		TransType: examapp.UseTransType,
-		RpcAddr:   examapp.RpcAddr,
-		NatsURL:   examapp.NatsURL,
+		TransType:    examapp.UseTransType,
+		RpcAddr:      examapp.RpcAddr,
+		DiscoveryUrl: examapp.NatsURL,
+		ClusterUrl:   examapp.NatsURL,
 	})
 
 	msgReceiver := game.GetMsgReceiver()

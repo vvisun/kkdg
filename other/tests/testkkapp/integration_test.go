@@ -100,7 +100,8 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	gateOpt := ccgate.Option{
 		TCPAddr:       tcpAddr,
 		RpcAddr:       rpcAddr,
-		NatsURL:       natsURL,
+		DiscoveryUrl:  natsURL,
+		ClusterUrl:    natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     transType,
 	}
@@ -117,9 +118,10 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
 	gameApp := component.NewApplication(gameNode)
 	game := ccgame.NewGameComponent(ccgame.Option{
-		TransType: transType,
-		RpcAddr:   rpcAddr,
-		NatsURL:   natsURL,
+		TransType:    transType,
+		RpcAddr:      rpcAddr,
+		DiscoveryUrl: natsURL,
+		ClusterUrl:   natsURL,
 	})
 
 	msgReceiver := game.GetMsgReceiver()

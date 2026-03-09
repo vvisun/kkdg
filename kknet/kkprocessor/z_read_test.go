@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type collectingRawHandler struct {
@@ -210,6 +211,7 @@ func TestReadProcessor_RecvQueueFullCallback(t *testing.T) {
 		RecvBufShrinkCap: 2048,
 		RecvQueueFullCallback: func(_ kknet.IConn) {
 			fullCount++
+			kklog.Infof("RecvQueueFullCallback: fullCount=%d", fullCount)
 		},
 	}
 	rp := NewReadProcessor(opts).(*ReadProcessor)

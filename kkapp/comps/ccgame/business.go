@@ -48,22 +48,28 @@ func (slf *gameComponent) GetID() string {
 var _ component.IComponent = (*gameComponent)(nil)
 
 func (slf *gameComponent) Init() error {
-	nodeInfo := slf.GetApplication().GetNodeInfo()
-
-	// discovery + cluster for receiving forwarded messages from gate
-	opts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.NatsURL))
-	slf.discovery = dnats.NewNatsDiscovery("logic."+slf.GetApplication().GetNodeId(), nodeInfo, nil, opts)
-	slf.cluster = cnats.NewNatsCluster(
-		slf.GetApplication().GetNodeId(),
-		slf.GetApplication().GetNodeType(),
-		slf.discovery,
-		opts,
+	// 初始化 discovery
+	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.DiscoveryUrl))
+	slf.discovery = dnats.NewNatsDiscovery(
+		"logic."+slf.GetApplication().GetNodeId(),
+		slf.GetApplication().GetNodeInfo(),
+		nil,
+		discoveryOpts,
 	)
-
 	slf.discovery.SetInfoGetter(func() (int, int) {
 		return slf.sessionManager.OnlineCount(), kkdiscovery.NodeStatusOnline
 	})
 
+	// 初始化 cluster
+	clusterOpts := cnats.ApplyNatsOptions(cnats.WithUrl(slf.opt.ClusterUrl))
+	slf.cluster = cnats.NewNatsCluster(
+		slf.GetApplication().GetNodeId(),
+		slf.GetApplication().GetNodeType(),
+		slf.discovery,
+		clusterOpts,
+	)
+
+	// 初始化 transportor
 	switch slf.opt.TransType {
 	case kkapp.TransTypeNats:
 		slf.transportor = gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)

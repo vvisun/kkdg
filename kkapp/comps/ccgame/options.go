@@ -7,9 +7,10 @@ import (
 )
 
 type Option struct {
-	TransType kkapp.TransType
-	RpcAddr   string
-	NatsURL   string
+	TransType    kkapp.TransType
+	RpcAddr      string
+	DiscoveryUrl string
+	ClusterUrl   string
 }
 
 func DefaultOption() Option {
@@ -19,8 +20,16 @@ func DefaultOption() Option {
 }
 
 func validateOption(opt *Option) error {
-	if opt.TransType == kkapp.TransTypeRpc && opt.RpcAddr == "" {
-		return errors.New("rpc addr is required")
+	if opt.TransType == kkapp.TransTypeRpc || opt.TransType == kkapp.TransTypeShard {
+		if opt.RpcAddr == "" {
+			return errors.New("rpc addr is required")
+		}
+	}
+	if opt.DiscoveryUrl == "" {
+		return errors.New("discovery url is required")
+	}
+	if opt.ClusterUrl == "" {
+		return errors.New("cluster url is required")
 	}
 	return nil
 }
@@ -44,8 +53,14 @@ func WithRpcAddr(rpcAddr string) func(o *Option) {
 	}
 }
 
-func WithNatsURL(natsURL string) func(o *Option) {
+func WithDiscoveryURL(natsURL string) func(o *Option) {
 	return func(o *Option) {
-		o.NatsURL = natsURL
+		o.DiscoveryUrl = natsURL
+	}
+}
+
+func WithClusterURL(clusterURL string) func(o *Option) {
+	return func(o *Option) {
+		o.ClusterUrl = clusterURL
 	}
 }
