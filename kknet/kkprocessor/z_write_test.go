@@ -471,7 +471,8 @@ func TestWriteProcessor_FlushTimeout(t *testing.T) {
 		SendQueueSize:             4,
 		SendQueueStrict:           false,
 		SendQueueNeedFlushOver:    true,
-		SendQueueTimeoutFlushOver: 50 * time.Millisecond,
+		// 小于 500ms 会被 CheckWriteOptions 提升到 500ms，这里直接使用 500ms 方便断言
+		SendQueueTimeoutFlushOver: 500 * time.Millisecond,
 		BatchWriteLimitBytes:      1024,
 	}
 	flushTimeoutCh := make(chan time.Duration, 1)
@@ -484,7 +485,8 @@ func TestWriteProcessor_FlushTimeout(t *testing.T) {
 	wp := NewWriteProcessor(opts).(*WriteProcessor)
 
 	writeFn := func(batch []*kkbuffer.ByteBuffer, n int) error {
-		time.Sleep(100 * time.Millisecond)
+		// 写入时间需要明显大于超时时间，确保触发 flush 超时逻辑
+		time.Sleep(600 * time.Millisecond)
 		for i := 0; i < n; i++ {
 			if batch[i] != nil {
 				kkbuffer.Put(batch[i])
@@ -504,14 +506,20 @@ func TestWriteProcessor_FlushTimeout(t *testing.T) {
 		}
 	}
 
-	go wp.Stop(nil)
+	done := make(chan struct{})
+	go func() {
+		wp.Stop(nil)
+		close(done)
+	}()
 
 	select {
 	case to := <-flushTimeoutCh:
-		if to < 40*time.Millisecond {
-			t.Errorf("flush timeout callback: got %v, want >= 40ms", to)
+		if to < 500*time.Millisecond {
+			t.Errorf("flush timeout callback: got %v, want >= 500ms", to)
 		}
-	case <-time.After(200 * time.Millisecond):
+	case <-time.After(2 * time.Second):
 		t.Fatal("flush timeout callback should be invoked")
 	}
+
+	<-done
 }
