@@ -333,7 +333,14 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	// 这里应该先为client选择一个逻辑服
 	logicNode := h.gate.allocLogicNode(connID, route)
 	if logicNode == nil {
-		kklog.Debugf("[ccgate] alloc logic node failed")
+		// kklog.Debugf("[ccgate] alloc logic node failed")
+		// tell busy
+		if h.gate.opt.RecvQueueFullCallback != nil {
+			conn := h.gate.server.GetConnManager().GetConn(connID)
+			if conn != nil {
+				h.gate.opt.RecvQueueFullCallback(conn)
+			}
+		}
 		return
 	}
 

@@ -217,3 +217,53 @@ func Benchmark_gateHandler_OnRaw_throughput(b *testing.B) {
 	})
 }
 
+// Benchmark including message encoding + OnRaw, closer to real end-to-end cost inside gate.
+func Benchmark_gateHandler_OnRaw_withEncode(b *testing.B) {
+	router := kkpacket.NewMsgRouter()
+	const (
+		msgIDLogin = 1
+		routeGame  = "game"
+	)
+	type LoginReq struct {
+		User string `json:"user"`
+	}
+	if err := router.Register(msgIDLogin, &LoginReq{}, routeGame); err != nil {
+		b.Fatalf("Register: %v", err)
+	}
+	kkapp.SetMsgPacket(
+		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+		kkcodec.GetCodec(kkcodec.CodecTypeJson),
+		router,
+	)
+
+	gate := &gateComponent{}
+	gate.opt.LogicNodeType = routeGame
+	gate.clientMgr = clientManager{}
+	gate.sessionMgr = gatetrans.NewSessionMgr()
+	mt := &mockTransportor{}
+	gate.transportor = mt
+	nodeInfo := kkapp.NewNodeInfo("gate-1", kkapp.NodeTypeGate, "", "", nil)
+	app := component.NewApplication(nodeInfo)
+	gate.Component.SetApplication(app)
+	gate.discovery = &mockDiscovery{
+		mgr: &mockMemberMgr{
+			member: &mockMember{id: "game-1", nType: routeGame, weight: 1},
+		},
+	}
+	handler := newGateHandler(gate)
+	conn := &mockConn{id: 100, addr: "mock:0"}
+	handler.OnConnect(conn)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			bb, err := kkpacket.EncodeStream(&LoginReq{User: "bench"}, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
+			if err != nil {
+				b.Fatalf("EncodeStream: %v", err)
+			}
+			handler.OnRaw(conn.ID(), bb)
+		}
+	})
+}
+
