@@ -5,20 +5,6 @@ import (
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-type IComponentLifecycle interface {
-	Init() error  //初始化组件
-	Start() error //启动组件
-	Stop() error  //停止组件
-}
-
-type IComponent interface {
-	GetCompName() string // 组件名称。unique name for the component.
-	IComponentLifecycle
-	SetApplication(app IApplication)
-	GetApplication() IApplication
-	Equal(other IComponent) bool
-}
-
 func IsEqual(a, b IComponent) bool {
 	if a == nil || b == nil {
 		return false
@@ -80,7 +66,12 @@ func (slf *Component) Equal(other IComponent) bool {
 
 var _ actor.Actor = (*Component)(nil)
 
-// impl actor.Actor
+// implement actor.Actor
+//
+//	每个组件视为1个actor。这样，我们可以做到：
+//	组件挂接到任意节点上时，都能实现透明化。
+//	单机部署，集群部署都无需修改逻辑。
+//	调整组件所属节点时，也无需修改逻辑。
 func (slf *Component) Receive(context actor.Context) {
 
 }

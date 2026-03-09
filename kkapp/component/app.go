@@ -11,22 +11,6 @@ import (
 )
 
 // each application is a node. each node is a process.
-type IApplication interface {
-	kkapp.INodeIdentity
-	GetNodeInfo() *kkapp.NodeInfo
-	Start() error
-	Stop() error
-	GetActorSystem() *actor.ActorSystem
-
-	AddComponent(child IComponent) error
-	HasComponent(child IComponent) bool
-	GetComponents() []IComponent
-
-	SetConfigDir(configDir string)
-	GetConfigDir() string
-}
-
-// each application is a node. each node is a process.
 type Application struct {
 	nodeInfo  *kkapp.NodeInfo
 	actorSys  *actor.ActorSystem
