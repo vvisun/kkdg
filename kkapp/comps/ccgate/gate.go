@@ -188,7 +188,7 @@ func (slf *gateComponent) startWSServer() error {
 }
 
 // 为客户端(connID)分配一个nodeType类型的逻辑节点
-func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) *logicNodeInfo {
+func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) *clientLogicItem {
 	if nodeType == "" {
 		return nil //无效的nodeType，不分配逻辑节点
 	}
@@ -203,26 +203,60 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 		return lgcNode
 	}
 
-	// 从discovery中选择权重最小的逻辑节点
+	// 选择逻辑节点
+	chooseNode, found := slf.chooseLogicNode(nodeType)
+	if !found {
+		return nil //没有找到合适的逻辑节点
+	}
+
+	// 分配逻辑节点
+	return cliInfo.allocLogicNode(nodeType, chooseNode)
+}
+
+func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
+	if slf.opt.TransType == kkapp.TransTypeShard {
+		if slf.discovery != nil && slf.discovery.IsRunning() {
+			return slf.chooseFromDiscovery(nodeType)
+		}
+		return slf.chooseFromShard(nodeType)
+	}
+	return slf.chooseFromDiscovery(nodeType)
+}
+
+// 从shard中选择权重最小的逻辑节点. return nodeId, found
+func (slf *gateComponent) chooseFromShard(nodeType string) (string, bool) {
+	if slf.opt.TransType == kkapp.TransTypeShard {
+		trans := slf.transportor.(*transshard.TransportorShard)
+		if trans != nil {
+			return trans.ChooseLogicServer(nodeType, gLogicTotalMgr)
+		}
+	}
+	return "", false
+}
+
+// 从discovery中选择权重最小的逻辑节点. return nodeId, found
+func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
 	var chooseNode kkdiscovery.IMember = nil
+	finded := false
 	slf.discovery.GetMemberMgr().Range(func(nodeID string, member kkdiscovery.IMember) bool {
 		if member.GetNodeType() != nodeType {
 			return true
 		}
 		if chooseNode == nil {
 			chooseNode = member
+			finded = true
 			return true
 		}
 		if member.GetWeight() < chooseNode.GetWeight() {
 			chooseNode = member
+			finded = true
 		}
 		return true
 	})
-	if chooseNode == nil {
-		return nil
+	if chooseNode == nil || !finded {
+		return "", false
 	}
-
-	return cliInfo.allocLogicNode(nodeType, chooseNode.GetNodeID())
+	return chooseNode.GetNodeID(), true
 }
 
 //------------------------------------------------------------

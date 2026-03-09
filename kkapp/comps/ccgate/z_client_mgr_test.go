@@ -51,7 +51,7 @@ func Test_clientInfo_getLogicNode_allocLogicNode_removeLogicNode(t *testing.T) {
 }
 
 func Test_logicNodeInfo_isLogin_login(t *testing.T) {
-	info := newLogicNodeInfo("node1", "game")
+	info := newClientLogicItem("node1", "game")
 	if info.isLogin() {
 		t.Error("new logicNodeInfo should not be login")
 	}

@@ -17,3 +17,9 @@ type ITransportor interface {
 	// NotifyClientDisconnect notifies a client disconnect.
 	NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
 }
+
+type ILogicTotalManager interface {
+	GetSessionCount(nodeId string) int
+	//onBindLogicNode(sessionId string, nodeId string, nodeType string)
+	//onUnbindLogicNode(sessionId string, nodeId string)
+}

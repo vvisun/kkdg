@@ -26,6 +26,7 @@ type (
 		Stats() DiscoveryStatsSnapshot   // 获取统计信息
 		SetInfoGetter(func() (int, int)) // return (onlineCount, status)。在线数量，状态
 		GetMemberMgr() IMemberMgr        // 获取成员管理器
+		IsRunning() bool                 // 是否已启动
 	}
 
 	// IMember 成员接口

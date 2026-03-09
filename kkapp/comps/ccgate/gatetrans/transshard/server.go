@@ -15,7 +15,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-type transportorShard struct {
+type TransportorShard struct {
 	logicServerMgr *LogicServerMgr
 	logicConnMgr   sync.Map // map[connId]*ShardConn
 	server         kknet.IServer
@@ -23,7 +23,7 @@ type transportorShard struct {
 	gateNodeId     string
 }
 
-var _ gatetrans.ITransportor = (*transportorShard)(nil)
+var _ gatetrans.ITransportor = (*TransportorShard)(nil)
 
 func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, nodeId string) gatetrans.ITransportor {
 	handler := &shardHandler{}
@@ -40,8 +40,8 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 		kklog.Fatalf("start shard server error: %v", err)
 	}
 
-	trans := &transportorShard{
-		logicServerMgr: &LogicServerMgr{},
+	trans := &TransportorShard{
+		logicServerMgr: newLogicServerMgr(),
 		server:         srv,
 		sessionMgr:     sessionMgr,
 		gateNodeId:     nodeId,
@@ -51,12 +51,12 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 }
 
 // 为了保证单个连接的消息顺序性，需要将连接分配到固定的分片索引。
-func (slf *transportorShard) getShardIdx(connId kknet.CONN_ID) int {
+func (slf *TransportorShard) getShardIdx(connId kknet.CONN_ID) int {
 	return int(connId % kkapp.BackendShardCnt)
 }
 
 // sendToLogicShard 向指定逻辑服的指定 shard 发送已编码包。调用方在返回 err 时负责 Put(bb)。
-func (slf *transportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
+func (slf *TransportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
 	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
 	if chooseServer == nil {
 		return kkerrors.ErrLogicNodeNotRegistered
@@ -70,7 +70,7 @@ func (slf *transportorShard) sendToLogicShard(logicNodeId string, shardIdx int, 
 	return sconn.conn.SendBuffer(bb)
 }
 
-func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
 	var msg ptotrans.RpcClientDisconnect
 	msg.ClientId = sessionID
 	bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
@@ -86,7 +86,7 @@ func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 	return nil
 }
 
-func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
+func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
 	cConn, err := slf.sessionMgr.GetConn(sessionID)
 	if err != nil {
 		return err
@@ -109,7 +109,7 @@ func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 }
 
 // @param packet is a full stream packet [length,message]
-func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) error {
+func (slf *TransportorShard) ForwardToClient(sessionID string, packet []byte) error {
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
@@ -133,7 +133,7 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 }
 
 // @param packet is a full stream packet [length,message]
-func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
+func (slf *TransportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if len(sessionIDs) == 0 {
 		return nil
 	}
@@ -163,8 +163,16 @@ func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte
 	return nil
 }
 
+func (slf *TransportorShard) ChooseLogicServer(nodeType string, totalMgr gatetrans.ILogicTotalManager) (string, bool) {
+	svr, found := slf.logicServerMgr.chooseLogicServer(nodeType, totalMgr)
+	if !found {
+		return "", false
+	}
+	return svr.nodeId, true
+}
+
 type shardHandler struct {
-	transporter *transportorShard
+	transporter *TransportorShard
 }
 
 func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {

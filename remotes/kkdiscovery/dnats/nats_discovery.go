@@ -78,6 +78,11 @@ func (d *NatsDiscovery) SetInfoGetter(fn func() (int, int)) {
 	d.infoGetterFn = fn
 }
 
+// IsRunning 是否已启动
+func (d *NatsDiscovery) IsRunning() bool {
+	return !d.closing.Load() && !d.closed.Load() && d.conn != nil && d.conn.IsConnected()
+}
+
 // GetMemberMgr 获取成员管理器
 func (d *NatsDiscovery) GetMemberMgr() kkdiscovery.IMemberMgr {
 	return d.memberMgr

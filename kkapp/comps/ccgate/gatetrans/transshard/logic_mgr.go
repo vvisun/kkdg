@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -35,8 +36,12 @@ type LogicServer struct {
 }
 
 type LogicServerMgr struct {
-	logicServerMap sync.Map // map[string]*LogicServer
+	logicServerMap sync.Map // nodeId -> *LogicServer
 	registerMu     sync.Mutex
+}
+
+func newLogicServerMgr() *LogicServerMgr {
+	return &LogicServerMgr{}
 }
 
 // addLogicServer 确保 nodeId 对应的 LogicServer 存在（多连接并发注册时只创建一次），
@@ -65,6 +70,39 @@ func (m *LogicServerMgr) getLogicServer(nodeId string) *LogicServer {
 		return nil
 	}
 	return ls.(*LogicServer)
+}
+
+func (m *LogicServerMgr) chooseLogicServer(nodeType string, totalMgr gatetrans.ILogicTotalManager) (*LogicServer, bool) {
+	var chooseServer *LogicServer = nil
+	finded := false
+	m.logicServerMap.Range(func(k any, v any) bool {
+		ls := v.(*LogicServer)
+		if ls.nodeType != nodeType {
+			return true
+		}
+		if chooseServer == nil {
+			chooseServer = ls
+			finded = true
+			return true
+		}
+		if totalMgr != nil {
+			if totalMgr.GetSessionCount(ls.nodeId) < totalMgr.GetSessionCount(chooseServer.nodeId) {
+				chooseServer = ls
+				finded = true
+			}
+		} else {
+			if ls.clientCount < chooseServer.clientCount {
+				chooseServer = ls
+				finded = true
+			}
+		}
+
+		return true
+	})
+	if chooseServer == nil || !finded {
+		return nil, false
+	}
+	return chooseServer, true
 }
 
 func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardConn) {
