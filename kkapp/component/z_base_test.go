@@ -8,8 +8,8 @@ import (
 
 func TestComponent_Lifecycle(t *testing.T) {
 	c := &Component{id: "test-comp"}
-	if c.GetID() != "test-comp" {
-		t.Errorf("GetID() = %q, want test-comp", c.GetID())
+	if c.GetCompName() != "test-comp" {
+		t.Errorf("GetCompName() = %q, want test-comp", c.GetCompName())
 	}
 	if c.GetApplication() != nil {
 		t.Errorf("GetApplication() = %v, want nil", c.GetApplication())

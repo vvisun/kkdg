@@ -15,7 +15,7 @@ func NewCompNatsCluster(cluster ICluster) *compCluster {
 	}
 }
 
-func (slf *compCluster) GetID() string {
+func (slf *compCluster) GetCompName() string {
 	return "cluster_" + slf.GetApplication().GetNodeInfo().GetNodeId()
 }
 

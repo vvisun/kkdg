@@ -96,7 +96,7 @@ type failInitComponent struct {
 	id string
 }
 
-func (c *failInitComponent) GetID() string                 { return c.id }
+func (c *failInitComponent) GetCompName() string           { return c.id }
 func (c *failInitComponent) SetApplication(_ IApplication) {}
 func (c *failInitComponent) GetApplication() IApplication  { return nil }
 func (c *failInitComponent) Init() error                   { return errInitFailed }
@@ -136,7 +136,7 @@ type failStartComponent struct {
 	id string
 }
 
-func (c *failStartComponent) GetID() string                 { return c.id }
+func (c *failStartComponent) GetCompName() string           { return c.id }
 func (c *failStartComponent) SetApplication(_ IApplication) {}
 func (c *failStartComponent) GetApplication() IApplication  { return nil }
 func (c *failStartComponent) Init() error                   { return nil }

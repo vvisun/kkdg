@@ -83,10 +83,10 @@ func (slf *Application) Start() error {
 	slf.mu.RUnlock()
 	for _, comp := range compList {
 		if err := comp.Start(); err != nil {
-			kklog.Errorf("[kkapp] application %s start component %s error: %v", nodeId, comp.GetID(), err)
+			kklog.Errorf("[kkapp] application %s start component %s error: %v", nodeId, comp.GetCompName(), err)
 			return err
 		}
-		kklog.Infof("[kkapp] application %s start component %s success", nodeId, comp.GetID())
+		kklog.Infof("[kkapp] application %s start component %s success", nodeId, comp.GetCompName())
 	}
 	kklog.Infof("[kkapp] application [%s,%s] started", nodeId, slf.nodeInfo.GetNodeType())
 	return nil
@@ -103,9 +103,9 @@ func (slf *Application) Stop() error {
 	slf.mu.RUnlock()
 	for i := len(compList) - 1; i >= 0; i-- {
 		if err := compList[i].Stop(); err != nil {
-			kklog.Errorf("[kkapp] application %s stop component %s error: %v", nodeId, compList[i].GetID(), err)
+			kklog.Errorf("[kkapp] application %s stop component %s error: %v", nodeId, compList[i].GetCompName(), err)
 		}
-		kklog.Infof("[kkapp] application %s stop component %s success", nodeId, compList[i].GetID())
+		kklog.Infof("[kkapp] application %s stop component %s success", nodeId, compList[i].GetCompName())
 	}
 	kklog.Infof("[kkapp] application [%s,%s] stopped", nodeId, slf.nodeInfo.GetNodeType())
 	return nil
@@ -113,11 +113,11 @@ func (slf *Application) Stop() error {
 
 func (slf *Application) AddComponent(comp IComponent) error {
 	if slf.stoping.Load() {
-		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetID(), kkerrors.ErrAppShutdown)
+		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), kkerrors.ErrAppShutdown)
 		return kkerrors.ErrAppShutdown
 	}
 	if slf.HasComponent(comp) {
-		kklog.Errorf("[kkapp] application %s add component %s repeat: %v", slf.GetNodeId(), comp.GetID(), kkerrors.ErrComponentAlreadyAdded)
+		kklog.Errorf("[kkapp] application %s add component %s repeat: %v", slf.GetNodeId(), comp.GetCompName(), kkerrors.ErrComponentAlreadyAdded)
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	comp.SetApplication(slf)
@@ -125,7 +125,7 @@ func (slf *Application) AddComponent(comp IComponent) error {
 	// Initialize the component before adding it to the list, so a failed init
 	// won't leave a half-added component inside the application.
 	if err := comp.Init(); err != nil {
-		kklog.Errorf("[kkapp] application %s init component %s error: %v", slf.GetNodeId(), comp.GetID(), err)
+		kklog.Errorf("[kkapp] application %s init component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
 		return err
 	}
 

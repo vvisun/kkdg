@@ -1,6 +1,7 @@
 package component
 
 import (
+	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
@@ -11,7 +12,7 @@ type IComponentLifecycle interface {
 }
 
 type IComponent interface {
-	GetID() string // 组件ID。unique id for the component.
+	GetCompName() string // 组件名称。unique name for the component.
 	IComponentLifecycle
 	SetApplication(app IApplication)
 	GetApplication() IApplication
@@ -22,11 +23,11 @@ func IsEqual(a, b IComponent) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	return a == b || a.GetID() == b.GetID()
+	return a == b || a.GetCompName() == b.GetCompName()
 }
 
 func GetComponentName(comp IComponent) string {
-	return xreflect.GetStructName(comp) + "_" + comp.GetID()
+	return xreflect.GetStructName(comp) + "_" + comp.GetCompName()
 }
 
 type ComponentState = int64
@@ -46,7 +47,7 @@ type Component struct {
 
 var _ IComponent = (*Component)(nil)
 
-func (slf *Component) GetID() string {
+func (slf *Component) GetCompName() string {
 	return slf.id
 }
 
@@ -75,4 +76,11 @@ func (slf *Component) Stop() error {
 
 func (slf *Component) Equal(other IComponent) bool {
 	return IsEqual(slf, other)
+}
+
+var _ actor.Actor = (*Component)(nil)
+
+// impl actor.Actor
+func (slf *Component) Receive(context actor.Context) {
+
 }

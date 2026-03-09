@@ -35,7 +35,7 @@ type gateComponent struct {
 	sessionMgr  gatetrans.ISessionManager
 }
 
-func (slf *gateComponent) GetID() string {
+func (slf *gateComponent) GetCompName() string {
 	return "gate"
 }
 

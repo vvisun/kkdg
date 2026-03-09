@@ -15,7 +15,7 @@ func NewCompDiscovery(discovery IDiscovery) *CompDiscovery {
 	}
 }
 
-func (slf *CompDiscovery) GetID() string {
+func (slf *CompDiscovery) GetCompName() string {
 	return slf.discovery.Name()
 }
 

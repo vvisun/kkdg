@@ -41,7 +41,7 @@ type gameComponent struct {
 	opt            Option
 }
 
-func (slf *gameComponent) GetID() string {
+func (slf *gameComponent) GetCompName() string {
 	return "game"
 }
 
