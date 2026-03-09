@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/other/examples/examext/framework/extmsg"
+	"github.com/vvisun/kkdg/other/examples/examext/extframe/extmsg"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xnet"
 )
