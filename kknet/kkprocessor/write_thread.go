@@ -84,8 +84,7 @@ func (wp *WriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	case kknet.EWpQueueFullActionRetry:
 		return wp.sendBufferRetry(buffer)
 	default:
-		kkbuffer.Put(buffer)
-		return nil
+		return wp.sendBufferDrop(buffer)
 	}
 }
 

@@ -85,6 +85,10 @@ func CheckWriteOptions(opts *WriteOptions) {
 		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 128)
 		opts.SendQueueSize = 128
 	}
+	if opts.SendQueueFullAction < 0 || opts.SendQueueFullAction > 2 {
+		kklog.Debugf("wp SendQueueFullAction fixed from %d to %d", opts.SendQueueFullAction, EWpQueueFullActionDrop)
+		opts.SendQueueFullAction = EWpQueueFullActionDrop
+	}
 	if opts.BatchWriteLimitBytes < 512 {
 		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 512)
 		opts.BatchWriteLimitBytes = 512

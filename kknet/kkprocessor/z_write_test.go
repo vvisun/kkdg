@@ -436,17 +436,12 @@ func TestWriteProcessor_DefaultAction_Unknown(t *testing.T) {
 	}
 	wp := NewWriteProcessor(opts).(*WriteProcessor)
 
-	blockFirst := make(chan struct{})
-	var firstDone atomic.Bool
 	writeFn := func(batch []*kkbuffer.ByteBuffer, n int) error {
 		for i := 0; i < n; i++ {
 			if batch[i] != nil {
 				kkbuffer.Put(batch[i])
 				batch[i] = nil
 			}
-		}
-		if !firstDone.Swap(true) {
-			<-blockFirst
 		}
 		return nil
 	}
@@ -468,7 +463,6 @@ func TestWriteProcessor_DefaultAction_Unknown(t *testing.T) {
 		t.Errorf("default/unknown action: queue full should return nil (drop), got %v", err)
 	}
 
-	blockFirst <- struct{}{}
 	wp.Stop(nil)
 }
 
