@@ -153,11 +153,11 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 	addr := freePortStress(t)
 	tlsCfg := genTestTLSConfig(t)
 
-	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
+	svrHandler := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	// 高连接数时用较小读写缓冲以降低内存
 	srvOpts := kknet.ApplyOptions(
 		kknet.WithLogger(kklog.Nop()),
-		kknet.WithRawHandler(recv),
+		kknet.WithRawHandler(svrHandler),
 		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
 		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(64),
@@ -254,9 +254,9 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 	}
 
 	select {
-	case <-recv.ch:
+	case <-svrHandler.ch:
 	case <-time.After(15 * time.Second):
-		got := recv.Count()
+		got := svrHandler.Count()
 		kklog.Debugf("kktcptls stress: timeout %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
 	}
 
@@ -266,7 +266,7 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 	}
 	clientsMu.Unlock()
 
-	got := recv.Count()
+	got := svrHandler.Count()
 	elapsed := time.Since(start)
 	kklog.Debugf("kktcptls server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
 	kklog.Debugf("kktcptls stress: send done in %v, all done in %v, recv/s ≈ %.0f",

@@ -134,11 +134,11 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePortStress(t)
-	recv := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
+	svrHandler := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
 		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		//kknet.WithRawHandler(recv),
-		kknet.WithNoneCopyHandler(recv),
+		kknet.WithNoneCopyHandler(svrHandler),
 		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(512),
 		kknet.WithLogger(kklog.Nop()),
@@ -222,10 +222,10 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}
 
 	select {
-	case <-recv.ch:
+	case <-svrHandler.ch:
 	case <-time.After(10 * time.Second):
 		// under load a few messages may still be in flight
-		got := recv.Count()
+		got := svrHandler.Count()
 		kklog.Debugf("stress: timeout %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
 	}
 
@@ -235,7 +235,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}
 	clientsMu.Unlock()
 
-	got := recv.Count()
+	got := svrHandler.Count()
 	elapsed := time.Since(start)
 	kklog.Debugf("ws server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
 	kklog.Debugf("ws stress: send done in %v, all done in %v, recv/s ≈ %.0f",
