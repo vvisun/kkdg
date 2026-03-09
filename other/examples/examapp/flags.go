@@ -16,6 +16,7 @@ func ParseFlags(args []string) {
 	fs.StringVar(&GateWSAddr, "gate-ws", GateWSAddr, "Gate WebSocket 监听地址")
 	fs.StringVar(&RpcAddr, "rpc-addr", RpcAddr, "RPC 地址")
 	fs.StringVar(&UseTransType, "trans", UseTransType, "转发类型: nats | rpc | shard")
+	fs.StringVar(&LogicNodeID, "node-id", LogicNodeID, "逻辑服节点ID（仅 aserver）")
 
 	fs.IntVar(&ClientConnNum, "conn-num", ClientConnNum, "客户端连接数（仅 aclient）")
 	fs.DurationVar(&ClientConnDelay, "conn-delay", ClientConnDelay, "客户端建连间隔（仅 aclient）")

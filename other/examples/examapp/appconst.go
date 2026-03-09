@@ -13,6 +13,8 @@ var (
 	GateTCPAddr  = "127.0.0.1:19090"
 	GateWSAddr   = "127.0.0.1:19091"
 	RpcAddr      = "127.0.0.1:19092"
+	// LogicNodeID 仅 aserver: 逻辑服节点ID，便于多逻辑服测试
+	LogicNodeID = "game1"
 )
 
 var (
