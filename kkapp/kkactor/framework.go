@@ -31,10 +31,12 @@ func GetGlobalActorFramework() *ActorFramework {
 	return globalActorFramework
 }
 
-// ActorFramework 是 Actor 框架的核心组件，负责管理 Actor 的创建、销毁、消息路由等。
+//-------------------------------------------------------------------------
+
+// ActorFramework 是 Actor 框架的核心组件。
 type ActorFramework struct {
-	locator  *ActorLocator
-	actorSys *actor.ActorSystem
+	locator  *ActorLocator      // Actor寻址系统
+	actorSys *actor.ActorSystem // Actor系统
 }
 
 func NewActorFramework(locator *ActorLocator, actorSys *actor.ActorSystem) *ActorFramework {
@@ -98,4 +100,40 @@ func (slf *ActorFramework) RequestAsync(target LucencyActorID, msg any, timeout 
 		callback(result, err)
 	}()
 	return nil
+}
+
+//-------------------------------------------------------------------------
+
+// 发送消息到指定actor
+func Send[T any](af *ActorFramework, target LucencyActorID, msg T) error {
+	return af.Send(target, msg)
+}
+
+// 同步请求指定actor
+func Request[REQ any, RSP any](af *ActorFramework, target LucencyActorID, msg *REQ, timeout time.Duration) (*RSP, error) {
+	result, err := af.Request(target, msg, timeout)
+	if err != nil {
+		return nil, err
+	}
+	rsp, ok := result.(*RSP)
+	if !ok {
+		return nil, fmt.Errorf("invalid result type: %T", result)
+	}
+	return rsp, nil
+}
+
+// 异步请求指定actor
+func RequestAsync[REQ any, RSP any](af *ActorFramework, target LucencyActorID, msg *REQ, timeout time.Duration, callback func(result *RSP, err error)) error {
+	return af.RequestAsync(target, msg, timeout, func(result any, err error) {
+		if err != nil {
+			callback(nil, err)
+			return
+		}
+		rsp, ok := result.(*RSP)
+		if !ok {
+			callback(nil, fmt.Errorf("invalid result type: %T", result))
+			return
+		}
+		callback(rsp, nil)
+	})
 }

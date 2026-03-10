@@ -11,6 +11,16 @@ package actorremotes
 // 组件和业务代码只依赖该接口，而不关心底层是 NATS、RPC 还是其它实现，从而做到类似 TransType(nats/rpc/shard)
 // 那样可插拔替换。
 type IRemoteActorTransport interface {
-	// Close 关闭底层连接、取消订阅等资源。
+	// Close 关闭底层连接。
+	// 例如：nats 需要取消订阅等。 rpc/shard需要关闭连接。
 	Close() error
 }
+
+// ActorTransportType 是 Actor 传输类型。
+type ActorTransportType string
+
+const (
+	ActorTransportTypeNats  ActorTransportType = "nats"  // 使用nats集群传输消息
+	ActorTransportTypeRpc   ActorTransportType = "rpc"   // 使用rpc传输消息
+	ActorTransportTypeShard ActorTransportType = "shard" // 使用shard传输消息
+)

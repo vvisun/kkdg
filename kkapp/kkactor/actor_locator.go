@@ -1,49 +1,11 @@
 package kkactor
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 )
-
-const ActorKeySeparator = "/"
-
-// LucencyActorID 透明化Actor寻址，不需要关心Actor所在节点，ActorLocator自动判断是本地还是远程Actor。
-// 如果【NodeID为空字符串】或【NodeID在当前进程的任意节点中存在】，则认为是本地Actor。否则认为是远程Actor。
-type LucencyActorID struct {
-	nodeID   string // 节点ID，如 game1、game2。为空表示本地Actor。
-	actorKey string // actor 标识，如 "ccgame/main"、"gate/router"
-}
-
-func NewAlphaActorID(nodeId, actorKey string) LucencyActorID {
-	return LucencyActorID{
-		nodeID:   nodeId,
-		actorKey: actorKey,
-	}
-}
-
-func GetActorName(actorId LucencyActorID) string {
-	return actorId.nodeID + ActorKeySeparator + actorId.actorKey
-}
-
-func GetActorId(actorName string) LucencyActorID {
-	// 第1个分隔符之前的是NodeID，之后的是ActorKey。
-	NodeID, ActorKey, found := strings.Cut(actorName, ActorKeySeparator)
-	if !found {
-		return LucencyActorID{
-			nodeID:   "",
-			actorKey: actorName,
-		}
-	}
-	return LucencyActorID{
-		nodeID:   NodeID,
-		actorKey: ActorKey,
-	}
-}
-
-//----------------------------------------------------------
 
 // Actor寻址系统
 type ActorLocator struct {
@@ -155,6 +117,17 @@ func (slf *ActorLocator) ForEachNode(fn func(node *kkapp.NodeInfo) bool) {
 	defer slf.mu.RUnlock()
 	for _, node := range slf.nodes {
 		if !fn(node) {
+			break
+		}
+	}
+}
+
+// 遍历actors, fn返回false时停止遍历
+func (slf *ActorLocator) ForEachActor(fn func(actorName string, pid *actor.PID) bool) {
+	slf.mu.RLock()
+	defer slf.mu.RUnlock()
+	for actorName, pid := range slf.actors {
+		if !fn(actorName, pid) {
 			break
 		}
 	}
