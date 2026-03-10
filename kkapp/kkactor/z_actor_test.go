@@ -211,7 +211,11 @@ func TestActorLocator_AddActor_GetActor_RemoveActor(t *testing.T) {
 	}
 
 	// GetActor before add returns nil
-	if pid := loc.GetActor(id); pid != nil {
+	pid, err := loc.GetActor(id)
+	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
+		t.Fatalf("GetActor: %v", err)
+	}
+	if pid != nil {
 		t.Errorf("GetActor before AddActor should return nil, got %v", pid)
 	}
 
@@ -221,20 +225,27 @@ func TestActorLocator_AddActor_GetActor_RemoveActor(t *testing.T) {
 			ctx.Respond(ctx.Message())
 		}
 	})
-	pid := actorSys.Root.Spawn(echoProps)
+	pid = actorSys.Root.Spawn(echoProps)
 	defer actorSys.Root.Stop(pid)
 
 	if err := loc.AddActor(id, pid); err != nil {
 		t.Fatalf("AddActor: %v", err)
 	}
 
-	got := loc.GetActor(id)
+	got, err := loc.GetActor(id)
+	if err != nil {
+		t.Fatalf("GetActor: %v", err)
+	}
 	if got == nil || got != pid {
 		t.Errorf("GetActor after AddActor = %v, want %v", got, pid)
 	}
 
 	loc.RemoveActor(id)
-	if pid := loc.GetActor(id); pid != nil {
+	pid, err = loc.GetActor(id)
+	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
+		t.Fatalf("GetActor: %v", err)
+	}
+	if pid != nil {
 		t.Errorf("GetActor after RemoveActor should return nil, got %v", pid)
 	}
 }

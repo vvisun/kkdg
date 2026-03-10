@@ -100,7 +100,7 @@ func BenchmarkActorLocator_GetActor(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = loc.GetActor(id)
+		_, _ = loc.GetActor(id)
 	}
 }
 
@@ -131,7 +131,7 @@ func BenchmarkActorLocator_AddGetRemove(b *testing.B) {
 		id, _ := NewLucencyActorID("", "bench_actor")
 		pid := actorSys.Root.Spawn(echoProps)
 		_ = loc.AddActor(id, pid)
-		_ = loc.GetActor(id)
+		_, _ = loc.GetActor(id)
 		loc.RemoveActor(id)
 		actorSys.Root.Stop(pid)
 	}

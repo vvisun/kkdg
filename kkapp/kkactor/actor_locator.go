@@ -29,18 +29,25 @@ func NewActorLocator(localNodes ...*kkapp.NodeInfo) *ActorLocator {
 	}
 }
 
-func (slf *ActorLocator) AddNode(node *kkapp.NodeInfo) {
-	if node == nil || node.GetNodeId() == "" {
-		return
+func (slf *ActorLocator) AddNode(node *kkapp.NodeInfo) error {
+	if node == nil {
+		return kkerrors.ErrActorAddInvalidNode
+	}
+	if !kkapp.IsValidActorNodeId(node.GetNodeId()) {
+		return kkerrors.ErrActorInvalidNodeId
 	}
 	slf.mu.Lock()
 	slf.nodes[node.GetNodeId()] = node
 	slf.mu.Unlock()
+	return nil
 }
 
-func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) {
-	if node == nil || node.GetNodeId() == "" {
-		return
+func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) error {
+	if node == nil {
+		return kkerrors.ErrActorAddInvalidNode
+	}
+	if !kkapp.IsValidActorNodeId(node.GetNodeId()) {
+		return kkerrors.ErrActorInvalidNodeId
 	}
 	nodeId := node.GetNodeId()
 	slf.mu.Lock()
@@ -60,17 +67,21 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) {
 	}
 	delete(slf.nodes, nodeId)
 	slf.mu.Unlock()
+	return nil
 }
 
-func (slf *ActorLocator) GetActor(id LucencyActorID) *actor.PID {
-	actorName, _ := GetActorName(id) //这里不需要关心是否合法，因为不合法的id直接会找不到
+func (slf *ActorLocator) GetActor(id LucencyActorID) (*actor.PID, error) {
+	actorName, err := GetActorName(id)
+	if err != nil {
+		return nil, err
+	}
 	slf.mu.RLock()
 	pid, ok := slf.actors[actorName]
 	slf.mu.RUnlock()
 	if !ok {
-		return nil
+		return nil, kkerrors.ErrActorNotFound
 	}
-	return pid
+	return pid, nil
 }
 
 func (slf *ActorLocator) AddActor(id LucencyActorID, pid *actor.PID) error {
@@ -83,18 +94,25 @@ func (slf *ActorLocator) AddActor(id LucencyActorID, pid *actor.PID) error {
 	if pid == nil {
 		return kkerrors.ErrActorAddInvalidPID
 	}
-	actorName, _ := GetActorName(id)
+	actorName, err := GetActorName(id)
+	if err != nil {
+		return err
+	}
 	slf.mu.Lock()
 	slf.actors[actorName] = pid
 	slf.mu.Unlock()
 	return nil
 }
 
-func (slf *ActorLocator) RemoveActor(id LucencyActorID) {
-	actorName, _ := GetActorName(id) //这里不需要关心是否合法，因为不合法的id直接会找不到
+func (slf *ActorLocator) RemoveActor(id LucencyActorID) error {
+	actorName, err := GetActorName(id)
+	if err != nil {
+		return err
+	}
 	slf.mu.Lock()
 	delete(slf.actors, actorName)
 	slf.mu.Unlock()
+	return nil
 }
 
 func (slf *ActorLocator) isLocalActor(id LucencyActorID) (bool, error) {

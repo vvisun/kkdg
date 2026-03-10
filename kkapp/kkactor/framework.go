@@ -66,7 +66,10 @@ func (slf *ActorFramework) GetActorSystem() *actor.ActorSystem {
 
 // 向指定actor发送消息
 func (slf *ActorFramework) Send(target LucencyActorID, msg any) error {
-	pid := slf.locator.GetActor(target)
+	pid, err := slf.locator.GetActor(target)
+	if err != nil {
+		return err
+	}
 	if pid == nil {
 		return kkerrors.ErrActorNotFound
 	}
@@ -76,7 +79,10 @@ func (slf *ActorFramework) Send(target LucencyActorID, msg any) error {
 
 // 同步向指定actor发送消息, 等待响应
 func (slf *ActorFramework) Request(target LucencyActorID, msg any, timeout time.Duration) (any, error) {
-	pid := slf.locator.GetActor(target)
+	pid, err := slf.locator.GetActor(target)
+	if err != nil {
+		return nil, err
+	}
 	if pid == nil {
 		return nil, kkerrors.ErrActorNotFound
 	}
@@ -90,7 +96,10 @@ func (slf *ActorFramework) Request(target LucencyActorID, msg any, timeout time.
 
 // 异步向指定actor发送消息, 不等待响应
 func (slf *ActorFramework) RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error {
-	pid := slf.locator.GetActor(target)
+	pid, err := slf.locator.GetActor(target)
+	if err != nil {
+		return err
+	}
 	if pid == nil {
 		return kkerrors.ErrActorNotFound
 	}
