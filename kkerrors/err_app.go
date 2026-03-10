@@ -21,6 +21,8 @@ var (
 	ErrAppNotStarted = errors.New("app is not started")
 	// 应用只能在空状态添加组件
 	ErrAppAddCompMustInNoneState = errors.New("app can only add component in none state")
+	// 应用spawn actor失败
+	ErrAppSpawnActorFailed = errors.New("app spawn actor failed")
 )
 
 // -------------- for session -------------------

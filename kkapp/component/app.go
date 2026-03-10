@@ -97,15 +97,19 @@ func (slf *Application) Start() error {
 	}
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
 	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
+	if slf.pid == nil {
+		kklog.Errorf("[kkapp] application %s spawn actor failed", slf.GetNodeId())
+		panic(kkerrors.ErrAppSpawnActorFailed) //视为致命错误，直接panic
+	}
 	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
 	if err != nil {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
-		return err
+		panic(err) //视为致命错误，直接panic
 	}
 	err = slf.actorFramework.GetLocator().AddActor(id, slf.pid)
 	if err != nil {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
-		return err
+		panic(err) //视为致命错误，直接panic
 	}
 	return nil
 }
@@ -203,7 +207,10 @@ func (slf *Application) Receive(ctx actor.Context) {
 			if err != nil {
 				kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
 			} else {
-				slf.actorFramework.GetLocator().AddActor(id, pid)
+				err = slf.actorFramework.GetLocator().AddActor(id, pid)
+				if err != nil {
+					kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+				}
 			}
 			slf.mu.Unlock()
 		}
