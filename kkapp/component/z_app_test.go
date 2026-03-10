@@ -1,6 +1,7 @@
 package component
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -79,6 +80,32 @@ func (slf *TestComp2) Receive(ctx actor.Context) {
 		if err := slf.OnStop(); err != nil {
 			kklog.Errorf("[kkapp] component %s on stop error: %v", slf.GetCompName(), err)
 		}
+	}
+}
+
+// 性能基准用的轻量组件（不打印日志，减少干扰）
+type benchComp struct {
+	Component
+	name string
+}
+
+func (slf *benchComp) GetCompName() string {
+	if slf.name == "" {
+		slf.name = "bench"
+	}
+	return slf.name
+}
+
+func (slf *benchComp) OnInit() error  { return nil }
+func (slf *benchComp) OnStart() error { return nil }
+func (slf *benchComp) OnStop() error  { return nil }
+
+func (slf *benchComp) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
+	case *actor.Started:
+		_ = slf.OnStart()
+	case *actor.Stopping:
+		_ = slf.OnStop()
 	}
 }
 
@@ -193,5 +220,60 @@ func TestApplication_GetChildPID(t *testing.T) {
 
 	if err := app.Stop(); err != nil {
 		t.Fatalf("stop application: %v", err)
+	}
+}
+
+//------------------------------ benchmark --------------------------------
+
+// BenchmarkApplication_StartStop_OneComponent 测试单组件的启动/停止开销
+func BenchmarkApplication_StartStop_OneComponent(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil))
+		if err := app.AddComponent(&benchComp{}); err != nil {
+			b.Fatalf("add component: %v", err)
+		}
+		if err := app.Start(); err != nil {
+			b.Fatalf("start application: %v", err)
+		}
+		// 等待 Application 收到 Started，避免 Stop 时还是 starting 状态
+		time.Sleep(1 * time.Millisecond)
+		if err := app.Stop(); err != nil {
+			b.Fatalf("stop application: %v", err)
+		}
+	}
+}
+
+// BenchmarkApplication_StartStop_ManyComponents 测试多组件场景的启动/停止开销
+func BenchmarkApplication_StartStop_ManyComponents(b *testing.B) {
+	const compCount = 50
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil))
+		for j := 0; j < compCount; j++ {
+			// 为避免重复组件名导致 ErrComponentAlreadyAdded，为每个组件生成唯一名称
+			if err := app.AddComponent(&benchComp{name: fmt.Sprintf("bench-%d", j)}); err != nil {
+				b.Fatalf("add component: %v", err)
+			}
+		}
+		if err := app.Start(); err != nil {
+			b.Fatalf("start application: %v", err)
+		}
+		// 等待 Application 收到 Started，避免 Stop 时还是 starting 状态
+		time.Sleep(1 * time.Millisecond)
+		if err := app.Stop(); err != nil {
+			b.Fatalf("stop application: %v", err)
+		}
+	}
+}
+
+// BenchmarkApplication_AddComponent 测试单组件添加性能（包含 Application 创建开销）
+func BenchmarkApplication_AddComponent(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil))
+		if err := app.AddComponent(&benchComp{}); err != nil {
+			b.Fatalf("add component: %v", err)
+		}
 	}
 }
