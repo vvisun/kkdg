@@ -1,8 +1,6 @@
 package kkapp
 
 import (
-	"strings"
-
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -22,6 +20,45 @@ const (
 	ActorKeySep_ParantAndChild = "_"
 )
 
+func isASCIIAlphaNumeric(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func isASCIIAlpha(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func isASCIIAlphaNumericUnderscore(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 // checkNodeID 检查节点ID是否有效
 // 只允许【英文字母、数字】组合，例如 "game1"、"game2"
 func checkNodeID(nodeId string) error {
@@ -33,8 +70,8 @@ func checkNodeID(nodeId string) error {
 		kklog.Errorf("node id is too long: %s", nodeId)
 		return kkerrors.ErrInvalidNodeID
 	}
-	if strings.Contains(nodeId, ActorKeySep_NodeAndActor) {
-		kklog.Errorf("node id contains actor key separator: %s", nodeId)
+	if !isASCIIAlphaNumeric(nodeId) {
+		kklog.Errorf("node id must be alphanumeric: %s", nodeId)
 		return kkerrors.ErrInvalidNodeID
 	}
 	return nil
@@ -51,8 +88,8 @@ func checkNodeType(nodeType string) error {
 		kklog.Errorf("node type is too long: %s", nodeType)
 		return kkerrors.ErrInvalidNodeType
 	}
-	if strings.Contains(nodeType, ActorKeySep_NodeAndActor) {
-		kklog.Errorf("node type contains actor key separator: %s", nodeType)
+	if !isASCIIAlpha(nodeType) {
+		kklog.Errorf("node type must contain only letters: %s", nodeType)
 		return kkerrors.ErrInvalidNodeType
 	}
 	return nil
@@ -63,20 +100,11 @@ func IsValidActorNodeId(nodeId string) bool {
 	if nodeId == "" {
 		return true //允许空字符串，表示本地Actor
 	}
-	if strings.Contains(nodeId, ActorKeySep_NodeAndActor) {
-		return false //不允许包含分隔符
-	}
-	return true
+	return isASCIIAlphaNumeric(nodeId)
 }
 
 // 只允许【英文字母、数字、下划线("_")】组合，例如 "game_player"、"gate_router"
 // 一般用_分隔层级，不过不强制要求，上层逻辑已经有规范拼接接口。
 func IsValidActorKey(actorKey string) bool {
-	if actorKey == "" {
-		return false
-	}
-	if strings.Contains(actorKey, ActorKeySep_NodeAndActor) {
-		return false
-	}
-	return true
+	return isASCIIAlphaNumericUnderscore(actorKey)
 }

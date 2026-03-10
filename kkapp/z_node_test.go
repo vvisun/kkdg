@@ -15,6 +15,7 @@ func TestCheckNodeID(t *testing.T) {
 	}{
 		{"empty", "", kkerrors.ErrInvalidNodeID},
 		{"valid", "node1", nil},
+		{"underscore", "node_1", kkerrors.ErrInvalidNodeID},
 		{"long", "node123456789012345678", kkerrors.ErrInvalidNodeID},
 	}
 	for _, tt := range tests {
@@ -41,7 +42,8 @@ func TestCheckNodeType(t *testing.T) {
 	}{
 		{"empty", "", kkerrors.ErrInvalidNodeType},
 		{"valid", "gate", nil},
-		{"type1", "game", nil},
+		{"letters_only", "game", nil},
+		{"digit_suffix", "type1", kkerrors.ErrInvalidNodeType},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -65,7 +67,7 @@ func TestNewNodeInfo_Panic(t *testing.T) {
 			t.Error("NewNodeInfo with empty nodeId should panic")
 		}
 	}()
-	NewNodeInfo("", "type1", "127.0.0.1:8080", "", nil)
+	NewNodeInfo("", "type", "127.0.0.1:8080", "", nil)
 }
 
 func TestNewNodeInfo_PanicInvalidType(t *testing.T) {

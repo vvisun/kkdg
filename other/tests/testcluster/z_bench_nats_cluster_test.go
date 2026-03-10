@@ -19,8 +19,8 @@ func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cle
 		b.Skipf("NATS not available: %v", err)
 	}
 
-	nodeInfo1 := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	nodeInfo2 := kkapp.NewNodeInfo("node2", "type1", "127.0.0.1:8081", "", nil)
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "", nil)
 	discovery1 := dnats.NewNatsDiscovery("bench1", nodeInfo1, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 	discovery2 := dnats.NewNatsDiscovery("bench2", nodeInfo2, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 
@@ -38,8 +38,8 @@ func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cle
 		b.Fatal("discovery1 did not discover node2")
 	}
 
-	cluster1 = cnats.NewNatsCluster("node1", "type1", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
-	cluster2 = cnats.NewNatsCluster("node2", "type1", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
+	cluster1 = cnats.NewNatsCluster("node1", "typea", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
+	cluster2 = cnats.NewNatsCluster("node2", "typea", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
 	if err := cluster1.Start(); err != nil {
 		discovery1.Stop()
@@ -64,16 +64,16 @@ func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cle
 	return cluster1, cluster2, cleanup
 }
 
-// setupBenchClusterWithType 创建三个节点（两个 type1、一个 type2），供 PublishRemoteType benchmark
+// setupBenchClusterWithType 创建三个节点（两个 typea、一个 typeb），供 PublishRemoteType benchmark
 func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkcluster.ICluster, cleanup func()) {
 	_, natsURL, err := startTestNatsServer()
 	if err != nil {
 		b.Skipf("NATS not available: %v", err)
 	}
 
-	nodeInfo1 := kkapp.NewNodeInfo("node1", "type1", "127.0.0.1:8080", "", nil)
-	nodeInfo2 := kkapp.NewNodeInfo("node2", "type1", "127.0.0.1:8081", "", nil)
-	nodeInfo3 := kkapp.NewNodeInfo("node3", "type2", "127.0.0.1:8082", "", nil)
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "", nil)
+	nodeInfo3 := kkapp.NewNodeInfo("node3", "typeb", "127.0.0.1:8082", "", nil)
 	discovery1 := dnats.NewNatsDiscovery("bench1", nodeInfo1, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 	discovery2 := dnats.NewNatsDiscovery("bench2", nodeInfo2, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
 	discovery3 := dnats.NewNatsDiscovery("bench3", nodeInfo3, nil, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)))
@@ -95,9 +95,9 @@ func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkclu
 		b.Fatal("discovery1 did not discover other nodes")
 	}
 
-	cluster1 = cnats.NewNatsCluster("node1", "type1", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
-	cluster2 = cnats.NewNatsCluster("node2", "type1", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
-	cluster3 = cnats.NewNatsCluster("node3", "type2", discovery3, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
+	cluster1 = cnats.NewNatsCluster("node1", "typea", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
+	cluster2 = cnats.NewNatsCluster("node2", "typea", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
+	cluster3 = cnats.NewNatsCluster("node3", "typeb", discovery3, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)))
 
 	if err := cluster1.Start(); err != nil {
 		b.Fatalf("cluster1.Init() failed: %v", err)
@@ -218,7 +218,7 @@ func BenchmarkPublishRemoteType(b *testing.B) {
 		packet := kkcluster.NewClusterPacket()
 		packet.FuncName = "test"
 		packet.ArgBytes = []byte("bench")
-		if err := cluster1.PublishRemoteType("type1", packet); err != nil {
+		if err := cluster1.PublishRemoteType("typea", packet); err != nil {
 			b.Fatalf("PublishRemoteType: %v", err)
 		}
 	}

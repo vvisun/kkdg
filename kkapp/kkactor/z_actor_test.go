@@ -23,7 +23,7 @@ func TestNewLucencyActorID(t *testing.T) {
 	}{
 		{"valid_empty_node", "", "game_main", nil},
 		{"valid_with_node", "game1", "game_player", nil},
-		{"valid_underscore", "node_1", "gate_router", nil},
+		{"invalid_node_underscore", "node_1", "gate_router", kkerrors.ErrActorInvalidNodeId},
 		{"invalid_actor_key_empty", "", "", kkerrors.ErrActorInvalidActorKey},
 		{"invalid_actor_key_slash", "game1", "game/player", kkerrors.ErrActorInvalidActorKey},
 		{"invalid_node_slash", "game/1", "game_main", kkerrors.ErrActorInvalidNodeId},

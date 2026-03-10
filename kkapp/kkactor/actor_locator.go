@@ -21,6 +21,9 @@ type ActorLocator struct {
 func NewActorLocator(localNodes ...*kkapp.NodeInfo) *ActorLocator {
 	nodes := make(map[string]*kkapp.NodeInfo)
 	for _, node := range localNodes {
+		if !kkapp.IsValidActorNodeId(node.GetNodeId()) {
+			panic("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
+		}
 		nodes[node.GetNodeId()] = node
 	}
 	return &ActorLocator{

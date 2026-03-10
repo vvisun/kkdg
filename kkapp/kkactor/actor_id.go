@@ -12,7 +12,7 @@ import (
 // 不需要关心 Actor 所在节点，由 ActorLocator 自动判断本地/远程：
 // 如果【NodeID 为空字符串】或【NodeID 在当前进程的任意节点中存在】，则认为是本地 Actor；否则为远程 Actor。
 type LucencyActorID struct {
-	nodeID   string // 节点ID，【英文字母、数字、下划线("_") 组合】，如 "game1"、"game2"。为空表示本地Actor。
+	nodeID   string // 节点ID，【英文字母、数字】组合，如 "game1"、"game2"。为空表示本地Actor。
 	actorKey string // actor 标识， 【英文字母、数字、下划线("_") 组合】，如 "ccgame_main"、"gate_router"
 }
 
@@ -76,10 +76,6 @@ func GetActorName(actorId LucencyActorID) (string, error) {
 func GetActorId(actorName string) (LucencyActorID, error) {
 	// 第1个分隔符之前的是NodeID，之后的是ActorKey。
 	NodeID, ActorKey, found := strings.Cut(actorName, kkapp.ActorKeySep_NodeAndActor)
-	if !kkapp.IsValidActorNodeId(NodeID) {
-		kklog.Errorf("invalid actor name: %s, node id: %s", actorName, NodeID)
-		return LucencyActorID{}, kkerrors.ErrActorInvalidNodeId
-	}
 	if !found {
 		if !kkapp.IsValidActorKey(actorName) {
 			kklog.Errorf("invalid actor name: %s", actorName)
@@ -89,6 +85,10 @@ func GetActorId(actorName string) (LucencyActorID, error) {
 			nodeID:   "",
 			actorKey: actorName,
 		}, nil
+	}
+	if !kkapp.IsValidActorNodeId(NodeID) {
+		kklog.Errorf("invalid actor name: %s, node id: %s", actorName, NodeID)
+		return LucencyActorID{}, kkerrors.ErrActorInvalidNodeId
 	}
 	if !kkapp.IsValidActorKey(ActorKey) {
 		kklog.Errorf("invalid actor name: %s, actor key: %s", actorName, ActorKey)

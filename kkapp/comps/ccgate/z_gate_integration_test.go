@@ -131,14 +131,14 @@ func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
 	gate.transportor = mt
 
 	// fake application identity for getSessionId
-	nodeInfo := kkapp.NewNodeInfo("gate-1", kkapp.NodeTypeGate, "", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, "", "", nil)
 	app := component.NewApplication(nodeInfo, nil)
 	gate.Component.SetApplication(app)
 
 	// discovery: single game node
 	gate.discovery = &mockDiscovery{
 		mgr: &mockMemberMgr{
-			member: &mockMember{id: "game-1", nType: routeGame, weight: 1},
+			member: &mockMember{id: "game1", nType: routeGame, weight: 1},
 		},
 	}
 
@@ -158,8 +158,8 @@ func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
 	handler.OnRaw(conn.ID(), packetBuf)
 
 	// 6) verify that ForwardToLogic was called with expected logic node and session
-	if mt.lastLogicID != "game-1" {
-		t.Fatalf("ForwardToLogic logicNodeId = %q, want %q", mt.lastLogicID, "game-1")
+	if mt.lastLogicID != "game1" {
+		t.Fatalf("ForwardToLogic logicNodeId = %q, want %q", mt.lastLogicID, "game1")
 	}
 	if mt.lastSession == "" {
 		t.Fatalf("ForwardToLogic sessionID should not be empty")
@@ -195,12 +195,12 @@ func Benchmark_gateHandler_OnRaw_throughput(b *testing.B) {
 	gate.sessionMgr = gatetrans.NewSessionMgr()
 	mt := &mockTransportor{}
 	gate.transportor = mt
-	nodeInfo := kkapp.NewNodeInfo("gate-1", kkapp.NodeTypeGate, "", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, "", "", nil)
 	app := component.NewApplication(nodeInfo, nil)
 	gate.Component.SetApplication(app)
 	gate.discovery = &mockDiscovery{
 		mgr: &mockMemberMgr{
-			member: &mockMember{id: "game-1", nType: routeGame, weight: 1},
+			member: &mockMember{id: "game1", nType: routeGame, weight: 1},
 		},
 	}
 	handler := newGateHandler(gate)
@@ -253,12 +253,12 @@ func Benchmark_gateHandler_OnRaw_withEncode(b *testing.B) {
 	gate.sessionMgr = gatetrans.NewSessionMgr()
 	mt := &mockTransportor{}
 	gate.transportor = mt
-	nodeInfo := kkapp.NewNodeInfo("gate-1", kkapp.NodeTypeGate, "", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, "", "", nil)
 	app := component.NewApplication(nodeInfo, nil)
 	gate.Component.SetApplication(app)
 	gate.discovery = &mockDiscovery{
 		mgr: &mockMemberMgr{
-			member: &mockMember{id: "game-1", nType: routeGame, weight: 1},
+			member: &mockMember{id: "game1", nType: routeGame, weight: 1},
 		},
 	}
 	handler := newGateHandler(gate)
