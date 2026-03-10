@@ -25,7 +25,7 @@ type TransportorShard struct {
 
 var _ gatetrans.ITransportor = (*TransportorShard)(nil)
 
-func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, nodeId string) gatetrans.ITransportor {
+func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, nodeId string) (gatetrans.ITransportor, error) {
 	handler := &shardHandler{}
 	serOpts := kknet.ApplyOptions(
 		kknet.WithRawHandler(handler),
@@ -37,7 +37,8 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 	)
 	srv := kktcp.NewServer(addr, handler, serOpts)
 	if err := srv.Start(); err != nil {
-		kklog.Fatalf("start shard server error: %v", err)
+		kklog.Errorf("start shard server error: %v", err)
+		return nil, err
 	}
 
 	trans := &TransportorShard{
@@ -47,7 +48,7 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 		gateNodeId:     nodeId,
 	}
 	handler.transporter = trans
-	return trans
+	return trans, nil
 }
 
 // 为了保证单个连接的消息顺序性，需要将连接分配到固定的分片索引。
@@ -65,7 +66,7 @@ func (slf *TransportorShard) sendToLogicShard(logicNodeId string, shardIdx int, 
 	sconn := chooseServer.conns[shardIdx%kkapp.BackendShardCnt]
 	chooseServer.muConns.RUnlock()
 	if sconn == nil {
-		return nil
+		return kkerrors.ErrLogicShardNotConnected
 	}
 	return sconn.conn.SendBuffer(bb)
 }

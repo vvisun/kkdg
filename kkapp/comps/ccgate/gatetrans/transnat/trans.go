@@ -20,13 +20,13 @@ type transportorNats struct {
 
 var _ gatetrans.ITransportor = (*transportorNats)(nil)
 
-func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr gatetrans.ISessionManager) gatetrans.ITransportor {
+func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr gatetrans.ISessionManager) (gatetrans.ITransportor, error) {
 	trans := &transportorNats{
 		cluster:    cluster,
 		sessionMgr: sessionMgr,
 	}
 	cluster.SetPublishHandler(trans.onPublish)
-	return trans
+	return trans, nil
 }
 
 // onPublish 收到来自其他节点的消息，转发给客户端

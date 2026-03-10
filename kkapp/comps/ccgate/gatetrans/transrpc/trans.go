@@ -23,7 +23,7 @@ type transportorRpc struct {
 
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
 
-func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, rpcAddr string) gatetrans.ITransportor {
+func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, rpcAddr string) (gatetrans.ITransportor, error) {
 	rpcRouter := kkrpc.NewRpcReceiver()
 	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
@@ -34,7 +34,7 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	rpcSvr := kkrpc.NewServer(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcSvr.Start(); err != nil {
 		kklog.Errorf("[ccgate] start rpc server error: %v", err)
-		return nil
+		return nil, err
 	}
 
 	trans := &transportorRpc{
@@ -46,7 +46,7 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	rpcProcessor.trans = trans
 	rpcSvr.SetLifeCycleHandler(trans)
 
-	return trans
+	return trans, nil
 }
 
 func (slf *transportorRpc) OnConnect(conn kknet.IConn) {

@@ -2,6 +2,7 @@ package gametransrpc
 
 import (
 	"context"
+	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
@@ -32,6 +33,7 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	rpcClient := kkrpc.NewClient(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcClient.Start(); err != nil {
 		kklog.Errorf("[ccgame] start rpc client error: %v", err)
+		rpcClient.Stop()
 		return nil, err
 	}
 
@@ -44,17 +46,25 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	msgReceiver.SetNeedCopyInOnSession(true)
 
 	// 注册到网关
-	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")
-	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
-		NodeId:   node.GetNodeId(),
-		NodeType: node.GetNodeType(),
-	}, kkrpc.CallConfig{})
-
-	if err != nil {
-		return nil, err
-	}
+	trans.registerToGateway(node, rpcClient)
 
 	return trans, nil
+}
+
+func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient *kkrpc.Client) {
+	go func() {
+		oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")
+		err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
+			NodeId:   node.GetNodeId(),
+			NodeType: node.GetNodeType(),
+		}, kkrpc.CallConfig{})
+		if err == nil {
+			kklog.Infof("[ccgame] register to gateway success")
+			return
+		}
+		kklog.Warnf("[ccgame] register to gateway failed, retrying...")
+		time.Sleep(1 * time.Second)
+	}()
 }
 
 // @param packet is a full stream packet [length,message]

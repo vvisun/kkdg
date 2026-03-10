@@ -32,4 +32,5 @@ var (
 	ErrEmptyMsgBytes          = errors.New("empty msgBytes")
 	ErrClusterNotInitialized  = errors.New("cluster not initialized")
 	ErrLogicNodeNotRegistered = errors.New("logic node not registered")
+	ErrLogicShardNotConnected = errors.New("logic shard not connected")
 )

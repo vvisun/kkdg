@@ -98,11 +98,23 @@ func (slf *gateComponent) OnInit() error {
 	// 初始化 transportor
 	switch slf.opt.TransType {
 	case kkapp.TransTypeNats:
-		slf.transportor = transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
+		transportor, err := transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
+		if err != nil {
+			return err
+		}
+		slf.transportor = transportor
 	case kkapp.TransTypeRpc:
-		slf.transportor = transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId(), slf.opt.RpcAddr)
+		transportor, err := transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId(), slf.opt.RpcAddr)
+		if err != nil {
+			return err
+		}
+		slf.transportor = transportor
 	case kkapp.TransTypeShard:
-		slf.transportor = transshard.NewTransportorShard(slf.opt.RpcAddr, slf.sessionMgr, slf.GetApplication().GetNodeId())
+		transportor, err := transshard.NewTransportorShard(slf.opt.RpcAddr, slf.sessionMgr, slf.GetApplication().GetNodeId())
+		if err != nil {
+			return err
+		}
+		slf.transportor = transportor
 	default:
 		return errors.New("invalid trans type: " + slf.opt.TransType)
 	}
