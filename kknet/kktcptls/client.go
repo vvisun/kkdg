@@ -99,6 +99,10 @@ func (c *Client) Connect() error {
 	return nil
 }
 
+func (c *Client) IsStopped() bool {
+	return c.closing.Load()
+}
+
 func (c *Client) Close() error {
 	c.connMu.Lock()
 	conn := c.conn

@@ -157,6 +157,10 @@ func (c *GnetClient) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	return conn.SendBuffer(buffer)
 }
 
+func (c *GnetClient) IsStopped() bool {
+	return c.closing.Load()
+}
+
 // Close closes the client connection.
 func (c *GnetClient) Close() error {
 	c.connMu.Lock()

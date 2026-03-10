@@ -69,6 +69,10 @@ func (h *gatewayHandler) OnConnect(conn kknet.IConn) {
 	go func() {
 		//循环注册到网关，直到成功为止
 		for {
+			if h.cli.cli.IsStopped() {
+				kklog.Warnf("[分流%d] 分流客户端已停止，停止注册到网关循环", h.shardIdx)
+				return
+			}
 			err := h.sendRpcMsgRegister()
 			if err == nil {
 				kklog.Infof("[分流%d] 注册到网关成功", h.shardIdx)

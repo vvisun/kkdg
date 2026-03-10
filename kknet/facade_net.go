@@ -58,6 +58,7 @@ type IClient interface {
 	Addr() string
 	Stats() StatsSnapshot //获取统计信息快照
 	IsConnected() bool    //是否处于连接状态
+	IsStopped() bool      //是否已停止
 
 	//发送二进制数据。内部会自动释放buffer
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error

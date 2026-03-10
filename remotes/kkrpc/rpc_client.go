@@ -10,6 +10,7 @@ import (
 type Client struct {
 	cli     kknet.IClient
 	pending *pendingMap
+	stopped bool
 }
 
 var _ IRpcClient = (*Client)(nil)
@@ -49,7 +50,15 @@ func (c *Client) Start() error {
 
 func (c *Client) Stop() error {
 	c.pending.closeAll()
-	return c.cli.Close()
+	err := c.cli.Close()
+	if err == nil {
+		c.stopped = true
+	}
+	return err
+}
+
+func (c *Client) IsStopped() bool {
+	return c.stopped
 }
 
 func (c *Client) getPending() *pendingMap {

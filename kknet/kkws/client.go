@@ -124,6 +124,10 @@ func (c *Client) SendMsg(msg any) error {
 	return conn.SendMsg(msg)
 }
 
+func (c *Client) IsStopped() bool {
+	return c.closing.Load()
+}
+
 // Close closes the client connection.
 func (c *Client) Close() error {
 	c.connMu.Lock()

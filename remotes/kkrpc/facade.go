@@ -40,6 +40,7 @@ type IRpcClient interface {
 	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
 	Start() error
 	Stop() error
+	IsStopped() bool
 }
 
 type IRpcServer interface {

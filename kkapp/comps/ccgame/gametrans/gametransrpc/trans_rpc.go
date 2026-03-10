@@ -55,6 +55,10 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient
 	go func() {
 		//循环注册到网关，直到成功为止
 		for {
+			if rpcClient.IsStopped() {
+				kklog.Warnf("[ccgame] rpc client stopped, stop register to gateway loop")
+				return
+			}
 			oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")
 			err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
 				NodeId:   node.GetNodeId(),
