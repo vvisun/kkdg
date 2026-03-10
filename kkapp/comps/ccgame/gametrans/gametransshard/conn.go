@@ -43,7 +43,7 @@ func NewGatewayClient(shardIdx int, trans *transportorShard) *gatewayClient {
 
 func (slf *gatewayClient) connect() {
 	for {
-		if slf.cli.IsStopped() {
+		if slf.trans.stopped {
 			kklog.Warnf("[分流%d] 分流客户端已停止，停止连接网关循环", slf.shardIdx)
 			return
 		}
@@ -73,7 +73,7 @@ func (h *gatewayHandler) OnConnect(conn kknet.IConn) {
 	go func() {
 		//循环注册到网关，直到成功为止
 		for {
-			if h.cli.cli.IsStopped() {
+			if h.cli.trans.stopped {
 				kklog.Warnf("[分流%d] 分流客户端已停止，停止注册到网关循环", h.shardIdx)
 				return
 			}

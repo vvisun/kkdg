@@ -64,7 +64,7 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient
 	go func() {
 		//循环注册到网关，直到成功为止
 		for {
-			if rpcClient.IsStopped() {
+			if slf.stopped {
 				kklog.Warnf("[ccgame] rpc client stopped, stop register to gateway loop")
 				return
 			}
