@@ -5,6 +5,7 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkerrors"
 )
 
 // Actor寻址系统
@@ -45,8 +46,15 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) {
 	slf.mu.Lock()
 	// 如果移除的是本地节点，则需要移除本地Actor。
 	for k := range slf.actors {
-		id, _ := GetActorId(k)
-		if id.nodeID == nodeId && slf.isLocalActor(id) {
+		id, err := GetActorId(k)
+		if err != nil {
+			continue
+		}
+		ok, err := slf.isLocalActor(id)
+		if err != nil {
+			continue
+		}
+		if id.nodeID == nodeId && ok {
 			delete(slf.actors, k)
 		}
 	}
@@ -55,7 +63,7 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) {
 }
 
 func (slf *ActorLocator) GetActor(id LucencyActorID) *actor.PID {
-	actorName, _ := GetActorName(id)
+	actorName, _ := GetActorName(id) //这里不需要关心是否合法，因为不合法的id直接会找不到
 	slf.mu.RLock()
 	pid, ok := slf.actors[actorName]
 	slf.mu.RUnlock()
@@ -65,53 +73,70 @@ func (slf *ActorLocator) GetActor(id LucencyActorID) *actor.PID {
 	return pid
 }
 
-func (slf *ActorLocator) AddActor(id LucencyActorID, pid *actor.PID) {
-	if pid == nil || id.actorKey == "" {
-		return
+func (slf *ActorLocator) AddActor(id LucencyActorID, pid *actor.PID) error {
+	if !kkapp.IsValidActorKey(id.actorKey) || !kkapp.IsValidActorNodeId(id.nodeID) {
+		return kkerrors.ErrActorInvalidActorKey
+	}
+	if pid == nil {
+		return kkerrors.ErrActorAddInvalidPID
 	}
 	actorName, _ := GetActorName(id)
 	slf.mu.Lock()
 	slf.actors[actorName] = pid
 	slf.mu.Unlock()
+	return nil
 }
 
 func (slf *ActorLocator) RemoveActor(id LucencyActorID) {
-	actorName, _ := GetActorName(id)
+	actorName, _ := GetActorName(id) //这里不需要关心是否合法，因为不合法的id直接会找不到
 	slf.mu.Lock()
 	delete(slf.actors, actorName)
 	slf.mu.Unlock()
 }
 
-func (slf *ActorLocator) isLocalActor(id LucencyActorID) bool {
+func (slf *ActorLocator) isLocalActor(id LucencyActorID) (bool, error) {
+	if !kkapp.IsValidActorNodeId(id.nodeID) {
+		return false, kkerrors.ErrActorInvalidNodeId
+	}
+	if !kkapp.IsValidActorKey(id.actorKey) {
+		return false, kkerrors.ErrActorInvalidActorKey
+	}
 	if id.nodeID == "" {
-		return true
+		return true, nil
 	}
 	_, ok := slf.nodes[id.nodeID]
-	return ok
+	return ok, nil
 }
 
 // 判断Actor是否是本地Actor。
-func (slf *ActorLocator) IsLocalActor(id LucencyActorID) bool {
+func (slf *ActorLocator) IsLocalActor(id LucencyActorID) (bool, error) {
 	slf.mu.RLock()
-	ok := slf.isLocalActor(id)
+	ok, err := slf.isLocalActor(id)
 	slf.mu.RUnlock()
-	return ok
+	return ok, err
 }
 
 // 判断Actor是否是远程Actor。
-func (slf *ActorLocator) IsRemoteActor(id LucencyActorID) bool {
-	return !slf.IsLocalActor(id)
+func (slf *ActorLocator) IsRemoteActor(id LucencyActorID) (bool, error) {
+	ok, err := slf.IsLocalActor(id)
+	return !ok, err
 }
 
 // 判断ActorName是否是本地Actor。
-func (slf *ActorLocator) IsLocalActorName(actorName string) bool {
-	id, _ := GetActorId(actorName)
+func (slf *ActorLocator) IsLocalActorName(actorName string) (bool, error) {
+	id, err := GetActorId(actorName)
+	if err != nil {
+		return false, err
+	}
 	return slf.IsLocalActor(id)
 }
 
 // 判断ActorName是否是远程Actor。
-func (slf *ActorLocator) IsRemoteActorName(actorName string) bool {
-	id, _ := GetActorId(actorName)
+func (slf *ActorLocator) IsRemoteActorName(actorName string) (bool, error) {
+	id, err := GetActorId(actorName)
+	if err != nil {
+		return false, err
+	}
 	return slf.IsRemoteActor(id)
 }
 

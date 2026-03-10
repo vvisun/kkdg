@@ -102,7 +102,11 @@ func (slf *Application) Start() error {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
 		return err
 	}
-	slf.actorFramework.GetLocator().AddActor(id, slf.pid)
+	err = slf.actorFramework.GetLocator().AddActor(id, slf.pid)
+	if err != nil {
+		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
+		return err
+	}
 	return nil
 }
 
@@ -135,6 +139,10 @@ func (slf *Application) Stop() error {
 //	-启动顺序和添加顺序相反，先添加的后启动；
 //	-停止顺序和启动顺序相反，先启动的后停止；
 func (slf *Application) AddComponent(comp kkapp.IComponent) error {
+	if _, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName()); err != nil {
+		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+		return err
+	}
 	if slf.getComponent(comp) != nil {
 		kklog.Errorf("[kkapp] application %s repeat add component %s",
 			slf.GetNodeId(), comp.GetCompName())
@@ -194,9 +202,9 @@ func (slf *Application) Receive(ctx actor.Context) {
 			id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())
 			if err != nil {
 				kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
-				continue
+			} else {
+				slf.actorFramework.GetLocator().AddActor(id, pid)
 			}
-			slf.actorFramework.GetLocator().AddActor(id, pid)
 			slf.mu.Unlock()
 		}
 	case *actor.Stopping:
