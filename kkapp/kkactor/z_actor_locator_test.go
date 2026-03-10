@@ -6,7 +6,6 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/component"
 )
 
 func TestGetActorName(t *testing.T) {
@@ -73,8 +72,7 @@ func TestActorLocator_Add_Locate_Remove(t *testing.T) {
 	sys := actor.NewActorSystem()
 	pid := sys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	node := kkapp.NewNodeInfo("node1", "game", "127.0.0.1:8080", "", nil)
-	app := component.NewApplication(node, sys)
-	loc := NewActorLocator(app)
+	loc := NewActorLocator(node)
 
 	id := RemoteActorID{NodeID: "node1", ActorKey: "ccgame/main"}
 	if got := loc.GetActor(id); got != nil {
@@ -95,8 +93,7 @@ func TestActorLocator_Add_Locate_Remove(t *testing.T) {
 
 func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 	node := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
-	app := component.NewApplication(node, nil)
-	loc := NewActorLocator(app)
+	loc := NewActorLocator(node)
 
 	tests := []struct {
 		id       RemoteActorID
@@ -120,8 +117,7 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 
 func TestActorLocator_IsLocalActorName_IsRemoteActorName(t *testing.T) {
 	node := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
-	app := component.NewApplication(node, nil)
-	loc := NewActorLocator(app)
+	loc := NewActorLocator(node)
 
 	tests := []struct {
 		actorName string
@@ -147,8 +143,7 @@ func TestActorLocator_ConcurrentAddRemoveLocate(t *testing.T) {
 	sys := actor.NewActorSystem()
 	pid := sys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	node := kkapp.NewNodeInfo("n1", "t", "127.0.0.1:8080", "", nil)
-	app := component.NewApplication(node, sys)
-	loc := NewActorLocator(app)
+	loc := NewActorLocator(node)
 
 	// 并发 Add/Locate/Remove 不同 key，不应 race
 	done := make(chan struct{})
@@ -186,8 +181,7 @@ func init() {
 	benchActorSys = actor.NewActorSystem()
 	benchPID = benchActorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	node := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
-	app := component.NewApplication(node, benchActorSys)
-	benchLocator = NewActorLocator(app)
+	benchLocator = NewActorLocator(node)
 	for i := 0; i < 1000; i++ {
 		id := RemoteActorID{NodeID: "game1", ActorKey: fmt.Sprintf("comp/%d", i)}
 		benchLocator.AddActor(id, benchPID)
@@ -226,8 +220,7 @@ func BenchmarkActorLocator_LocateActor_Miss(b *testing.B) {
 
 func BenchmarkActorLocator_AddActor(b *testing.B) {
 	node := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
-	app := component.NewApplication(node, nil)
-	loc := NewActorLocator(app)
+	loc := NewActorLocator(node)
 	id := RemoteActorID{NodeID: "game1", ActorKey: "ccgame/main"}
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -238,8 +231,7 @@ func BenchmarkActorLocator_AddActor(b *testing.B) {
 
 func BenchmarkActorLocator_RemoveActor(b *testing.B) {
 	node := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
-	app := component.NewApplication(node, nil)
-	loc := NewActorLocator(app)
+	loc := NewActorLocator(node)
 	for i := 0; i < 1000; i++ {
 		loc.AddActor(RemoteActorID{NodeID: "game1", ActorKey: fmt.Sprintf("x/%d", i)}, benchPID)
 	}

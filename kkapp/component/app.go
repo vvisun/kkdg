@@ -6,19 +6,19 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// each application is a node. each node is a process.
 type Application struct {
-	nodeInfo *kkapp.NodeInfo
-	actorSys *actor.ActorSystem
-	pid      *actor.PID
-	state    ComponentState
-	compList []kkapp.IComponent
-	compPIDs map[string]*actor.PID
-	mu       sync.RWMutex
+	nodeInfo       *kkapp.NodeInfo
+	actorFramework *kkactor.ActorFramework
+	pid            *actor.PID
+	state          ComponentState
+	compList       []kkapp.IComponent
+	compPIDs       map[string]*actor.PID
+	mu             sync.RWMutex
 
 	configDir string // 配置文件所在目录
 }
@@ -27,19 +27,20 @@ var _ kkapp.IApplication = (*Application)(nil)
 
 // new application.
 // each application is a node, a actor
-func NewApplication(nodeInfo *kkapp.NodeInfo, actorSys *actor.ActorSystem) *Application {
+func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFramework) *Application {
 	if nodeInfo == nil {
 		panic("nodeInfo is nil")
 	}
-	if actorSys == nil {
-		actorSys = actor.NewActorSystem()
+	if actorFramework == nil {
+		actorFramework = kkactor.NewActorFramework(kkactor.GetGlobalActorLocator(), actor.NewActorSystem())
 	}
+	actorFramework.GetLocator().AddNode(nodeInfo)
 	app := &Application{
-		nodeInfo: nodeInfo,
-		actorSys: actorSys,
-		state:    ComponentStateNone,
-		compList: make([]kkapp.IComponent, 0),
-		compPIDs: make(map[string]*actor.PID),
+		nodeInfo:       nodeInfo,
+		actorFramework: actorFramework,
+		state:          ComponentStateNone,
+		compList:       make([]kkapp.IComponent, 0),
+		compPIDs:       make(map[string]*actor.PID),
 	}
 	kklog.Infof("[kkapp] new application nodeId: %s, nodeType: %s", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
@@ -66,7 +67,7 @@ func (slf *Application) GetNodeType() string {
 }
 
 func (slf *Application) GetActorSystem() *actor.ActorSystem {
-	return slf.actorSys
+	return slf.actorFramework.GetActorSystem()
 }
 
 func (slf *Application) GetPID() *actor.PID {
@@ -90,7 +91,7 @@ func (slf *Application) Start() error {
 		return kkerrors.ErrAppAlreadyStarted
 	}
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
-	slf.pid = slf.actorSys.Root.Spawn(actor.PropsFromFunc(slf.Receive))
+	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
 	return nil
 }
 
@@ -100,18 +101,18 @@ func (slf *Application) Stop() error {
 			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppNotStarted
 	}
-	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStoping) {
+	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStopping) {
 		kklog.Errorf("[kkapp] stop failed. application %s not started, state: %s",
 			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppNotStarted
 	}
 	// 等待 Application actor 完全退出，否则进程可能在 Stopping/Stopped 未处理时就退出，看不到日志
-	err := slf.actorSys.Root.StopFuture(slf.pid).Wait()
+	err := slf.actorFramework.GetActorSystem().Root.StopFuture(slf.pid).Wait()
 	if err != nil {
 		kklog.Errorf("[kkapp] application %s stop error: %v", slf.GetNodeId(), err)
 		return err
 	}
-	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStoping, ComponentStateStoped)
+	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStopping, ComponentStateStopped)
 	slf.pid = nil
 	return nil
 }
