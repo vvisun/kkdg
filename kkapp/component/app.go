@@ -38,6 +38,7 @@ func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
 		compList: make([]IComponent, 0),
 		compPIDs: make(map[string]*actor.PID),
 	}
+	kklog.Infof("[kkapp] new application nodeId: %s, nodeType: %s", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
 }
 
@@ -80,20 +81,25 @@ func (slf *Application) GetChildPID(actorName string) *actor.PID {
 }
 
 func (slf *Application) Start() error {
-	if atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
-		slf.pid = slf.actorSys.Root.Spawn(actor.PropsFromFunc(slf.Receive))
-		return nil
+	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
+		kklog.Errorf("[kkapp] application %s start failed. already started, state: %s",
+			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
+		return kkerrors.ErrAppAlreadyStarted
 	}
-	return kkerrors.ErrAppAlreadyStarted
+	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
+	slf.pid = slf.actorSys.Root.Spawn(actor.PropsFromFunc(slf.Receive))
+	return nil
 }
 
 func (slf *Application) Stop() error {
 	if slf.pid == nil {
-		kklog.Errorf("[kkapp] stop failed. application %s not started", slf.GetNodeId())
+		kklog.Errorf("[kkapp] stop failed. application %s not started, state: %s",
+			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppNotStarted
 	}
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStoping) {
-		kklog.Errorf("[kkapp] stop failed. application %s not started", slf.GetNodeId())
+		kklog.Errorf("[kkapp] stop failed. application %s not started, state: %s",
+			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppNotStarted
 	}
 	// 等待 Application actor 完全退出，否则进程可能在 Stopping/Stopped 未处理时就退出，看不到日志
@@ -115,11 +121,13 @@ func (slf *Application) Stop() error {
 //	-停止顺序和启动顺序相反，先启动的后停止；
 func (slf *Application) AddComponent(comp IComponent) error {
 	if slf.getComponent(comp) != nil {
-		kklog.Errorf("[kkapp] application %s repeat add component %s", slf.GetNodeId(), comp.GetCompName())
+		kklog.Errorf("[kkapp] application %s repeat add component %s",
+			slf.GetNodeId(), comp.GetCompName())
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	if atomic.LoadInt64(&slf.state) != ComponentStateNone {
-		kklog.Errorf("[kkapp] application %s add component %s failed. not none state", slf.GetNodeId(), comp.GetCompName())
+		kklog.Errorf("[kkapp] application %s add component %s failed. not none state, state: %s",
+			slf.GetNodeId(), comp.GetCompName(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppAddCompMustInNoneState
 	}
 
@@ -152,7 +160,8 @@ func (slf *Application) Receive(ctx actor.Context) {
 	switch ctx.Message().(type) {
 	case *actor.Started:
 		if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStarted) {
-			kklog.Errorf("[kkapp] application %s already started", slf.GetNodeId())
+			kklog.Errorf("[kkapp] application %s already started, state: %s",
+				slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 			return
 		}
 		kklog.Infof("[kkapp] application %s started", slf.GetNodeId())

@@ -27,6 +27,18 @@ const (
 	ComponentStateStoped                         //组件已停止
 )
 
+var stateNameMap = map[ComponentState]string{
+	ComponentStateNone:     "none",
+	ComponentStateStarting: "starting",
+	ComponentStateStarted:  "started",
+	ComponentStateStoping:  "stoping",
+	ComponentStateStoped:   "stoped",
+}
+
+func GetStateName(state ComponentState) string {
+	return stateNameMap[state]
+}
+
 type Component struct {
 	app  IApplication
 	pid  *actor.PID
