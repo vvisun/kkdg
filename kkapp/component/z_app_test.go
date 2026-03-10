@@ -6,6 +6,7 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -106,6 +107,90 @@ func TestApplication_AddComponent(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// 测试停止
+	if err := app.Stop(); err != nil {
+		t.Fatalf("stop application: %v", err)
+	}
+}
+
+// 测试重复启动应用
+func TestApplication_StartTwice(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil))
+
+	if err := app.Start(); err != nil {
+		t.Fatalf("first start application: %v", err)
+	}
+
+	// 第二次启动应该返回 ErrAppAlreadyStarted
+	if err := app.Start(); err != kkerrors.ErrAppAlreadyStarted {
+		t.Fatalf("second start application should return ErrAppAlreadyStarted, got: %v", err)
+	}
+
+	// 清理
+	time.Sleep(10 * time.Millisecond)
+	if err := app.Stop(); err != nil {
+		t.Fatalf("stop application: %v", err)
+	}
+}
+
+// 测试未启动时停止应用
+func TestApplication_Stop_NotStarted(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil))
+
+	if err := app.Stop(); err != kkerrors.ErrAppNotStarted {
+		t.Fatalf("stop application when not started should return ErrAppNotStarted, got: %v", err)
+	}
+}
+
+// 测试非 None 状态下添加组件
+func TestApplication_AddComponent_NotNoneState(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil))
+
+	// 先添加一个组件
+	if err := app.AddComponent(&TestComp1{}); err != nil {
+		t.Fatalf("add component: %v", err)
+	}
+
+	// 启动应用，使 state 从 None 变为 Starting/Started
+	if err := app.Start(); err != nil {
+		t.Fatalf("start application: %v", err)
+	}
+
+	// 启动后再添加组件应该失败
+	if err := app.AddComponent(&TestComp2{}); err != kkerrors.ErrAppAddCompMustInNoneState {
+		t.Fatalf("add component after start should return ErrAppAddCompMustInNoneState, got: %v", err)
+	}
+
+	// 清理
+	time.Sleep(10 * time.Millisecond)
+	if err := app.Stop(); err != nil {
+		t.Fatalf("stop application: %v", err)
+	}
+}
+
+// 测试获取子组件 PID
+func TestApplication_GetChildPID(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil))
+
+	if err := app.AddComponent(&TestComp1{}); err != nil {
+		t.Fatalf("add component: %v", err)
+	}
+
+	if err := app.Start(); err != nil {
+		t.Fatalf("start application: %v", err)
+	}
+
+	// 给 actor 时间处理 Started 和子组件 OnStart
+	time.Sleep(50 * time.Millisecond)
+
+	pid := app.GetChildPID("test1")
+	if pid == nil {
+		t.Fatalf("GetChildPID(\"test1\") should not be nil")
+	}
+
+	if unknown := app.GetChildPID("not-exists"); unknown != nil {
+		t.Fatalf("GetChildPID(\"not-exists\") should be nil, got: %v", unknown)
+	}
+
 	if err := app.Stop(); err != nil {
 		t.Fatalf("stop application: %v", err)
 	}
