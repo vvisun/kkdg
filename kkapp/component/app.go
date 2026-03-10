@@ -30,6 +30,7 @@ var _ kkapp.IApplication = (*Application)(nil)
 // 接受一个ActorFramework参数，方便测试时构建模拟不同情景。
 func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFramework) *Application {
 	if nodeInfo == nil {
+		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		panic("nodeInfo is nil")
 	}
 	if actorFramework == nil {
@@ -99,17 +100,20 @@ func (slf *Application) Start() error {
 	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
 	if slf.pid == nil {
 		kklog.Errorf("[kkapp] application %s spawn actor failed", slf.GetNodeId())
-		panic(kkerrors.ErrAppSpawnActorFailed) //视为致命错误，直接panic
+		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+		panic(kkerrors.ErrAppSpawnActorFailed)
 	}
 	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
 	if err != nil {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
-		panic(err) //视为致命错误，直接panic
+		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+		panic(err)
 	}
 	err = slf.actorFramework.GetLocator().AddActor(id, slf.pid)
 	if err != nil {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
-		panic(err) //视为致命错误，直接panic
+		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+		panic(err)
 	}
 	return nil
 }

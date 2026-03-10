@@ -27,7 +27,8 @@ func NewActorLocator(localNodes ...*kkapp.NodeInfo) *ActorLocator {
 			continue
 		}
 		if !kkapp.IsValidActorNodeId(node.GetNodeId()) {
-			panic("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
+			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+			panic("invalid node id")
 		}
 		nodes[node.GetNodeId()] = node
 	}

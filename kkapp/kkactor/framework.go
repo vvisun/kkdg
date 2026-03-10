@@ -42,16 +42,18 @@ func NewActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 
 // ActorFramework 是 Actor 框架的核心组件。
 type ActorFramework struct {
-	locator         *ActorLocator                    // Actor寻址系统
-	actorSys        *actor.ActorSystem               // Actor系统
-	remoteTransport actorremotes.IRemoteActorTransport
+	locator         *ActorLocator                      // Actor寻址系统
+	actorSys        *actor.ActorSystem                 // Actor系统
+	remoteTransport actorremotes.IRemoteActorTransport // 远程Actor传输层
 }
 
 func NewActorFramework(locator *ActorLocator, actorSys *actor.ActorSystem) *ActorFramework {
 	if locator == nil {
+		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		panic("locator is nil")
 	}
 	if actorSys == nil {
+		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		panic("actorSys is nil")
 	}
 	return &ActorFramework{
