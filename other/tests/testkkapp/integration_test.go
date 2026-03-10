@@ -96,7 +96,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	// gate 节点
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", nil)
-	gateApp := component.NewApplication(gateNode)
+	gateApp := component.NewApplication(gateNode, nil)
 	gateOpt := ccgate.Option{
 		TCPAddr:       tcpAddr,
 		RpcAddr:       rpcAddr,
@@ -116,7 +116,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
-	gameApp := component.NewApplication(gameNode)
+	gameApp := component.NewApplication(gameNode, nil)
 	game := ccgame.NewGameComponent(ccgame.Option{
 		TransType:    transType,
 		RpcAddr:      rpcAddr,

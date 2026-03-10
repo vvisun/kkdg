@@ -16,26 +16,29 @@ type Application struct {
 	actorSys *actor.ActorSystem
 	pid      *actor.PID
 	state    ComponentState
-	compList []IComponent
+	compList []kkapp.IComponent
 	compPIDs map[string]*actor.PID
 	mu       sync.RWMutex
 
 	configDir string // 配置文件所在目录
 }
 
-var _ IApplication = (*Application)(nil)
+var _ kkapp.IApplication = (*Application)(nil)
 
 // new application.
 // each application is a node, a actor
-func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
+func NewApplication(nodeInfo *kkapp.NodeInfo, actorSys *actor.ActorSystem) *Application {
 	if nodeInfo == nil {
 		panic("nodeInfo is nil")
 	}
+	if actorSys == nil {
+		actorSys = actor.NewActorSystem()
+	}
 	app := &Application{
 		nodeInfo: nodeInfo,
-		actorSys: actor.NewActorSystem(),
+		actorSys: actorSys,
 		state:    ComponentStateNone,
-		compList: make([]IComponent, 0),
+		compList: make([]kkapp.IComponent, 0),
 		compPIDs: make(map[string]*actor.PID),
 	}
 	kklog.Infof("[kkapp] new application nodeId: %s, nodeType: %s", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
@@ -119,7 +122,7 @@ func (slf *Application) Stop() error {
 //
 //	-启动顺序和添加顺序相反，先添加的后启动；
 //	-停止顺序和启动顺序相反，先启动的后停止；
-func (slf *Application) AddComponent(comp IComponent) error {
+func (slf *Application) AddComponent(comp kkapp.IComponent) error {
 	if slf.getComponent(comp) != nil {
 		kklog.Errorf("[kkapp] application %s repeat add component %s",
 			slf.GetNodeId(), comp.GetCompName())
@@ -145,7 +148,7 @@ func (slf *Application) AddComponent(comp IComponent) error {
 	return nil
 }
 
-func (slf *Application) getComponent(comp IComponent) IComponent {
+func (slf *Application) getComponent(comp kkapp.IComponent) kkapp.IComponent {
 	slf.mu.RLock()
 	defer slf.mu.RUnlock()
 	for _, c := range slf.compList {
@@ -166,13 +169,13 @@ func (slf *Application) Receive(ctx actor.Context) {
 		}
 		kklog.Infof("[kkapp] application %s started", slf.GetNodeId())
 		slf.mu.RLock()
-		comps := make([]IComponent, len(slf.compList))
+		comps := make([]kkapp.IComponent, len(slf.compList))
 		copy(comps, slf.compList)
 		slf.mu.RUnlock()
 		for _, comp := range comps {
 			props := actor.PropsFromFunc(comp.Receive)
 			pid := ctx.Spawn(props)
-			comp.setPID(pid)
+			comp.SetPID(pid)
 			//atomic.CompareAndSwapInt64(&comp.getBase().state, ComponentStateNone, ComponentStateStarting)
 			slf.mu.Lock()
 			slf.compPIDs[comp.GetCompName()] = pid

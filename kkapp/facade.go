@@ -1,14 +1,19 @@
-package component
+package kkapp
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/vvisun/kkdg/kkapp"
 )
 
-// each application is a node. each node is a process.
+// INodeIdentity 节点身份接口。
+type INodeIdentity interface {
+	GetNodeId() string   // 获取节点ID。世界唯一。用于标识一个节点。
+	GetNodeType() string // 获取节点类型。eg: gate、game、login等。用于标识一个节点的类型。
+}
+
+// each application is a node.
 type IApplication interface {
-	kkapp.INodeIdentity
-	GetNodeInfo() *kkapp.NodeInfo
+	INodeIdentity
+	GetNodeInfo() *NodeInfo
 
 	actor.Actor
 	GetActorSystem() *actor.ActorSystem
@@ -35,7 +40,7 @@ type IComponent interface {
 	IComponentLifecycle
 	actor.Actor
 	GetPID() *actor.PID
-	setPID(pid *actor.PID)
+	SetPID(pid *actor.PID)
 	SetApplication(app IApplication)
 	GetApplication() IApplication
 }

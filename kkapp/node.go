@@ -12,12 +12,6 @@ const (
 	maxNodeTypeLength int = 16
 )
 
-// INodeIdentity 节点身份接口。
-type INodeIdentity interface {
-	GetNodeId() string   // 获取节点ID。世界唯一。用于标识一个节点。
-	GetNodeType() string // 获取节点类型。eg: gate、game、login等。用于标识一个节点的类型。
-}
-
 // checkNodeID 检查节点ID是否有效
 func checkNodeID(nodeId string) error {
 	if len(nodeId) < 1 {

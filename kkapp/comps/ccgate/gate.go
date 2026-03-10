@@ -40,7 +40,7 @@ func (slf *gateComponent) GetCompName() string {
 	return "gate"
 }
 
-var _ component.IComponent = (*gateComponent)(nil)
+var _ kkapp.IComponent = (*gateComponent)(nil)
 
 var _ actor.Actor = (*gateComponent)(nil)
 

@@ -132,7 +132,7 @@ func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
 
 	// fake application identity for getSessionId
 	nodeInfo := kkapp.NewNodeInfo("gate-1", kkapp.NodeTypeGate, "", "", nil)
-	app := component.NewApplication(nodeInfo)
+	app := component.NewApplication(nodeInfo, nil)
 	gate.Component.SetApplication(app)
 
 	// discovery: single game node
@@ -196,7 +196,7 @@ func Benchmark_gateHandler_OnRaw_throughput(b *testing.B) {
 	mt := &mockTransportor{}
 	gate.transportor = mt
 	nodeInfo := kkapp.NewNodeInfo("gate-1", kkapp.NodeTypeGate, "", "", nil)
-	app := component.NewApplication(nodeInfo)
+	app := component.NewApplication(nodeInfo, nil)
 	gate.Component.SetApplication(app)
 	gate.discovery = &mockDiscovery{
 		mgr: &mockMemberMgr{
@@ -254,7 +254,7 @@ func Benchmark_gateHandler_OnRaw_withEncode(b *testing.B) {
 	mt := &mockTransportor{}
 	gate.transportor = mt
 	nodeInfo := kkapp.NewNodeInfo("gate-1", kkapp.NodeTypeGate, "", "", nil)
-	app := component.NewApplication(nodeInfo)
+	app := component.NewApplication(nodeInfo, nil)
 	gate.Component.SetApplication(app)
 	gate.discovery = &mockDiscovery{
 		mgr: &mockMemberMgr{

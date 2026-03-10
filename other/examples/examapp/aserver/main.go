@@ -33,7 +33,7 @@ func main() {
 func runGame() *component.Application {
 	// game 节点，nodeType 必须为 logic 以匹配 gate 的 LogicNodeType
 	gameNode := kkapp.NewNodeInfo(examapp.LogicNodeID, kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
-	gameApp := component.NewApplication(gameNode)
+	gameApp := component.NewApplication(gameNode, nil)
 	game := ccgame.NewGameComponent(ccgame.Option{
 		TransType:    examapp.UseTransType,
 		RpcAddr:      examapp.RpcAddr,

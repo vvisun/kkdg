@@ -45,7 +45,7 @@ func (slf *gameComponent) GetCompName() string {
 	return "game"
 }
 
-var _ component.IComponent = (*gameComponent)(nil)
+var _ kkapp.IComponent = (*gameComponent)(nil)
 
 var _ actor.Actor = (*gameComponent)(nil)
 

@@ -2,28 +2,28 @@ package component
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-func IsEqual(a, b IComponent) bool {
+func IsEqual(a, b kkapp.IComponent) bool {
 	if a == nil || b == nil {
 		return false
 	}
 	return a == b || a.GetCompName() == b.GetCompName()
 }
 
-func GetComponentName(comp IComponent) string {
+func GetComponentName(comp kkapp.IComponent) string {
 	return xreflect.GetStructName(comp) + "_" + comp.GetCompName()
 }
 
 type Component struct {
-	app  IApplication
-	pid  *actor.PID
-	self *Component
+	app kkapp.IApplication
+	pid *actor.PID
 }
 
-func (slf *Component) setPID(pid *actor.PID) {
+func (slf *Component) SetPID(pid *actor.PID) {
 	slf.pid = pid
 }
 
@@ -31,11 +31,11 @@ func (slf *Component) GetPID() *actor.PID {
 	return slf.pid
 }
 
-func (slf *Component) SetApplication(app IApplication) {
+func (slf *Component) SetApplication(app kkapp.IApplication) {
 	slf.app = app
 }
 
-func (slf *Component) GetApplication() IApplication {
+func (slf *Component) GetApplication() kkapp.IApplication {
 	return slf.app
 }
 

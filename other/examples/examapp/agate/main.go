@@ -32,7 +32,7 @@ func main() {
 
 func runGate() *component.Application {
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, examapp.GateTCPAddr, "", nil)
-	gateApp := component.NewApplication(gateNode)
+	gateApp := component.NewApplication(gateNode, nil)
 	gateOpt := ccgate.Option{
 		TCPAddr:       examapp.GateTCPAddr,
 		WSAddr:        examapp.GateWSAddr,
