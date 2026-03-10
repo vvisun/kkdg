@@ -31,6 +31,10 @@ func GetGlobalActorFramework() *ActorFramework {
 	return globalActorFramework
 }
 
+func NewActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
+	return actor.NewActorSystem()
+}
+
 //-------------------------------------------------------------------------
 
 // ActorFramework 是 Actor 框架的核心组件。
