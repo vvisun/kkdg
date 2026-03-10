@@ -22,8 +22,6 @@ func (c *docTestComp) OnStop() error  { return nil }
 
 func (c *docTestComp) Receive(ctx actor.Context) {
 	switch ctx.Message().(type) {
-	case *actor.Started:
-		_ = c.OnStart()
 	case *actor.Stopping:
 		_ = c.OnStop()
 	}

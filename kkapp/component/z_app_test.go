@@ -37,10 +37,6 @@ func (slf *TestComp1) OnStop() error {
 
 func (slf *TestComp1) Receive(ctx actor.Context) {
 	switch ctx.Message().(type) {
-	case *actor.Started:
-		if err := slf.OnStart(); err != nil {
-			kklog.Errorf("[kkapp] component %s on start error: %v", slf.GetCompName(), err)
-		}
 	case *actor.Stopping:
 		if err := slf.OnStop(); err != nil {
 			kklog.Errorf("[kkapp] component %s on stop error: %v", slf.GetCompName(), err)
@@ -74,10 +70,6 @@ func (slf *TestComp2) OnStop() error {
 func (slf *TestComp2) Receive(ctx actor.Context) {
 	kklog.Debugf("--------- component %s receive message: %v", slf.GetCompName(), xreflect.GetStructName(ctx.Message()))
 	switch ctx.Message().(type) {
-	case *actor.Started:
-		if err := slf.OnStart(); err != nil {
-			kklog.Errorf("[kkapp] component %s on start error: %v", slf.GetCompName(), err)
-		}
 	case *actor.Stopping:
 		if err := slf.OnStop(); err != nil {
 			kklog.Errorf("[kkapp] component %s on stop error: %v", slf.GetCompName(), err)
@@ -104,8 +96,21 @@ func (slf *benchComp) OnStop() error  { return nil }
 
 func (slf *benchComp) Receive(ctx actor.Context) {
 	switch ctx.Message().(type) {
-	case *actor.Started:
-		_ = slf.OnStart()
+	case *actor.Stopping:
+		_ = slf.OnStop()
+	}
+}
+
+type failStartComp struct {
+	Component
+}
+
+func (slf *failStartComp) GetCompName() string { return "fail_start" }
+func (slf *failStartComp) OnInit() error       { return nil }
+func (slf *failStartComp) OnStart() error      { return fmt.Errorf("start failed") }
+func (slf *failStartComp) OnStop() error       { return nil }
+func (slf *failStartComp) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
 	case *actor.Stopping:
 		_ = slf.OnStop()
 	}
@@ -222,6 +227,39 @@ func TestApplication_GetChildPID(t *testing.T) {
 
 	if err := app.Stop(); err != nil {
 		t.Fatalf("stop application: %v", err)
+	}
+}
+
+func TestApplication_Start_WaitsForComponentStart(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil)
+
+	if err := app.AddComponent(&TestComp1{}); err != nil {
+		t.Fatalf("add component: %v", err)
+	}
+
+	if err := app.Start(); err != nil {
+		t.Fatalf("start application: %v", err)
+	}
+
+	if pid := app.GetCompPID("test1"); pid == nil {
+		t.Fatal("component pid should be available immediately after Start returns")
+	}
+
+	if err := app.Stop(); err != nil {
+		t.Fatalf("stop application: %v", err)
+	}
+}
+
+func TestApplication_Start_ComponentStartError(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil)
+
+	if err := app.AddComponent(&failStartComp{}); err != nil {
+		t.Fatalf("add component: %v", err)
+	}
+
+	err := app.Start()
+	if err == nil || err.Error() != "start failed" {
+		t.Fatalf("start application err = %v, want start failed", err)
 	}
 }
 

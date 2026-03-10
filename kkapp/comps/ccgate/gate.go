@@ -46,8 +46,6 @@ var _ actor.Actor = (*gateComponent)(nil)
 
 func (slf *gateComponent) Receive(context actor.Context) {
 	switch context.Message().(type) {
-	case *actor.Started:
-		slf.OnStart()
 	case *actor.Stopping:
 		slf.OnStop()
 	}

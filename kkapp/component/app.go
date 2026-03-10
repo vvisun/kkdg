@@ -30,6 +30,7 @@ type Application struct {
 	pid            *actor.PID
 	state          ComponentState
 	compList       []kkapp.IComponent
+	startResultCh  chan error
 	mu             sync.RWMutex
 
 	configDir string // 配置文件所在目录
@@ -111,6 +112,10 @@ func (slf *Application) Start() error {
 			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppAlreadyStarted
 	}
+	startResultCh := make(chan error, 1)
+	slf.mu.Lock()
+	slf.startResultCh = startResultCh
+	slf.mu.Unlock()
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
 	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
 	if slf.pid == nil {
@@ -130,7 +135,7 @@ func (slf *Application) Start() error {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		panic(err)
 	}
-	return nil
+	return <-startResultCh
 }
 
 func (slf *Application) Stop() error {
@@ -203,12 +208,11 @@ func (slf *Application) getComponent(comp kkapp.IComponent) kkapp.IComponent {
 }
 
 func (slf *Application) onStarted(ctx actor.Context) {
-	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStarted) {
+	if atomic.LoadInt64(&slf.state) != ComponentStateStarting {
 		kklog.Errorf("[kkapp] application %s already started, state: %s",
 			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return //已经启动，直接返回
 	}
-	kklog.Infof("[kkapp] application %s started", slf.GetNodeId())
 
 	slf.mu.RLock()
 	comps := make([]kkapp.IComponent, len(slf.compList))
@@ -238,17 +242,40 @@ func (slf *Application) onStarted(ctx actor.Context) {
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 			panic(err)
 		}
+		if err := comp.OnStart(); err != nil {
+			kklog.Errorf("[kkapp] application %s start component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+			atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStopping)
+			slf.finishStart(err)
+			ctx.Stop(ctx.Self())
+			return
+		}
 	}
+	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStarted)
+	kklog.Infof("[kkapp] application %s started", slf.GetNodeId())
+	slf.finishStart(nil)
 }
 
 func (slf *Application) onStopped() {
 	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
+	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStopping, ComponentStateStopped)
 	id, _ := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
 	slf.actorFramework.GetLocator().RemoveActor(id)
 	slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
 	slf.mu.Lock()
 	slf.compList = make([]kkapp.IComponent, 0)
 	slf.mu.Unlock()
+}
+
+func (slf *Application) finishStart(err error) {
+	slf.mu.Lock()
+	startResultCh := slf.startResultCh
+	slf.startResultCh = nil
+	slf.mu.Unlock()
+	if startResultCh == nil {
+		return
+	}
+	startResultCh <- err
+	close(startResultCh)
 }
 
 func (slf *Application) Receive(ctx actor.Context) {
