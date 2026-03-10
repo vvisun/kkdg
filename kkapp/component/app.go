@@ -17,7 +17,6 @@ type Application struct {
 	pid            *actor.PID
 	state          ComponentState
 	compList       []kkapp.IComponent
-	compPIDs       map[string]*actor.PID
 	mu             sync.RWMutex
 
 	configDir string // 配置文件所在目录
@@ -42,7 +41,6 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFrame
 		actorFramework: actorFramework,
 		state:          ComponentStateNone,
 		compList:       make([]kkapp.IComponent, 0),
-		compPIDs:       make(map[string]*actor.PID),
 	}
 	kklog.Infof("[kkapp] new application nodeId: %s, nodeType: %s", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
@@ -80,11 +78,15 @@ func (slf *Application) GetPID() *actor.PID {
 	return slf.pid
 }
 
-func (slf *Application) GetChildPID(actorName string) *actor.PID {
-	slf.mu.RLock()
-	pid, ok := slf.compPIDs[actorName]
-	slf.mu.RUnlock()
-	if !ok {
+func (slf *Application) GetCompPID(compName string) *actor.PID {
+	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), compName)
+	if err != nil {
+		kklog.Debugf("[kkapp] application %s get component %s pid error: %v", slf.GetNodeId(), compName, err)
+		return nil
+	}
+	pid, err := slf.actorFramework.GetLocator().GetActor(id)
+	if err != nil {
+		kklog.Debugf("[kkapp] application %s get component %s pid error: %v", slf.GetNodeId(), compName, err)
 		return nil
 	}
 	return pid
@@ -187,47 +189,56 @@ func (slf *Application) getComponent(comp kkapp.IComponent) kkapp.IComponent {
 	return nil
 }
 
+func (slf *Application) onStarted(ctx actor.Context) {
+	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStarted) {
+		kklog.Errorf("[kkapp] application %s already started, state: %s",
+			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
+		return //已经启动，直接返回
+	}
+	kklog.Infof("[kkapp] application %s started", slf.GetNodeId())
+	slf.mu.RLock()
+	comps := make([]kkapp.IComponent, len(slf.compList))
+	copy(comps, slf.compList)
+	slf.mu.RUnlock()
+
+	for _, comp := range comps {
+		props := actor.PropsFromFunc(comp.Receive)
+		pid := ctx.Spawn(props)
+		comp.SetPID(pid)
+
+		id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())
+		if err != nil {
+			kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+			panic(err)
+		}
+		err = slf.actorFramework.GetLocator().AddActor(id, pid)
+		if err != nil {
+			kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+			panic(err)
+		}
+	}
+}
+
+func (slf *Application) onStopped() {
+	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
+	id, _ := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
+	slf.actorFramework.GetLocator().RemoveActor(id)
+	slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
+	slf.mu.Lock()
+	slf.compList = make([]kkapp.IComponent, 0)
+	slf.mu.Unlock()
+}
+
 func (slf *Application) Receive(ctx actor.Context) {
 	switch ctx.Message().(type) {
 	case *actor.Started:
-		if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStarted) {
-			kklog.Errorf("[kkapp] application %s already started, state: %s",
-				slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
-			return
-		}
-		kklog.Infof("[kkapp] application %s started", slf.GetNodeId())
-		slf.mu.RLock()
-		comps := make([]kkapp.IComponent, len(slf.compList))
-		copy(comps, slf.compList)
-		slf.mu.RUnlock()
-		for _, comp := range comps {
-			props := actor.PropsFromFunc(comp.Receive)
-			pid := ctx.Spawn(props)
-			comp.SetPID(pid)
-			//atomic.CompareAndSwapInt64(&comp.getBase().state, ComponentStateNone, ComponentStateStarting)
-			slf.mu.Lock()
-			slf.compPIDs[comp.GetCompName()] = pid
-			id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())
-			if err != nil {
-				kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
-			} else {
-				err = slf.actorFramework.GetLocator().AddActor(id, pid)
-				if err != nil {
-					kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
-				}
-			}
-			slf.mu.Unlock()
-		}
+		slf.onStarted(ctx)
 	case *actor.Stopping:
 		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
 	case *actor.Stopped:
-		kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
-		id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
-		if err != nil {
-			kklog.Errorf("[kkapp] application %s remove component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
-		}
-		slf.actorFramework.GetLocator().RemoveActor(id)
-		slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
+		slf.onStopped()
 	case *actor.Restarting:
 		kklog.Infof("[kkapp] application %s restarting", slf.GetNodeId())
 	}

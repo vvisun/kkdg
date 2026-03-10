@@ -4,7 +4,6 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
 func IsEqual(a, b kkapp.IComponent) bool {
@@ -12,10 +11,6 @@ func IsEqual(a, b kkapp.IComponent) bool {
 		return false
 	}
 	return a == b || a.GetCompName() == b.GetCompName()
-}
-
-func GetComponentName(comp kkapp.IComponent) string {
-	return xreflect.GetStructName(comp) + "_" + comp.GetCompName()
 }
 
 type Component struct {

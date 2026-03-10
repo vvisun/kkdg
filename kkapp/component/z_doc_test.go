@@ -72,7 +72,7 @@ func TestDoc_NodeCanHaveMultipleComponents(t *testing.T) {
 
 	// 同一节点下多个组件都应能通过名称拿到 PID
 	for _, name := range []string{"comp1", "comp2", "comp3"} {
-		pid := app.GetChildPID(name)
+		pid := app.GetCompPID(name)
 		if pid == nil {
 			t.Errorf("GetChildPID(%q) = nil, want non-nil", name)
 		}
@@ -101,7 +101,7 @@ func TestDoc_ComponentIsActor(t *testing.T) {
 		t.Error("component.GetPID() = nil, component should be an actor with PID")
 	}
 	// 通过节点（Application）按名称获取子 actor PID，逻辑层只需“给目标节点发消息”即可寻址
-	if app.GetChildPID("logic") == nil {
+	if app.GetCompPID("logic") == nil {
 		t.Error("GetChildPID(\"logic\") = nil, component should be addressable by name on node")
 	}
 }
@@ -129,8 +129,8 @@ func TestDoc_MultipleNodesInOneProcess(t *testing.T) {
 	time.Sleep(30 * time.Millisecond)
 
 	// 逻辑层只关心“给目标节点发消息”：通过节点 + 组件名取 PID，与是否同进程无关
-	pid1 := node1.GetChildPID("comp1")
-	pid2 := node2.GetChildPID("comp2")
+	pid1 := node1.GetCompPID("comp1")
+	pid2 := node2.GetCompPID("comp2")
 	if pid1 == nil || pid2 == nil {
 		t.Fatalf("GetChildPID: node1.comp1=%v, node2.comp2=%v", pid1, pid2)
 	}
@@ -160,7 +160,7 @@ func TestDoc_DeploymentLayoutTransparency(t *testing.T) {
 	getPIDs := func(apps []*Application, names []string) []*actor.PID {
 		pids := make([]*actor.PID, len(names))
 		for i, name := range names {
-			pids[i] = apps[i].GetChildPID(name)
+			pids[i] = apps[i].GetCompPID(name)
 		}
 		return pids
 	}
@@ -192,10 +192,10 @@ func TestDoc_DeploymentLayoutTransparency(t *testing.T) {
 	time.Sleep(30 * time.Millisecond)
 
 	// 同样的寻址方式：通过“所在节点”+ 组件名取 PID，不关心组件实际分布在几个进程
-	if node1B.GetChildPID("comp1") == nil || node1B.GetChildPID("comp2") == nil {
+	if node1B.GetCompPID("comp1") == nil || node1B.GetCompPID("comp2") == nil {
 		t.Error("layout B: node1 should have comp1 and comp2")
 	}
-	if node2B.GetChildPID("comp3") == nil {
+	if node2B.GetCompPID("comp3") == nil {
 		t.Error("layout B: node2 should have comp3")
 	}
 

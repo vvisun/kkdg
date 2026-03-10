@@ -17,7 +17,7 @@ type IApplication interface {
 
 	actor.Actor
 	GetPID() *actor.PID
-	GetChildPID(actorName string) *actor.PID
+	GetCompPID(compName string) *actor.PID
 
 	Start() error
 	Stop() error

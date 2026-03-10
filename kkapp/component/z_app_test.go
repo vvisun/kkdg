@@ -209,12 +209,12 @@ func TestApplication_GetChildPID(t *testing.T) {
 	// 给 actor 时间处理 Started 和子组件 OnStart
 	time.Sleep(50 * time.Millisecond)
 
-	pid := app.GetChildPID("test1")
+	pid := app.GetCompPID("test1")
 	if pid == nil {
 		t.Fatalf("GetChildPID(\"test1\") should not be nil")
 	}
 
-	if unknown := app.GetChildPID("not-exists"); unknown != nil {
+	if unknown := app.GetCompPID("not-exists"); unknown != nil {
 		t.Fatalf("GetChildPID(\"not-exists\") should be nil, got: %v", unknown)
 	}
 
