@@ -86,24 +86,22 @@ func (t *Transport) Close() error {
 	return nil
 }
 
-func (t *Transport) Send(targetActorName string, msg any) error {
-	target, err := actorremotes.ParseTarget(targetActorName)
-	if err != nil {
-		return err
+func (t *Transport) Send(target actorremotes.ActorRef, msg any) error {
+	if !target.IsValid() {
+		return kkerrors.ErrActorRemoteInvalidTarget
 	}
-	data, err := actorremotes.EncodeRequestEnvelope(targetActorName, msg, 0)
+	data, err := actorremotes.EncodeRequestEnvelope(target, msg, 0)
 	if err != nil {
 		return err
 	}
 	return t.publish(subjectSendPrefix+target.NodeID, data)
 }
 
-func (t *Transport) Request(targetActorName string, msg any, timeout time.Duration) (any, error) {
-	target, err := actorremotes.ParseTarget(targetActorName)
-	if err != nil {
-		return nil, err
+func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.Duration) (any, error) {
+	if !target.IsValid() {
+		return nil, kkerrors.ErrActorRemoteInvalidTarget
 	}
-	data, err := actorremotes.EncodeRequestEnvelope(targetActorName, msg, timeout)
+	data, err := actorremotes.EncodeRequestEnvelope(target, msg, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -114,12 +112,12 @@ func (t *Transport) Request(targetActorName string, msg any, timeout time.Durati
 	return actorremotes.DecodeResponseEnvelope(respMsg.Data)
 }
 
-func (t *Transport) RequestAsync(targetActorName string, msg any, timeout time.Duration, callback func(result any, err error)) error {
+func (t *Transport) RequestAsync(target actorremotes.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
 	if callback == nil {
 		return kkerrors.ErrActorRemoteReceiverNotSet
 	}
 	go func() {
-		result, err := t.Request(targetActorName, msg, timeout)
+		result, err := t.Request(target, msg, timeout)
 		callback(result, err)
 	}()
 	return nil
@@ -151,7 +149,7 @@ func (t *Transport) handleSend(msg *nats.Msg) {
 		kklog.Errorf("[kkactor] remote send receiver not ready: %v", err)
 		return
 	}
-	if err := receiver.HandleRemoteSend(env.TargetActorName, payload); err != nil {
+	if err := receiver.HandleRemoteSend(env.Target, payload); err != nil {
 		kklog.Errorf("[kkactor] handle remote send failed: %v", err)
 	}
 }
@@ -169,7 +167,7 @@ func (t *Transport) handleRequest(msg *nats.Msg) {
 	}
 
 	timeout := time.Duration(env.TimeoutMs) * time.Millisecond
-	result, err := receiver.HandleRemoteRequest(env.TargetActorName, payload, timeout)
+	result, err := receiver.HandleRemoteRequest(env.Target, payload, timeout)
 	if err != nil {
 		t.respond(msg, nil, err)
 		return

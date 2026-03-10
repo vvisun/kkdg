@@ -14,9 +14,9 @@ import "time"
 // 那样可插拔替换。
 type IRemoteActorReceiver interface {
 	// HandleRemoteSend 处理来自远程节点的单向消息。
-	HandleRemoteSend(targetActorName string, msg any) error
+	HandleRemoteSend(target ActorRef, msg any) error
 	// HandleRemoteRequest 处理来自远程节点的请求消息。
-	HandleRemoteRequest(targetActorName string, msg any, timeout time.Duration) (any, error)
+	HandleRemoteRequest(target ActorRef, msg any, timeout time.Duration) (any, error)
 }
 
 type IRemoteActorTransport interface {
@@ -30,11 +30,11 @@ type IRemoteActorTransport interface {
 	// RegisterMessage 注册可远程编解码的消息类型。
 	RegisterMessage(msg any) error
 	// Send 向远程 actor 发送单向消息。
-	Send(targetActorName string, msg any) error
+	Send(target ActorRef, msg any) error
 	// Request 向远程 actor 发送请求并等待响应。
-	Request(targetActorName string, msg any, timeout time.Duration) (any, error)
+	Request(target ActorRef, msg any, timeout time.Duration) (any, error)
 	// RequestAsync 向远程 actor 发送异步请求。
-	RequestAsync(targetActorName string, msg any, timeout time.Duration, callback func(result any, err error)) error
+	RequestAsync(target ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error
 }
 
 // ActorTransportType 是 Actor 传输类型。

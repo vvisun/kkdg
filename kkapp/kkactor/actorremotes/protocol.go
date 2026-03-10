@@ -9,17 +9,16 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
-type Target struct {
-	NodeID    string
-	ActorKey  string
-	ActorName string
+type ActorRef struct {
+	NodeID   string
+	ActorKey string
 }
 
 type RequestEnvelope struct {
-	TargetActorName string
-	MessageType     string
-	Payload         []byte
-	TimeoutMs       int64
+	Target      ActorRef
+	MessageType string
+	Payload     []byte
+	TimeoutMs   int64
 }
 
 type ResponseEnvelope struct {
@@ -28,36 +27,46 @@ type ResponseEnvelope struct {
 	Error       string
 }
 
-func ParseTarget(targetActorName string) (*Target, error) {
+func ParseTarget(targetActorName string) (*ActorRef, error) {
 	nodeID, actorKey, found := strings.Cut(targetActorName, kkapp.ActorKeySep_NodeAndActor)
 	if !found || nodeID == "" || !kkapp.IsValidActorNodeId(nodeID) || !kkapp.IsValidActorKey(actorKey) {
 		return nil, kkerrors.ErrActorRemoteInvalidTarget
 	}
-	return &Target{
-		NodeID:    nodeID,
-		ActorKey:  actorKey,
-		ActorName: targetActorName,
+	return &ActorRef{
+		NodeID:   nodeID,
+		ActorKey: actorKey,
 	}, nil
 }
 
-func BuildRequestEnvelope(targetActorName string, msg any, timeout time.Duration) (*RequestEnvelope, error) {
-	if _, err := ParseTarget(targetActorName); err != nil {
-		return nil, err
+func (ref ActorRef) IsValid() bool {
+	return ref.NodeID != "" && kkapp.IsValidActorNodeId(ref.NodeID) && kkapp.IsValidActorKey(ref.ActorKey)
+}
+
+func (ref ActorRef) ActorName() string {
+	if !ref.IsValid() {
+		return ""
+	}
+	return ref.NodeID + kkapp.ActorKeySep_NodeAndActor + ref.ActorKey
+}
+
+func BuildRequestEnvelope(target ActorRef, msg any, timeout time.Duration) (*RequestEnvelope, error) {
+	if !target.IsValid() {
+		return nil, kkerrors.ErrActorRemoteInvalidTarget
 	}
 	typeName, payload, err := EncodeMessage(msg)
 	if err != nil {
 		return nil, err
 	}
 	return &RequestEnvelope{
-		TargetActorName: targetActorName,
-		MessageType:     typeName,
-		Payload:         payload,
-		TimeoutMs:       timeout.Milliseconds(),
+		Target:      target,
+		MessageType: typeName,
+		Payload:     payload,
+		TimeoutMs:   timeout.Milliseconds(),
 	}, nil
 }
 
-func EncodeRequestEnvelope(targetActorName string, msg any, timeout time.Duration) ([]byte, error) {
-	env, err := BuildRequestEnvelope(targetActorName, msg, timeout)
+func EncodeRequestEnvelope(target ActorRef, msg any, timeout time.Duration) ([]byte, error) {
+	env, err := BuildRequestEnvelope(target, msg, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +78,8 @@ func DecodeRequestEnvelope(data []byte) (*RequestEnvelope, any, error) {
 	if err := msgCodec.Unmarshal(data, &env); err != nil {
 		return nil, nil, err
 	}
-	if _, err := ParseTarget(env.TargetActorName); err != nil {
-		return nil, nil, err
+	if !env.Target.IsValid() {
+		return nil, nil, kkerrors.ErrActorRemoteInvalidTarget
 	}
 	msg, err := DecodeMessage(env.MessageType, env.Payload)
 	if err != nil {

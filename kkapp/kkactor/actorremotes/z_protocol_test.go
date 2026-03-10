@@ -24,6 +24,9 @@ func TestParseTarget(t *testing.T) {
 	if target.NodeID != "node1" || target.ActorKey != "echo_actor" {
 		t.Fatalf("target = %+v", target)
 	}
+	if target.ActorName() != "node1/echo_actor" {
+		t.Fatalf("actor name = %q", target.ActorName())
+	}
 
 	_, err = ParseTarget("bad-target")
 	if err == nil || !errors.Is(err, kkerrors.ErrActorRemoteInvalidTarget) {
@@ -36,7 +39,7 @@ func TestEncodeDecodeRequestEnvelope(t *testing.T) {
 		t.Fatalf("RegisterMessage req: %v", err)
 	}
 
-	data, err := EncodeRequestEnvelope("node1/echo_actor", &protoReq{Value: "hello"}, 3*time.Second)
+	data, err := EncodeRequestEnvelope(ActorRef{NodeID: "node1", ActorKey: "echo_actor"}, &protoReq{Value: "hello"}, 3*time.Second)
 	if err != nil {
 		t.Fatalf("EncodeRequestEnvelope: %v", err)
 	}
@@ -45,8 +48,8 @@ func TestEncodeDecodeRequestEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DecodeRequestEnvelope: %v", err)
 	}
-	if env.TargetActorName != "node1/echo_actor" {
-		t.Fatalf("target = %q", env.TargetActorName)
+	if env.Target.NodeID != "node1" || env.Target.ActorKey != "echo_actor" {
+		t.Fatalf("target = %+v", env.Target)
 	}
 	if env.TimeoutMs != int64((3 * time.Second).Milliseconds()) {
 		t.Fatalf("timeout = %d", env.TimeoutMs)

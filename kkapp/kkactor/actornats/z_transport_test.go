@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
+	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -84,7 +85,6 @@ func TestTransport_SendAndRequest(t *testing.T) {
 	if err := framework2.GetLocator().AddActor(targetID, pid); err != nil {
 		t.Fatalf("AddActor: %v", err)
 	}
-
 	if err := framework1.Send(targetID, &remotePing{Text: "hello"}); err != nil {
 		t.Fatalf("Send: %v", err)
 	}
@@ -124,8 +124,13 @@ func TestTransport_Request_UnregisteredMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewLucencyActorID: %v", err)
 	}
+	targetRef := actorremotes.ActorRef{NodeID: "node2", ActorKey: "echo"}
 	_, err = framework.Request(targetID, &struct{ Text string }{Text: "x"}, time.Second)
 	if err == nil || !errors.Is(err, kkerrors.ErrActorRemoteMsgTypeNotRegistered) {
 		t.Fatalf("Request err = %v, want %v", err, kkerrors.ErrActorRemoteMsgTypeNotRegistered)
+	}
+
+	if _, err := transport.Request(targetRef, &struct{ Text string }{Text: "x"}, time.Second); err == nil || !errors.Is(err, kkerrors.ErrActorRemoteMsgTypeNotRegistered) {
+		t.Fatalf("transport.Request err = %v, want %v", err, kkerrors.ErrActorRemoteMsgTypeNotRegistered)
 	}
 }
