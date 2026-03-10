@@ -73,7 +73,16 @@ func (c *clientInfo) bindLogicNode(nodeType string, nodeId string) *clientLogicI
 }
 
 // 解绑逻辑节点。
-// 建议的解绑时机：网关侧的客户端连接已断开 + 客户端已从该逻辑节点下线。
+//
+// 注意：
+//   - 不能仅因为网关侧连接断开，就立刻从逻辑节点统计中摘除该客户端；
+//   - 因为逻辑服处理玩家下线、踢人、重连迁移等操作可能慢于网关断连事件；
+//   - 此时玩家可能仍停留在原逻辑服的玩家管理器中，如果网关过早摘除并重新分配到其他逻辑服，
+//     会出现同一玩家短时间同时登录进两个不同逻辑服，导致玩家数据混乱。
+//
+// 建议的解绑时机：
+//   - 上层玩家管理已经确认该玩家已从目标逻辑服安全移除；
+//   - 然后再通过 rpc 或其它方式通知网关执行摘除。
 func (c *clientInfo) unbindLogicNode(nodeType string) {
 	// 这里可以向逻辑节点发动一次rpc请求，查看本客户端是否已从该逻辑节点下线。
 	// 另一种方式是，逻辑节点主动推送上线/下线事件，网关侧监听并更新本地缓存。
@@ -128,6 +137,11 @@ func (m *clientManager) addClient(connId kknet.CONN_ID, sessionId string) *clien
 }
 
 // 移除连接connId的客户端。
+//
+// 注意：
+//   - 这里只移除网关侧连接/会话索引，不会自动解绑 logicNodeMap，也不会自动回收 gLogicTotalMgr 中的绑定统计；
+//   - 是否可以安全解绑，依赖于上层玩家管理确认该玩家是否仍停留在原逻辑服；
+//   - 如果需要解绑，应在逻辑服确认玩家已安全移除后，再通知网关调用 unbindLogicNode。
 func (m *clientManager) removeClient(connId kknet.CONN_ID) {
 	cliInfo := m.getClient(connId)
 	if cliInfo == nil {

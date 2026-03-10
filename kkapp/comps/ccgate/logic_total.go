@@ -6,7 +6,13 @@ type session2nodeType map[string]string
 
 var gLogicTotalMgr = newLogicTotalManager()
 
-// 逻辑节点统计
+// 逻辑节点统计。
+//
+// 注意：
+//   - 这里统计的是“网关视角下，仍绑定在某逻辑节点上的会话”；
+//   - 它不是纯粹的 TCP 在线连接数，也不会因为网关侧连接断开就立刻减少；
+//   - 是否解绑，依赖上层玩家管理确认玩家已从目标逻辑服安全移除后，再通知网关摘除；
+//   - 这样可以避免玩家在原逻辑服尚未清理完成时，被网关重新分配到另一个逻辑服，造成双登和数据混乱。
 type logicTotalManager struct {
 	logicNodeTable   map[string]session2nodeType // map[nodeId]session2nodeType
 	logicNodeTableMu sync.RWMutex
@@ -18,7 +24,7 @@ func newLogicTotalManager() *logicTotalManager {
 	}
 }
 
-// 为sessionId分配逻辑节点时
+// 为 sessionId 绑定逻辑节点时更新统计。
 func (m *logicTotalManager) onBindLogicNode(sessionId string, nodeId string, nodeType string) {
 	m.logicNodeTableMu.Lock()
 	nodeMap, ok := m.logicNodeTable[nodeId]
@@ -30,7 +36,8 @@ func (m *logicTotalManager) onBindLogicNode(sessionId string, nodeId string, nod
 	m.logicNodeTableMu.Unlock()
 }
 
-// 为sessionId解绑逻辑节点时
+// 为 sessionId 解绑逻辑节点时更新统计。
+// 调用方应确保上层玩家管理已经确认该玩家可安全从该逻辑服摘除。
 func (m *logicTotalManager) onUnbindLogicNode(sessionId string, nodeId string) {
 	m.logicNodeTableMu.Lock()
 	if nodeMap, ok := m.logicNodeTable[nodeId]; ok {

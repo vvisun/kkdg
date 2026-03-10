@@ -129,6 +129,11 @@ func (slf *gameComponent) OnStop() error {
 			kklog.Errorf("[ccgame] stop discovery error: %v", err)
 		}
 	}
+	if slf.transportor != nil {
+		if err := slf.transportor.Stop(); err != nil {
+			kklog.Errorf("[ccgame] stop transportor error: %v", err)
+		}
+	}
 	return nil
 }
 

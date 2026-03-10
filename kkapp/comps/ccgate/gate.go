@@ -166,6 +166,13 @@ func (slf *gateComponent) OnStop() error {
 		}
 	}
 
+	// 停止 transportor
+	if slf.transportor != nil {
+		if err := slf.transportor.Stop(); err != nil {
+			kklog.Errorf("[ccgate] stop transportor error: %v", err)
+		}
+	}
+
 	return nil
 }
 
