@@ -46,7 +46,7 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) {
 	// 如果移除的是本地节点，则需要移除本地Actor。
 	for k := range slf.actors {
 		id := GetActorId(k)
-		if id.nodeID == nodeId && slf.IsLocalActor(id) {
+		if id.nodeID == nodeId && slf.isLocalActor(id) {
 			delete(slf.actors, k)
 		}
 	}
@@ -79,16 +79,20 @@ func (slf *ActorLocator) RemoveActor(id LucencyActorID) {
 	slf.mu.Unlock()
 }
 
-// 判断Actor是否是本地Actor。
-func (slf *ActorLocator) IsLocalActor(id LucencyActorID) bool {
+func (slf *ActorLocator) isLocalActor(id LucencyActorID) bool {
 	if id.nodeID == "" {
 		return true
 	}
 	_, ok := slf.nodes[id.nodeID]
-	if !ok {
-		return false
-	}
-	return true
+	return ok
+}
+
+// 判断Actor是否是本地Actor。
+func (slf *ActorLocator) IsLocalActor(id LucencyActorID) bool {
+	slf.mu.RLock()
+	ok := slf.isLocalActor(id)
+	slf.mu.RUnlock()
+	return ok
 }
 
 // 判断Actor是否是远程Actor。
