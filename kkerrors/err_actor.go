@@ -15,4 +15,12 @@ var (
 	ErrActorAddInvalidPID = errors.New("invalid pid")
 	// actor 添加无效的node
 	ErrActorAddInvalidNode = errors.New("invalid node")
+	// actor 远程传输未配置
+	ErrActorRemoteTransportNotConfigured = errors.New("remote actor transport not configured")
+	// actor 远程接收器未设置
+	ErrActorRemoteReceiverNotSet = errors.New("remote actor receiver not set")
+	// actor 远程目标无效
+	ErrActorRemoteInvalidTarget = errors.New("invalid remote actor target")
+	// actor 远程消息类型未注册
+	ErrActorRemoteMsgTypeNotRegistered = errors.New("remote actor message type not registered")
 )

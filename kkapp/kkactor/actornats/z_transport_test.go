@@ -1,0 +1,131 @@
+package actornats
+
+import (
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/asynkron/protoactor-go/actor"
+	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/kkactor"
+	"github.com/vvisun/kkdg/kkerrors"
+)
+
+func requireNATS(t *testing.T) string {
+	t.Helper()
+	url := "nats://127.0.0.1:4222"
+	nc, err := nats.Connect(url, nats.Timeout(500*time.Millisecond))
+	if err != nil {
+		t.Skipf("NATS not available: %v", err)
+	}
+	nc.Close()
+	return url
+}
+
+type remotePing struct {
+	Text string
+}
+
+type remotePong struct {
+	Text string
+}
+
+func TestTransport_SendAndRequest(t *testing.T) {
+	natsURL := requireNATS(t)
+
+	transport1 := NewTransport("node1", ApplyNatsOptions(WithURL(natsURL)))
+	transport2 := NewTransport("node2", ApplyNatsOptions(WithURL(natsURL)))
+
+	framework1 := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "", nil)), kkactor.NewActorSystem())
+	framework2 := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node2", "game", "", "", nil)), kkactor.NewActorSystem())
+
+	if err := framework1.SetRemoteTransport(transport1); err != nil {
+		t.Fatalf("framework1.SetRemoteTransport: %v", err)
+	}
+	if err := framework2.SetRemoteTransport(transport2); err != nil {
+		t.Fatalf("framework2.SetRemoteTransport: %v", err)
+	}
+	defer func() {
+		_ = transport1.Close()
+		_ = transport2.Close()
+	}()
+
+	if err := transport1.RegisterMessage(&remotePing{}); err != nil {
+		t.Fatalf("register ping on transport1: %v", err)
+	}
+	if err := transport1.RegisterMessage(&remotePong{}); err != nil {
+		t.Fatalf("register pong on transport1: %v", err)
+	}
+	if err := transport2.RegisterMessage(&remotePing{}); err != nil {
+		t.Fatalf("register ping on transport2: %v", err)
+	}
+	if err := transport2.RegisterMessage(&remotePong{}); err != nil {
+		t.Fatalf("register pong on transport2: %v", err)
+	}
+
+	received := make(chan string, 1)
+	props := actor.PropsFromFunc(func(ctx actor.Context) {
+		switch msg := ctx.Message().(type) {
+		case *remotePing:
+			received <- msg.Text
+			if ctx.Sender() != nil {
+				ctx.Respond(&remotePong{Text: "pong:" + msg.Text})
+			}
+		}
+	})
+	pid := framework2.GetActorSystem().Root.Spawn(props)
+	defer framework2.GetActorSystem().Root.Stop(pid)
+
+	targetID, err := kkactor.NewLucencyActorID("node2", "echo")
+	if err != nil {
+		t.Fatalf("NewLucencyActorID: %v", err)
+	}
+	if err := framework2.GetLocator().AddActor(targetID, pid); err != nil {
+		t.Fatalf("AddActor: %v", err)
+	}
+
+	if err := framework1.Send(targetID, &remotePing{Text: "hello"}); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+	select {
+	case got := <-received:
+		if got != "hello" {
+			t.Fatalf("received = %q, want hello", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("remote send timeout")
+	}
+
+	result, err := framework1.Request(targetID, &remotePing{Text: "rpc"}, 2*time.Second)
+	if err != nil {
+		t.Fatalf("Request: %v", err)
+	}
+	rsp, ok := result.(*remotePong)
+	if !ok {
+		t.Fatalf("result type = %T, want *remotePong", result)
+	}
+	if rsp.Text != "pong:rpc" {
+		t.Fatalf("response = %q, want pong:rpc", rsp.Text)
+	}
+}
+
+func TestTransport_Request_UnregisteredMessage(t *testing.T) {
+	natsURL := requireNATS(t)
+
+	transport := NewTransport("node1", ApplyNatsOptions(WithURL(natsURL)))
+	framework := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "", nil)), kkactor.NewActorSystem())
+	if err := framework.SetRemoteTransport(transport); err != nil {
+		t.Fatalf("SetRemoteTransport: %v", err)
+	}
+	defer func() { _ = transport.Close() }()
+
+	targetID, err := kkactor.NewLucencyActorID("node2", "echo")
+	if err != nil {
+		t.Fatalf("NewLucencyActorID: %v", err)
+	}
+	_, err = framework.Request(targetID, &struct{ Text string }{Text: "x"}, time.Second)
+	if err == nil || !errors.Is(err, kkerrors.ErrActorRemoteMsgTypeNotRegistered) {
+		t.Fatalf("Request err = %v, want %v", err, kkerrors.ErrActorRemoteMsgTypeNotRegistered)
+	}
+}

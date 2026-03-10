@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -13,6 +14,8 @@ import (
 type IActorFramework interface {
 	GetLocator() *ActorLocator
 	GetActorSystem() *actor.ActorSystem
+	SetRemoteTransport(transport actorremotes.IRemoteActorTransport) error
+	GetRemoteTransport() actorremotes.IRemoteActorTransport
 	Send(target LucencyActorID, msg any) error
 	Request(target LucencyActorID, msg any, timeout time.Duration) (any, error)
 	RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
@@ -39,8 +42,9 @@ func NewActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 
 // ActorFramework 是 Actor 框架的核心组件。
 type ActorFramework struct {
-	locator  *ActorLocator      // Actor寻址系统
-	actorSys *actor.ActorSystem // Actor系统
+	locator         *ActorLocator                    // Actor寻址系统
+	actorSys        *actor.ActorSystem               // Actor系统
+	remoteTransport actorremotes.IRemoteActorTransport
 }
 
 func NewActorFramework(locator *ActorLocator, actorSys *actor.ActorSystem) *ActorFramework {
@@ -64,44 +68,93 @@ func (slf *ActorFramework) GetActorSystem() *actor.ActorSystem {
 	return slf.actorSys
 }
 
+func (slf *ActorFramework) SetRemoteTransport(transport actorremotes.IRemoteActorTransport) error {
+	if slf.remoteTransport != nil {
+		_ = slf.remoteTransport.Close()
+	}
+	slf.remoteTransport = transport
+	if transport == nil {
+		return nil
+	}
+	transport.SetReceiver(slf)
+	return transport.Start()
+}
+
+func (slf *ActorFramework) GetRemoteTransport() actorremotes.IRemoteActorTransport {
+	return slf.remoteTransport
+}
+
 // 向指定actor发送消息
 func (slf *ActorFramework) Send(target LucencyActorID, msg any) error {
-	pid, err := slf.locator.GetActor(target)
+	isLocal, err := slf.locator.IsLocalActor(target)
 	if err != nil {
 		return err
 	}
-	if pid == nil {
-		return kkerrors.ErrActorNotFound
+	if isLocal {
+		pid, err := slf.locator.GetActor(target)
+		if err != nil {
+			return err
+		}
+		slf.actorSys.Root.Send(pid, msg)
+		return nil
 	}
-	slf.actorSys.Root.Send(pid, msg)
-	return nil
+	if slf.remoteTransport == nil {
+		return kkerrors.ErrActorRemoteTransportNotConfigured
+	}
+	targetActorName, err := GetActorName(target)
+	if err != nil {
+		return err
+	}
+	return slf.remoteTransport.Send(targetActorName, msg)
 }
 
 // 同步向指定actor发送消息, 等待响应
 func (slf *ActorFramework) Request(target LucencyActorID, msg any, timeout time.Duration) (any, error) {
-	pid, err := slf.locator.GetActor(target)
+	isLocal, err := slf.locator.IsLocalActor(target)
 	if err != nil {
 		return nil, err
 	}
-	if pid == nil {
-		return nil, kkerrors.ErrActorNotFound
+	if isLocal {
+		pid, err := slf.locator.GetActor(target)
+		if err != nil {
+			return nil, err
+		}
+		future := slf.actorSys.Root.RequestFuture(pid, msg, timeout)
+		result, err := future.Result()
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
-	future := slf.actorSys.Root.RequestFuture(pid, msg, timeout)
-	result, err := future.Result()
+	if slf.remoteTransport == nil {
+		return nil, kkerrors.ErrActorRemoteTransportNotConfigured
+	}
+	targetActorName, err := GetActorName(target)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	return slf.remoteTransport.Request(targetActorName, msg, timeout)
 }
 
 // 异步向指定actor发送消息, 不等待响应
 func (slf *ActorFramework) RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error {
-	pid, err := slf.locator.GetActor(target)
+	isLocal, err := slf.locator.IsLocalActor(target)
 	if err != nil {
 		return err
 	}
-	if pid == nil {
-		return kkerrors.ErrActorNotFound
+	if !isLocal {
+		if slf.remoteTransport == nil {
+			return kkerrors.ErrActorRemoteTransportNotConfigured
+		}
+		targetActorName, err := GetActorName(target)
+		if err != nil {
+			return err
+		}
+		return slf.remoteTransport.RequestAsync(targetActorName, msg, timeout, callback)
+	}
+	pid, err := slf.locator.GetActor(target)
+	if err != nil {
+		return err
 	}
 	go func() {
 		defer func() {
@@ -109,10 +162,37 @@ func (slf *ActorFramework) RequestAsync(target LucencyActorID, msg any, timeout 
 				callback(nil, fmt.Errorf("panic: %v", r))
 			}
 		}()
-		result, err := slf.Request(target, msg, timeout)
+		future := slf.actorSys.Root.RequestFuture(pid, msg, timeout)
+		result, err := future.Result()
 		callback(result, err)
 	}()
 	return nil
+}
+
+func (slf *ActorFramework) HandleRemoteSend(targetActorName string, msg any) error {
+	target, err := GetActorId(targetActorName)
+	if err != nil {
+		return err
+	}
+	pid, err := slf.locator.GetActor(target)
+	if err != nil {
+		return err
+	}
+	slf.actorSys.Root.Send(pid, msg)
+	return nil
+}
+
+func (slf *ActorFramework) HandleRemoteRequest(targetActorName string, msg any, timeout time.Duration) (any, error) {
+	target, err := GetActorId(targetActorName)
+	if err != nil {
+		return nil, err
+	}
+	pid, err := slf.locator.GetActor(target)
+	if err != nil {
+		return nil, err
+	}
+	future := slf.actorSys.Root.RequestFuture(pid, msg, timeout)
+	return future.Result()
 }
 
 //-------------------------------------------------------------------------
