@@ -11,9 +11,9 @@ import (
 type fakeTransport struct {
 	mu         sync.Mutex
 	inited     bool
-	receiverFn func(from RemoteActorID, msg any)
+	receiverFn func(from AlphaActorID, msg any)
 	tellLog    []struct {
-		target RemoteActorID
+		target AlphaActorID
 		msg    any
 	}
 	closed bool
@@ -26,16 +26,16 @@ func (f *fakeTransport) Init(self *kkapp.NodeInfo) error {
 	return nil
 }
 
-func (f *fakeTransport) SetReceiver(fn func(from RemoteActorID, msg any)) {
+func (f *fakeTransport) SetReceiver(fn func(from AlphaActorID, msg any)) {
 	f.mu.Lock()
 	f.receiverFn = fn
 	f.mu.Unlock()
 }
 
-func (f *fakeTransport) TellRemote(target RemoteActorID, msg any) error {
+func (f *fakeTransport) TellRemote(target AlphaActorID, msg any) error {
 	f.mu.Lock()
 	f.tellLog = append(f.tellLog, struct {
-		target RemoteActorID
+		target AlphaActorID
 		msg    any
 	}{target, msg})
 	f.mu.Unlock()
@@ -64,25 +64,25 @@ func TestFakeTransport_IRemoteActorTransport(t *testing.T) {
 	}
 
 	called := false
-	ft.SetReceiver(func(from RemoteActorID, msg any) {
+	ft.SetReceiver(func(from AlphaActorID, msg any) {
 		called = true
 	})
 	if ft.receiverFn == nil {
 		t.Error("SetReceiver should store callback")
 	}
-	ft.receiverFn(RemoteActorID{NodeID: "gate1", ActorKey: "x"}, "hello")
+	ft.receiverFn(AlphaActorID{nodeID: "gate1", actorKey: "x"}, "hello")
 	if !called {
 		t.Error("receiver callback should be invoked")
 	}
 
-	target := RemoteActorID{NodeID: "game2", ActorKey: "ccgame/main"}
+	target := AlphaActorID{nodeID: "game2", actorKey: "ccgame/main"}
 	if err := ft.TellRemote(target, "ping"); err != nil {
 		t.Fatalf("TellRemote: %v", err)
 	}
 	ft.mu.Lock()
 	n := len(ft.tellLog)
 	var entry struct {
-		target RemoteActorID
+		target AlphaActorID
 		msg    any
 	}
 	if n >= 1 {

@@ -2,6 +2,7 @@ package kkactor
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
@@ -12,9 +13,22 @@ import (
 type IActorFramework interface {
 	GetLocator() *ActorLocator
 	GetActorSystem() *actor.ActorSystem
-	Send(target RemoteActorID, msg any) error
-	Request(target RemoteActorID, msg any, timeout time.Duration) (any, error)
-	RequestAsync(target RemoteActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
+	Send(target AlphaActorID, msg any) error
+	Request(target AlphaActorID, msg any, timeout time.Duration) (any, error)
+	RequestAsync(target AlphaActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
+}
+
+var (
+	globalActorFramework *ActorFramework
+	onceActorFramework   sync.Once
+)
+
+// 获取全局Actor框架, 线上一般用全局即可，避免混乱。
+func GetGlobalActorFramework() *ActorFramework {
+	onceActorFramework.Do(func() {
+		globalActorFramework = NewActorFramework(NewActorLocator(), actor.NewActorSystem())
+	})
+	return globalActorFramework
 }
 
 // ActorFramework 是 Actor 框架的核心组件，负责管理 Actor 的创建、销毁、消息路由等。
@@ -45,7 +59,7 @@ func (slf *ActorFramework) GetActorSystem() *actor.ActorSystem {
 }
 
 // 向指定actor发送消息
-func (slf *ActorFramework) Send(target RemoteActorID, msg any) error {
+func (slf *ActorFramework) Send(target AlphaActorID, msg any) error {
 	pid := slf.locator.GetActor(target)
 	if pid == nil {
 		return kkerrors.ErrActorNotFound
@@ -55,7 +69,7 @@ func (slf *ActorFramework) Send(target RemoteActorID, msg any) error {
 }
 
 // 同步向指定actor发送消息, 等待响应
-func (slf *ActorFramework) Request(target RemoteActorID, msg any, timeout time.Duration) (any, error) {
+func (slf *ActorFramework) Request(target AlphaActorID, msg any, timeout time.Duration) (any, error) {
 	pid := slf.locator.GetActor(target)
 	if pid == nil {
 		return nil, kkerrors.ErrActorNotFound
@@ -69,7 +83,7 @@ func (slf *ActorFramework) Request(target RemoteActorID, msg any, timeout time.D
 }
 
 // 异步向指定actor发送消息, 不等待响应
-func (slf *ActorFramework) RequestAsync(target RemoteActorID, msg any, timeout time.Duration, callback func(result any, err error)) error {
+func (slf *ActorFramework) RequestAsync(target AlphaActorID, msg any, timeout time.Duration, callback func(result any, err error)) error {
 	pid := slf.locator.GetActor(target)
 	if pid == nil {
 		return kkerrors.ErrActorNotFound

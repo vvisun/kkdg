@@ -97,10 +97,7 @@ func (slf *Application) Start() error {
 	}
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
 	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
-	slf.actorFramework.GetLocator().AddActor(kkactor.RemoteActorID{
-		NodeID:   slf.GetNodeId(),
-		ActorKey: slf.GetCompName(),
-	}, slf.pid)
+	slf.actorFramework.GetLocator().AddActor(kkactor.NewAlphaActorID(slf.GetNodeId(), slf.GetCompName()), slf.pid)
 	return nil
 }
 
@@ -189,16 +186,15 @@ func (slf *Application) Receive(ctx actor.Context) {
 			//atomic.CompareAndSwapInt64(&comp.getBase().state, ComponentStateNone, ComponentStateStarting)
 			slf.mu.Lock()
 			slf.compPIDs[comp.GetCompName()] = pid
-			slf.actorFramework.GetLocator().AddActor(kkactor.RemoteActorID{
-				NodeID:   slf.GetNodeId(),
-				ActorKey: comp.GetCompName(),
-			}, pid)
+			slf.actorFramework.GetLocator().AddActor(kkactor.NewAlphaActorID(slf.GetNodeId(), comp.GetCompName()), pid)
 			slf.mu.Unlock()
 		}
 	case *actor.Stopping:
 		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
 	case *actor.Stopped:
 		kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
+		slf.actorFramework.GetLocator().RemoveActor(kkactor.NewAlphaActorID(slf.GetNodeId(), slf.GetCompName()))
+		slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
 	case *actor.Restarting:
 		kklog.Infof("[kkapp] application %s restarting", slf.GetNodeId())
 	}

@@ -10,46 +10,40 @@ import (
 
 const ActorKeySeparator = "/"
 
-// RemoteActorID 透明化Actor寻址，不需要关心Actor所在节点，ActorLocator自动判断是本地还是远程Actor。
+// AlphaActorID 透明化Actor寻址，不需要关心Actor所在节点，ActorLocator自动判断是本地还是远程Actor。
 // 如果【NodeID为空字符串】或【NodeID在当前进程的任意节点中存在】，则认为是本地Actor。否则认为是远程Actor。
-type RemoteActorID struct {
-	NodeID   string // 逻辑节点ID，如 game1、game2。为空表示本地Actor。
-	ActorKey string // 逻辑 actor 标识，如 "ccgame/main"、"gate/router"
+type AlphaActorID struct {
+	nodeID   string // 节点ID，如 game1、game2。为空表示本地Actor。
+	actorKey string // actor 标识，如 "ccgame/main"、"gate/router"
 }
 
-func GetActorName(actorId RemoteActorID) string {
-	return actorId.NodeID + ActorKeySeparator + actorId.ActorKey
+func NewAlphaActorID(nodeId, actorKey string) AlphaActorID {
+	return AlphaActorID{
+		nodeID:   nodeId,
+		actorKey: actorKey,
+	}
 }
 
-func GetActorId(actorName string) RemoteActorID {
+func GetActorName(actorId AlphaActorID) string {
+	return actorId.nodeID + ActorKeySeparator + actorId.actorKey
+}
+
+func GetActorId(actorName string) AlphaActorID {
 	// 第1个分隔符之前的是NodeID，之后的是ActorKey。
 	NodeID, ActorKey, found := strings.Cut(actorName, ActorKeySeparator)
 	if !found {
-		return RemoteActorID{
-			NodeID:   "",
-			ActorKey: actorName,
+		return AlphaActorID{
+			nodeID:   "",
+			actorKey: actorName,
 		}
 	}
-	return RemoteActorID{
-		NodeID:   NodeID,
-		ActorKey: ActorKey,
+	return AlphaActorID{
+		nodeID:   NodeID,
+		actorKey: ActorKey,
 	}
 }
 
 //----------------------------------------------------------
-
-var (
-	globalActorFramework *ActorFramework
-	onceActorFramework   sync.Once
-)
-
-// 获取全局Actor框架, 线上一般用全局即可，避免混乱。
-func GetGlobalActorFramework() *ActorFramework {
-	onceActorFramework.Do(func() {
-		globalActorFramework = NewActorFramework(NewActorLocator(), actor.NewActorSystem())
-	})
-	return globalActorFramework
-}
 
 // Actor寻址系统
 type ActorLocator struct {
@@ -85,12 +79,23 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) {
 	if node == nil {
 		return
 	}
+	nodeId := node.GetNodeId()
 	slf.mu.Lock()
-	delete(slf.nodes, node.GetNodeId())
+	delete(slf.nodes, nodeId)
+	// 如果移除的是本地节点，则需要移除本地Actor。
+	for k := range slf.actors {
+		id := GetActorId(k)
+		if id.nodeID == nodeId && slf.IsLocalActor(id) {
+			slf.RemoveActor(AlphaActorID{
+				nodeID:   nodeId,
+				actorKey: id.actorKey,
+			})
+		}
+	}
 	slf.mu.Unlock()
 }
 
-func (slf *ActorLocator) GetActor(id RemoteActorID) *actor.PID {
+func (slf *ActorLocator) GetActor(id AlphaActorID) *actor.PID {
 	actorName := GetActorName(id)
 	slf.mu.RLock()
 	pid, ok := slf.actors[actorName]
@@ -101,14 +106,14 @@ func (slf *ActorLocator) GetActor(id RemoteActorID) *actor.PID {
 	return pid
 }
 
-func (slf *ActorLocator) AddActor(id RemoteActorID, pid *actor.PID) {
+func (slf *ActorLocator) AddActor(id AlphaActorID, pid *actor.PID) {
 	actorName := GetActorName(id)
 	slf.mu.Lock()
 	slf.actors[actorName] = pid
 	slf.mu.Unlock()
 }
 
-func (slf *ActorLocator) RemoveActor(id RemoteActorID) {
+func (slf *ActorLocator) RemoveActor(id AlphaActorID) {
 	actorName := GetActorName(id)
 	slf.mu.Lock()
 	delete(slf.actors, actorName)
@@ -116,11 +121,11 @@ func (slf *ActorLocator) RemoveActor(id RemoteActorID) {
 }
 
 // 判断Actor是否是本地Actor。
-func (slf *ActorLocator) IsLocalActor(id RemoteActorID) bool {
-	if id.NodeID == "" {
+func (slf *ActorLocator) IsLocalActor(id AlphaActorID) bool {
+	if id.nodeID == "" {
 		return true
 	}
-	_, ok := slf.nodes[id.NodeID]
+	_, ok := slf.nodes[id.nodeID]
 	if !ok {
 		return false
 	}
@@ -128,7 +133,7 @@ func (slf *ActorLocator) IsLocalActor(id RemoteActorID) bool {
 }
 
 // 判断Actor是否是远程Actor。
-func (slf *ActorLocator) IsRemoteActor(id RemoteActorID) bool {
+func (slf *ActorLocator) IsRemoteActor(id AlphaActorID) bool {
 	return !slf.IsLocalActor(id)
 }
 

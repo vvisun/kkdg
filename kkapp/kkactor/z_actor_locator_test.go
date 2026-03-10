@@ -10,12 +10,12 @@ import (
 
 func TestGetActorName(t *testing.T) {
 	tests := []struct {
-		id   RemoteActorID
+		id   AlphaActorID
 		want string
 	}{
-		{RemoteActorID{NodeID: "game1", ActorKey: "ccgame/main"}, "game1/ccgame/main"},
-		{RemoteActorID{NodeID: "", ActorKey: "gate/router"}, "/gate/router"},
-		{RemoteActorID{NodeID: "node1", ActorKey: "a"}, "node1/a"},
+		{AlphaActorID{nodeID: "game1", actorKey: "ccgame/main"}, "game1/ccgame/main"},
+		{AlphaActorID{nodeID: "", actorKey: "gate/router"}, "/gate/router"},
+		{AlphaActorID{nodeID: "node1", actorKey: "a"}, "node1/a"},
 	}
 	for _, tt := range tests {
 		got := GetActorName(tt.id)
@@ -28,13 +28,13 @@ func TestGetActorName(t *testing.T) {
 func TestGetActorId(t *testing.T) {
 	tests := []struct {
 		actorName string
-		want      RemoteActorID
+		want      AlphaActorID
 	}{
-		{"game1/ccgame/main", RemoteActorID{NodeID: "game1", ActorKey: "ccgame/main"}},
-		{"gate/router", RemoteActorID{NodeID: "gate", ActorKey: "router"}}, // 第1个/前为 NodeID，后为 ActorKey
-		{"n1/a/b", RemoteActorID{NodeID: "n1", ActorKey: "a/b"}},
-		{"", RemoteActorID{NodeID: "", ActorKey: ""}},
-		{"localOnly", RemoteActorID{NodeID: "", ActorKey: "localOnly"}}, // 无分隔符时整串为 ActorKey
+		{"game1/ccgame/main", AlphaActorID{nodeID: "game1", actorKey: "ccgame/main"}},
+		{"gate/router", AlphaActorID{nodeID: "gate", actorKey: "router"}}, // 第1个/前为 NodeID，后为 ActorKey
+		{"n1/a/b", AlphaActorID{nodeID: "n1", actorKey: "a/b"}},
+		{"", AlphaActorID{nodeID: "", actorKey: ""}},
+		{"localOnly", AlphaActorID{nodeID: "", actorKey: "localOnly"}}, // 无分隔符时整串为 ActorKey
 	}
 	for _, tt := range tests {
 		got := GetActorId(tt.actorName)
@@ -45,10 +45,10 @@ func TestGetActorId(t *testing.T) {
 }
 
 func TestGetActorId_GetActorName_RoundTrip(t *testing.T) {
-	ids := []RemoteActorID{
-		{NodeID: "game1", ActorKey: "ccgame/main"},
-		{NodeID: "", ActorKey: "local/only"},
-		{NodeID: "gate1", ActorKey: "gate/router"},
+	ids := []AlphaActorID{
+		{nodeID: "game1", actorKey: "ccgame/main"},
+		{nodeID: "", actorKey: "local/only"},
+		{nodeID: "gate1", actorKey: "gate/router"},
 	}
 	for _, id := range ids {
 		name := GetActorName(id)
@@ -74,7 +74,7 @@ func TestActorLocator_Add_Locate_Remove(t *testing.T) {
 	node := kkapp.NewNodeInfo("node1", "game", "127.0.0.1:8080", "", nil)
 	loc := NewActorLocator(node)
 
-	id := RemoteActorID{NodeID: "node1", ActorKey: "ccgame/main"}
+	id := AlphaActorID{nodeID: "node1", actorKey: "ccgame/main"}
 	if got := loc.GetActor(id); got != nil {
 		t.Errorf("LocateActor before Add = %v, want nil", got)
 	}
@@ -96,14 +96,14 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 	loc := NewActorLocator(node)
 
 	tests := []struct {
-		id       RemoteActorID
+		id       AlphaActorID
 		isLocal  bool
 		isRemote bool
 	}{
-		{RemoteActorID{NodeID: "game1", ActorKey: "x"}, true, false},
-		{RemoteActorID{NodeID: "", ActorKey: "x"}, true, false},
-		{RemoteActorID{NodeID: "game2", ActorKey: "x"}, false, true},
-		{RemoteActorID{NodeID: "gate1", ActorKey: "y"}, false, true},
+		{AlphaActorID{nodeID: "game1", actorKey: "x"}, true, false},
+		{AlphaActorID{nodeID: "", actorKey: "x"}, true, false},
+		{AlphaActorID{nodeID: "game2", actorKey: "x"}, false, true},
+		{AlphaActorID{nodeID: "gate1", actorKey: "y"}, false, true},
 	}
 	for _, tt := range tests {
 		if got := loc.IsLocalActor(tt.id); got != tt.isLocal {
@@ -149,7 +149,7 @@ func TestActorLocator_ConcurrentAddRemoveLocate(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		for i := 0; i < 100; i++ {
-			id := RemoteActorID{NodeID: "n1", ActorKey: "a/1"}
+			id := AlphaActorID{nodeID: "n1", actorKey: "a/1"}
 			loc.AddActor(id, pid)
 			loc.GetActor(id)
 		}
@@ -157,7 +157,7 @@ func TestActorLocator_ConcurrentAddRemoveLocate(t *testing.T) {
 	}()
 	go func() {
 		for i := 0; i < 100; i++ {
-			id := RemoteActorID{NodeID: "n1", ActorKey: "a/2"}
+			id := AlphaActorID{nodeID: "n1", actorKey: "a/2"}
 			loc.AddActor(id, pid)
 			loc.RemoveActor(id)
 		}
@@ -170,7 +170,7 @@ func TestActorLocator_ConcurrentAddRemoveLocate(t *testing.T) {
 //------------------------------ benchmark --------------------------------
 
 var (
-	benchID       = RemoteActorID{NodeID: "game1", ActorKey: "ccgame/main"}
+	benchID       = AlphaActorID{nodeID: "game1", actorKey: "ccgame/main"}
 	benchName     = "game1/ccgame/main"
 	benchLocator  *ActorLocator
 	benchPID      *actor.PID
@@ -183,7 +183,7 @@ func init() {
 	node := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
 	benchLocator = NewActorLocator(node)
 	for i := 0; i < 1000; i++ {
-		id := RemoteActorID{NodeID: "game1", ActorKey: fmt.Sprintf("comp/%d", i)}
+		id := AlphaActorID{nodeID: "game1", actorKey: fmt.Sprintf("comp/%d", i)}
 		benchLocator.AddActor(id, benchPID)
 	}
 }
@@ -203,7 +203,7 @@ func BenchmarkGetActorId(b *testing.B) {
 }
 
 func BenchmarkActorLocator_LocateActor(b *testing.B) {
-	id := RemoteActorID{NodeID: "game1", ActorKey: "comp/0"}
+	id := AlphaActorID{nodeID: "game1", actorKey: "comp/0"}
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = benchLocator.GetActor(id)
@@ -211,7 +211,7 @@ func BenchmarkActorLocator_LocateActor(b *testing.B) {
 }
 
 func BenchmarkActorLocator_LocateActor_Miss(b *testing.B) {
-	id := RemoteActorID{NodeID: "game1", ActorKey: "nonexistent"}
+	id := AlphaActorID{nodeID: "game1", actorKey: "nonexistent"}
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = benchLocator.GetActor(id)
@@ -221,7 +221,7 @@ func BenchmarkActorLocator_LocateActor_Miss(b *testing.B) {
 func BenchmarkActorLocator_AddActor(b *testing.B) {
 	node := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
 	loc := NewActorLocator(node)
-	id := RemoteActorID{NodeID: "game1", ActorKey: "ccgame/main"}
+	id := AlphaActorID{nodeID: "game1", actorKey: "ccgame/main"}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -233,9 +233,9 @@ func BenchmarkActorLocator_RemoveActor(b *testing.B) {
 	node := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
 	loc := NewActorLocator(node)
 	for i := 0; i < 1000; i++ {
-		loc.AddActor(RemoteActorID{NodeID: "game1", ActorKey: fmt.Sprintf("x/%d", i)}, benchPID)
+		loc.AddActor(AlphaActorID{nodeID: "game1", actorKey: fmt.Sprintf("x/%d", i)}, benchPID)
 	}
-	id := RemoteActorID{NodeID: "game1", ActorKey: "x/0"}
+	id := AlphaActorID{nodeID: "game1", actorKey: "x/0"}
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -245,7 +245,7 @@ func BenchmarkActorLocator_RemoveActor(b *testing.B) {
 }
 
 func BenchmarkActorLocator_IsLocalActor(b *testing.B) {
-	id := RemoteActorID{NodeID: "game1", ActorKey: "ccgame/main"}
+	id := AlphaActorID{nodeID: "game1", actorKey: "ccgame/main"}
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_ = benchLocator.IsLocalActor(id)
