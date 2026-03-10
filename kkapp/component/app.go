@@ -69,6 +69,16 @@ func (slf *Application) GetPID() *actor.PID {
 	return slf.pid
 }
 
+func (slf *Application) GetChildPID(actorName string) *actor.PID {
+	slf.mu.RLock()
+	pid, ok := slf.compPIDs[actorName]
+	slf.mu.RUnlock()
+	if !ok {
+		return nil
+	}
+	return pid
+}
+
 func (slf *Application) Start() error {
 	if atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
 		slf.pid = slf.actorSys.Root.Spawn(actor.PropsFromFunc(slf.Receive))
@@ -79,20 +89,21 @@ func (slf *Application) Start() error {
 
 func (slf *Application) Stop() error {
 	if slf.pid == nil {
-		kklog.Errorf("[kkapp] application %s not started", slf.GetNodeId())
-		return nil
+		kklog.Errorf("[kkapp] stop failed. application %s not started", slf.GetNodeId())
+		return kkerrors.ErrAppNotStarted
 	}
-	if atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStoping) {
-		// 等待 Application actor 完全退出，否则进程可能在 Stopping/Stopped 未处理时就退出，看不到日志
-		err := slf.actorSys.Root.StopFuture(slf.pid).Wait()
-		if err != nil {
-			kklog.Errorf("[kkapp] application %s stop error: %v", slf.GetNodeId(), err)
-			return err
-		}
-		atomic.CompareAndSwapInt64(&slf.state, ComponentStateStoping, ComponentStateStoped)
-		slf.pid = nil
-		return nil
+	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStoping) {
+		kklog.Errorf("[kkapp] stop failed. application %s not started", slf.GetNodeId())
+		return kkerrors.ErrAppNotStarted
 	}
+	// 等待 Application actor 完全退出，否则进程可能在 Stopping/Stopped 未处理时就退出，看不到日志
+	err := slf.actorSys.Root.StopFuture(slf.pid).Wait()
+	if err != nil {
+		kklog.Errorf("[kkapp] application %s stop error: %v", slf.GetNodeId(), err)
+		return err
+	}
+	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStoping, ComponentStateStoped)
+	slf.pid = nil
 	return nil
 }
 
@@ -106,6 +117,10 @@ func (slf *Application) AddComponent(comp IComponent) error {
 	if slf.getComponent(comp) != nil {
 		kklog.Errorf("[kkapp] application %s repeat add component %s", slf.GetNodeId(), comp.GetCompName())
 		return kkerrors.ErrComponentAlreadyAdded
+	}
+	if atomic.LoadInt64(&slf.state) != ComponentStateNone {
+		kklog.Errorf("[kkapp] application %s add component %s failed. not none state", slf.GetNodeId(), comp.GetCompName())
+		return kkerrors.ErrAppAddCompMustInNoneState
 	}
 
 	comp.SetApplication(slf)

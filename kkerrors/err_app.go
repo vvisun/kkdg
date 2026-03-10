@@ -17,6 +17,10 @@ var (
 	ErrAppShutdown = errors.New("app is already shutdown")
 	// 应用已启动
 	ErrAppAlreadyStarted = errors.New("app is already started")
+	// 应用未启动
+	ErrAppNotStarted = errors.New("app is not started")
+	// 应用只能在空状态添加组件
+	ErrAppAddCompMustInNoneState = errors.New("app can only add component in none state")
 )
 
 // -------------- for session -------------------

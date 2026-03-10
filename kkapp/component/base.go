@@ -50,16 +50,16 @@ func (slf *Component) GetApplication() IApplication {
 }
 
 func (slf *Component) OnInit() error {
-	kklog.Warn("[kkapp] component 子类未实现OnInit方法")
+	kklog.Debug("[kkapp] component 子类未实现OnInit方法")
 	return nil
 }
 
 func (slf *Component) OnStart() error {
-	kklog.Warn("[kkapp] component 子类未实现OnStart方法")
+	kklog.Debug("[kkapp] component 子类未实现OnStart方法")
 	return nil
 }
 
 func (slf *Component) OnStop() error {
-	kklog.Warn("[kkapp] component 子类未实现OnStop方法")
+	kklog.Debug("[kkapp] component 子类未实现OnStop方法")
 	return nil
 }

@@ -13,6 +13,7 @@ type IApplication interface {
 	actor.Actor
 	GetActorSystem() *actor.ActorSystem
 	GetPID() *actor.PID
+	GetChildPID(actorName string) *actor.PID
 
 	Start() error
 	Stop() error
