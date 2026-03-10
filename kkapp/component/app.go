@@ -97,7 +97,12 @@ func (slf *Application) Start() error {
 	}
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
 	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
-	slf.actorFramework.GetLocator().AddActor(kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName()), slf.pid)
+	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
+	if err != nil {
+		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
+		return err
+	}
+	slf.actorFramework.GetLocator().AddActor(id, slf.pid)
 	return nil
 }
 
@@ -186,14 +191,23 @@ func (slf *Application) Receive(ctx actor.Context) {
 			//atomic.CompareAndSwapInt64(&comp.getBase().state, ComponentStateNone, ComponentStateStarting)
 			slf.mu.Lock()
 			slf.compPIDs[comp.GetCompName()] = pid
-			slf.actorFramework.GetLocator().AddActor(kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName()), pid)
+			id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())
+			if err != nil {
+				kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+				continue
+			}
+			slf.actorFramework.GetLocator().AddActor(id, pid)
 			slf.mu.Unlock()
 		}
 	case *actor.Stopping:
 		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
 	case *actor.Stopped:
 		kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
-		slf.actorFramework.GetLocator().RemoveActor(kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName()))
+		id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
+		if err != nil {
+			kklog.Errorf("[kkapp] application %s remove component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
+		}
+		slf.actorFramework.GetLocator().RemoveActor(id)
 		slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
 	case *actor.Restarting:
 		kklog.Infof("[kkapp] application %s restarting", slf.GetNodeId())

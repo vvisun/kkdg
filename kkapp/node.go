@@ -1,64 +1,16 @@
 package kkapp
 
-import (
-	"strings"
-
-	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/utils/kklog"
-)
-
-const (
-	// 节点ID最大长度
-	maxNodeIDLength int = 16
-	// 节点类型最大长度
-	maxNodeTypeLength int = 16
-)
-
-// nodeId与actorKey的分隔符
-const ActorKeySeparator = "/"
-
-// checkNodeID 检查节点ID是否有效
-func checkNodeID(nodeId string) error {
-	if len(nodeId) < 1 {
-		kklog.Errorf("invalid node id: %s", nodeId)
-		return kkerrors.ErrInvalidNodeID
-	}
-	if len(nodeId) > maxNodeIDLength {
-		kklog.Errorf("node id is too long: %s", nodeId)
-		return kkerrors.ErrInvalidNodeID
-	}
-	if strings.Contains(nodeId, ActorKeySeparator) {
-		kklog.Errorf("node id contains actor key separator: %s", nodeId)
-		return kkerrors.ErrInvalidNodeID
-	}
-	return nil
-}
-
-// checkNodeType 检查节点类型是否有效
-func checkNodeType(nodeType string) error {
-	if len(nodeType) < 1 {
-		kklog.Errorf("invalid node type: %s", nodeType)
-		return kkerrors.ErrInvalidNodeType
-	}
-	if len(nodeType) > maxNodeTypeLength {
-		kklog.Errorf("node type is too long: %s", nodeType)
-		return kkerrors.ErrInvalidNodeType
-	}
-	if strings.Contains(nodeType, ActorKeySeparator) {
-		kklog.Errorf("node type contains actor key separator: %s", nodeType)
-		return kkerrors.ErrInvalidNodeType
-	}
-	return nil
-}
-
 // NewNodeInfo 创建节点信息
 // 一般在启动时，从配置文件中读取节点信息并创建节点信息。
 func NewNodeInfo(nodeId, nodeType, address, rpcAddress string, settings map[string]string) *NodeInfo {
 	if checkNodeID(nodeId) != nil {
-		panic("invalid node id")
+		panic("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
 	}
 	if checkNodeType(nodeType) != nil {
-		panic("invalid node type")
+		panic("invalid node type") //一般都是启动时配置节点信息。非法类型直接panic，避免影响正常启动。
+	}
+	if !IsValidActorNodeId(nodeId) {
+		panic("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
 	}
 	return &NodeInfo{
 		nodeId:     nodeId,
