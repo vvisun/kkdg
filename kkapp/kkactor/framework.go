@@ -13,9 +13,9 @@ import (
 type IActorFramework interface {
 	GetLocator() *ActorLocator
 	GetActorSystem() *actor.ActorSystem
-	Send(target AlphaActorID, msg any) error
-	Request(target AlphaActorID, msg any, timeout time.Duration) (any, error)
-	RequestAsync(target AlphaActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
+	Send(target LucencyActorID, msg any) error
+	Request(target LucencyActorID, msg any, timeout time.Duration) (any, error)
+	RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
 }
 
 var (
@@ -59,7 +59,7 @@ func (slf *ActorFramework) GetActorSystem() *actor.ActorSystem {
 }
 
 // 向指定actor发送消息
-func (slf *ActorFramework) Send(target AlphaActorID, msg any) error {
+func (slf *ActorFramework) Send(target LucencyActorID, msg any) error {
 	pid := slf.locator.GetActor(target)
 	if pid == nil {
 		return kkerrors.ErrActorNotFound
@@ -69,7 +69,7 @@ func (slf *ActorFramework) Send(target AlphaActorID, msg any) error {
 }
 
 // 同步向指定actor发送消息, 等待响应
-func (slf *ActorFramework) Request(target AlphaActorID, msg any, timeout time.Duration) (any, error) {
+func (slf *ActorFramework) Request(target LucencyActorID, msg any, timeout time.Duration) (any, error) {
 	pid := slf.locator.GetActor(target)
 	if pid == nil {
 		return nil, kkerrors.ErrActorNotFound
@@ -83,7 +83,7 @@ func (slf *ActorFramework) Request(target AlphaActorID, msg any, timeout time.Du
 }
 
 // 异步向指定actor发送消息, 不等待响应
-func (slf *ActorFramework) RequestAsync(target AlphaActorID, msg any, timeout time.Duration, callback func(result any, err error)) error {
+func (slf *ActorFramework) RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error {
 	pid := slf.locator.GetActor(target)
 	if pid == nil {
 		return kkerrors.ErrActorNotFound

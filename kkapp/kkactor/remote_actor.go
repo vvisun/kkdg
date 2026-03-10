@@ -20,11 +20,11 @@ type IRemoteActorTransport interface {
 
 	// SetReceiver 注册本节点用于接收远程 actor 消息的回调。
 	// 实现需要在收到来自网络/总线的消息时调用该回调，将消息交给上层（通常由组件负责路由到本地 PID）。
-	SetReceiver(fn func(from AlphaActorID, msg any))
+	SetReceiver(fn func(from LucencyActorID, msg any))
 
 	// TellRemote 将消息发送到目标节点上的某个 actor。
 	// 具体序列化格式可复用 kkapp.GetTransMsgPacket 或自定义。
-	TellRemote(target AlphaActorID, msg any) error
+	TellRemote(target LucencyActorID, msg any) error
 
 	// Close 关闭底层连接、取消订阅等资源。
 	Close() error
