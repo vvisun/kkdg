@@ -8,6 +8,15 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
+// IActorFramework 是 Actor 框架的接口，负责管理 Actor 的创建、销毁、消息路由等。
+type IActorFramework interface {
+	GetLocator() *ActorLocator
+	GetActorSystem() *actor.ActorSystem
+	Send(target RemoteActorID, msg any) error
+	Request(target RemoteActorID, msg any, timeout time.Duration) (any, error)
+	RequestAsync(target RemoteActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
+}
+
 // ActorFramework 是 Actor 框架的核心组件，负责管理 Actor 的创建、销毁、消息路由等。
 type ActorFramework struct {
 	locator  *ActorLocator

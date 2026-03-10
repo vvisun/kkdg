@@ -27,12 +27,13 @@ var _ kkapp.IApplication = (*Application)(nil)
 
 // new application.
 // each application is a node, a actor
+// 接受一个ActorFramework参数，方便测试时构建模拟不同情景。
 func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFramework) *Application {
 	if nodeInfo == nil {
 		panic("nodeInfo is nil")
 	}
 	if actorFramework == nil {
-		actorFramework = kkactor.NewActorFramework(kkactor.GetGlobalActorLocator(), actor.NewActorSystem())
+		actorFramework = kkactor.GetGlobalActorFramework()
 	}
 	actorFramework.GetLocator().AddNode(nodeInfo)
 	app := &Application{
@@ -44,6 +45,10 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFrame
 	}
 	kklog.Infof("[kkapp] new application nodeId: %s, nodeType: %s", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
+}
+
+func (slf *Application) GetCompName() string {
+	return slf.nodeInfo.GetNodeId()
 }
 
 func (slf *Application) SetConfigDir(configDir string) {
@@ -66,8 +71,8 @@ func (slf *Application) GetNodeType() string {
 	return slf.nodeInfo.GetNodeType()
 }
 
-func (slf *Application) GetActorSystem() *actor.ActorSystem {
-	return slf.actorFramework.GetActorSystem()
+func (slf *Application) GetActorFramework() *kkactor.ActorFramework {
+	return slf.actorFramework
 }
 
 func (slf *Application) GetPID() *actor.PID {
@@ -92,6 +97,10 @@ func (slf *Application) Start() error {
 	}
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
 	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
+	slf.actorFramework.GetLocator().AddActor(kkactor.RemoteActorID{
+		NodeID:   slf.GetNodeId(),
+		ActorKey: slf.GetCompName(),
+	}, slf.pid)
 	return nil
 }
 
@@ -180,6 +189,10 @@ func (slf *Application) Receive(ctx actor.Context) {
 			//atomic.CompareAndSwapInt64(&comp.getBase().state, ComponentStateNone, ComponentStateStarting)
 			slf.mu.Lock()
 			slf.compPIDs[comp.GetCompName()] = pid
+			slf.actorFramework.GetLocator().AddActor(kkactor.RemoteActorID{
+				NodeID:   slf.GetNodeId(),
+				ActorKey: comp.GetCompName(),
+			}, pid)
 			slf.mu.Unlock()
 		}
 	case *actor.Stopping:

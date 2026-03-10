@@ -16,7 +16,6 @@ type IApplication interface {
 	GetNodeInfo() *NodeInfo
 
 	actor.Actor
-	GetActorSystem() *actor.ActorSystem
 	GetPID() *actor.PID
 	GetChildPID(actorName string) *actor.PID
 

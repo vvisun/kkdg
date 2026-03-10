@@ -38,10 +38,17 @@ func GetActorId(actorName string) RemoteActorID {
 
 //----------------------------------------------------------
 
-var globalActorLocator *ActorLocator = NewActorLocator()
+var (
+	globalActorFramework *ActorFramework
+	onceActorFramework   sync.Once
+)
 
-func GetGlobalActorLocator() *ActorLocator {
-	return globalActorLocator
+// 获取全局Actor框架, 线上一般用全局即可，避免混乱。
+func GetGlobalActorFramework() *ActorFramework {
+	onceActorFramework.Do(func() {
+		globalActorFramework = NewActorFramework(NewActorLocator(), actor.NewActorSystem())
+	})
+	return globalActorFramework
 }
 
 // Actor寻址系统

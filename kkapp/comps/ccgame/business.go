@@ -32,7 +32,6 @@ func NewGameComponent(opt Option) *gameComponent {
 // 业务服：游戏服
 type gameComponent struct {
 	component.Component
-	pid            *actor.PID
 	discovery      kkdiscovery.IDiscovery
 	cluster        kkcluster.ICluster
 	msgReceiver    *msgreceiver.MsgReceiver[string]
@@ -119,10 +118,6 @@ func (slf *gameComponent) OnStop() error {
 		if err := slf.discovery.Stop(); err != nil {
 			kklog.Errorf("[ccgame] stop discovery error: %v", err)
 		}
-	}
-	if slf.pid != nil {
-		slf.GetApplication().GetActorSystem().Root.Stop(slf.pid)
-		slf.pid = nil
 	}
 	return nil
 }
