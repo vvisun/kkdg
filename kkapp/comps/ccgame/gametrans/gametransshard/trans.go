@@ -83,13 +83,17 @@ func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte
 	if len(packet) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
+	var loopErr error
 	for _, sessionID := range sessionIDs {
 		if sessionID == "" {
 			continue
 		}
-		slf.ForwardToClient(sessionID, packet)
+		err := slf.ForwardToClient(sessionID, packet)
+		if err != nil {
+			loopErr = err
+		}
 	}
-	return nil
+	return loopErr
 }
 
 func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
