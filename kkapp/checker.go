@@ -61,7 +61,6 @@ func isASCIIAlpha(s string) bool {
 
 // checkNodeID 检查节点ID是否有效
 // 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
-// 只是可读性层面的考虑，技术实现上并无任何强制要求。
 func checkNodeID(nodeId string) error {
 	if len(nodeId) < 1 {
 		kklog.Errorf("invalid node id: %s", nodeId)
@@ -80,7 +79,6 @@ func checkNodeID(nodeId string) error {
 
 // checkNodeType 检查节点类型是否有效
 // 只允许英文字母，例如 "logic"、"chat"、"gate"。
-// 只是可读性层面的考虑，技术实现上并无任何强制要求。
 func checkNodeType(nodeType string) error {
 	if len(nodeType) < 1 {
 		kklog.Errorf("invalid node type: %s", nodeType)
@@ -98,7 +96,6 @@ func checkNodeType(nodeType string) error {
 }
 
 // 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
-// 只是可读性层面的考虑，技术实现上并无任何强制要求。
 func IsValidActorNodeId(nodeId string) bool {
 	if nodeId == "" {
 		return true //允许空字符串，表示本地Actor
@@ -107,7 +104,7 @@ func IsValidActorNodeId(nodeId string) bool {
 }
 
 // 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
-// 一般用_分隔层级，只是可读性层面的考虑，技术实现上并无任何强制要求。
+// 一般用_分隔层级。
 func IsValidActorKey(actorKey string) bool {
 	return isASCIIAlphaNumericUnderscoreHyphen(actorKey)
 }
