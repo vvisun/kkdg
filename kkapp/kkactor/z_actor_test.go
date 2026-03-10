@@ -23,7 +23,9 @@ func TestNewLucencyActorID(t *testing.T) {
 	}{
 		{"valid_empty_node", "", "game_main", nil},
 		{"valid_with_node", "game1", "game_player", nil},
-		{"invalid_node_underscore", "node_1", "gate_router", kkerrors.ErrActorInvalidNodeId},
+		{"valid_node_underscore", "node_1", "gate_router", nil},
+		{"valid_node_hyphen", "node-1", "gate_router", nil},
+		{"valid_actor_key_hyphen", "game1", "gate-router", nil},
 		{"invalid_actor_key_empty", "", "", kkerrors.ErrActorInvalidActorKey},
 		{"invalid_actor_key_slash", "game1", "game/player", kkerrors.ErrActorInvalidActorKey},
 		{"invalid_node_slash", "game/1", "game_main", kkerrors.ErrActorInvalidNodeId},
@@ -131,11 +133,18 @@ func TestActorLocator_AddActor_Invalid(t *testing.T) {
 	}{
 		{"invalid_key", LucencyActorID{nodeID: "", actorKey: "a/b"}, pid, kkerrors.ErrActorInvalidActorKey},
 		{"invalid_node", LucencyActorID{nodeID: "a/b", actorKey: "ok"}, pid, kkerrors.ErrActorInvalidNodeId},
+		{"valid_hyphenated_key", LucencyActorID{nodeID: "node-1", actorKey: "ok-key"}, pid, nil},
 		{"nil_pid", LucencyActorID{nodeID: "", actorKey: "ok"}, nil, kkerrors.ErrActorAddInvalidPID},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := loc.AddActor(tt.id, tt.pid)
+			if tt.want == nil {
+				if err != nil {
+					t.Errorf("AddActor = %v, want nil", err)
+				}
+				return
+			}
 			if err == nil || !errors.Is(err, tt.want) {
 				t.Errorf("AddActor = %v, want %v", err, tt.want)
 			}

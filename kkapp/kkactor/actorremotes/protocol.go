@@ -2,7 +2,6 @@ package actorremotes
 
 import (
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
@@ -27,26 +26,10 @@ type ResponseEnvelope struct {
 	Error       string
 }
 
-func ParseTarget(targetActorName string) (*ActorRef, error) {
-	nodeID, actorKey, found := strings.Cut(targetActorName, kkapp.ActorKeySep_NodeAndActor)
-	if !found || nodeID == "" || !kkapp.IsValidActorNodeId(nodeID) || !kkapp.IsValidActorKey(actorKey) {
-		return nil, kkerrors.ErrActorRemoteInvalidTarget
-	}
-	return &ActorRef{
-		NodeID:   nodeID,
-		ActorKey: actorKey,
-	}, nil
-}
-
+// IsValid 校验远程目标是否合法。
+// 远程协议要求 NodeID 非空；空 NodeID 仅用于进程内本地 actor 标识。
 func (ref ActorRef) IsValid() bool {
 	return ref.NodeID != "" && kkapp.IsValidActorNodeId(ref.NodeID) && kkapp.IsValidActorKey(ref.ActorKey)
-}
-
-func (ref ActorRef) ActorName() string {
-	if !ref.IsValid() {
-		return ""
-	}
-	return ref.NodeID + kkapp.ActorKeySep_NodeAndActor + ref.ActorKey
 }
 
 func BuildRequestEnvelope(target ActorRef, msg any, timeout time.Duration) (*RequestEnvelope, error) {
@@ -113,4 +96,3 @@ func DecodeResponseEnvelope(data []byte) (any, error) {
 	}
 	return DecodeMessage(resp.MessageType, resp.Payload)
 }
-

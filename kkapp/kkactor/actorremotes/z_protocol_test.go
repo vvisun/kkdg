@@ -4,8 +4,6 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/vvisun/kkdg/kkerrors"
 )
 
 type protoReq struct {
@@ -14,24 +12,6 @@ type protoReq struct {
 
 type protoRsp struct {
 	Value string
-}
-
-func TestParseTarget(t *testing.T) {
-	target, err := ParseTarget("node1/echo_actor")
-	if err != nil {
-		t.Fatalf("ParseTarget: %v", err)
-	}
-	if target.NodeID != "node1" || target.ActorKey != "echo_actor" {
-		t.Fatalf("target = %+v", target)
-	}
-	if target.ActorName() != "node1/echo_actor" {
-		t.Fatalf("actor name = %q", target.ActorName())
-	}
-
-	_, err = ParseTarget("bad-target")
-	if err == nil || !errors.Is(err, kkerrors.ErrActorRemoteInvalidTarget) {
-		t.Fatalf("ParseTarget invalid err = %v", err)
-	}
 }
 
 func TestEncodeDecodeRequestEnvelope(t *testing.T) {

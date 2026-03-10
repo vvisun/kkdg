@@ -33,6 +33,19 @@ func isASCIIAlphaNumeric(s string) bool {
 	return true
 }
 
+func isASCIIAlphaNumericUnderscoreHyphen(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, ch := range s {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 func isASCIIAlpha(s string) bool {
 	if s == "" {
 		return false
@@ -46,21 +59,9 @@ func isASCIIAlpha(s string) bool {
 	return true
 }
 
-func isASCIIAlphaNumericUnderscore(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, ch := range s {
-		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' {
-			continue
-		}
-		return false
-	}
-	return true
-}
-
 // checkNodeID 检查节点ID是否有效
-// 只允许【英文字母、数字】组合，例如 "game1"、"game2"
+// 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
+// 只是可读性层面的考虑，技术实现上并无任何强制要求。
 func checkNodeID(nodeId string) error {
 	if len(nodeId) < 1 {
 		kklog.Errorf("invalid node id: %s", nodeId)
@@ -70,15 +71,16 @@ func checkNodeID(nodeId string) error {
 		kklog.Errorf("node id is too long: %s", nodeId)
 		return kkerrors.ErrInvalidNodeID
 	}
-	if !isASCIIAlphaNumeric(nodeId) {
-		kklog.Errorf("node id must be alphanumeric: %s", nodeId)
+	if !isASCIIAlphaNumericUnderscoreHyphen(nodeId) {
+		kklog.Errorf("node id must contain only letters, digits, underscore, or hyphen: %s", nodeId)
 		return kkerrors.ErrInvalidNodeID
 	}
 	return nil
 }
 
 // checkNodeType 检查节点类型是否有效
-// 只允许英文字母，例如 "logic"、"chat"、"gate"
+// 只允许英文字母，例如 "logic"、"chat"、"gate"。
+// 只是可读性层面的考虑，技术实现上并无任何强制要求。
 func checkNodeType(nodeType string) error {
 	if len(nodeType) < 1 {
 		kklog.Errorf("invalid node type: %s", nodeType)
@@ -95,16 +97,17 @@ func checkNodeType(nodeType string) error {
 	return nil
 }
 
-// 只允许【英文字母、数字】组合，例如 "game1"、"game2"
+// 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
+// 只是可读性层面的考虑，技术实现上并无任何强制要求。
 func IsValidActorNodeId(nodeId string) bool {
 	if nodeId == "" {
 		return true //允许空字符串，表示本地Actor
 	}
-	return isASCIIAlphaNumeric(nodeId)
+	return isASCIIAlphaNumericUnderscoreHyphen(nodeId)
 }
 
-// 只允许【英文字母、数字、下划线("_")】组合，例如 "game_player"、"gate_router"
-// 一般用_分隔层级，不过不强制要求，上层逻辑已经有规范拼接接口。
+// 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
+// 一般用_分隔层级，只是可读性层面的考虑，技术实现上并无任何强制要求。
 func IsValidActorKey(actorKey string) bool {
-	return isASCIIAlphaNumericUnderscore(actorKey)
+	return isASCIIAlphaNumericUnderscoreHyphen(actorKey)
 }
