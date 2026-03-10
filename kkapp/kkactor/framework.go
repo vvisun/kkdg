@@ -32,7 +32,7 @@ func GetGlobalActorFramework() *ActorFramework {
 }
 
 func NewActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
-	return actor.NewActorSystem()
+	return actor.NewActorSystem(options...)
 }
 
 //-------------------------------------------------------------------------
