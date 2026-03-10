@@ -2,6 +2,7 @@ package component
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
@@ -19,22 +20,25 @@ func GetComponentName(comp IComponent) string {
 type ComponentState = int64
 
 const (
-	ComponentStateNone           ComponentState = iota //组件未初始化
-	ComponentStateInit                                 //组件初始化中
-	ComponentStateAfterInit                            //组件初始化后
-	ComponentStateBeforeShutdown                       //组件关闭前
-	ComponentStateShutdown                             //组件已关闭
+	ComponentStateNone     ComponentState = iota //组件未初始化
+	ComponentStateStarting                       //组件启动中
+	ComponentStateStarted                        //组件已启动
+	ComponentStateStoping                        //组件停止中
+	ComponentStateStoped                         //组件已停止
 )
 
 type Component struct {
-	id  string
-	app IApplication
+	app  IApplication
+	pid  *actor.PID
+	self *Component
 }
 
-var _ IComponent = (*Component)(nil)
+func (slf *Component) setPID(pid *actor.PID) {
+	slf.pid = pid
+}
 
-func (slf *Component) GetCompName() string {
-	return slf.id
+func (slf *Component) GetPID() *actor.PID {
+	return slf.pid
 }
 
 func (slf *Component) SetApplication(app IApplication) {
@@ -45,33 +49,17 @@ func (slf *Component) GetApplication() IApplication {
 	return slf.app
 }
 
-// Init was called to initialize the component.
-func (slf *Component) Init() error {
+func (slf *Component) OnInit() error {
+	kklog.Warn("[kkapp] component 子类未实现OnInit方法")
 	return nil
 }
 
-// Start was called to start the component.
-func (slf *Component) Start() error {
+func (slf *Component) OnStart() error {
+	kklog.Warn("[kkapp] component 子类未实现OnStart方法")
 	return nil
 }
 
-// Stop was called to stop the component.
-func (slf *Component) Stop() error {
+func (slf *Component) OnStop() error {
+	kklog.Warn("[kkapp] component 子类未实现OnStop方法")
 	return nil
-}
-
-func (slf *Component) Equal(other IComponent) bool {
-	return IsEqual(slf, other)
-}
-
-var _ actor.Actor = (*Component)(nil)
-
-// implement actor.Actor
-//
-//	每个组件视为1个actor。这样，我们可以做到：
-//	组件挂接到任意节点上时，都能实现透明化。
-//	单机部署，集群部署都无需修改逻辑。
-//	调整组件所属节点时，也无需修改逻辑。
-func (slf *Component) Receive(context actor.Context) {
-
 }

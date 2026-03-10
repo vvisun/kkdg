@@ -12,27 +12,33 @@ import (
 
 // each application is a node. each node is a process.
 type Application struct {
-	nodeInfo  *kkapp.NodeInfo
-	actorSys  *actor.ActorSystem
-	compList  []IComponent
-	mu        sync.RWMutex
-	stoping   atomic.Bool
+	nodeInfo *kkapp.NodeInfo
+	actorSys *actor.ActorSystem
+	pid      *actor.PID
+	state    ComponentState
+	compList []IComponent
+	compPIDs map[string]*actor.PID
+	mu       sync.RWMutex
+
 	configDir string // 配置文件所在目录
 }
 
 var _ IApplication = (*Application)(nil)
 
 // new application.
-// each application is a node. each node is a process.
+// each application is a node, a actor
 func NewApplication(nodeInfo *kkapp.NodeInfo) *Application {
 	if nodeInfo == nil {
 		panic("nodeInfo is nil")
 	}
-	return &Application{
+	app := &Application{
 		nodeInfo: nodeInfo,
 		actorSys: actor.NewActorSystem(),
+		state:    ComponentStateNone,
 		compList: make([]IComponent, 0),
+		compPIDs: make(map[string]*actor.PID),
 	}
+	return app
 }
 
 func (slf *Application) SetConfigDir(configDir string) {
@@ -59,56 +65,52 @@ func (slf *Application) GetActorSystem() *actor.ActorSystem {
 	return slf.actorSys
 }
 
+func (slf *Application) GetPID() *actor.PID {
+	return slf.pid
+}
+
 func (slf *Application) Start() error {
-	nodeId := slf.nodeInfo.GetNodeId()
-	kklog.Infof("[kkapp] application [%s,%s] starting", nodeId, slf.nodeInfo.GetNodeType())
-	slf.mu.RLock()
-	compList := slf.compList
-	slf.mu.RUnlock()
-	for _, comp := range compList {
-		if err := comp.Start(); err != nil {
-			kklog.Errorf("[kkapp] application %s start component %s error: %v", nodeId, comp.GetCompName(), err)
-			return err
-		}
-		kklog.Infof("[kkapp] application %s start component %s success", nodeId, comp.GetCompName())
+	if atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
+		slf.pid = slf.actorSys.Root.Spawn(actor.PropsFromFunc(slf.Receive))
+		return nil
 	}
-	kklog.Infof("[kkapp] application [%s,%s] started", nodeId, slf.nodeInfo.GetNodeType())
-	return nil
+	return kkerrors.ErrAppAlreadyStarted
 }
 
 func (slf *Application) Stop() error {
-	if !slf.stoping.CompareAndSwap(false, true) {
-		return nil // already stopping
+	if slf.pid == nil {
+		kklog.Errorf("[kkapp] application %s not started", slf.GetNodeId())
+		return nil
 	}
-	nodeId := slf.nodeInfo.GetNodeId()
-	kklog.Infof("[kkapp] application [%s,%s] stopping", nodeId, slf.nodeInfo.GetNodeType())
-	slf.mu.RLock()
-	compList := slf.compList
-	slf.mu.RUnlock()
-	for i := len(compList) - 1; i >= 0; i-- {
-		if err := compList[i].Stop(); err != nil {
-			kklog.Errorf("[kkapp] application %s stop component %s error: %v", nodeId, compList[i].GetCompName(), err)
+	if atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStoping) {
+		// 等待 Application actor 完全退出，否则进程可能在 Stopping/Stopped 未处理时就退出，看不到日志
+		err := slf.actorSys.Root.StopFuture(slf.pid).Wait()
+		if err != nil {
+			kklog.Errorf("[kkapp] application %s stop error: %v", slf.GetNodeId(), err)
+			return err
 		}
-		kklog.Infof("[kkapp] application %s stop component %s success", nodeId, compList[i].GetCompName())
+		atomic.CompareAndSwapInt64(&slf.state, ComponentStateStoping, ComponentStateStoped)
+		slf.pid = nil
+		return nil
 	}
-	kklog.Infof("[kkapp] application [%s,%s] stopped", nodeId, slf.nodeInfo.GetNodeType())
 	return nil
 }
 
+// 将comp作为一个子actor添加到application中
+//
+// 注意:
+//
+//	-启动顺序和添加顺序相反，先添加的后启动；
+//	-停止顺序和启动顺序相反，先启动的后停止；
 func (slf *Application) AddComponent(comp IComponent) error {
-	if slf.stoping.Load() {
-		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), kkerrors.ErrAppShutdown)
-		return kkerrors.ErrAppShutdown
-	}
-	if slf.HasComponent(comp) {
-		kklog.Errorf("[kkapp] application %s add component %s repeat: %v", slf.GetNodeId(), comp.GetCompName(), kkerrors.ErrComponentAlreadyAdded)
+	if slf.getComponent(comp) != nil {
+		kklog.Errorf("[kkapp] application %s repeat add component %s", slf.GetNodeId(), comp.GetCompName())
 		return kkerrors.ErrComponentAlreadyAdded
 	}
-	comp.SetApplication(slf)
 
-	// Initialize the component before adding it to the list, so a failed init
-	// won't leave a half-added component inside the application.
-	if err := comp.Init(); err != nil {
+	comp.SetApplication(slf)
+	err := comp.OnInit()
+	if err != nil {
 		kklog.Errorf("[kkapp] application %s init component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
 		return err
 	}
@@ -116,22 +118,47 @@ func (slf *Application) AddComponent(comp IComponent) error {
 	slf.mu.Lock()
 	slf.compList = append(slf.compList, comp)
 	slf.mu.Unlock()
+	kklog.Infof("[kkapp] application %s add component %s", slf.GetNodeId(), comp.GetCompName())
 	return nil
 }
 
-func (slf *Application) HasComponent(comp IComponent) bool {
+func (slf *Application) getComponent(comp IComponent) IComponent {
 	slf.mu.RLock()
 	defer slf.mu.RUnlock()
 	for _, c := range slf.compList {
 		if IsEqual(c, comp) {
-			return true
+			return comp
 		}
 	}
-	return false
+	return nil
 }
 
-func (slf *Application) GetComponents() []IComponent {
-	slf.mu.RLock()
-	defer slf.mu.RUnlock()
-	return slf.compList
+func (slf *Application) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
+	case *actor.Started:
+		if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStarted) {
+			kklog.Errorf("[kkapp] application %s already started", slf.GetNodeId())
+			return
+		}
+		kklog.Infof("[kkapp] application %s started", slf.GetNodeId())
+		slf.mu.RLock()
+		comps := make([]IComponent, len(slf.compList))
+		copy(comps, slf.compList)
+		slf.mu.RUnlock()
+		for _, comp := range comps {
+			props := actor.PropsFromFunc(comp.Receive)
+			pid := ctx.Spawn(props)
+			comp.setPID(pid)
+			//atomic.CompareAndSwapInt64(&comp.getBase().state, ComponentStateNone, ComponentStateStarting)
+			slf.mu.Lock()
+			slf.compPIDs[comp.GetCompName()] = pid
+			slf.mu.Unlock()
+		}
+	case *actor.Stopping:
+		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
+	case *actor.Stopped:
+		kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
+	case *actor.Restarting:
+		kklog.Infof("[kkapp] application %s restarting", slf.GetNodeId())
+	}
 }

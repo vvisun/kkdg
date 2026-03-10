@@ -46,6 +46,10 @@ type Module struct {
 
 var _ IModule = (*Module)(nil)
 
+func (m *Module) getBaseModule() IModule {
+	return m
+}
+
 func (m *Module) AddModule(module IModule) (uint32, error) {
 	pAddModule := module.getBaseModule().(*Module)
 	if pAddModule.GetModuleId() == 0 {
@@ -72,23 +76,23 @@ func (m *Module) AddModule(module IModule) (uint32, error) {
 	if err != nil {
 		delete(m.ancestor.getBaseModule().(*Module).descendants, module.GetModuleId())
 		m.childs = m.childs[:len(m.childs)-1]
-		kklog.Errorf("module OnInit error: %v", err)
+		kklog.Errorf("[kkmodule] module %s OnInit error: %v", module.GetModuleName(), err)
 		return 0, err
 	}
 
-	kklog.Debugf("Add module %s completed", module.GetModuleName())
+	kklog.Debugf("[kkmodule] add module %s completed", module.GetModuleName())
 	return module.GetModuleId(), nil
 }
 
 func (m *Module) ReleaseModule(moduleId uint32) {
 	curMod := m.GetModule(moduleId)
 	if curMod == nil {
-		kklog.Debugf("ReleaseModule %d not found", moduleId)
+		kklog.Debugf("[kkmodule] release module %d not found", moduleId)
 		return
 	}
 	pModule := curMod.getBaseModule().(*Module)
 	pModule.self.OnRelease()
-	kklog.Debugf("ReleaseModule %s", pModule.GetModuleName())
+	kklog.Debugf("[kkmodule] release module %s", pModule.GetModuleName())
 
 	for i := len(pModule.childs) - 1; i >= 0; i-- {
 		m.ReleaseModule(pModule.childs[i].GetModuleId())
@@ -106,6 +110,14 @@ func (m *Module) ReleaseModule(moduleId uint32) {
 	pModule.childs = nil
 	pModule.ancestor = nil
 	pModule.descendants = nil
+}
+
+func (m *Module) GetModule(moduleId uint32) IModule {
+	iModule, ok := m.GetAncestor().getBaseModule().(*Module).descendants[moduleId]
+	if !ok {
+		return nil
+	}
+	return iModule
 }
 
 func (m *Module) GetModuleId() uint32 {
@@ -130,25 +142,15 @@ func (m *Module) GetAncestor() IModule {
 	return m.ancestor
 }
 
-func (m *Module) GetModule(moduleId uint32) IModule {
-	iModule, ok := m.GetAncestor().getBaseModule().(*Module).descendants[moduleId]
-	if !ok {
-		return nil
-	}
-	return iModule
-}
-
 func (m *Module) GetParent() IModule {
 	return m.parent
 }
 
 func (m *Module) OnInit() error {
+	kklog.Debugf("[kkmodule] module %s on init", m.GetModuleName())
 	return nil
 }
 
 func (m *Module) OnRelease() {
-}
-
-func (m *Module) getBaseModule() IModule {
-	return m
+	kklog.Debugf("[kkmodule] module %s on release", m.GetModuleName())
 }

@@ -3,6 +3,7 @@ package ccgate
 import (
 	"errors"
 
+	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
@@ -41,6 +42,17 @@ func (slf *gateComponent) GetCompName() string {
 
 var _ component.IComponent = (*gateComponent)(nil)
 
+var _ actor.Actor = (*gateComponent)(nil)
+
+func (slf *gateComponent) Receive(context actor.Context) {
+	switch context.Message().(type) {
+	case *actor.Started:
+		slf.OnStart()
+	case *actor.Stopping:
+		slf.OnStop()
+	}
+}
+
 // NewGateComponent creates a new gate component.
 func NewGateComponent(opt Option) *gateComponent {
 	if err := validateOption(&opt); err != nil {
@@ -53,7 +65,7 @@ func NewGateComponent(opt Option) *gateComponent {
 	}
 }
 
-func (slf *gateComponent) Init() error {
+func (slf *gateComponent) OnInit() error {
 	// defaults
 	if slf.opt.LogicNodeType == "" {
 		slf.opt.LogicNodeType = kkapp.NodeTypeLogic
@@ -98,7 +110,7 @@ func (slf *gateComponent) Init() error {
 	return nil
 }
 
-func (slf *gateComponent) Start() error {
+func (slf *gateComponent) OnStart() error {
 	if slf.opt.WSAddr != "" {
 		if err := slf.startWSServer(); err != nil {
 			return err
@@ -124,7 +136,7 @@ func (slf *gateComponent) Start() error {
 	return nil
 }
 
-func (slf *gateComponent) Stop() error {
+func (slf *gateComponent) OnStop() error {
 	// 停止 cluster
 	if slf.cluster != nil {
 		slf.cluster.Stop()

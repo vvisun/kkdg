@@ -47,7 +47,18 @@ func (slf *gameComponent) GetCompName() string {
 
 var _ component.IComponent = (*gameComponent)(nil)
 
-func (slf *gameComponent) Init() error {
+var _ actor.Actor = (*gameComponent)(nil)
+
+func (slf *gameComponent) Receive(context actor.Context) {
+	switch context.Message().(type) {
+	case *actor.Started:
+		slf.OnStart()
+	case *actor.Stopping:
+		slf.OnStop()
+	}
+}
+
+func (slf *gameComponent) OnInit() error {
 	// 初始化 discovery
 	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.DiscoveryUrl))
 	slf.discovery = dnats.NewNatsDiscovery(
@@ -86,7 +97,7 @@ func (slf *gameComponent) Init() error {
 	return nil
 }
 
-func (slf *gameComponent) Start() error {
+func (slf *gameComponent) OnStart() error {
 	if slf.discovery != nil {
 		if err := slf.discovery.Start(); err != nil {
 			return err
@@ -100,7 +111,7 @@ func (slf *gameComponent) Start() error {
 	return nil
 }
 
-func (slf *gameComponent) Stop() error {
+func (slf *gameComponent) OnStop() error {
 	if slf.cluster != nil {
 		slf.cluster.Stop()
 	}

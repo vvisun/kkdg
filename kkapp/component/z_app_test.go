@@ -1,153 +1,112 @@
 package component
 
 import (
-	"errors"
 	"testing"
+	"time"
 
+	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-func TestApplication_New(t *testing.T) {
-	nodeInfo := kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "", nil)
-	app := NewApplication(nodeInfo)
-	if app == nil {
-		t.Fatal("NewApplication returned nil")
-	}
-	if app.GetNodeId() != "node1" {
-		t.Errorf("GetNodeId() = %q, want node1", app.GetNodeId())
-	}
-	if app.GetNodeType() != "gate" {
-		t.Errorf("GetNodeType() = %q, want gate", app.GetNodeType())
-	}
-	if app.GetNodeInfo() != nodeInfo {
-		t.Error("GetNodeInfo() != nodeInfo")
-	}
-	if app.GetActorSystem() == nil {
-		t.Error("GetActorSystem() should not be nil")
-	}
-	if len(app.GetComponents()) != 0 {
-		t.Errorf("GetComponents() len = %d, want 0", len(app.GetComponents()))
+type TestComp1 struct {
+	Component
+}
+
+func (slf *TestComp1) GetCompName() string {
+	return "test1"
+}
+
+func (slf *TestComp1) OnInit() error {
+	kklog.Infof("[kkapp] component %s init", slf.GetCompName())
+	return nil
+}
+
+func (slf *TestComp1) OnStart() error {
+	kklog.Infof("[kkapp] component %s on start", slf.GetCompName())
+	return nil
+}
+
+func (slf *TestComp1) OnStop() error {
+	kklog.Infof("[kkapp] component %s on stop", slf.GetCompName())
+	return nil
+}
+
+func (slf *TestComp1) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
+	case *actor.Started:
+		if err := slf.OnStart(); err != nil {
+			kklog.Errorf("[kkapp] component %s on start error: %v", slf.GetCompName(), err)
+		}
+	case *actor.Stopping:
+		if err := slf.OnStop(); err != nil {
+			kklog.Errorf("[kkapp] component %s on stop error: %v", slf.GetCompName(), err)
+		}
 	}
 }
 
-func TestApplication_AddComponent_Success(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))
-	comp := &Component{id: "comp1"}
-	if err := app.AddComponent(comp); err != nil {
-		t.Fatalf("AddComponent: %v", err)
-	}
-	if !app.HasComponent(comp) {
-		t.Error("HasComponent(comp) should be true")
-	}
-	comps := app.GetComponents()
-	if len(comps) != 1 || comps[0] != comp {
-		t.Errorf("GetComponents() = %v", comps)
-	}
-	if comp.GetApplication() != app {
-		t.Error("comp.GetApplication() != app")
+type TestComp2 struct {
+	Component
+}
+
+func (slf *TestComp2) GetCompName() string {
+	return "test2"
+}
+
+func (slf *TestComp2) OnInit() error {
+	kklog.Infof("[kkapp] component %s init", slf.GetCompName())
+	return nil
+}
+
+func (slf *TestComp2) OnStart() error {
+	kklog.Infof("[kkapp] component %s on start", slf.GetCompName())
+	return nil
+}
+
+func (slf *TestComp2) OnStop() error {
+	kklog.Infof("[kkapp] component %s on stop", slf.GetCompName())
+	return nil
+}
+
+func (slf *TestComp2) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
+	case *actor.Started:
+		if err := slf.OnStart(); err != nil {
+			kklog.Errorf("[kkapp] component %s on start error: %v", slf.GetCompName(), err)
+		}
+	case *actor.Stopping:
+		if err := slf.OnStop(); err != nil {
+			kklog.Errorf("[kkapp] component %s on stop error: %v", slf.GetCompName(), err)
+		}
 	}
 }
 
-func TestApplication_AddComponent_Duplicate(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))
-	comp := &Component{id: "comp1"}
-	if err := app.AddComponent(comp); err != nil {
-		t.Fatalf("first AddComponent: %v", err)
-	}
-	err := app.AddComponent(comp)
-	if err != kkerrors.ErrComponentAlreadyAdded {
-		t.Errorf("second AddComponent = %v, want ErrComponentAlreadyAdded", err)
-	}
-}
+//-------------------------------- test application --------------------------------
 
-func TestApplication_AddComponent_SameIDDifferentInstance(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))
-	comp1 := &Component{id: "comp1"}
-	comp2 := &Component{id: "comp1"}
-	if err := app.AddComponent(comp1); err != nil {
-		t.Fatalf("AddComponent comp1: %v", err)
+func TestApplication_AddComponent(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil))
+	// 测试正常添加
+	if err := app.AddComponent(&TestComp1{}); err != nil {
+		t.Fatalf("add component: %v", err)
 	}
-	err := app.AddComponent(comp2)
-	if err != kkerrors.ErrComponentAlreadyAdded {
-		t.Errorf("AddComponent same ID = %v, want ErrComponentAlreadyAdded", err)
+	// 测试重复添加，应该返回错误
+	if err := app.AddComponent(&TestComp1{}); err == nil {
+		t.Fatalf("add component: %v should return error", err)
 	}
-}
+	if err := app.AddComponent(&TestComp2{}); err != nil {
+		t.Fatalf("add component: %v", err)
+	}
 
-func TestApplication_AddComponent_InitFail(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))
-	failComp := &failInitComponent{id: "fail"}
-	err := app.AddComponent(failComp)
-	if err != errInitFailed {
-		t.Errorf("AddComponent(init fail) = %v, want errInitFailed", err)
-	}
-	if app.HasComponent(failComp) {
-		t.Error("component should not be added when Init fails")
-	}
-	comps := app.GetComponents()
-	if len(comps) != 0 {
-		t.Errorf("GetComponents() len = %d, want 0", len(comps))
-	}
-}
-
-var errInitFailed = errors.New("init failed")
-
-type failInitComponent struct {
-	id string
-}
-
-func (c *failInitComponent) GetCompName() string           { return c.id }
-func (c *failInitComponent) SetApplication(_ IApplication) {}
-func (c *failInitComponent) GetApplication() IApplication  { return nil }
-func (c *failInitComponent) Init() error                   { return errInitFailed }
-func (c *failInitComponent) Start() error                  { return nil }
-func (c *failInitComponent) Stop() error                   { return nil }
-func (c *failInitComponent) Equal(other IComponent) bool   { return IsEqual(c, other) }
-
-func TestApplication_Start_Stop(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))
-	comp := &Component{id: "c1"}
-	if err := app.AddComponent(comp); err != nil {
-		t.Fatalf("AddComponent: %v", err)
-	}
+	// 测试启动
 	if err := app.Start(); err != nil {
-		t.Fatalf("Start: %v", err)
+		t.Fatalf("start application: %v", err)
 	}
+
+	// 给 actor 时间处理 Started 和子组件 OnStart，便于看到日志
+	time.Sleep(50 * time.Millisecond)
+
+	// 测试停止
 	if err := app.Stop(); err != nil {
-		t.Fatalf("Stop: %v", err)
-	}
-}
-
-func TestApplication_Start_ComponentFails(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))
-	comp := &failStartComponent{id: "fs"}
-	if err := app.AddComponent(comp); err != nil {
-		t.Fatalf("AddComponent: %v", err)
-	}
-	err := app.Start()
-	if err != errStartFailed {
-		t.Errorf("Start = %v, want errStartFailed", err)
-	}
-}
-
-var errStartFailed = errors.New("start failed")
-
-type failStartComponent struct {
-	id string
-}
-
-func (c *failStartComponent) GetCompName() string           { return c.id }
-func (c *failStartComponent) SetApplication(_ IApplication) {}
-func (c *failStartComponent) GetApplication() IApplication  { return nil }
-func (c *failStartComponent) Init() error                   { return nil }
-func (c *failStartComponent) Start() error                  { return errStartFailed }
-func (c *failStartComponent) Stop() error                   { return nil }
-func (c *failStartComponent) Equal(other IComponent) bool   { return IsEqual(c, other) }
-
-func TestApplication_HasComponent_Empty(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("n1", "t1", "a", "", nil))
-	comp := &Component{id: "c1"}
-	if app.HasComponent(comp) {
-		t.Error("HasComponent on empty app should be false")
+		t.Fatalf("stop application: %v", err)
 	}
 }

@@ -15,6 +15,8 @@ var (
 	ErrAppNotShutdown = errors.New("app is not shutdown")
 	// 应用已关闭
 	ErrAppShutdown = errors.New("app is already shutdown")
+	// 应用已启动
+	ErrAppAlreadyStarted = errors.New("app is already started")
 )
 
 // -------------- for session -------------------
