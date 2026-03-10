@@ -196,6 +196,7 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		return //已经启动，直接返回
 	}
 	kklog.Infof("[kkapp] application %s started", slf.GetNodeId())
+
 	slf.mu.RLock()
 	comps := make([]kkapp.IComponent, len(slf.compList))
 	copy(comps, slf.compList)
@@ -204,6 +205,12 @@ func (slf *Application) onStarted(ctx actor.Context) {
 	for _, comp := range comps {
 		props := actor.PropsFromFunc(comp.Receive)
 		pid := ctx.Spawn(props)
+		if pid == nil {
+			kklog.Errorf("[kkapp] application %s spawn component %s failed", slf.GetNodeId(), comp.GetCompName())
+			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+			panic(kkerrors.ErrAppSpawnActorFailed)
+		}
+
 		comp.SetPID(pid)
 
 		id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())

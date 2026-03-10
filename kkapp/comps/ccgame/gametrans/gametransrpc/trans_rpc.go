@@ -21,7 +21,7 @@ type transportorRpc struct {
 	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
-func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity, rpcAddr string) gametrans.ITransportor {
+func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity, rpcAddr string) (gametrans.ITransportor, error) {
 	rpcRouter := kkrpc.NewRpcReceiver()
 	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
@@ -32,7 +32,7 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	rpcClient := kkrpc.NewClient(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcClient.Start(); err != nil {
 		kklog.Errorf("[ccgame] start rpc client error: %v", err)
-		return nil
+		return nil, err
 	}
 
 	trans := &transportorRpc{
@@ -45,31 +45,41 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 
 	// 注册到网关
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")
-	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
+	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
 		NodeId:   node.GetNodeId(),
 		NodeType: node.GetNodeType(),
 	}, kkrpc.CallConfig{})
 
-	return trans
+	if err != nil {
+		return nil, err
+	}
+
+	return trans, nil
 }
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) error {
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
-	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
+	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
 		Payload:  packet,
 	}, kkrpc.CallConfig{})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) error {
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0, "s2cs")
-	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
+	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,
 		Payload:   packet,
 	}, kkrpc.CallConfig{})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -95,11 +105,14 @@ func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 	streamBytes := bb.B
 
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
-	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
+	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
 		Payload:  streamBytes,
 	}, kkrpc.CallConfig{})
 	kkbuffer.Put(bb)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -120,11 +133,14 @@ func (slf *transportorRpc) SendToClients(sessionIDs []string, msg any) error {
 	streamBytes := bb.B
 
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0, "s2cs")
-	oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
+	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,
 		Payload:   streamBytes,
 	}, kkrpc.CallConfig{})
 	kkbuffer.Put(bb)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

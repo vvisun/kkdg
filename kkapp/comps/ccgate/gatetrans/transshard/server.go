@@ -128,6 +128,7 @@ func (slf *TransportorShard) ForwardToClient(sessionID string, packet []byte) er
 
 	if err := conn.SendBuffer(streamBytes); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
+		return err
 	}
 	return nil
 }
@@ -141,6 +142,7 @@ func (slf *TransportorShard) ForwardToClients(sessionIDs []string, packet []byte
 		return kkerrors.ErrEmptyMsgBytes
 	}
 
+	var loopErr error
 	for _, sessionID := range sessionIDs {
 		if sessionID == "" {
 			continue
@@ -158,9 +160,10 @@ func (slf *TransportorShard) ForwardToClients(sessionIDs []string, packet []byte
 
 		if err := conn.SendBuffer(streamBytes); err != nil {
 			kklog.Errorf("[ccgate] send response error: %v", err)
+			loopErr = err
 		}
 	}
-	return nil
+	return loopErr
 }
 
 func (slf *TransportorShard) ChooseLogicServer(nodeType string, totalMgr gatetrans.ILogicTotalManager) (string, bool) {

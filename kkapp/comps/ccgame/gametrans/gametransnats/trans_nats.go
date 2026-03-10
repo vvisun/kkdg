@@ -18,7 +18,7 @@ type transportorNats struct {
 	msgReceiver *msgreceiver.MsgReceiver[string]
 }
 
-func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *gametrans.SessionManager) gametrans.ITransportor {
+func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *gametrans.SessionManager) (gametrans.ITransportor, error) {
 	trans := &transportorNats{
 		cluster:     cluster,
 		sessionMgr:  sessionManager,
@@ -26,7 +26,7 @@ func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.Msg
 	}
 	msgReceiver.SetNeedCopyInOnSession(false)
 	cluster.SetPublishHandler(trans.onPublish)
-	return trans
+	return trans, nil
 }
 
 // onPublish 收到来自其他节点的消息

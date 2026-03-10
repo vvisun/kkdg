@@ -66,6 +66,18 @@ type gatewayHandler struct {
 
 func (h *gatewayHandler) OnConnect(conn kknet.IConn) {
 	// 将自己注册到网关
+	go func() {
+		err := h.sendRpcMsgRegister()
+		if err == nil {
+			return
+		}
+		kklog.Warnf("[分流%d] 注册到网关失败，重试中", h.shardIdx)
+		time.Sleep(1 * time.Second)
+	}()
+}
+
+// 将自己注册到网关
+func (h *gatewayHandler) sendRpcMsgRegister() error {
 	msg := ptotrans.RpcMsgRegister{
 		ShardIdx: h.shardIdx,
 		NodeId:   h.cli.trans.nodeId,
@@ -74,9 +86,14 @@ func (h *gatewayHandler) OnConnect(conn kknet.IConn) {
 	bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
 	if err != nil {
 		kklog.Warnf("[分流%d] 编码 RpcMsgRegister: %v", h.shardIdx, err)
-		return
+		return err
 	}
-	h.cli.cli.SendBuffer(bb)
+	err = h.cli.cli.SendBuffer(bb)
+	if err != nil {
+		kklog.Warnf("[分流%d] 发送 RpcMsgRegister: %v", h.shardIdx, err)
+		return err
+	}
+	return nil
 }
 
 func (h *gatewayHandler) OnClose(conn kknet.IConn, err error) {

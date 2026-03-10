@@ -76,6 +76,9 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 		GateNodeId: slf.gateNodeId,
 		Payload:    streamBytes,
 	}, kkrpc.CallConfig{})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -99,6 +102,7 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 
 	if err := conn.SendBuffer(streamBytes); err != nil {
 		kklog.Errorf("[ccgate] send response error: %v", err)
+		return err
 	}
 	return nil
 }
@@ -112,6 +116,7 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 		return kkerrors.ErrEmptyMsgBytes
 	}
 
+	var loopErr error
 	for _, sessionID := range sessionIDs {
 		if sessionID == "" {
 			continue
@@ -129,9 +134,10 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 
 		if err := conn.SendBuffer(streamBytes); err != nil {
 			kklog.Errorf("[ccgate] send response error: %v", err)
+			loopErr = err
 		}
 	}
-	return nil
+	return loopErr
 }
 
 func (slf *transportorRpc) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {

@@ -82,13 +82,25 @@ func (slf *gameComponent) OnInit() error {
 	// 初始化 transportor
 	switch slf.opt.TransType {
 	case kkapp.TransTypeNats:
-		slf.transportor = gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
+		transportor, err := gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
+		if err != nil {
+			return err
+		}
+		slf.transportor = transportor
 	case kkapp.TransTypeRpc:
-		slf.transportor = gametransrpc.NewTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication(), slf.opt.RpcAddr)
+		transportor, err := gametransrpc.NewTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication(), slf.opt.RpcAddr)
+		if err != nil {
+			return err
+		}
+		slf.transportor = transportor
 	case kkapp.TransTypeShard:
 		nodeId := slf.GetApplication().GetNodeId()
 		nodeType := slf.GetApplication().GetNodeType()
-		slf.transportor = gametransshard.NewTransportorShard(slf.sessionManager, slf.msgReceiver, slf.opt.RpcAddr, nodeId, nodeType)
+		transportor, err := gametransshard.NewTransportorShard(slf.sessionManager, slf.msgReceiver, slf.opt.RpcAddr, nodeId, nodeType)
+		if err != nil {
+			return err
+		}
+		slf.transportor = transportor
 	default:
 		return errors.New("invalid trans type: " + slf.opt.TransType)
 	}

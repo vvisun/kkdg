@@ -23,7 +23,7 @@ type transportorShard struct {
 	nodeType    string
 }
 
-func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], gatewayAddr, nodeID, nodeType string) gametrans.ITransportor {
+func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], gatewayAddr, nodeID, nodeType string) (gametrans.ITransportor, error) {
 	trans := &transportorShard{
 		sessionMgr:  sessionMgr,
 		msgReceiver: msgReceiver,
@@ -36,7 +36,7 @@ func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgr
 		trans.conns[i] = NewGatewayClient(i, trans)
 	}
 
-	return trans
+	return trans, nil
 }
 
 func (slf *transportorShard) getConn(shardIdx int) *gatewayClient {
