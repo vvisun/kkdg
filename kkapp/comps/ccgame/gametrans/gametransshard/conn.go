@@ -43,6 +43,10 @@ func NewGatewayClient(shardIdx int, trans *transportorShard) *gatewayClient {
 
 func (slf *gatewayClient) connect() {
 	for {
+		if slf.cli.IsStopped() {
+			kklog.Warnf("[分流%d] 分流客户端已停止，停止连接网关循环", slf.shardIdx)
+			return
+		}
 		if err := slf.cli.Connect(); err == nil {
 			kklog.Infof("分流[%d] 连接网关成功", slf.shardIdx)
 			return
