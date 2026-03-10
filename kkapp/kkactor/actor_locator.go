@@ -74,8 +74,11 @@ func (slf *ActorLocator) GetActor(id LucencyActorID) *actor.PID {
 }
 
 func (slf *ActorLocator) AddActor(id LucencyActorID, pid *actor.PID) error {
-	if !kkapp.IsValidActorKey(id.actorKey) || !kkapp.IsValidActorNodeId(id.nodeID) {
+	if !kkapp.IsValidActorKey(id.actorKey) {
 		return kkerrors.ErrActorInvalidActorKey
+	}
+	if !kkapp.IsValidActorNodeId(id.nodeID) {
+		return kkerrors.ErrActorInvalidNodeId
 	}
 	if pid == nil {
 		return kkerrors.ErrActorAddInvalidPID
