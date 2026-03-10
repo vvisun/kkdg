@@ -53,17 +53,20 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 
 func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient *kkrpc.Client) {
 	go func() {
-		oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")
-		err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
-			NodeId:   node.GetNodeId(),
-			NodeType: node.GetNodeType(),
-		}, kkrpc.CallConfig{})
-		if err == nil {
-			kklog.Infof("[ccgame] register to gateway success")
-			return
+		//循环注册到网关，直到成功为止
+		for {
+			oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")
+			err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
+				NodeId:   node.GetNodeId(),
+				NodeType: node.GetNodeType(),
+			}, kkrpc.CallConfig{})
+			if err == nil {
+				kklog.Infof("[ccgame] register to gateway success")
+				return
+			}
+			kklog.Warnf("[ccgame] register to gateway failed, retrying...")
+			time.Sleep(1 * time.Second)
 		}
-		kklog.Warnf("[ccgame] register to gateway failed, retrying...")
-		time.Sleep(1 * time.Second)
 	}()
 }
 

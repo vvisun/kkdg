@@ -67,12 +67,16 @@ type gatewayHandler struct {
 func (h *gatewayHandler) OnConnect(conn kknet.IConn) {
 	// 将自己注册到网关
 	go func() {
-		err := h.sendRpcMsgRegister()
-		if err == nil {
-			return
+		//循环注册到网关，直到成功为止
+		for {
+			err := h.sendRpcMsgRegister()
+			if err == nil {
+				kklog.Infof("[分流%d] 注册到网关成功", h.shardIdx)
+				return
+			}
+			kklog.Warnf("[分流%d] 注册到网关失败，重试中", h.shardIdx)
+			time.Sleep(1 * time.Second)
 		}
-		kklog.Warnf("[分流%d] 注册到网关失败，重试中", h.shardIdx)
-		time.Sleep(1 * time.Second)
 	}()
 }
 
