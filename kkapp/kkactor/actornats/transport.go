@@ -114,7 +114,7 @@ func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.
 
 func (t *Transport) RequestAsync(target actorremotes.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
 	if callback == nil {
-		return kkerrors.ErrActorRemoteReceiverNotSet
+		return kkerrors.ErrActorAsyncCallbackNil
 	}
 	go func() {
 		result, err := t.Request(target, msg, timeout)

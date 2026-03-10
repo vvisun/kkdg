@@ -77,6 +77,9 @@ func EncodeResponseEnvelope(result any, callErr error) ([]byte, error) {
 		resp.Error = callErr.Error()
 		return msgCodec.Marshal(&resp)
 	}
+	if result == nil {
+		return msgCodec.Marshal(&resp)
+	}
 	typeName, payload, err := EncodeMessage(result)
 	if err != nil {
 		return nil, err
@@ -93,6 +96,9 @@ func DecodeResponseEnvelope(data []byte) (any, error) {
 	}
 	if resp.Error != "" {
 		return nil, errors.New(resp.Error)
+	}
+	if resp.MessageType == "" && len(resp.Payload) == 0 {
+		return nil, nil
 	}
 	return DecodeMessage(resp.MessageType, resp.Payload)
 }

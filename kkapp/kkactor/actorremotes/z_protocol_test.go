@@ -67,3 +67,18 @@ func TestEncodeDecodeResponseEnvelope(t *testing.T) {
 		t.Fatalf("DecodeResponseEnvelope err = %v", err)
 	}
 }
+
+func TestEncodeDecodeResponseEnvelope_NilResult(t *testing.T) {
+	data, err := EncodeResponseEnvelope(nil, nil)
+	if err != nil {
+		t.Fatalf("EncodeResponseEnvelope(nil, nil): %v", err)
+	}
+
+	msg, err := DecodeResponseEnvelope(data)
+	if err != nil {
+		t.Fatalf("DecodeResponseEnvelope(nil result): %v", err)
+	}
+	if msg != nil {
+		t.Fatalf("msg = %#v, want nil", msg)
+	}
+}

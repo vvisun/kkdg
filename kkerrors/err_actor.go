@@ -19,6 +19,8 @@ var (
 	ErrActorRemoteTransportNotConfigured = errors.New("remote actor transport not configured")
 	// actor 远程接收器未设置
 	ErrActorRemoteReceiverNotSet = errors.New("remote actor receiver not set")
+	// actor 异步请求回调为空
+	ErrActorAsyncCallbackNil = errors.New("actor async callback is nil")
 	// actor 远程目标无效
 	ErrActorRemoteInvalidTarget = errors.New("invalid remote actor target")
 	// actor 远程消息类型未注册

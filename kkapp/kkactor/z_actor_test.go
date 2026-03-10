@@ -7,8 +7,50 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
 )
+
+type stubRemoteTransport struct {
+	startErr    error
+	startCalls  int
+	closeCalls  int
+	receiverSet actorremotes.IRemoteActorReceiver
+}
+
+func (t *stubRemoteTransport) Start() error {
+	t.startCalls++
+	return t.startErr
+}
+
+func (t *stubRemoteTransport) Close() error {
+	t.closeCalls++
+	return nil
+}
+
+func (t *stubRemoteTransport) SetReceiver(receiver actorremotes.IRemoteActorReceiver) {
+	t.receiverSet = receiver
+}
+
+func (t *stubRemoteTransport) RegisterMessage(msg any) error {
+	return nil
+}
+
+func (t *stubRemoteTransport) Send(target actorremotes.ActorRef, msg any) error {
+	return nil
+}
+
+func (t *stubRemoteTransport) Request(target actorremotes.ActorRef, msg any, timeout time.Duration) (any, error) {
+	return nil, nil
+}
+
+func (t *stubRemoteTransport) RequestAsync(target actorremotes.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
+	if callback == nil {
+		return kkerrors.ErrActorAsyncCallbackNil
+	}
+	callback(nil, nil)
+	return nil
+}
 
 //------------------------------------------------------------------------------
 // actor_id_test
@@ -295,6 +337,59 @@ func TestActorFramework_RequestAsync_NotFound(t *testing.T) {
 	err := af.RequestAsync(id, "hello", time.Second, func(result any, err error) {})
 	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
 		t.Errorf("RequestAsync(not found) = %v, want ErrActorNotFound", err)
+	}
+}
+
+func TestActorFramework_RequestAsync_NilCallback(t *testing.T) {
+	actorSys := NewActorSystem()
+	loc := NewActorLocator()
+	af := NewActorFramework(loc, actorSys)
+
+	id, _ := NewLucencyActorID("", "echo")
+	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {
+		if ctx.Sender() != nil {
+			ctx.Respond(ctx.Message())
+		}
+	}))
+	defer actorSys.Root.Stop(pid)
+	if err := loc.AddActor(id, pid); err != nil {
+		t.Fatalf("AddActor: %v", err)
+	}
+
+	err := af.RequestAsync(id, "hello", time.Second, nil)
+	if err == nil || !errors.Is(err, kkerrors.ErrActorAsyncCallbackNil) {
+		t.Fatalf("RequestAsync(nil callback) = %v, want %v", err, kkerrors.ErrActorAsyncCallbackNil)
+	}
+}
+
+func TestActorFramework_SetRemoteTransport_RollbackOnStartError(t *testing.T) {
+	af := NewActorFramework(NewActorLocator(), NewActorSystem())
+
+	oldTransport := &stubRemoteTransport{}
+	if err := af.SetRemoteTransport(oldTransport); err != nil {
+		t.Fatalf("SetRemoteTransport(old) = %v", err)
+	}
+	if af.GetRemoteTransport() != oldTransport {
+		t.Fatal("old transport should be installed")
+	}
+
+	startErr := errors.New("start failed")
+	newTransport := &stubRemoteTransport{startErr: startErr}
+	err := af.SetRemoteTransport(newTransport)
+	if err == nil || !errors.Is(err, startErr) {
+		t.Fatalf("SetRemoteTransport(new) = %v, want %v", err, startErr)
+	}
+	if af.GetRemoteTransport() != oldTransport {
+		t.Fatal("old transport should remain installed after start failure")
+	}
+	if oldTransport.closeCalls != 0 {
+		t.Fatalf("old transport closeCalls = %d, want 0", oldTransport.closeCalls)
+	}
+	if newTransport.startCalls != 1 {
+		t.Fatalf("new transport startCalls = %d, want 1", newTransport.startCalls)
+	}
+	if newTransport.receiverSet != af {
+		t.Fatal("new transport receiver should be set before start")
 	}
 }
 

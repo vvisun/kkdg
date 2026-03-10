@@ -6,6 +6,7 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // Actor寻址系统
@@ -21,6 +22,10 @@ type ActorLocator struct {
 func NewActorLocator(localNodes ...*kkapp.NodeInfo) *ActorLocator {
 	nodes := make(map[string]*kkapp.NodeInfo)
 	for _, node := range localNodes {
+		if node == nil {
+			kklog.Warnf("new actor locator with nil node: %v", node)
+			continue
+		}
 		if !kkapp.IsValidActorNodeId(node.GetNodeId()) {
 			panic("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
 		}

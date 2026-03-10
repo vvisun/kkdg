@@ -69,15 +69,23 @@ func (slf *ActorFramework) GetActorSystem() *actor.ActorSystem {
 }
 
 func (slf *ActorFramework) SetRemoteTransport(transport actorremotes.IRemoteActorTransport) error {
-	if slf.remoteTransport != nil {
-		_ = slf.remoteTransport.Close()
-	}
-	slf.remoteTransport = transport
 	if transport == nil {
+		if slf.remoteTransport != nil {
+			_ = slf.remoteTransport.Close()
+		}
+		slf.remoteTransport = nil
 		return nil
 	}
 	transport.SetReceiver(slf)
-	return transport.Start()
+	if err := transport.Start(); err != nil {
+		return err
+	}
+	oldTransport := slf.remoteTransport
+	slf.remoteTransport = transport
+	if oldTransport != nil && oldTransport != transport {
+		_ = oldTransport.Close()
+	}
+	return nil
 }
 
 func (slf *ActorFramework) GetRemoteTransport() actorremotes.IRemoteActorTransport {
@@ -136,6 +144,9 @@ func (slf *ActorFramework) Request(target LucencyActorID, msg any, timeout time.
 
 // 异步向指定actor发送消息, 不等待响应
 func (slf *ActorFramework) RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error {
+	if callback == nil {
+		return kkerrors.ErrActorAsyncCallbackNil
+	}
 	isLocal, err := slf.locator.IsLocalActor(target)
 	if err != nil {
 		return err
