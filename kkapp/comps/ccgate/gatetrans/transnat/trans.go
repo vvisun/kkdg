@@ -51,10 +51,10 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, lo
 		return kkerrors.ErrClusterNotInitialized
 	}
 	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
+		return nil
 	}
 	if len(msgBytes) == 0 {
-		return nil
+		return kkerrors.ErrEmptyMsgBytes
 	}
 
 	pkt := kkcluster.NewClusterPacket()

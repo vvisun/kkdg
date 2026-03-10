@@ -72,6 +72,9 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) error {
+	if len(packet) == 0 {
+		return kkerrors.ErrEmptyMsgBytes
+	}
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
 	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
@@ -85,6 +88,9 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) error {
+	if len(packet) == 0 {
+		return kkerrors.ErrEmptyMsgBytes
+	}
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0, "s2cs")
 	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,

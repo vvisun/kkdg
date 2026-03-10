@@ -52,8 +52,11 @@ func (slf *transportorShard) getConn(shardIdx int) *gatewayClient {
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) error {
-	if sessionID == "" || len(packet) == 0 {
+	if sessionID == "" {
 		return nil
+	}
+	if len(packet) == 0 {
+		return kkerrors.ErrEmptyMsgBytes
 	}
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
 	if sessionInfo == nil {
@@ -74,8 +77,11 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
-	if len(sessionIDs) == 0 || len(packet) == 0 {
-		return nil
+	if len(sessionIDs) == 0 {
+		return nil //空sessionID列表返回正常
+	}
+	if len(packet) == 0 {
+		return kkerrors.ErrEmptyMsgBytes
 	}
 	for _, sessionID := range sessionIDs {
 		if sessionID == "" {
@@ -87,8 +93,11 @@ func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte
 }
 
 func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
-	if sessionID == "" || msg == nil {
-		return nil
+	if sessionID == "" {
+		return nil //空sessionID返回正常
+	}
+	if msg == nil {
+		return kkerrors.ErrInvalidMessage
 	}
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
 	if sessionInfo == nil {
@@ -115,14 +124,21 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 }
 
 func (slf *transportorShard) SendToClients(sessionIDs []string, msg any) error {
-	if len(sessionIDs) == 0 || msg == nil {
-		return nil
+	if len(sessionIDs) == 0 {
+		return nil //空之间返回正常
 	}
+	if msg == nil {
+		return kkerrors.ErrInvalidMessage
+	}
+	var loopErr error
 	for _, sessionID := range sessionIDs {
 		if sessionID == "" {
 			continue
 		}
-		slf.SendToClient(sessionID, msg)
+		err := slf.SendToClient(sessionID, msg)
+		if err != nil {
+			loopErr = err
+		}
 	}
-	return nil
+	return loopErr
 }

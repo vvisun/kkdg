@@ -58,6 +58,9 @@ func (slf *transportorRpc) OnClose(conn kknet.IConn, err error) {
 }
 
 func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
+	if len(msgBytes) == 0 {
+		return kkerrors.ErrEmptyMsgBytes
+	}
 	memberInfo := slf.logicNodeMgr.getLogicNode(logicNodeId)
 	if memberInfo == nil {
 		return ErrLogicNodeNotRegistered //逻辑节点未注册

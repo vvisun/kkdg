@@ -88,6 +88,9 @@ func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 }
 
 func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
+	if len(msgBytes) == 0 {
+		return kkerrors.ErrEmptyMsgBytes
+	}
 	cConn, err := slf.sessionMgr.GetConn(sessionID)
 	if err != nil {
 		return err
@@ -112,7 +115,7 @@ func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 // @param packet is a full stream packet [length,message]
 func (slf *TransportorShard) ForwardToClient(sessionID string, packet []byte) error {
 	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
+		return nil
 	}
 	if len(packet) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
