@@ -12,6 +12,29 @@ import (
 // actor_id benchmarks
 //------------------------------------------------------------------------------
 
+var mapKKK = make(map[LucencyActorID]int)
+
+// 测试以LucencyActorID为key的map性能
+func BenchmarkMapLucencyActorID(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mapKKK[LucencyActorID{nodeID: "game1", actorKey: "game_player"}] = i
+	}
+}
+
+// 测试NewLucencyActorID为key的map 增 删 查 性能
+func BenchmarkMapNewLucencyActorID(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		id, _ := NewLucencyActorID("game1", "game_player")
+		mapKKK[id] = i
+		delete(mapKKK, id)
+		_, _ = mapKKK[id]
+	}
+}
+
 func BenchmarkNewLucencyActorID(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -25,7 +48,7 @@ func BenchmarkCombineActorKeys(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = CombineActorKeys(keys...)
+		_, _ = combineActorKeys(keys...)
 	}
 }
 
@@ -34,7 +57,7 @@ func BenchmarkCombineNodeAndActorKey(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = CombineNodeAndActorKey("game1", keys...)
+		_, _ = combineNodeAndActorKey("game1", keys...)
 	}
 }
 

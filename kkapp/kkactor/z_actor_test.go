@@ -66,7 +66,7 @@ func TestCombineActorKeys(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CombineActorKeys(tt.keys...)
+			got, err := combineActorKeys(tt.keys...)
 			if tt.wantErr != nil {
 				if err == nil || !errors.Is(err, tt.wantErr) {
 					t.Errorf("CombineActorKeys() = %v, want %v", err, tt.wantErr)
@@ -98,7 +98,7 @@ func TestCombineNodeAndActorKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CombineNodeAndActorKey(tt.nodeId, tt.keys...)
+			got, err := combineNodeAndActorKey(tt.nodeId, tt.keys...)
 			if tt.wantErr != nil {
 				if err == nil || !errors.Is(err, tt.wantErr) {
 					t.Errorf("CombineNodeAndActorKey() = %v, want %v", err, tt.wantErr)
@@ -352,7 +352,7 @@ func TestActorLocator_ForEachNode_ForEachActor(t *testing.T) {
 	}
 
 	actorCount := 0
-	loc.ForEachActor(func(name string, p *actor.PID) bool {
+	loc.ForEachActor(func(id LucencyActorID, p *actor.PID) bool {
 		actorCount++
 		return true
 	})

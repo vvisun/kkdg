@@ -41,25 +41,6 @@ func NewLucencyActorID(nodeId, actorKey string) (LucencyActorID, error) {
 	return id, nil
 }
 
-// 拼接actorKey，一般用于父子actor之间拼接。
-// 例如："game_player"、"gate_router"
-func CombineActorKeys(actorKeys ...string) (string, error) {
-	if len(actorKeys) == 0 {
-		return "", kkerrors.ErrActorInvalidActorKeys
-	}
-	return strings.Join(actorKeys, kkapp.ActorKeySep_ParantAndChild), nil
-}
-
-// 拼接完整的actor寻址名称。
-// 例如："game1/game_player"、"gate1/gate_router"
-func CombineNodeAndActorKey(nodeId string, actorKeys ...string) (string, error) {
-	actorKey, err := CombineActorKeys(actorKeys...)
-	if err != nil {
-		return "", err
-	}
-	return nodeId + kkapp.ActorKeySep_NodeAndActor + actorKey, nil
-}
-
 // id to name
 // LucencyActorID只能通过本包的NewLucencyActorID创建，故这里必定已经是合法的。
 func GetActorName(actorId LucencyActorID) (string, error) {
@@ -98,4 +79,23 @@ func GetActorId(actorName string) (LucencyActorID, error) {
 		nodeID:   NodeID,
 		actorKey: ActorKey,
 	}, nil
+}
+
+// 拼接actorKey，一般用于父子actor之间拼接。
+// 例如："game_player"、"gate_router"
+func combineActorKeys(actorKeys ...string) (string, error) {
+	if len(actorKeys) == 0 {
+		return "", kkerrors.ErrActorInvalidActorKeys
+	}
+	return strings.Join(actorKeys, kkapp.ActorKeySep_ParantAndChild), nil
+}
+
+// 拼接完整的actor寻址名称。
+// 例如："game1/game_player"、"gate1/gate_router"
+func combineNodeAndActorKey(nodeId string, actorKeys ...string) (string, error) {
+	actorKey, err := combineActorKeys(actorKeys...)
+	if err != nil {
+		return "", err
+	}
+	return nodeId + kkapp.ActorKeySep_NodeAndActor + actorKey, nil
 }
