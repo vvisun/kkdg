@@ -1,11 +1,8 @@
-package kkapp
+package kkactor
 
-// RemoteActorID 标识一个“远程 actor”，由节点ID和在该节点上的 actor 逻辑标识组成。
-// 具体如何将 ActorKey 映射到本地 PID，由上层在各自节点上自行维护（例如在组件中建立 registry）。
-type RemoteActorID struct {
-	NodeID   string // 逻辑节点ID，如 game1、game2
-	ActorKey string // 逻辑 actor 标识，如 "ccgame/main"、"gate/router"
-}
+import (
+	"github.com/vvisun/kkdg/kkapp"
+)
 
 // IRemoteActorTransport 抽象跨节点的 actor 消息路由能力。
 //
@@ -19,7 +16,7 @@ type RemoteActorID struct {
 type IRemoteActorTransport interface {
 	// Init 在 transport 挂接到 Application 时被调用，传入本节点的 NodeInfo。
 	// 典型实现可以在此基于 nodeInfo 初始化订阅（如 NATS subject）、注册 RPC 服务等。
-	Init(self *NodeInfo) error
+	Init(self *kkapp.NodeInfo) error
 
 	// SetReceiver 注册本节点用于接收远程 actor 消息的回调。
 	// 实现需要在收到来自网络/总线的消息时调用该回调，将消息交给上层（通常由组件负责路由到本地 PID）。
@@ -32,4 +29,3 @@ type IRemoteActorTransport interface {
 	// Close 关闭底层连接、取消订阅等资源。
 	Close() error
 }
-
