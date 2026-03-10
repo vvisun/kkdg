@@ -19,6 +19,7 @@ type transportorRpc struct {
 	sessionMgr   gatetrans.ISessionManager
 	logicNodeMgr *logicNodeMgr
 	gateNodeId   string
+	stopped      bool
 }
 
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
@@ -49,6 +50,14 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	return trans, nil
 }
 
+func (slf *transportorRpc) Stop() error {
+	if slf.stopped {
+		return nil
+	}
+	slf.stopped = true
+	return slf.rpcSvr.Stop()
+}
+
 func (slf *transportorRpc) OnConnect(conn kknet.IConn) {
 	kklog.Infof("[ccgate] rpc server new connection... connId=%d", conn.ID())
 }
@@ -58,6 +67,9 @@ func (slf *transportorRpc) OnClose(conn kknet.IConn, err error) {
 }
 
 func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(msgBytes) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
@@ -87,6 +99,9 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
@@ -112,6 +127,9 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
@@ -144,6 +162,9 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 }
 
 func (slf *transportorRpc) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	memberInfo := slf.logicNodeMgr.getLogicNode(logicNodeId)
 	if memberInfo == nil {
 		return ErrLogicNodeNotRegistered //逻辑节点未注册

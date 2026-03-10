@@ -32,6 +32,7 @@ type mockTransportor struct {
 	lastLogicID string
 }
 
+func (m *mockTransportor) Stop() error { return nil }
 func (m *mockTransportor) ForwardToLogic(sessionID string, packet []byte, logicNodeId string) error {
 	m.lastSession = sessionID
 	m.lastPacket = append([]byte(nil), packet...)

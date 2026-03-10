@@ -16,6 +16,7 @@ type transportorNats struct {
 	cluster     kkcluster.ICluster // cluster for forwarding messages to client
 	sessionMgr  *gametrans.SessionManager
 	msgReceiver *msgreceiver.MsgReceiver[string]
+	stopped     bool
 }
 
 func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *gametrans.SessionManager) (gametrans.ITransportor, error) {
@@ -27,6 +28,15 @@ func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.Msg
 	msgReceiver.SetNeedCopyInOnSession(false)
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans, nil
+}
+
+func (slf *transportorNats) Stop() error {
+	if slf.stopped {
+		return nil
+	}
+	slf.stopped = true
+	slf.cluster.Stop()
+	return nil
 }
 
 // onPublish 收到来自其他节点的消息
@@ -46,6 +56,9 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 // ForwardToClient 转发消息到客户端
 // @param packet is a full stream packet [length,message]
 func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
@@ -71,6 +84,9 @@ func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) err
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
@@ -106,6 +122,9 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte)
 }
 
 func (slf *transportorNats) SendToClient(sessionID string, msg any) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
@@ -133,6 +152,9 @@ func (slf *transportorNats) SendToClient(sessionID string, msg any) error {
 }
 
 func (slf *transportorNats) SendToClients(sessionIDs []string, msg any) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}

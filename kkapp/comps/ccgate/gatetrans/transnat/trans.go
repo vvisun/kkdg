@@ -16,6 +16,7 @@ import (
 type transportorNats struct {
 	cluster    kkcluster.ICluster // cluster for forwarding messages to logic and client
 	sessionMgr gatetrans.ISessionManager
+	stopped    bool
 }
 
 var _ gatetrans.ITransportor = (*transportorNats)(nil)
@@ -27,6 +28,15 @@ func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr gatetrans.ISessio
 	}
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans, nil
+}
+
+func (slf *transportorNats) Stop() error {
+	if slf.stopped {
+		return nil
+	}
+	slf.stopped = true
+	slf.cluster.Stop()
+	return nil
 }
 
 // onPublish 收到来自其他节点的消息，转发给客户端
@@ -47,6 +57,9 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 
 // ForwardToLogic 转发消息到逻辑节点
 func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if slf.cluster == nil {
 		return kkerrors.ErrClusterNotInitialized
 	}
@@ -67,6 +80,9 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, lo
 // ForwardToClient 转发消息到客户端
 // @param packet is a full stream packet [length,message]
 func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
@@ -92,6 +108,9 @@ func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) err
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
@@ -124,6 +143,9 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte)
 }
 
 func (slf *transportorNats) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if slf.cluster == nil {
 		return kkerrors.ErrClusterNotInitialized
 	}

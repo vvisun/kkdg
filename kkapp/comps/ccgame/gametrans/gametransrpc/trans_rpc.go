@@ -20,6 +20,7 @@ type transportorRpc struct {
 	rpcClient   *kkrpc.Client
 	sessionMgr  *gametrans.SessionManager
 	msgReceiver *msgreceiver.MsgReceiver[string]
+	stopped     bool
 }
 
 func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity, rpcAddr string) (gametrans.ITransportor, error) {
@@ -51,6 +52,14 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	return trans, nil
 }
 
+func (slf *transportorRpc) Stop() error {
+	if slf.stopped {
+		return nil
+	}
+	slf.stopped = true
+	return slf.rpcClient.Stop()
+}
+
 func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient *kkrpc.Client) {
 	go func() {
 		//循环注册到网关，直到成功为止
@@ -76,6 +85,9 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(packet) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
@@ -92,6 +104,9 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(packet) == 0 {
 		return kkerrors.ErrEmptyMsgBytes
 	}
@@ -107,6 +122,9 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 }
 
 func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if sessionID == "" {
 		return kkerrors.ErrEmptySessionID
 	}
@@ -140,6 +158,9 @@ func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 }
 
 func (slf *transportorRpc) SendToClients(sessionIDs []string, msg any) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}

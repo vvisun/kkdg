@@ -518,24 +518,3 @@ func TestRequest_RequestAsync_Generic(t *testing.T) {
 		t.Fatal("RequestAsync callback timeout")
 	}
 }
-
-func TestGetGlobalActorFramework(t *testing.T) {
-	// reset global for test isolation (only works if no other test has called it)
-	// We use a fresh sync.Once by running in isolation - actually GetGlobalActorFramework
-	// uses package-level sync.Once, so the first call wins. We just verify it returns non-nil.
-	af := GetGlobalActorFramework()
-	if af == nil {
-		t.Fatal("GetGlobalActorFramework() returned nil")
-	}
-	if af.GetLocator() == nil {
-		t.Error("GetLocator() returned nil")
-	}
-	if af.GetActorSystem() == nil {
-		t.Error("GetActorSystem() returned nil")
-	}
-	// second call returns same instance
-	af2 := GetGlobalActorFramework()
-	if af != af2 {
-		t.Error("GetGlobalActorFramework() should return same instance")
-	}
-}

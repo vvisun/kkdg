@@ -11,6 +11,19 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+var (
+	globalActorFramework *kkactor.ActorFramework
+	onceActorFramework   sync.Once
+)
+
+// 获取全局Actor框架, 线上一般用全局即可，避免混乱。
+func getGlobalActorFramework() *kkactor.ActorFramework {
+	onceActorFramework.Do(func() {
+		globalActorFramework = kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	})
+	return globalActorFramework
+}
+
 type Application struct {
 	nodeInfo       *kkapp.NodeInfo
 	actorFramework *kkactor.ActorFramework
@@ -26,14 +39,14 @@ var _ kkapp.IApplication = (*Application)(nil)
 
 // new application.
 // each application is a node, a actor
-// 接受一个ActorFramework参数，方便测试时构建模拟不同情景。
+// if ActorFramework is nil, will use default getGlobalActorFramework()
 func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFramework) *Application {
 	if nodeInfo == nil {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		panic("nodeInfo is nil")
 	}
 	if actorFramework == nil {
-		actorFramework = kkactor.GetGlobalActorFramework()
+		actorFramework = getGlobalActorFramework()
 	}
 	actorFramework.GetLocator().AddNode(nodeInfo)
 	app := &Application{

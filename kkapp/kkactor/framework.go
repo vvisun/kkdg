@@ -2,7 +2,6 @@ package kkactor
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
@@ -19,19 +18,6 @@ type IActorFramework interface {
 	Send(target LucencyActorID, msg any) error
 	Request(target LucencyActorID, msg any, timeout time.Duration) (any, error)
 	RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
-}
-
-var (
-	globalActorFramework *ActorFramework
-	onceActorFramework   sync.Once
-)
-
-// 获取全局Actor框架, 线上一般用全局即可，避免混乱。
-func GetGlobalActorFramework() *ActorFramework {
-	onceActorFramework.Do(func() {
-		globalActorFramework = NewActorFramework(NewActorLocator(), actor.NewActorSystem())
-	})
-	return globalActorFramework
 }
 
 func NewActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {

@@ -21,6 +21,7 @@ type transportorShard struct {
 	gatewayAddr string
 	nodeId      string
 	nodeType    string
+	stopped     bool
 }
 
 func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], gatewayAddr, nodeID, nodeType string) (gametrans.ITransportor, error) {
@@ -39,6 +40,23 @@ func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgr
 	return trans, nil
 }
 
+func (slf *transportorShard) Stop() error {
+	if slf.stopped {
+		return nil
+	}
+	slf.stopped = true
+	slf.muConns.Lock()
+	conns := make([]*gatewayClient, 0, kkapp.BackendShardCnt)
+	copy(conns, slf.conns[:])
+	slf.muConns.Unlock()
+	for _, conn := range conns {
+		if conn != nil {
+			_ = conn.cli.Close()
+		}
+	}
+	return nil
+}
+
 func (slf *transportorShard) getConn(shardIdx int) *gatewayClient {
 	if shardIdx < 0 {
 		shardIdx = 0
@@ -52,6 +70,9 @@ func (slf *transportorShard) getConn(shardIdx int) *gatewayClient {
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if sessionID == "" {
 		return nil
 	}
@@ -77,6 +98,9 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 
 // @param packet is a full stream packet [length,message]
 func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(sessionIDs) == 0 {
 		return nil //空sessionID列表返回正常
 	}
@@ -97,6 +121,9 @@ func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte
 }
 
 func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if sessionID == "" {
 		return nil //空sessionID返回正常
 	}
@@ -128,6 +155,9 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 }
 
 func (slf *transportorShard) SendToClients(sessionIDs []string, msg any) error {
+	if slf.stopped {
+		return kkerrors.ErrTransportorStopped
+	}
 	if len(sessionIDs) == 0 {
 		return nil //空之间返回正常
 	}
