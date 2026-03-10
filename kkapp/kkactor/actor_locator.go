@@ -43,17 +43,14 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) {
 	}
 	nodeId := node.GetNodeId()
 	slf.mu.Lock()
-	delete(slf.nodes, nodeId)
 	// 如果移除的是本地节点，则需要移除本地Actor。
 	for k := range slf.actors {
 		id := GetActorId(k)
 		if id.nodeID == nodeId && slf.IsLocalActor(id) {
-			slf.RemoveActor(LucencyActorID{
-				nodeID:   nodeId,
-				actorKey: id.actorKey,
-			})
+			delete(slf.actors, k)
 		}
 	}
+	delete(slf.nodes, nodeId)
 	slf.mu.Unlock()
 }
 
