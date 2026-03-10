@@ -27,7 +27,7 @@ func (m *TestModule) OnInit() error {
 	return m.initError
 }
 
-func (m *TestModule) OnRelease() {
+func (m *TestModule) OnStop() {
 	m.releaseCalled = true
 }
 
@@ -274,7 +274,7 @@ func TestModule_OnInit(t *testing.T) {
 func TestModule_OnRelease(t *testing.T) {
 	m := NewTestModule()
 
-	m.OnRelease()
+	m.OnStop()
 	// OnRelease 是空实现，不会出错
 }
 

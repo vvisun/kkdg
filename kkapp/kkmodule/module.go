@@ -22,7 +22,7 @@ type IModule interface {
 	GetParent() IModule
 
 	OnInit() error
-	OnRelease()
+	OnStop()
 
 	getBaseModule() IModule
 }
@@ -91,7 +91,7 @@ func (m *Module) ReleaseModule(moduleId uint32) {
 		return
 	}
 	pModule := curMod.getBaseModule().(*Module)
-	pModule.self.OnRelease()
+	pModule.self.OnStop()
 	kklog.Debugf("[kkmodule] release module %s", pModule.GetModuleName())
 
 	for i := len(pModule.childs) - 1; i >= 0; i-- {
@@ -151,6 +151,6 @@ func (m *Module) OnInit() error {
 	return nil
 }
 
-func (m *Module) OnRelease() {
+func (m *Module) OnStop() {
 	kklog.Debugf("[kkmodule] module %s on release", m.GetModuleName())
 }
