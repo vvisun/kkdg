@@ -1,6 +1,8 @@
 package kkapp
 
 import (
+	"strings"
+
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -12,6 +14,9 @@ const (
 	maxNodeTypeLength int = 16
 )
 
+// nodeId与actorKey的分隔符
+const ActorKeySeparator = "/"
+
 // checkNodeID 检查节点ID是否有效
 func checkNodeID(nodeId string) error {
 	if len(nodeId) < 1 {
@@ -20,6 +25,10 @@ func checkNodeID(nodeId string) error {
 	}
 	if len(nodeId) > maxNodeIDLength {
 		kklog.Errorf("node id is too long: %s", nodeId)
+		return kkerrors.ErrInvalidNodeID
+	}
+	if strings.Contains(nodeId, ActorKeySeparator) {
+		kklog.Errorf("node id contains actor key separator: %s", nodeId)
 		return kkerrors.ErrInvalidNodeID
 	}
 	return nil
@@ -33,6 +42,10 @@ func checkNodeType(nodeType string) error {
 	}
 	if len(nodeType) > maxNodeTypeLength {
 		kklog.Errorf("node type is too long: %s", nodeType)
+		return kkerrors.ErrInvalidNodeType
+	}
+	if strings.Contains(nodeType, ActorKeySeparator) {
+		kklog.Errorf("node type contains actor key separator: %s", nodeType)
 		return kkerrors.ErrInvalidNodeType
 	}
 	return nil

@@ -29,7 +29,7 @@ func NewActorLocator(localNodes ...*kkapp.NodeInfo) *ActorLocator {
 }
 
 func (slf *ActorLocator) AddNode(node *kkapp.NodeInfo) {
-	if node == nil {
+	if node == nil || node.GetNodeId() == "" {
 		return
 	}
 	slf.mu.Lock()
@@ -38,7 +38,7 @@ func (slf *ActorLocator) AddNode(node *kkapp.NodeInfo) {
 }
 
 func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) {
-	if node == nil {
+	if node == nil || node.GetNodeId() == "" {
 		return
 	}
 	nodeId := node.GetNodeId()
@@ -66,6 +66,9 @@ func (slf *ActorLocator) GetActor(id LucencyActorID) *actor.PID {
 }
 
 func (slf *ActorLocator) AddActor(id LucencyActorID, pid *actor.PID) {
+	if pid == nil || id.actorKey == "" {
+		return
+	}
 	actorName := GetActorName(id)
 	slf.mu.Lock()
 	slf.actors[actorName] = pid
