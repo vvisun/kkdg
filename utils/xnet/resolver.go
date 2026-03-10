@@ -17,6 +17,14 @@ var urls = []string{
 	"https://api.ipify.org",
 }
 
+// ConfigUrls 配置公网IP查询地址列表
+func ConfigUrls(urls []string) {
+	if len(urls) > 0 {
+		urls = make([]string, len(urls))
+		copy(urls, urls)
+	}
+}
+
 type IPResolver func() (string, error)
 
 var (
