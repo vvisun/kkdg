@@ -8,6 +8,17 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
+type ISender interface {
+	// SendBuffer 发送数据
+	//  如果Sender是Server，则connId为连接ID；
+	//  如果Sender是Client，则connId会被忽略，因为会直接发送给Client所连接的Server
+	//  @param connId 连接ID
+	//  @param data 整包数据[length,message]
+	//  @return error 错误
+	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
+	getPending() *pendingMap
+}
+
 var req_id uint64 = 0
 
 func genReqId() uint64 {
