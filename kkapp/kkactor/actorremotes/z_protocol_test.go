@@ -82,3 +82,92 @@ func TestEncodeDecodeResponseEnvelope_NilResult(t *testing.T) {
 		t.Fatalf("msg = %#v, want nil", msg)
 	}
 }
+
+// ----------------------------------------------------------------
+// Benchmarks
+
+func BenchmarkEncodeRequestEnvelope(b *testing.B) {
+	if err := RegisterMessage(&protoReq{}); err != nil {
+		b.Fatalf("RegisterMessage req: %v", err)
+	}
+	ref := ActorRef{NodeID: "node1", ActorKey: "echo_actor"}
+	msg := &protoReq{Value: "hello"}
+	timeout := 3 * time.Second
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := EncodeRequestEnvelope(ref, msg, timeout); err != nil {
+			b.Fatalf("EncodeRequestEnvelope: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeRequestEnvelope(b *testing.B) {
+	if err := RegisterMessage(&protoReq{}); err != nil {
+		b.Fatalf("RegisterMessage req: %v", err)
+	}
+	ref := ActorRef{NodeID: "node1", ActorKey: "echo_actor"}
+	msg := &protoReq{Value: "hello"}
+	timeout := 3 * time.Second
+
+	encoded, err := EncodeRequestEnvelope(ref, msg, timeout)
+	if err != nil {
+		b.Fatalf("EncodeRequestEnvelope: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, _, err := DecodeRequestEnvelope(encoded); err != nil {
+			b.Fatalf("DecodeRequestEnvelope: %v", err)
+		}
+	}
+}
+
+func BenchmarkEncodeResponseEnvelope_Success(b *testing.B) {
+	if err := RegisterMessage(&protoRsp{}); err != nil {
+		b.Fatalf("RegisterMessage rsp: %v", err)
+	}
+	result := &protoRsp{Value: "world"}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := EncodeResponseEnvelope(result, nil); err != nil {
+			b.Fatalf("EncodeResponseEnvelope: %v", err)
+		}
+	}
+}
+
+func BenchmarkEncodeResponseEnvelope_Error(b *testing.B) {
+	callErr := errors.New("boom")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := EncodeResponseEnvelope(nil, callErr); err != nil {
+			b.Fatalf("EncodeResponseEnvelope: %v", err)
+		}
+	}
+}
+
+func BenchmarkDecodeResponseEnvelope_Success(b *testing.B) {
+	if err := RegisterMessage(&protoRsp{}); err != nil {
+		b.Fatalf("RegisterMessage rsp: %v", err)
+	}
+	result := &protoRsp{Value: "world"}
+	encoded, err := EncodeResponseEnvelope(result, nil)
+	if err != nil {
+		b.Fatalf("EncodeResponseEnvelope: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := DecodeResponseEnvelope(encoded); err != nil {
+			b.Fatalf("DecodeResponseEnvelope: %v", err)
+		}
+	}
+}
+
