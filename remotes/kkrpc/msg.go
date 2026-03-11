@@ -5,17 +5,13 @@ import "github.com/vvisun/kkdg/proto/pbrpc/fbtrpc"
 type FrameType = uint32
 
 const (
-	FrameTypeUnknown       FrameType = 0
-	FrameTypeRequest       FrameType = 1
-	FrameTypeResponse      FrameType = 2
-	FrameTypeOneway        FrameType = 3
-	FrameTypeTransMsg      FrameType = 4
-	FrameTypeTransBroadMsg FrameType = 5
+	FrameTypeUnknown  FrameType = 0
+	FrameTypeRequest  FrameType = 1
+	FrameTypeResponse FrameType = 2
+	FrameTypeOneway   FrameType = 3
 )
 
 type Frame = fbtrpc.Frame
-type TransMsg = fbtrpc.TransMsg
-type TransBroadMsg = fbtrpc.TransBroadMsg
 
 // type Frame struct {
 // 	T    FrameType `json:"t" msgpack:"t"`             // FrameType
@@ -26,17 +22,3 @@ type TransBroadMsg = fbtrpc.TransBroadMsg
 // 	Code int32     `json:"c,omitempty" msgpack:"c"`   // status code (0 ok) 错误码
 // 	Err  string    `json:"e,omitempty" msgpack:"e"`   // error message 错误信息
 // }
-
-// type (
-// 	// TransMsg 网关转发消息
-// 	TransMsg struct {
-// 		ClientId int64  // 客户端id(connID)
-// 		Data     []byte // 转发数据
-// 	}
-
-// 	// TransBroadcast 网关转发群发消息
-// 	TransBroadMsg struct {
-// 		Clients []int64 // 客户端id列表(connID列表)
-// 		Data    []byte  // 转发数据
-// 	}
-// )
