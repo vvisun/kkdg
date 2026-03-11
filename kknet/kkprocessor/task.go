@@ -9,6 +9,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/queues/dqueue"
 )
 
 type RecvMessage struct {
@@ -28,7 +29,7 @@ type (
 
 		// q 双端队列，用于存储异步任务
 		// double-ended queue to store asynchronous jobs
-		q Deque[asyncJob]
+		q dqueue.Deque[asyncJob]
 
 		// maxConcurrency 最大并发数
 		// maximum concurrency

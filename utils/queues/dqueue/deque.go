@@ -1,4 +1,4 @@
-package kkprocessor
+package dqueue
 
 const Nil = 0
 

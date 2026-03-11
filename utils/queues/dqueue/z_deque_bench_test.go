@@ -1,20 +1,30 @@
-package kkprocessor
+package dqueue
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+)
 
 // Benchmark basic PushBack/PopFront throughput on Deque.
 func BenchmarkDequePushPop(b *testing.B) {
 	const batch = 1
 	b.ReportAllocs()
 	b.ResetTimer()
-	d := New[int](batch)
+	d := New[*kkbuffer.ByteBuffer](batch)
+
+	batchCnt := 32
 
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < batch; i++ {
-			d.PushBack(i)
+			for j := 0; j < batchCnt; j++ {
+				d.PushBack(kkbuffer.GetWithCapacity(128))
+			}
 		}
 		for i := 0; i < batch; i++ {
-			_ = d.PopFront()
+			for j := 0; j < batchCnt; j++ {
+				kkbuffer.Put(d.PopFront())
+			}
 		}
 	}
 }
