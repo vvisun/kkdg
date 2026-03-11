@@ -28,6 +28,8 @@ type EnvConfig struct {
 	RpcFrameCodec kkcodec.ICodec
 	// rpc帧里的Data字段编码器
 	RpcPayloadCodec kkcodec.ICodec
+	// rpc的流拆解器
+	RpcStreamTool kkpacket.IPacket
 }
 
 // 配置默认值。启动阶段初始化，运行期间不要修改。
@@ -40,5 +42,5 @@ func ConfigDefaults(cfg *EnvConfig) {
 	kkapp.ConfigDefaults(cfg.PacketGateAndClient, cfg.PacketGateAndBusiness)
 	actorremotes.ConfigDefaults(cfg.MsgCodecActor, cfg.MessageRegistryActor)
 	kkpacket.ConfigDefaults(cfg.StreamToolDefault, cfg.ByteOrderDefault)
-	kkrpc.ConfigDefaults(cfg.RpcFrameCodec, cfg.RpcPayloadCodec)
+	kkrpc.ConfigDefaults(cfg.RpcFrameCodec, cfg.RpcPayloadCodec, cfg.RpcStreamTool)
 }

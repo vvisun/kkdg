@@ -10,18 +10,25 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+// 提供为全局变量，启动阶段初始化，运行期间不要修改。
+// 为了减少多余的心力花在对齐 rpc client和server 的流拆解器，导致编码解码不一致。
 var (
 	initedCodec atomic.Bool
 	// rpc用的编码器
 	gFrameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	// rpc消息里的Data字段编码器
 	gPayloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	// 默认的流拆解器
+	gStreamTool kkpacket.IPacket = kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 )
 
 // 配置默认值。启动阶段初始化，运行期间不要修改。
-// @param frameCodec 帧编码器
-// @param payloadCodec 消息编码器
-func ConfigDefaults(frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec) {
+// 为了减少多余的心力花在对齐 rpc client和server 的流拆解器，导致编码解码不一致。
+//
+//	@param frameCodec 帧编码器
+//	@param payloadCodec 消息编码器
+//	@param streamTool 流拆解器
+func ConfigDefaults(frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec, streamTool kkpacket.IPacket) {
 	if !initedCodec.CompareAndSwap(false, true) {
 		kklog.Warnf("[kkrpc] codec already setted, ignore")
 		return
@@ -31,6 +38,9 @@ func ConfigDefaults(frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec) {
 	}
 	if payloadCodec != nil {
 		gPayloadCodec = payloadCodec
+	}
+	if streamTool != nil {
+		gStreamTool = streamTool
 	}
 }
 
@@ -42,13 +52,13 @@ func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
 		frame.Err = "unknown error"
 	}
 
-	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
+	lfbCount := gStreamTool.LengthFieldByteCount()
 	bb1, err1 := gFrameCodec.MarshalAppend(frame, lfbCount)
 	if err1 != nil {
 		kkbuffer.Put(bb1)
 		return nil, err1
 	}
-	kkpacket.DefaultStreamPacket().WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
+	gStreamTool.WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
 	return bb1, nil
 }
 
@@ -71,13 +81,13 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 		P:  payload,
 	}
 
-	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
+	lfbCount := gStreamTool.LengthFieldByteCount()
 	bb1, err1 := gFrameCodec.MarshalAppend(&request, lfbCount)
 	if err1 != nil {
 		kkbuffer.Put(bb1)
 		return nil, err1
 	}
-	kkpacket.DefaultStreamPacket().WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
+	gStreamTool.WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
 	return bb1, nil
 }
 
@@ -105,18 +115,18 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T, de
 		P:  payloadBytes,
 	}
 
-	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
+	lfbCount := gStreamTool.LengthFieldByteCount()
 	bb1, err1 := gFrameCodec.MarshalAppend(&request, lfbCount)
 	if err1 != nil {
 		kkbuffer.Put(bb1)
 		return nil, err1
 	}
-	kkpacket.DefaultStreamPacket().WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
+	gStreamTool.WriteMessageSize(bb1.B, len(bb1.B)-lfbCount)
 	return bb1, nil
 }
 
 func DecodeRpcPayload[T any](bb *kkbuffer.ByteBuffer) (*T, error) {
-	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(bb.Bytes())
+	frameBytes, err := gStreamTool.Unpack(bb.Bytes())
 	if err != nil {
 		return nil, err
 	}

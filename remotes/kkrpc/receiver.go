@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -94,7 +93,7 @@ type RpcReceiver struct {
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
-	frameBytes, err := kkpacket.DefaultStreamPacket().Unpack(data.Bytes())
+	frameBytes, err := gStreamTool.Unpack(data.Bytes())
 	if err != nil {
 		kkbuffer.Put(data)
 		return nil

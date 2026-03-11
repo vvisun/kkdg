@@ -8,8 +8,7 @@ import (
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-//-------------------------------------------------------------------------
-
+// 远程Actor消息注册表
 type MessageRegistry struct {
 	mu         sync.RWMutex
 	typeToName map[reflect.Type]string

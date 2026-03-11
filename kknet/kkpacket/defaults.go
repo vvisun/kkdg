@@ -58,8 +58,10 @@ func GetByteOrder() binary.ByteOrder {
 }
 
 // 配置默认值。启动阶段初始化，运行期间不要修改。
-// @param streamTool 流拆解器
-// @param byteOrder 字节序
+// 为了减少多余的心力花在对齐 各端间的流拆解器和字节序，导致编码解码不一致。
+//
+//	@param streamTool 流拆解器
+//	@param byteOrder 字节序
 func ConfigDefaults(streamTool IPacket, byteOrder binary.ByteOrder) {
 	if streamTool != nil {
 		setDefaultStreamPacket(streamTool)
