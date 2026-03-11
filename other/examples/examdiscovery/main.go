@@ -21,8 +21,8 @@ func main() {
 
 	opts := dnats.ApplyNatsOptions(dnats.WithUrl(natsURL))
 
-	discovery1 := dnats.NewNatsDiscovery("exam1", nodeInfo1, nil, opts)
-	discovery2 := dnats.NewNatsDiscovery("exam2", nodeInfo2, nil, opts)
+	discovery1 := dnats.NewNatsDiscovery("exam1", nodeInfo1, nil, opts, kkdiscovery.ApplyOptions())
+	discovery2 := dnats.NewNatsDiscovery("exam2", nodeInfo2, nil, opts, kkdiscovery.ApplyOptions())
 
 	// 监听成员添加
 	discovery1.GetMemberMgr().OnAddMember(func(member kkdiscovery.IMember) {

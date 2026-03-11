@@ -70,7 +70,8 @@ var asyncReqPool = sync.Pool{
 }
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options nats.Options) kkcluster.ICluster {
+func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, options nats.Options, clusterOpt kkcluster.ClusterOption) kkcluster.ICluster {
+	kkcluster.CheckClusterOption(&clusterOpt)
 	return &NatsCluster{
 		nodeID:      nodeID,
 		nodeType:    nodeType,
@@ -80,7 +81,7 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 		stopCh:      make(chan struct{}),
 		options:     options,
 		workerQueue: kkprocessor.NewWorkerQueue(1),
-		msgCodec:    kkcluster.GetMsgCodec(),
+		msgCodec:    clusterOpt.MsgCodec,
 	}
 }
 

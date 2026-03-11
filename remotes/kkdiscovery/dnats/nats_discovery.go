@@ -52,7 +52,7 @@ type NatsDiscovery struct {
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
-func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string]string, opts nats.Options) kkdiscovery.IDiscovery {
+func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string]string, opts nats.Options, discoveryOpt kkdiscovery.DiscoveryOption) kkdiscovery.IDiscovery {
 	if settings == nil {
 		settings = make(map[string]string)
 	}
@@ -67,7 +67,7 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
 		options:     opts,
-		msgCodec:    kkdiscovery.GetMsgCodec(),
+		msgCodec:    discoveryOpt.MsgCodec,
 	}
 }
 

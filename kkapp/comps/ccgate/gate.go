@@ -82,6 +82,7 @@ func (slf *gateComponent) OnInit() error {
 		slf.GetApplication().GetNodeInfo(),
 		nil,
 		discoveryOpts,
+		kkdiscovery.ApplyOptions(),
 	)
 
 	// 初始化 cluster（用于 gate <-> logic 转发）
@@ -91,6 +92,7 @@ func (slf *gateComponent) OnInit() error {
 		slf.GetApplication().GetNodeType(),
 		slf.discovery,
 		clusterOpts,
+		kkcluster.ApplyOptions(),
 	)
 
 	// 初始化 transportor

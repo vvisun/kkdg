@@ -9,4 +9,6 @@ var (
 	ErrInvalidPacket = errors.New("invalid packet")
 	// ErrNoMemberOfType 没有该类型的成员
 	ErrNoMemberOfType = errors.New("no member of type")
+	// 无效的编解码器
+	ErrClusterInvalidCodec = errors.New("invalid codec")
 )

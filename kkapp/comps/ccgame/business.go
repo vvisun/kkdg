@@ -67,6 +67,7 @@ func (slf *gameComponent) OnInit() error {
 		slf.GetApplication().GetNodeInfo(),
 		nil,
 		discoveryOpts,
+		kkdiscovery.ApplyOptions(),
 	)
 	slf.discovery.SetInfoGetter(func() (int, int) {
 		return slf.sessionManager.OnlineCount(), kkdiscovery.NodeStatusOnline
@@ -79,6 +80,7 @@ func (slf *gameComponent) OnInit() error {
 		slf.GetApplication().GetNodeType(),
 		slf.discovery,
 		clusterOpts,
+		kkcluster.ApplyOptions(),
 	)
 
 	// 初始化 transportor
