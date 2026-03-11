@@ -4,7 +4,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
-// 完整包。
+// 完整包。流拆解器
 // 包结构：[length,message] = [length,head,body]
 // length表示message的长度，占LengthFieldByteCount()个字节。
 // [message] = [head,body]

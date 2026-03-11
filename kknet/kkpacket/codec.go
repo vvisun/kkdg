@@ -126,7 +126,8 @@ func EncodeMessage(v any, messagePacket *MessagePacket) (*kkbuffer.ByteBuffer, e
  *@return error 错误
  */
 func DecodeMessage(bb *kkbuffer.ByteBuffer, messagePacket *MessagePacket) (any, error) {
-	headBytes, err := messagePacket.HeadBytes(bb.B)
+	messageBytes := bb.B
+	headBytes, err := messagePacket.HeadBytes(messageBytes)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return nil, err
@@ -141,7 +142,7 @@ func DecodeMessage(bb *kkbuffer.ByteBuffer, messagePacket *MessagePacket) (any, 
 		kkbuffer.Put(bb)
 		return nil, kkerrors.ErrMsgTypeNotRegistered
 	}
-	bodyBytes, err := messagePacket.BodyBytes(bb.B)
+	bodyBytes, err := messagePacket.BodyBytes(messageBytes)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return nil, err

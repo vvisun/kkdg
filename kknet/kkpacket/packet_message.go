@@ -7,10 +7,11 @@ import (
 )
 
 // [message] 编码解码器。用于编码解码[message]部分。
+// [message] = [head, body]
 type MessagePacket struct {
-	head      *PacketHead
-	bodyCodec kkcodec.ICodec
-	router    *MsgRouter
+	head      *PacketHead    //[head]部分编码解码器
+	bodyCodec kkcodec.ICodec //[body]部分编码解码器
+	router    *MsgRouter     //消息路由
 }
 
 func NewMessagePacket(head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRouter) *MessagePacket {
