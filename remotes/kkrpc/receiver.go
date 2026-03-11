@@ -194,3 +194,10 @@ func (r *RpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) error {
 	defer cancel()
 	return h.OnMsg(ctx, fr.P, fr.T, connId)
 }
+
+func NewRpcReceiver() *RpcReceiver {
+	return &RpcReceiver{
+		hdMap:     make(map[string]IRpcHandler),
+		oneWayMap: make(map[string]IOneWayHandler),
+	}
+}
