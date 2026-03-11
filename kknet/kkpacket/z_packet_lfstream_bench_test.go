@@ -20,7 +20,7 @@ func benchMsg(size int) []byte {
 func BenchmarkLengthFieldStreamPacket_Pack(b *testing.B) {
 	for _, size := range []int{0, 16, 256, 1024} {
 		b.Run(byteSizeLabel(size), func(b *testing.B) {
-			p := NewLengthFieldStreamPacket(4)
+			p := NewLengthFieldStreamPacket(4, 4*1024)
 			msg := benchMsg(size)
 
 			b.ResetTimer()
@@ -39,7 +39,7 @@ func BenchmarkLengthFieldStreamPacket_Pack(b *testing.B) {
 func BenchmarkLengthFieldStreamPacket_Unpack(b *testing.B) {
 	for _, size := range []int{0, 16, 256, 1024} {
 		b.Run(byteSizeLabel(size), func(b *testing.B) {
-			p := NewLengthFieldStreamPacket(4)
+			p := NewLengthFieldStreamPacket(4, 4*1024)
 			bb, _ := p.Pack(benchMsg(size))
 			packet := bb.B
 			kkbuffer.Put(bb)
@@ -57,9 +57,9 @@ func BenchmarkLengthFieldStreamPacket_Unpack(b *testing.B) {
 }
 
 func BenchmarkLengthFieldStreamPacket_PackUnpack(b *testing.B) {
-	for _, size := range []int{0, 16, 256, 1024} {
+	for _, size := range []int{0, 16, 256, 1024, 4 * 1024} {
 		b.Run(byteSizeLabel(size), func(b *testing.B) {
-			p := NewLengthFieldStreamPacket(4)
+			p := NewLengthFieldStreamPacket(4, 4*1024+4)
 			msg := benchMsg(size)
 
 			b.ResetTimer()
@@ -80,7 +80,7 @@ func BenchmarkLengthFieldStreamPacket_PackUnpack(b *testing.B) {
 }
 
 func BenchmarkLengthFieldStreamPacket_ReadMessageSize(b *testing.B) {
-	p := NewLengthFieldStreamPacket(4)
+	p := NewLengthFieldStreamPacket(4, 4*1024)
 	bb, _ := p.Pack([]byte("bench"))
 	header := bb.B[:4]
 	kkbuffer.Put(bb)
@@ -96,7 +96,7 @@ func BenchmarkLengthFieldStreamPacket_ReadMessageSize(b *testing.B) {
 }
 
 func BenchmarkLengthFieldStreamPacket_WriteMessageSize(b *testing.B) {
-	p := NewLengthFieldStreamPacket(4)
+	p := NewLengthFieldStreamPacket(4, 4*1024)
 	buf := make([]byte, 4)
 
 	b.ResetTimer()
@@ -107,7 +107,7 @@ func BenchmarkLengthFieldStreamPacket_WriteMessageSize(b *testing.B) {
 }
 
 func BenchmarkLengthFieldStreamPacket_CheckPacket(b *testing.B) {
-	p := NewLengthFieldStreamPacket(4)
+	p := NewLengthFieldStreamPacket(4, 4*1024)
 	bb, _ := p.Pack(benchMsg(64))
 	packet := bb.B
 	kkbuffer.Put(bb)
@@ -125,7 +125,7 @@ func BenchmarkLengthFieldStreamPacket_CheckPacket(b *testing.B) {
 func BenchmarkLengthFieldStreamPacket_Split(b *testing.B) {
 	for _, n := range []int{1, 10, 100} {
 		b.Run(packetCountLabel(n), func(b *testing.B) {
-			p := NewLengthFieldStreamPacket(4)
+			p := NewLengthFieldStreamPacket(4, 4*1024)
 			msg := benchMsg(64)
 			var concat []byte
 			for i := 0; i < n; i++ {
@@ -148,7 +148,7 @@ func BenchmarkLengthFieldStreamPacket_Split(b *testing.B) {
 }
 
 func BenchmarkLengthFieldStreamPacket_SplitSR(b *testing.B) {
-	p := NewLengthFieldStreamPacket(4)
+	p := NewLengthFieldStreamPacket(4, 4*1024)
 	bb, _ := p.Pack(benchMsg(64))
 	packetData := make([]byte, len(bb.B))
 	copy(packetData, bb.B)
@@ -169,7 +169,7 @@ func BenchmarkLengthFieldStreamPacket_LFB2_vs_LFB4(b *testing.B) {
 	msg := benchMsg(256)
 	for _, lfb := range []int{2, 4} {
 		b.Run(lfbLabel(lfb), func(b *testing.B) {
-			p := NewLengthFieldStreamPacket(lfb)
+			p := NewLengthFieldStreamPacket(lfb, 4*1024)
 			b.ResetTimer()
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {

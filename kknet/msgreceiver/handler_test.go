@@ -47,7 +47,7 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 		return nil
 	})
 
-	stream := kkpacket.NewLengthFieldStreamPacket(4)
+	stream := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	bb, err := kkpacket.EncodeStream(&testMsg{
 		ID:   1,
 		Data: "test",
@@ -91,7 +91,7 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 		return nil
 	})
 
-	stream := kkpacket.NewLengthFieldStreamPacket(4)
+	stream := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 
 	b.ResetTimer()
 	b.ReportAllocs()

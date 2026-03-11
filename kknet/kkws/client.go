@@ -178,7 +178,7 @@ func (c *Client) dialAndStart() (*wsConn, <-chan struct{}, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	conn.SetReadLimit(int64(kkpacket.MaxPacketSize()))
+	conn.SetReadLimit(int64(kkpacket.DefaultStreamPacket().MaxPacketSize()))
 
 	wsConn := newWSConn(conn, &c.opts, &c.stats)
 

@@ -118,7 +118,9 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numConns := 222
-	msgsPerConn := 222
+	msgsPerConn := 555
+	payload := make([]byte, 1024)
+
 	totalMsgs := int64(numConns * msgsPerConn)
 
 	addr := freePort(t)
@@ -147,7 +149,6 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	}()
 
 	serverAddr := "ws://" + addr + "/ws"
-	payload := make([]byte, 1024)
 	for i := range payload {
 		payload[i] = 0x01
 	}

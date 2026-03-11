@@ -89,7 +89,7 @@ func TestMsgMeta_EncodeDecodeStream_RoundTrip(t *testing.T) {
 	if m == nil {
 		t.Fatalf("NewMsgMeta returned nil")
 	}
-	stream := NewLengthFieldStreamPacket(4) // default stream: [length][message]
+	stream := NewLengthFieldStreamPacket(4, 4*1024) // default stream: [length][message]
 
 	// EncodeStream should fail with nil
 	if _, err := m.EncodeStream(nil, stream); err != kkerrors.ErrInvalidMessage {

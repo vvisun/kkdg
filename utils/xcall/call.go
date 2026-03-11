@@ -2,33 +2,12 @@ package xcall
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 	"time"
 
 	"github.com/panjf2000/ants/v2"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
-
-// Try 尝试执行函数，如果执行过程中发生异常，则调用catchFn
-// @param tryFn 要执行的函数
-// @param catchFn 发生异常时调用的函数
-// @return bool 是否发生异常
-func Try(tryFn func(), catchFn func(errString string)) bool {
-	var hasException = true
-	func() {
-		defer catchError(catchFn)
-		tryFn()
-		hasException = false
-	}()
-	return hasException
-}
-
-func catchError(catch func(errString string)) {
-	if r := recover(); r != nil {
-		catch(fmt.Sprint(r))
-	}
-}
 
 // SafeCall 安全地调用函数
 func SafeCall(fn func()) {

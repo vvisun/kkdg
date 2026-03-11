@@ -12,6 +12,9 @@ type IPacket interface {
 	// get length field byte count. [length].
 	LengthFieldByteCount() int
 
+	// get max packet size. 整包[length,message]最大长度（字节数）
+	MaxPacketSize() int
+
 	// length field bytes. packet = [length,message]
 	LengthFieldBytes(packet []byte) []byte
 

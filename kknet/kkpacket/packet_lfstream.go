@@ -20,22 +20,43 @@ type IStreamReader interface {
 // [length,message] = [length,head,body]
 // [message] = [head,body]
 type LengthFieldStreamPacket struct {
-	lfbCount int // [length]部分的字节数。该部分用于表示包体[message]的长度。
+	lfbCount      int // [length]部分的字节数。该部分用于表示包体[message]的长度。
+	maxPacketSize int // 整包[length,message]最大长度（字节数）
 }
 
 // NewLengthFieldStreamPacket creates a length-field stream packet.
-func NewLengthFieldStreamPacket(lfb int) IPacket {
+//
+//	@param lfb [length]部分的字节数。该部分用于表示包体[message]的长度。
+//	@param maxPacketSize 整包[length,message]最大长度（字节数）
+func NewLengthFieldStreamPacket(lfb int, maxPacketSize int) IPacket {
 	if lfb != 2 && lfb != 4 {
 		panic("length field byte count must be 2 or 4")
 	}
+	if maxPacketSize <= 0 {
+		panic("max packet size must be greater than 0")
+	}
+	// 2字节长度字段，最大长度为65535 (2^16-1)，超过则溢出
+	if lfb == 2 && maxPacketSize > 65535 {
+		panic("max packet size must be less than 65535")
+	}
+	// 4字节长度字段，最大长度为4294967295 (2^32-1)，超过则溢出
+	if lfb == 4 && maxPacketSize > 4294967295 {
+		panic("max packet size must be less than 4294967295")
+	}
 	return &LengthFieldStreamPacket{
-		lfbCount: lfb,
+		lfbCount:      lfb,
+		maxPacketSize: maxPacketSize,
 	}
 }
 
 // get length field byte count.
 func (slf *LengthFieldStreamPacket) LengthFieldByteCount() int {
 	return slf.lfbCount
+}
+
+// get max packet size. 整包[length,message]最大长度（字节数）
+func (slf *LengthFieldStreamPacket) MaxPacketSize() int {
+	return slf.maxPacketSize
 }
 
 // length field bytes. packet = [length,message]
@@ -92,7 +113,7 @@ func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
 	if totalLen < slf.lfbCount {
 		return kkerrors.ErrDataTooShortToDecode
 	}
-	if totalLen > MaxPacketSize() {
+	if totalLen > slf.maxPacketSize {
 		return kkerrors.ErrMaxMessageSize
 	}
 	messageLen, err := slf.ReadMessageSize(packet)
@@ -123,7 +144,7 @@ func (slf *LengthFieldStreamPacket) CheckPacketBuffer(packetBB *kkbuffer.ByteBuf
  *注意：外部需记得释放缓冲区！！！否则缓冲区得不到回收，性能反而更低！！！
  */
 func (slf *LengthFieldStreamPacket) Pack(messageBytes []byte) (*kkbuffer.ByteBuffer, error) {
-	if len(messageBytes) > MaxPacketSize()-slf.lfbCount {
+	if len(messageBytes) > slf.maxPacketSize-slf.lfbCount {
 		return nil, kkerrors.ErrMaxMessageSize
 	}
 
@@ -188,7 +209,7 @@ func (slf *LengthFieldStreamPacket) Split(packets []byte, recvs [][]byte) ([][]b
 			break
 		}
 		totalLen := lfb + messageLen // [length,message]的长度
-		if totalLen > MaxPacketSize() {
+		if totalLen > slf.maxPacketSize {
 			errRet = kkerrors.ErrMaxMessageSize // 包体超过了最大长度
 			leftData = packets[pos:]
 			break

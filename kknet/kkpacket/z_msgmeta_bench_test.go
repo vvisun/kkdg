@@ -18,7 +18,7 @@ func benchmarkMsgMetaEncodeStream(b *testing.B, nameSize int) {
 	if m == nil {
 		b.Fatalf("NewMsgMeta returned nil")
 	}
-	stream := NewLengthFieldStreamPacket(4)
+	stream := NewLengthFieldStreamPacket(4, 4*1024)
 
 	// 构造一定长度的字符串，避免过于理想的压缩
 	payload := &testMsg{ID: 123, Name: makeString(nameSize)}
@@ -55,7 +55,7 @@ func BenchmarkMsgMetaDecodeStream(b *testing.B) {
 	if m == nil {
 		b.Fatalf("NewMsgMeta returned nil")
 	}
-	stream := NewLengthFieldStreamPacket(4)
+	stream := NewLengthFieldStreamPacket(4, 4*1024)
 
 	orig := &testMsg{ID: 456, Name: makeString(128)}
 	bb, err := m.EncodeStream(orig, stream)
@@ -87,7 +87,7 @@ func BenchmarkMessagePacket_GetMsgID(b *testing.B) {
 	if m == nil {
 		b.Fatalf("NewMsgMeta returned nil")
 	}
-	stream := NewLengthFieldStreamPacket(4)
+	stream := NewLengthFieldStreamPacket(4, 4*1024)
 
 	orig := &testMsg{ID: 789, Name: "head-only"}
 	bb, err := m.EncodeStream(orig, stream)
@@ -128,4 +128,3 @@ func makeString(n int) string {
 	}
 	return s[:n]
 }
-
