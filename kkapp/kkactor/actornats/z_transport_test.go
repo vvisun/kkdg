@@ -34,8 +34,8 @@ type remotePong struct {
 
 func TestTransport_SendAndRequest(t *testing.T) {
 	natsURL := requireNATS(t)
-	registry := actorremotes.GetDefaultMessageRegistry()
 
+	registry := actorremotes.GetDefaultMessageRegistry()
 	if err := registry.Register(&remotePing{}); err != nil {
 		t.Fatalf("register ping on transport1: %v", err)
 	}

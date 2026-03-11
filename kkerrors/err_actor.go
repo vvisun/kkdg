@@ -15,6 +15,9 @@ var (
 	ErrActorAddInvalidPID = errors.New("invalid pid")
 	// actor 添加无效的node
 	ErrActorAddInvalidNode = errors.New("invalid node")
+)
+
+var (
 	// actor 远程传输未配置
 	ErrActorRemoteTransportNotConfigured = errors.New("remote actor transport not configured")
 	// actor 远程接收器未设置
