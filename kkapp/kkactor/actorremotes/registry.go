@@ -12,7 +12,9 @@ import (
 
 var msgCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 
-func SetMsgCodec(codec kkcodec.ICodec) {
+// 配置默认值。启动阶段初始化，运行期间不要修改。
+// @param codec 消息编码器
+func ConfigDefaults(codec kkcodec.ICodec) {
 	if codec == nil {
 		kklog.Errorf("[kkactor] SetMsgCodec codec is nil, use default codec")
 		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
