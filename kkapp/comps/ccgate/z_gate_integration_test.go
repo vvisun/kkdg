@@ -24,6 +24,8 @@ func (m *mockConn) Close() error                            { return nil }
 func (m *mockConn) RemoteAddr() string                      { return m.addr }
 func (m *mockConn) SendBuffer(_ *kkbuffer.ByteBuffer) error { return nil }
 func (m *mockConn) SendMsg(_ any) error                     { return nil }
+func (m *mockConn) SetExtraData(any)                        {}
+func (m *mockConn) GetExtraData() any                       { return nil }
 
 // mockTransportor records forwarded packets without real network.
 type mockTransportor struct {

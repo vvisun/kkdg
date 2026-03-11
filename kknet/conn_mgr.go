@@ -6,14 +6,6 @@ import (
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-type ConnInfo struct {
-	connID         CONN_ID //连接ID
-	userID         USER_ID //用户ID
-	sessionID      string  //客户端会话ID
-	fromGateNodeId string  //关联网关nodeId
-	conn           IConn   //连接对象
-}
-
 type ConnManager[T IConn] struct {
 	mu    sync.RWMutex
 	conns map[CONN_ID]T

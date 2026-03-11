@@ -32,6 +32,8 @@ type gwsConn struct {
 	rp      kknet.IReadProcessor
 
 	pingTimer unsafe.Pointer // *timingwheel.Timer
+
+	extraData any // 自定义数据
 }
 
 var _ kknet.IConn = (*gwsConn)(nil)
@@ -79,6 +81,14 @@ func (c *gwsConn) RemoteAddr() string {
 		return ""
 	}
 	return addr.String()
+}
+
+func (c *gwsConn) SetExtraData(extraData any) {
+	c.extraData = extraData
+}
+
+func (c *gwsConn) GetExtraData() any {
+	return c.extraData
 }
 
 func (c *gwsConn) Close() error {

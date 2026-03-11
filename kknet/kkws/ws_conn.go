@@ -34,6 +34,8 @@ type wsConn struct {
 
 	// ping 由时间轮调度，关闭连接时需 Stop 取消
 	pingTimer unsafe.Pointer // *timingwheel.Timer
+
+	extraData any // 自定义数据
 }
 
 var _ kknet.IConn = (*wsConn)(nil)
@@ -71,6 +73,14 @@ func (c *wsConn) RemoteAddr() string {
 		return ""
 	}
 	return c.conn.UnderlyingConn().RemoteAddr().String()
+}
+
+func (c *wsConn) SetExtraData(extraData any) {
+	c.extraData = extraData
+}
+
+func (c *wsConn) GetExtraData() any {
+	return c.extraData
 }
 
 func (c *wsConn) Close() error {

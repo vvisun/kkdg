@@ -20,6 +20,8 @@ type gnetClientConn struct {
 
 	rp kknet.IReadProcessor
 	wp kknet.IWriteProcessor
+
+	extraData any // 自定义数据
 }
 
 var _ kknet.IConn = (*gnetClientConn)(nil)
@@ -59,6 +61,14 @@ func (c *gnetClientConn) ID() kknet.CONN_ID {
 
 func (c *gnetClientConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
+}
+
+func (c *gnetClientConn) SetExtraData(extraData any) {
+	c.extraData = extraData
+}
+
+func (c *gnetClientConn) GetExtraData() any {
+	return c.extraData
 }
 
 func (c *gnetClientConn) Close() error {

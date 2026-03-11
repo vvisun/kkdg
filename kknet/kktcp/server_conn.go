@@ -20,6 +20,8 @@ type tcpConn struct {
 
 	rp kknet.IReadProcessor
 	wp kknet.IWriteProcessor
+
+	extraData any // 自定义数据
 }
 
 var _ kknet.IConn = (*tcpConn)(nil)
@@ -60,6 +62,14 @@ func (c *tcpConn) ID() kknet.CONN_ID {
 
 func (c *tcpConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
+}
+
+func (c *tcpConn) SetExtraData(extraData any) {
+	c.extraData = extraData
+}
+
+func (c *tcpConn) GetExtraData() any {
+	return c.extraData
 }
 
 func (c *tcpConn) Close() error {
