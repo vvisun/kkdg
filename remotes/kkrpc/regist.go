@@ -73,6 +73,19 @@ type rpcManager struct {
 	method2typeOneWay map[string]methonOneWay
 }
 
+func (rm *rpcManager) getMethod(msg any) string {
+	tp := reflect.TypeOf(msg)
+	method, ok := rm.type2methodOneWay[tp]
+	if ok {
+		return method
+	}
+	method, ok = rm.type2methodReqRsp[tp]
+	if ok {
+		return method
+	}
+	return ""
+}
+
 func newRpcManager() *rpcManager {
 	return &rpcManager{
 		peers:             make(map[string]interface{}),

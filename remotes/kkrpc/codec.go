@@ -91,7 +91,15 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 	return bb1, nil
 }
 
-func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrameEx(ft FrameType, reqId uint64, msg any, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
+	method := gRpcManager.getMethod(msg)
+	if method == "" {
+		return nil, kkerrors.ErrRpcMethodNotRegistered
+	}
+	return EncodeRpcFrame(ft, reqId, method, msg, deadlineMs)
+}
+
+func EncodeRpcFrame(ft FrameType, reqId uint64, method string, msg any, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
 	payloadBytes, err := gPayloadCodec.Marshal(msg)
 	if err != nil {
 		return nil, err
