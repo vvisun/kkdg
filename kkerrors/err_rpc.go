@@ -24,4 +24,6 @@ var (
 	ErrRpcInvalidFrameType = errors.New("kkrpc: invalid frame type")
 	// 无效的请求响应类型
 	ErrRpcInvalidReqResp = errors.New("kkrpc: invalid req resp type")
+	// 方法未注册
+	ErrRpcMethodNotRegistered = errors.New("kkrpc: method not registered")
 )

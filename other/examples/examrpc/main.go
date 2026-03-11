@@ -68,16 +68,22 @@ func runRpcDemo(addr string) {
 	// 请求-响应
 	req := &EchoReq{Msg: "hello examrpc"}
 	var rsp EchoRsp
-	invoker := kkrpc.NewReqRspInvoker[EchoReq, EchoRsp](cli, 0)
-	if err := invoker.Invoke(context.Background(), req, kkrpc.CallConfig{}, &rsp); err != nil {
+	invoker, err := kkrpc.NewReqRspInvoker[EchoReq, EchoRsp](cli, 0)
+	if err != nil {
+		panic(err)
+	}
+	if err = invoker.Invoke(context.Background(), req, kkrpc.CallConfig{}, &rsp); err != nil {
 		panic(err)
 	}
 	fmt.Printf("Echo response: %q\n", rsp.Reply)
 
 	// 单向
 	pingReq := &PingReq{From: "examrpc"}
-	oneWayInvoker := kkrpc.NewOneWayInvoker[PingReq](cli, 0)
-	if err := oneWayInvoker.InvokeNR(context.Background(), pingReq, kkrpc.CallConfig{}); err != nil {
+	oneWayInvoker, err := kkrpc.NewOneWayInvoker[PingReq](cli, 0)
+	if err != nil {
+		panic(err)
+	}
+	if err = oneWayInvoker.InvokeNR(context.Background(), pingReq, kkrpc.CallConfig{}); err != nil {
 		panic(err)
 	}
 	fmt.Println("Ping sent")

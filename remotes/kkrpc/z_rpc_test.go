@@ -75,8 +75,11 @@ func Test_RpcProcessor(t *testing.T) {
 		Data: "test",
 	}
 	var resp testRsp
-	reqRspInvoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
-	err := reqRspInvoker.Invoke(context.Background(), &req, CallConfig{}, &resp)
+	reqRspInvoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
+	err = reqRspInvoker.Invoke(context.Background(), &req, CallConfig{}, &resp)
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
 	}
@@ -85,7 +88,10 @@ func Test_RpcProcessor(t *testing.T) {
 	}
 
 	// client call server oneway
-	oneWayInvoker := NewOneWayInvoker[testReq](cli, 0)
+	oneWayInvoker, err := NewOneWayInvoker[testReq](cli, 0)
+	if err != nil {
+		t.Fatalf("create oneway invoker: %v", err)
+	}
 	err = oneWayInvoker.InvokeNR(context.Background(), &req, CallConfig{})
 	kklog.Infof("[client] onTestOneway from %s, connId=%d", req.Data, 0)
 	if err != nil {
@@ -98,7 +104,10 @@ func Test_RpcProcessor(t *testing.T) {
 		connId = id
 		return false
 	})
-	oneWayInvoker = NewOneWayInvoker[testReq](svr, connId)
+	oneWayInvoker, err = NewOneWayInvoker[testReq](svr, connId)
+	if err != nil {
+		t.Fatalf("create oneway invoker: %v", err)
+	}
 	err = oneWayInvoker.InvokeNR(context.Background(), &req, CallConfig{})
 	kklog.Infof("[server] onTestOneway from %s, connId=%d", req.Data, connId)
 	if err != nil {
@@ -125,8 +134,11 @@ func Test_Invoke_Timeout(t *testing.T) {
 
 	req := testReq{ID: 1, Data: "timeout"}
 	var resp testRsp
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
-	err := invoker.Invoke(context.Background(), &req, CallConfig{Timeout: 100 * time.Millisecond}, &resp)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
+	err = invoker.Invoke(context.Background(), &req, CallConfig{Timeout: 100 * time.Millisecond}, &resp)
 	if !errors.Is(err, kkerrors.ErrRpcTimeout) {
 		t.Fatalf("expected ErrTimeout, got %v", err)
 	}
@@ -144,8 +156,11 @@ func Test_Invoke_ContextCanceled(t *testing.T) {
 
 	req := testReq{ID: 1, Data: "ctx"}
 	var resp testRsp
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
-	err := invoker.Invoke(ctx, &req, CallConfig{}, &resp)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
+	err = invoker.Invoke(ctx, &req, CallConfig{}, &resp)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
@@ -162,8 +177,11 @@ func Test_Invoke_OnClosedClient(t *testing.T) {
 
 	req := testReq{ID: 1, Data: "closed"}
 	var resp testRsp
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
-	err := invoker.Invoke(context.Background(), &req, CallConfig{}, &resp)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
+	err = invoker.Invoke(context.Background(), &req, CallConfig{}, &resp)
 	if !errors.Is(err, kkerrors.ErrRpcConnClosed) {
 		t.Fatalf("expected ErrConnClosed, got %v", err)
 	}
@@ -177,13 +195,16 @@ func Test_InvokeAsync_Success(t *testing.T) {
 	})
 
 	req := testReq{ID: 1, Data: "async"}
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
 
 	done := make(chan struct{})
 	var gotResp *testRsp
 	var gotErr error
 
-	err := invoker.InvokeAsync(context.Background(), &req, CallConfig{}, func(r *testRsp, e error) {
+	err = invoker.InvokeAsync(context.Background(), &req, CallConfig{}, func(r *testRsp, e error) {
 		gotResp = r
 		gotErr = e
 		close(done)
@@ -212,13 +233,16 @@ func Test_InvokeAsync_Error(t *testing.T) {
 	})
 
 	req := testReq{ID: 1, Data: "async-err"}
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
 
 	done := make(chan struct{})
 	var gotResp *testRsp
 	var gotErr error
 
-	err := invoker.InvokeAsync(context.Background(), &req, CallConfig{}, func(r *testRsp, e error) {
+	err = invoker.InvokeAsync(context.Background(), &req, CallConfig{}, func(r *testRsp, e error) {
 		gotResp = r
 		gotErr = e
 		close(done)
@@ -250,13 +274,16 @@ func Test_InvokeAsync_Timeout(t *testing.T) {
 	})
 
 	req := testReq{ID: 1, Data: "async-timeout"}
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
 
 	done := make(chan struct{})
 	var callCount int
 	var gotErr error
 
-	err := invoker.InvokeAsync(context.Background(), &req, CallConfig{Timeout: 80 * time.Millisecond}, func(r *testRsp, e error) {
+	err = invoker.InvokeAsync(context.Background(), &req, CallConfig{Timeout: 80 * time.Millisecond}, func(r *testRsp, e error) {
 		callCount++
 		gotErr = e
 		close(done)
@@ -294,8 +321,11 @@ func Test_InvokeNR(t *testing.T) {
 	_, cli := newTestServerClient(t, rpcRouter)
 
 	req := testReq{ID: 1, Data: "oneway"}
-	invoker := NewOneWayInvoker[testReq](cli, 0)
-	if err := invoker.InvokeNR(context.Background(), &req, CallConfig{}); err != nil {
+	invoker, err := NewOneWayInvoker[testReq](cli, 0)
+	if err != nil {
+		t.Fatalf("create oneway invoker: %v", err)
+	}
+	if err = invoker.InvokeNR(context.Background(), &req, CallConfig{}); err != nil {
 		t.Fatalf("InvokeNR: %v", err)
 	}
 
@@ -322,8 +352,11 @@ func Test_ServerInvoker(t *testing.T) {
 
 	req := testReq{ID: 2, Data: "test2"}
 	var resp testRsp
-	invoker := NewReqRspInvoker[testReq, testRsp](svr, connId)
-	err := invoker.Invoke(context.Background(), &req, CallConfig{}, &resp)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](svr, connId)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
+	err = invoker.Invoke(context.Background(), &req, CallConfig{}, &resp)
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
 	}
