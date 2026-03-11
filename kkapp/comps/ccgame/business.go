@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransnats"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransrpc"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransshard"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
@@ -22,8 +23,11 @@ func NewGameComponent(opt Option) *gameComponent {
 	if err := validateOption(&opt); err != nil {
 		panic(err)
 	}
+	streamTool := kkpacket.DefaultStreamPacket()
+	messageTool := kkapp.GetMsgPacket()
+	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	return &gameComponent{
-		msgReceiver:    msgreceiver.NewMsgReceiver[string](kkapp.GetMsgPacket()),
+		msgReceiver:    msgreceiver.NewMsgReceiver[string](packetTool),
 		sessionManager: gametrans.NewSessionManager(),
 		opt:            opt,
 	}

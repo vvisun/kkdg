@@ -54,11 +54,11 @@ func newMsgHandler[T any, K any](msgID kkpacket.MSGID, codec kkcodec.ICodec, cal
 // 非线程安全，一般在初始化时调用，故不考虑线程安全
 func RegisterMsgHandler[T any, K any](receiver *MsgReceiver[K], call MsgHandlerFunc[T, K]) {
 	var v T
-	msgID := receiver.messagePacket.GetRouter().GetMsgID(&v)
+	msgID := receiver.packetTool.GetMessageTool().GetRouter().GetMsgID(&v)
 	if msgID == 0 {
 		kklog.Error("message type not registered")
 		return
 	}
-	h := newMsgHandler[T, K](msgID, receiver.messagePacket.GetBodyCodec(), call)
+	h := newMsgHandler[T, K](msgID, receiver.packetTool.GetMessageTool().GetBodyCodec(), call)
 	receiver.hdMap[msgID] = h
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/other/examples/examapp"
@@ -50,7 +51,10 @@ func main() {
 }
 
 func runOneClient() kknet.IClient {
-	msgReceiver := msgreceiver.NewMsgReceiver[kknet.CONN_ID](kkapp.GetMsgPacket())
+	streamTool := kkpacket.DefaultStreamPacket()
+	messageTool := kkapp.GetMsgPacket()
+	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
+	msgReceiver := msgreceiver.NewMsgReceiver[kknet.CONN_ID](packetTool)
 	gh := &gameHandler{}
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)
@@ -62,7 +66,7 @@ func runOneClient() kknet.IClient {
 	var client kknet.IClient
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(msgReceiver),
-		kknet.WithMsgPacket(kkapp.GetMsgPacket()),
+		kknet.WithMsgPacket(packetTool.GetMessageTool()),
 	)
 	if examapp.GateWSAddr != "" {
 		u := url.URL{Scheme: "ws", Host: examapp.GateWSAddr, Path: "/ws"}

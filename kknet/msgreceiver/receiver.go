@@ -6,11 +6,17 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
+/**自定义解析完整包数据[length,message]。
+ *@param data []byte 完整包数据[length,message]
+ *@return kkpacket.MSGID 消息ID
+ *@return []byte 消息对象二进制数据
+ *@return error 错误
+ */
 type MetaParser func(data []byte) (kkpacket.MSGID, []byte, error)
 
 // MsgReceiver 消息接收器
 type MsgReceiver[K any] struct {
-	messagePacket       *kkpacket.MessagePacket
+	packetTool          *kkpacket.FullPacket
 	hdMap               map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
 	metaParser          MetaParser
 	needCopyInOnSession bool
@@ -23,22 +29,27 @@ func (r *MsgReceiver[K]) SetNeedCopyInOnSession(isNeedCopy bool) {
 	r.needCopyInOnSession = isNeedCopy
 }
 
-// 解析出: msgID-消息ID，bodyBytes-消息对象二进制数据.
-// 注意，返回的bodyBytes是指向data内部的切片
+/** 解析完整包数据[length,message]。
+ *@param data []byte 完整包数据[length,message]
+ *@return kkpacket.MSGID 消息ID
+ *@return []byte 消息对象二进制数据
+ *@return error 错误
+ */
 func (r *MsgReceiver[K]) parseMsgInfo(data []byte) (kkpacket.MSGID, []byte, error) {
 	if r.metaParser != nil {
 		return r.metaParser(data)
 	}
+
 	// 默认实现
-	messageBytes, err := kkpacket.DefaultStreamPacket().Unpack(data)
+	messageBytes, err := r.packetTool.GetStreamTool().Unpack(data)
 	if err != nil {
 		return 0, nil, err
 	}
-	msgId, err := r.messagePacket.GetMsgID(messageBytes)
+	msgId, err := r.packetTool.GetMessageTool().GetMsgID(messageBytes)
 	if err != nil {
 		return 0, nil, err
 	}
-	bodyBytes, err := r.messagePacket.BodyBytes(messageBytes)
+	bodyBytes, err := r.packetTool.GetMessageTool().BodyBytes(messageBytes)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -87,19 +98,19 @@ func (r *MsgReceiver[K]) OnSession(sessionID K, streamBytes []byte) {
 //--------------------------------------------------
 
 // NewMsgReceiver 创建消息接收器
-func NewMsgReceiver[K any](messagePacket *kkpacket.MessagePacket) *MsgReceiver[K] {
+func NewMsgReceiver[K any](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
 	return &MsgReceiver[K]{
-		messagePacket: messagePacket,
-		hdMap:         make(map[kkpacket.MSGID]IMsgHandler[K]),
-		metaParser:    nil,
+		packetTool: packetTool,
+		hdMap:      make(map[kkpacket.MSGID]IMsgHandler[K]),
+		metaParser: nil,
 	}
 }
 
 // NewMsgReceiverWithParser 创建消息接收器，使用自定义的元数据解析器
-func NewMsgReceiverWithParser[K any](messagePacket *kkpacket.MessagePacket, metaParser MetaParser) *MsgReceiver[K] {
+func NewMsgReceiverWithParser[K any](packetTool *kkpacket.FullPacket, metaParser MetaParser) *MsgReceiver[K] {
 	return &MsgReceiver[K]{
-		messagePacket: messagePacket,
-		hdMap:         make(map[kkpacket.MSGID]IMsgHandler[K]),
-		metaParser:    metaParser,
+		packetTool: packetTool,
+		hdMap:      make(map[kkpacket.MSGID]IMsgHandler[K]),
+		metaParser: metaParser,
 	}
 }

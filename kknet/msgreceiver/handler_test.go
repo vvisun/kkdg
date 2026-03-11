@@ -40,8 +40,10 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 	router := kkpacket.NewMsgRouter()
 	router.Register(1, &testMsg{}, "test")
 	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
-	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
-	receiver := NewMsgReceiver[kknet.CONN_ID](msgPacket)
+	messageTool := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
+	streamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
+	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
+	receiver := NewMsgReceiver[kknet.CONN_ID](packetTool)
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
 		fmt.Println(msg)
 		return nil
@@ -51,7 +53,7 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 	bb, err := kkpacket.EncodeStream(&testMsg{
 		ID:   1,
 		Data: "test",
-	}, stream, msgPacket)
+	}, stream, messageTool)
 	if err != nil {
 		t.Fatalf("encode stream: %v", err)
 	}
@@ -62,8 +64,10 @@ func TestMsgReceiver_OnRawWithParser(t *testing.T) {
 	router := kkpacket.NewMsgRouter()
 	router.Register(1, &testMsg{}, "test")
 	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
-	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
-	receiver := NewMsgReceiverWithParser[kknet.CONN_ID](msgPacket, func(data []byte) (kkpacket.MSGID, []byte, error) {
+	messageTool := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
+	streamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
+	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
+	receiver := NewMsgReceiverWithParser[kknet.CONN_ID](packetTool, func(data []byte) (kkpacket.MSGID, []byte, error) {
 		return 1, data, nil
 	})
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
@@ -84,8 +88,10 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 	router := kkpacket.NewMsgRouter()
 	router.Register(1, &testMsg{}, "test")
 	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
-	msgPacket := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
-	receiver := NewMsgReceiver[kknet.CONN_ID](msgPacket)
+	messageTool := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
+	streamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
+	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
+	receiver := NewMsgReceiver[kknet.CONN_ID](packetTool)
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
 		// fmt.Println(msg)
 		return nil
@@ -100,7 +106,7 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 			ID:   1,
 			Data: "test",
 		}
-		bb, err := kkpacket.EncodeStream(&msg, stream, msgPacket)
+		bb, err := kkpacket.EncodeStream(&msg, stream, messageTool)
 		if err != nil {
 			b.Fatalf("encode stream: %v", err)
 		}
