@@ -29,11 +29,6 @@ func GetMsgPacket() *kkpacket.MessagePacket {
 	return gMsgPacket
 }
 
-// SetMsgPacket 设置网关与客户端之间的消息编码解码器
-func SetMsgPacket(head *kkpacket.PacketHead, bodyCodec kkcodec.ICodec, router *kkpacket.MsgRouter) {
-	gMsgPacket = kkpacket.NewMessagePacket(head, bodyCodec, router)
-}
-
 // 网关与业务服之间的消息编码解码器
 var gTransMsgPacket = kkpacket.NewMessagePacket(
 	kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
@@ -44,11 +39,6 @@ var gTransMsgPacket = kkpacket.NewMessagePacket(
 // GetTransMsgPacket 获取网关与业务服之间的消息编码解码器
 func GetTransMsgPacket() *kkpacket.MessagePacket {
 	return gTransMsgPacket
-}
-
-// SetTransMsgPacket 设置网关与业务服之间的消息编码解码器
-func SetTransMsgPacket(head *kkpacket.PacketHead, bodyCodec kkcodec.ICodec, router *kkpacket.MsgRouter) {
-	gTransMsgPacket = kkpacket.NewMessagePacket(head, bodyCodec, router)
 }
 
 // 配置默认值。启动阶段初始化，运行期间不要修改。

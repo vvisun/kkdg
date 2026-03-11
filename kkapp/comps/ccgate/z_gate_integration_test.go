@@ -102,7 +102,6 @@ func (d *mockDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot {
 func (d *mockDiscovery) SetInfoGetter(func() (int, int))      {}
 func (d *mockDiscovery) GetMemberMgr() kkdiscovery.IMemberMgr { return d.mgr }
 func (d *mockDiscovery) IsRunning() bool                      { return true }
-func (d *mockDiscovery) SetMsgCodec(codec kkcodec.ICodec)     {}
 
 // Test_gateHandler_OnRaw_end_to_end verifies connect -> OnRaw -> ForwardToLogic path.
 func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
@@ -119,10 +118,13 @@ func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
 	if err := router.Register(msgIDLogin, &LoginReq{}, routeGame); err != nil {
 		t.Fatalf("Register: %v", err)
 	}
-	kkapp.SetMsgPacket(
-		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-		kkcodec.GetCodec(kkcodec.CodecTypeJson),
-		router,
+	kkapp.ConfigDefaults(
+		kkpacket.NewMessagePacket(
+			kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+			kkcodec.GetCodec(kkcodec.CodecTypeJson),
+			router,
+		),
+		nil,
 	)
 
 	// 2) construct gateComponent with mocks (bypassing Init/Start)
@@ -186,10 +188,13 @@ func Benchmark_gateHandler_OnRaw_throughput(b *testing.B) {
 	if err := router.Register(msgIDLogin, &LoginReq{}, routeGame); err != nil {
 		b.Fatalf("Register: %v", err)
 	}
-	kkapp.SetMsgPacket(
-		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-		kkcodec.GetCodec(kkcodec.CodecTypeJson),
-		router,
+	kkapp.ConfigDefaults(
+		kkpacket.NewMessagePacket(
+			kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+			kkcodec.GetCodec(kkcodec.CodecTypeJson),
+			router,
+		),
+		nil,
 	)
 
 	gate := &gateComponent{}
@@ -244,10 +249,13 @@ func Benchmark_gateHandler_OnRaw_withEncode(b *testing.B) {
 	if err := router.Register(msgIDLogin, &LoginReq{}, routeGame); err != nil {
 		b.Fatalf("Register: %v", err)
 	}
-	kkapp.SetMsgPacket(
-		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-		kkcodec.GetCodec(kkcodec.CodecTypeJson),
-		router,
+	kkapp.ConfigDefaults(
+		kkpacket.NewMessagePacket(
+			kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+			kkcodec.GetCodec(kkcodec.CodecTypeJson),
+			router,
+		),
+		nil,
 	)
 
 	gate := &gateComponent{}
