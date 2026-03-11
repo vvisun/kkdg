@@ -49,7 +49,7 @@ func GetByteOrder() binary.ByteOrder {
 	return gByteOrder
 }
 
-// 完整包。流拆解器 + 消息编码解码器
+// 完整包工具。流拆解器 + 消息编码解码器
 type FullPacket struct {
 	streamTool  IPacket        //流拆解器
 	messageTool *MessagePacket //消息编码解码器
