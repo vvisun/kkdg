@@ -67,22 +67,13 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
 		options:     opts,
-		msgCodec:    kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		msgCodec:    kkdiscovery.GetMsgCodec(),
 	}
 }
 
 // Name 返回发现服务名称
 func (d *NatsDiscovery) Name() string {
 	return d.name
-}
-
-// SetMsgCodec 设置消息编码器
-func (d *NatsDiscovery) SetMsgCodec(codec kkcodec.ICodec) {
-	if codec == nil {
-		kklog.Errorf("[kkdiscovery] SetMsgCodec codec is nil, use default codec: %s", "msgpack")
-		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-	}
-	d.msgCodec = codec
 }
 
 // SetInfoGetter 设置信息获取函数

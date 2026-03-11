@@ -80,17 +80,8 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 		stopCh:      make(chan struct{}),
 		options:     options,
 		workerQueue: kkprocessor.NewWorkerQueue(1),
-		msgCodec:    kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		msgCodec:    kkcluster.GetMsgCodec(),
 	}
-}
-
-// SetMsgCodec 设置消息编码器
-func (c *NatsCluster) SetMsgCodec(codec kkcodec.ICodec) {
-	if codec == nil {
-		kklog.Errorf("[kkcluster] SetMsgCodec codec is nil, use default codec: %s", "msgpack")
-		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack) // 默认使用msgpack
-	}
-	c.msgCodec = codec
 }
 
 // Start 初始化集群

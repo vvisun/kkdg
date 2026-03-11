@@ -1,35 +1,37 @@
 package kkrpc
 
 import (
+	"sync/atomic"
+
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 var (
+	initedCodec atomic.Bool
 	// rpc用的编码器
-	frameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
+	gFrameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	// rpc消息里的Data字段编码器
-	payloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-	// 网关消息使用的编码器. 需和客户端约定好编码器类型
-	// gatewayCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeProtoBuf)
+	gPayloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 )
 
-// 注意，msgpack有并发安全问题，不要使用
-func SetFrameCodec(codec kkcodec.ICodec) {
-	if codec == nil {
-		panic("codec is nil")
+// 配置默认值。启动阶段初始化，运行期间不要修改。
+// @param frameCodec 帧编码器
+// @param payloadCodec 消息编码器
+func ConfigDefaults(frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec) {
+	if !initedCodec.CompareAndSwap(false, true) {
+		kklog.Warnf("[kkrpc] codec already setted, ignore")
+		return
 	}
-	frameCodec = codec
-}
-
-// 注意，msgpack有并发安全问题，不要使用
-func SetPayloadCodec(codec kkcodec.ICodec) {
-	if codec == nil {
-		panic("codec is nil")
+	if frameCodec != nil {
+		gFrameCodec = frameCodec
 	}
-	payloadCodec = codec
+	if payloadCodec != nil {
+		gPayloadCodec = payloadCodec
+	}
 }
 
 func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
@@ -41,7 +43,7 @@ func EncodeFailedResponse(frame *Frame) (*kkbuffer.ByteBuffer, error) {
 	}
 
 	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
-	bb1, err1 := frameCodec.MarshalAppend(frame, lfbCount)
+	bb1, err1 := gFrameCodec.MarshalAppend(frame, lfbCount)
 	if err1 != nil {
 		kkbuffer.Put(bb1)
 		return nil, err1
@@ -70,7 +72,7 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 	}
 
 	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
-	bb1, err1 := frameCodec.MarshalAppend(&request, lfbCount)
+	bb1, err1 := gFrameCodec.MarshalAppend(&request, lfbCount)
 	if err1 != nil {
 		kkbuffer.Put(bb1)
 		return nil, err1
@@ -80,7 +82,7 @@ func EncodeRpcFrameWithPayload(ft FrameType, reqId uint64, method string, payloa
 }
 
 func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
-	payloadBytes, err := payloadCodec.Marshal(msg)
+	payloadBytes, err := gPayloadCodec.Marshal(msg)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +106,7 @@ func EncodeRpcFrame[T any](ft FrameType, reqId uint64, method string, msg *T, de
 	}
 
 	lfbCount := kkpacket.DefaultStreamPacket().LengthFieldByteCount()
-	bb1, err1 := frameCodec.MarshalAppend(&request, lfbCount)
+	bb1, err1 := gFrameCodec.MarshalAppend(&request, lfbCount)
 	if err1 != nil {
 		kkbuffer.Put(bb1)
 		return nil, err1
@@ -120,14 +122,14 @@ func DecodeRpcPayload[T any](bb *kkbuffer.ByteBuffer) (*T, error) {
 	}
 
 	var frame Frame
-	err = frameCodec.Unmarshal(frameBytes, &frame)
+	err = gFrameCodec.Unmarshal(frameBytes, &frame)
 	if err != nil {
 		return nil, err
 	}
 
 	payloadBytes := frame.P
 	var t T
-	err = payloadCodec.Unmarshal(payloadBytes, &t)
+	err = gPayloadCodec.Unmarshal(payloadBytes, &t)
 	if err != nil {
 		return nil, err
 	}

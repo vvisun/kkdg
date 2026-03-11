@@ -119,7 +119,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		if err != nil {
 			return err
 		}
-		err = payloadCodec.Unmarshal(fr.P, rsp)
+		err = gPayloadCodec.Unmarshal(fr.P, rsp)
 		byteslice.Put(fr.P)
 		if err != nil {
 			return err
@@ -201,7 +201,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 			callback(nil, err)
 			return
 		}
-		err = payloadCodec.Unmarshal(fr.P, respInfo)
+		err = gPayloadCodec.Unmarshal(fr.P, respInfo)
 		byteslice.Put(fr.P)
 		if err != nil {
 			callback(nil, err)

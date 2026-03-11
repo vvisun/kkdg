@@ -42,7 +42,7 @@ func (h *OneWayHandler[T]) GetMethod() string {
 
 func (h *OneWayHandler[T]) OnMsg(ctx context.Context, payload []byte, frameType FrameType, connId kknet.CONN_ID) error {
 	var data T
-	if err := payloadCodec.Unmarshal(payload, &data); err != nil {
+	if err := gPayloadCodec.Unmarshal(payload, &data); err != nil {
 		return err
 	}
 	err := h.call(ctx, &data, connId)
@@ -66,7 +66,7 @@ func (h *ReqRspHandler[T, R]) GetMethod() string {
 func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameType FrameType, connId kknet.CONN_ID) ([]byte, error) {
 	var data T
 	var resp R
-	if err := payloadCodec.Unmarshal(payload, &data); err != nil {
+	if err := gPayloadCodec.Unmarshal(payload, &data); err != nil {
 		return nil, err
 	}
 	// kklog.Debugf("收到远程方法调用请求: %v", data)
@@ -79,7 +79,7 @@ func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameTy
 		return nil, nil
 	}
 
-	respBytes, err := payloadCodec.Marshal(&resp)
+	respBytes, err := gPayloadCodec.Marshal(&resp)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 		return nil
 	}
 	var fr Frame
-	err = frameCodec.Unmarshal(frameBytes, &fr)
+	err = gFrameCodec.Unmarshal(frameBytes, &fr)
 	if err != nil {
 		kklog.Debugf("failed to unmarshal frame: %v", err)
 		kkbuffer.Put(data)

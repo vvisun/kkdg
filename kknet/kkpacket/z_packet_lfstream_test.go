@@ -11,24 +11,24 @@ import (
 )
 
 func TestSetByteOrder(t *testing.T) {
-	SetByteOrder(binary.LittleEndian)
+	ConfigDefaults(nil, binary.LittleEndian)
 	if GetByteOrder() != binary.LittleEndian {
 		t.Errorf("GetByteOrder() = %v, want %v", GetByteOrder(), binary.LittleEndian)
 	}
 	// 再次设置，应该不会修改
-	SetByteOrder(binary.BigEndian)
+	setByteOrder(binary.BigEndian)
 	if GetByteOrder() != binary.LittleEndian {
 		t.Errorf("GetByteOrder() = %v, want %v", GetByteOrder(), binary.LittleEndian)
 	}
 }
 
 func TestSetDefaultStreamPacket(t *testing.T) {
-	SetDefaultStreamPacket(NewLengthFieldStreamPacket(4, 8*1024))
+	ConfigDefaults(NewLengthFieldStreamPacket(4, 8*1024), nil)
 	if DefaultStreamPacket().LengthFieldByteCount() != 4 || DefaultStreamPacket().MaxPacketSize() != 8*1024 {
 		t.Errorf("DefaultStreamPacket() = %v, want %v", DefaultStreamPacket(), NewLengthFieldStreamPacket(4, 4*1024))
 	}
 	// 再次设置，应该不会修改
-	SetDefaultStreamPacket(NewLengthFieldStreamPacket(2, 2*1024))
+	setDefaultStreamPacket(NewLengthFieldStreamPacket(2, 2*1024))
 	if DefaultStreamPacket().LengthFieldByteCount() != 4 || DefaultStreamPacket().MaxPacketSize() != 8*1024 {
 		t.Errorf("DefaultStreamPacket() = %v, want %v", DefaultStreamPacket(), NewLengthFieldStreamPacket(4, 8*1024))
 	}

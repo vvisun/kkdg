@@ -18,9 +18,13 @@ var (
 
 // 设置默认解包器。启动阶段初始化，运行期间不要修改。
 // @param packet 解包器
-func SetDefaultStreamPacket(packet IPacket) {
+func setDefaultStreamPacket(packet IPacket) {
+	if packet == nil {
+		kklog.Warn("[kknet] setDefaultStreamPacket packet is nil, ignore")
+		return
+	}
 	if !initedDefaultStreamPacket.CompareAndSwap(false, true) {
-		kklog.Warnf("[kknet] default stream packet already set")
+		kklog.Warnf("[kknet] default stream packet already setted, ignore")
 		return
 	}
 	defaultStreamPacket = packet
@@ -37,9 +41,13 @@ var (
 
 // 设置字节序。启动阶段初始化，运行期间不要修改。
 // @param order 字节序，bigEndian或littleEndian
-func SetByteOrder(order binary.ByteOrder) {
+func setByteOrder(order binary.ByteOrder) {
+	if order == nil {
+		kklog.Warn("[kknet] setByteOrder order is nil, ignore")
+		return
+	}
 	if !gInitedByteOrder.CompareAndSwap(false, true) {
-		kklog.Warnf("[kknet] byte order already set")
+		kklog.Warnf("[kknet] byte order already setted, ignore")
 		return
 	}
 	gByteOrder = order
@@ -49,32 +57,14 @@ func GetByteOrder() binary.ByteOrder {
 	return gByteOrder
 }
 
-// 完整包工具。流拆解器 + 消息编码解码器
-type FullPacket struct {
-	streamTool  IPacket        //流拆解器
-	messageTool *MessagePacket //消息编码解码器
-}
-
-// 完整包工具。
+// 配置默认值。启动阶段初始化，运行期间不要修改。
 // @param streamTool 流拆解器
-// @param messageTool 消息编码解码器
-func NewFullPacket(streamTool IPacket, messageTool *MessagePacket) *FullPacket {
-	if streamTool == nil {
-		panic("streamTool is nil")
+// @param byteOrder 字节序
+func ConfigDefaults(streamTool IPacket, byteOrder binary.ByteOrder) {
+	if streamTool != nil {
+		setDefaultStreamPacket(streamTool)
 	}
-	if messageTool == nil {
-		panic("messageTool is nil")
+	if byteOrder != nil {
+		setByteOrder(byteOrder)
 	}
-	return &FullPacket{
-		streamTool:  streamTool,
-		messageTool: messageTool,
-	}
-}
-
-func (f *FullPacket) GetStreamTool() IPacket {
-	return f.streamTool
-}
-
-func (f *FullPacket) GetMessageTool() *MessagePacket {
-	return f.messageTool
 }

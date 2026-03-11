@@ -15,14 +15,14 @@ func Test_FrameCodec(t *testing.T) {
 	}
 	fmt.Println(request)
 
-	rows, err := frameCodec.Marshal(request)
+	rows, err := gFrameCodec.Marshal(request)
 	if err != nil {
 		t.Fatalf("marshal request: %v", err)
 	}
 	fmt.Println(rows)
 
 	msg := &Frame{}
-	err = frameCodec.Unmarshal(rows, msg)
+	err = gFrameCodec.Unmarshal(rows, msg)
 	if err != nil {
 		t.Fatalf("unmarshal request: %v", err)
 	}
@@ -46,12 +46,12 @@ func Benchmark_Marshal_Unmarshal_RpcRequest(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		rows, err := frameCodec.Marshal(request)
+		rows, err := gFrameCodec.Marshal(request)
 		if err != nil {
 			b.Fatalf("marshal request: %v", err)
 		}
 		msg := Frame{}
-		err = frameCodec.Unmarshal(rows, &msg)
+		err = gFrameCodec.Unmarshal(rows, &msg)
 		if err != nil {
 			b.Fatalf("unmarshal request: %v", err)
 		}
@@ -68,7 +68,7 @@ func Benchmark_Marshal_RpcResponse(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, err := frameCodec.Marshal(response)
+		_, err := gFrameCodec.Marshal(response)
 		if err != nil {
 			b.Fatalf("marshal response: %v", err)
 		}
@@ -82,7 +82,7 @@ func Benchmark_Unmarshal_RpcResponse(b *testing.B) {
 		ID: 1,
 		P:  []byte("test"),
 	}
-	rows, err := frameCodec.Marshal(response)
+	rows, err := gFrameCodec.Marshal(response)
 	if err != nil {
 		b.Fatalf("marshal response: %v", err)
 	}
@@ -90,7 +90,7 @@ func Benchmark_Unmarshal_RpcResponse(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		msg := Frame{}
-		err := frameCodec.Unmarshal(rows, &msg)
+		err := gFrameCodec.Unmarshal(rows, &msg)
 		if err != nil {
 			b.Fatalf("unmarshal response: %v", err)
 		}
