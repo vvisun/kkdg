@@ -112,7 +112,6 @@ go test -bench=. -benchmem ./...
 | `utils/kklog/logger.go` | `printLevel` | 全局日志打印级别 | 提供默认实现并可配置 |
 | `utils/kklog/logger.go` | `fileNameVarMap` | 日志文件名模板变量表 | 提供默认实现并可配置 |
 | `utils/kklog/logger.go` | `DateTimeFormat` | 全局默认日志时间格式 | 提供默认实现并可配置 |
-| `utils/kkevent/global.go` | `globalEventBus` | 全局事件总线 | 无强依赖，局部场景可自行创建实例 |
 | `utils/xrand/rand.go` | `globalRand` | 全局随机数发生器 | 默认实现可用，局部场景也可自建随机源 |
 
 ### 必须保持
