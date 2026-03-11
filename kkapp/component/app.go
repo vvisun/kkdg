@@ -150,7 +150,7 @@ func (slf *Application) Stop() error {
 		return kkerrors.ErrAppNotStarted
 	}
 	// 等待 Application actor 完全退出，否则进程可能在 Stopping/Stopped 未处理时就退出，看不到日志
-	err := slf.actorFramework.GetActorSystem().Root.StopFuture(slf.pid).Wait()
+	err := slf.actorFramework.GetActorSystem().Root.PoisonFuture(slf.pid).Wait()
 	if err != nil {
 		kklog.Errorf("[kkapp] application %s stop error: %v", slf.GetNodeId(), err)
 		return err

@@ -64,6 +64,7 @@ func (slf *TestComp2) OnStart() error {
 
 func (slf *TestComp2) OnStop() error {
 	kklog.Infof("[kkapp] component %s on stop", slf.GetCompName())
+	time.Sleep(2 * time.Second)
 	return nil
 }
 
