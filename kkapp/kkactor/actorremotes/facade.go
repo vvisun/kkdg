@@ -12,6 +12,17 @@ import "time"
 //
 // 组件和业务代码只依赖该接口，而不关心底层是 NATS、RPC 还是其它实现，从而做到类似 TransType(nats/rpc/shard)
 // 那样可插拔替换。
+//
+// 运行阶段：
+//  transport.SetReceiver(receiver)
+//  transport.Start()
+//  transport.Send(target, msg)
+//  transport.Request(target, msg, timeout)
+//  transport.RequestAsync(target, msg, timeout, callback)
+//
+// 启动阶段：
+//  actorremotes.ConfigDefaults(myCodec, actorremotes.NewMessageRegistry())
+//  actorremotes.GetDefaultMessageRegistry().Register(&MyMsg{})
 type IRemoteActorReceiver interface {
 	// HandleRemoteSend 处理来自远程节点的单向消息。
 	HandleRemoteSend(target ActorRef, msg any) error
