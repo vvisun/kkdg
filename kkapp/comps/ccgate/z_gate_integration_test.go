@@ -89,7 +89,8 @@ func (m *mockMemberMgr) OnAddMember(kkdiscovery.MemberListener)    {}
 func (m *mockMemberMgr) OnRemoveMember(kkdiscovery.MemberListener) {}
 
 type mockDiscovery struct {
-	mgr *mockMemberMgr
+	mgr   *mockMemberMgr
+	codec kkcodec.ICodec
 }
 
 func (d *mockDiscovery) Name() string { return "mock" }
@@ -101,6 +102,7 @@ func (d *mockDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot {
 func (d *mockDiscovery) SetInfoGetter(func() (int, int))      {}
 func (d *mockDiscovery) GetMemberMgr() kkdiscovery.IMemberMgr { return d.mgr }
 func (d *mockDiscovery) IsRunning() bool                      { return true }
+func (d *mockDiscovery) SetMsgCodec(codec kkcodec.ICodec)     {}
 
 // Test_gateHandler_OnRaw_end_to_end verifies connect -> OnRaw -> ForwardToLogic path.
 func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {

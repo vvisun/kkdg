@@ -1,5 +1,7 @@
 package kkdiscovery
 
+import "github.com/vvisun/kkdg/utils/kkcodec"
+
 const (
 	NodeStatusOnline  = 0 // 在线
 	NodeStatusOffline = 1 // 离线
@@ -20,13 +22,14 @@ type (
 
 	// IDiscovery 发现服务接口
 	IDiscovery interface {
-		Name() string                    // 发现服务名称
-		Start() error                    // 启动
-		Stop() error                     // 停止
-		Stats() DiscoveryStatsSnapshot   // 获取统计信息
-		SetInfoGetter(func() (int, int)) // return (onlineCount, status)。在线数量，状态
-		GetMemberMgr() IMemberMgr        // 获取成员管理器
-		IsRunning() bool                 // 是否已启动
+		Name() string                     // 发现服务名称
+		Start() error                     // 启动
+		Stop() error                      // 停止
+		Stats() DiscoveryStatsSnapshot    // 获取统计信息
+		SetInfoGetter(func() (int, int))  // return (onlineCount, status)。在线数量，状态
+		GetMemberMgr() IMemberMgr         // 获取成员管理器
+		IsRunning() bool                  // 是否已启动
+		SetMsgCodec(codec kkcodec.ICodec) // 设置消息编码器
 	}
 
 	// IMember 成员接口

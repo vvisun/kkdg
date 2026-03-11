@@ -2,6 +2,8 @@ package kkcluster
 
 import (
 	"time"
+
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 type (
@@ -17,6 +19,9 @@ type ICluster interface {
 	Start() error
 	// 停止
 	Stop()
+
+	// 设置消息编码器
+	SetMsgCodec(codec kkcodec.ICodec)
 
 	// 向指定节点发布消息
 	PublishRemote(nodeID string, packet *ClusterPacket) error

@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/vvisun/kkdg/utils/kkcodec"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 const (
@@ -19,16 +17,6 @@ const (
 	// 成员超时时间. 超过多长时间没有收到该成员的更新信息时，认为该成员已离线
 	defaultMemberTimeout time.Duration = 15 * time.Second
 )
-
-var msgCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-
-func SetMsgCodec(codec kkcodec.ICodec) {
-	if codec == nil {
-		kklog.Errorf("[kkcluster] SetMsgCodec codec is nil, use default codec")
-		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-	}
-	msgCodec = codec
-}
 
 func defaultNatsOptions() nats.Options {
 	opts := nats.GetDefaultOptions()

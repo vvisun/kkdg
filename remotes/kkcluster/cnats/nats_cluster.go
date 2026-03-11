@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kktime"
 	"github.com/vvisun/kkdg/utils/xcall"
@@ -52,6 +53,8 @@ type NatsCluster struct {
 	options nats.Options
 
 	workerQueue *kkprocessor.WorkerQueue
+
+	msgCodec kkcodec.ICodec
 }
 
 var _ kkcluster.ICluster = (*NatsCluster)(nil)
@@ -78,6 +81,15 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 		options:     options,
 		workerQueue: kkprocessor.NewWorkerQueue(1),
 	}
+}
+
+// SetMsgCodec 设置消息编码器
+func (c *NatsCluster) SetMsgCodec(codec kkcodec.ICodec) {
+	if codec == nil {
+		kklog.Errorf("[kkcluster] SetMsgCodec codec is nil, use default codec: %s", "msgpack")
+		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack) // 默认使用msgpack
+	}
+	c.msgCodec = codec
 }
 
 // Start 初始化集群
@@ -219,7 +231,7 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 	packet.TargetPath = nodeID
 
 	// 序列化消息
-	data, err := msgCodec.Marshal(packet)
+	data, err := c.msgCodec.Marshal(packet)
 	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
@@ -259,7 +271,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	packet.TargetPath = nodeType
 
 	// 序列化消息（只序列化一次）
-	data, err := msgCodec.Marshal(packet)
+	data, err := c.msgCodec.Marshal(packet)
 	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
@@ -316,7 +328,7 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		Packet:       packet,
 	}
 
-	data, err := msgCodec.Marshal(reqMsg)
+	data, err := c.msgCodec.Marshal(reqMsg)
 	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.reqMu.Lock()
@@ -418,7 +430,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	}
 
 	// 序列化请求
-	data, err := msgCodec.Marshal(reqMsg)
+	data, err := c.msgCodec.Marshal(reqMsg)
 	kkcluster.PutClusterPacket(packet)
 	if err != nil {
 		c.stats.AddError()
@@ -495,7 +507,7 @@ func (c *NatsCluster) Stats() kkcluster.ClusterStatsSnapshot {
 // handleResponse 处理响应（单订阅分发）
 func (c *NatsCluster) handleResponse(msg *nats.Msg) {
 	var resp kkcluster.ClusterResponse
-	if err := msgCodec.Unmarshal(msg.Data, &resp); err != nil {
+	if err := c.msgCodec.Unmarshal(msg.Data, &resp); err != nil {
 		kklog.Errorf("NatsCluster(%s) unmarshal response failed: %v", c.nodeID, err)
 		c.stats.AddError()
 		return
@@ -558,7 +570,7 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 	c.stats.AddRequestReceived(len(msg.Data))
 
 	var req kkcluster.ClusterRequest
-	if err := msgCodec.Unmarshal(msg.Data, &req); err != nil {
+	if err := c.msgCodec.Unmarshal(msg.Data, &req); err != nil {
 		kklog.Errorf("NatsCluster(%s) unmarshal request failed: %v", c.nodeID, err)
 		c.stats.AddError()
 		return
@@ -591,7 +603,7 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 
 	// 发送响应
 	responseSubject := c.getResponseSubject(req.RequestID)
-	data, err := msgCodec.Marshal(response)
+	data, err := c.msgCodec.Marshal(response)
 	if err != nil {
 		kklog.Errorf("NatsCluster(%s) marshal response failed: %v", c.nodeID, err)
 		c.stats.AddError()
@@ -614,7 +626,7 @@ func (c *NatsCluster) handlePublish(msg *nats.Msg) {
 
 	c.workerQueue.Push(func() {
 		var packet kkcluster.ClusterPacket
-		if err := msgCodec.Unmarshal(msg.Data, &packet); err != nil {
+		if err := c.msgCodec.Unmarshal(msg.Data, &packet); err != nil {
 			kklog.Errorf("NatsCluster(%s) unmarshal publish packet failed: %v", c.nodeID, err)
 			c.stats.AddError()
 			return
@@ -642,7 +654,7 @@ func (c *NatsCluster) handleTypePublish(msg *nats.Msg) {
 
 	c.workerQueue.Push(func() {
 		var packet kkcluster.ClusterPacket
-		if err := msgCodec.Unmarshal(msg.Data, &packet); err != nil {
+		if err := c.msgCodec.Unmarshal(msg.Data, &packet); err != nil {
 			kklog.Errorf("NatsCluster(%s) unmarshal type publish packet failed: %v", c.nodeID, err)
 			c.stats.AddError()
 			return

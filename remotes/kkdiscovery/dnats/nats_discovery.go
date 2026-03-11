@@ -8,6 +8,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -44,6 +45,7 @@ type NatsDiscovery struct {
 	closing atomic.Bool // 正在关闭标志
 	closed  atomic.Bool // 关闭标志
 
+	msgCodec     kkcodec.ICodec
 	infoGetterFn func() (int, int) // return (onlineCount, status)。在线数量，状态
 }
 
@@ -71,6 +73,15 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 // Name 返回发现服务名称
 func (d *NatsDiscovery) Name() string {
 	return d.name
+}
+
+// SetMsgCodec 设置消息编码器
+func (d *NatsDiscovery) SetMsgCodec(codec kkcodec.ICodec) {
+	if codec == nil {
+		kklog.Errorf("[kkdiscovery] SetMsgCodec codec is nil, use default codec: %s", "msgpack")
+		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	}
+	d.msgCodec = codec
 }
 
 // SetInfoGetter 设置信息获取函数
@@ -283,7 +294,7 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 	d.stats.AddHeartbeatReceived()
 
 	var memberInfo kkdiscovery.MemberInfo
-	if err := msgCodec.Unmarshal(msg.Data, &memberInfo); err != nil {
+	if err := d.msgCodec.Unmarshal(msg.Data, &memberInfo); err != nil {
 		kklog.Errorf("NatsDiscovery(%s) unmarshal member info failed: %v", d.nodeID, err)
 		d.stats.AddError()
 		return
@@ -320,7 +331,7 @@ func (d *NatsDiscovery) publishSelf() error {
 		Settings: d.settings,
 	}
 
-	data, err := msgCodec.Marshal(&memberInfo)
+	data, err := d.msgCodec.Marshal(&memberInfo)
 	if err != nil {
 		d.stats.AddError()
 		kklog.Errorf("NatsDiscovery(%s) marshal self failed: nodeType=%s addr=%s err=%v", d.nodeID, d.nodeType, d.address, err)
@@ -373,7 +384,7 @@ func (d *NatsDiscovery) requestAllMembers() {
 		RequesterID: d.nodeID,
 	}
 
-	data, err := msgCodec.Marshal(&reqMsg)
+	data, err := d.msgCodec.Marshal(&reqMsg)
 	if err != nil {
 		d.stats.AddError()
 		kklog.Errorf("NatsDiscovery(%s) marshal discovery request failed: requesterID=%s err=%v", d.nodeID, reqMsg.RequesterID, err)
@@ -392,7 +403,7 @@ func (d *NatsDiscovery) requestAllMembers() {
 // handleDiscoveryRequest 处理服务发现请求
 func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 	var req kkdiscovery.DiscoveryRequest
-	if err := msgCodec.Unmarshal(msg.Data, &req); err != nil {
+	if err := d.msgCodec.Unmarshal(msg.Data, &req); err != nil {
 		kklog.Errorf("NatsDiscovery(%s) unmarshal request failed: %v", d.nodeID, err)
 		d.stats.AddError()
 		return
