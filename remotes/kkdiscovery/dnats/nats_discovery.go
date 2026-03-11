@@ -67,6 +67,7 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 		stopCh:      make(chan struct{}),
 		doneCh:      make(chan struct{}),
 		options:     opts,
+		msgCodec:    kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
 	}
 }
 

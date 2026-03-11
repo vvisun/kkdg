@@ -80,6 +80,7 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 		stopCh:      make(chan struct{}),
 		options:     options,
 		workerQueue: kkprocessor.NewWorkerQueue(1),
+		msgCodec:    kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
 	}
 }
 
