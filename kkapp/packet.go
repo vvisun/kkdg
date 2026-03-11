@@ -5,15 +5,15 @@ import (
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
-// 网关与逻辑服之间的消息转发函数名
+// 网关与业务服之间的消息转发函数名
 const (
-	// 客户端->网关->逻辑服的消息转发函数名
+	// 客户端->网关->业务服的消息转发函数名
 	FuncNameC2S = "c2s"
-	// 逻辑服->网关->客户端的消息转发函数名
+	// 业务服->网关->客户端的消息转发函数名
 	FuncNameSendToClient = "1"
-	// 逻辑服->网关->多个客户端的消息转发函数名
+	// 业务服->网关->多个客户端的消息转发函数名
 	FuncNameSendToClients = "N"
-	// 网关 -> 逻辑服：客户端断开事件
+	// 网关 -> 业务服：客户端断开事件
 	FuncNameClientDisconnect = "cliMiss"
 )
 
@@ -49,4 +49,16 @@ func GetTransMsgPacket() *kkpacket.MessagePacket {
 // SetTransMsgPacket 设置网关与业务服之间的消息编码解码器
 func SetTransMsgPacket(head *kkpacket.PacketHead, bodyCodec kkcodec.ICodec, router *kkpacket.MsgRouter) {
 	gTransMsgPacket = kkpacket.NewMessagePacket(head, bodyCodec, router)
+}
+
+// 配置默认值。启动阶段初始化，运行期间不要修改。
+// @param msgPacket 网关与客户端之间的消息编码解码器
+// @param transMsgPacket 网关与业务服之间的消息编码解码器
+func ConfigDefaults(msgPacket *kkpacket.MessagePacket, transMsgPacket *kkpacket.MessagePacket) {
+	if msgPacket != nil {
+		gMsgPacket = msgPacket
+	}
+	if transMsgPacket != nil {
+		gTransMsgPacket = transMsgPacket
+	}
 }
