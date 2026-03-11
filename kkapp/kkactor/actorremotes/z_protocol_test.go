@@ -15,7 +15,8 @@ type protoRsp struct {
 }
 
 func TestEncodeDecodeRequestEnvelope(t *testing.T) {
-	if err := RegisterMessage(&protoReq{}); err != nil {
+	registry := GetDefaultMessageRegistry()
+	if err := registry.Register(&protoReq{}); err != nil {
 		t.Fatalf("RegisterMessage req: %v", err)
 	}
 
@@ -41,7 +42,8 @@ func TestEncodeDecodeRequestEnvelope(t *testing.T) {
 }
 
 func TestEncodeDecodeResponseEnvelope(t *testing.T) {
-	if err := RegisterMessage(&protoRsp{}); err != nil {
+	registry := GetDefaultMessageRegistry()
+	if err := registry.Register(&protoRsp{}); err != nil {
 		t.Fatalf("RegisterMessage rsp: %v", err)
 	}
 
@@ -87,7 +89,8 @@ func TestEncodeDecodeResponseEnvelope_NilResult(t *testing.T) {
 // Benchmarks
 
 func BenchmarkEncodeRequestEnvelope(b *testing.B) {
-	if err := RegisterMessage(&protoReq{}); err != nil {
+	registry := GetDefaultMessageRegistry()
+	if err := registry.Register(&protoReq{}); err != nil {
 		b.Fatalf("RegisterMessage req: %v", err)
 	}
 	ref := ActorRef{NodeID: "node1", ActorKey: "echo_actor"}
@@ -104,7 +107,8 @@ func BenchmarkEncodeRequestEnvelope(b *testing.B) {
 }
 
 func BenchmarkDecodeRequestEnvelope(b *testing.B) {
-	if err := RegisterMessage(&protoReq{}); err != nil {
+	registry := GetDefaultMessageRegistry()
+	if err := registry.Register(&protoReq{}); err != nil {
 		b.Fatalf("RegisterMessage req: %v", err)
 	}
 	ref := ActorRef{NodeID: "node1", ActorKey: "echo_actor"}
@@ -126,7 +130,8 @@ func BenchmarkDecodeRequestEnvelope(b *testing.B) {
 }
 
 func BenchmarkEncodeResponseEnvelope_Success(b *testing.B) {
-	if err := RegisterMessage(&protoRsp{}); err != nil {
+	registry := GetDefaultMessageRegistry()
+	if err := registry.Register(&protoRsp{}); err != nil {
 		b.Fatalf("RegisterMessage rsp: %v", err)
 	}
 	result := &protoRsp{Value: "world"}
@@ -153,7 +158,8 @@ func BenchmarkEncodeResponseEnvelope_Error(b *testing.B) {
 }
 
 func BenchmarkDecodeResponseEnvelope_Success(b *testing.B) {
-	if err := RegisterMessage(&protoRsp{}); err != nil {
+	registry := GetDefaultMessageRegistry()
+	if err := registry.Register(&protoRsp{}); err != nil {
 		b.Fatalf("RegisterMessage rsp: %v", err)
 	}
 	result := &protoRsp{Value: "world"}
@@ -170,4 +176,3 @@ func BenchmarkDecodeResponseEnvelope_Success(b *testing.B) {
 		}
 	}
 }
-

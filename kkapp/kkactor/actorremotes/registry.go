@@ -5,39 +5,18 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/utils/kkcodec"
-	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-var msgCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+//-------------------------------------------------------------------------
 
-// 配置默认值。启动阶段初始化，运行期间不要修改。
-// @param codec 消息编码器
-func ConfigDefaults(codec kkcodec.ICodec) {
-	if codec == nil {
-		kklog.Errorf("[kkactor] SetMsgCodec codec is nil, use default codec")
-		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-	}
-	msgCodec = codec
-}
-
-type messageRegistry struct {
+type MessageRegistry struct {
 	mu         sync.RWMutex
 	typeToName map[reflect.Type]string
 	nameToType map[string]reflect.Type
 }
 
-var defaultMessageRegistry = &messageRegistry{
-	typeToName: make(map[reflect.Type]string),
-	nameToType: make(map[string]reflect.Type),
-}
-
-func RegisterMessage(msg any) error {
-	return defaultMessageRegistry.Register(msg)
-}
-
-func (r *messageRegistry) Register(msg any) error {
+func (r *MessageRegistry) Register(msg any) error {
 	if msg == nil {
 		return kkerrors.ErrActorRemoteMsgTypeNotRegistered
 	}
@@ -54,6 +33,15 @@ func (r *messageRegistry) Register(msg any) error {
 	return nil
 }
 
+func NewMessageRegistry() *MessageRegistry {
+	return &MessageRegistry{
+		typeToName: make(map[reflect.Type]string),
+		nameToType: make(map[string]reflect.Type),
+	}
+}
+
+//-------------------------------------------------------------------------
+
 func EncodeMessage(msg any) (string, []byte, error) {
 	if msg == nil {
 		return "", nil, kkerrors.ErrActorRemoteMsgTypeNotRegistered
@@ -63,6 +51,7 @@ func EncodeMessage(msg any) (string, []byte, error) {
 	defaultMessageRegistry.mu.RLock()
 	typeName, ok := defaultMessageRegistry.typeToName[typ]
 	defaultMessageRegistry.mu.RUnlock()
+
 	if !ok {
 		return "", nil, kkerrors.ErrActorRemoteMsgTypeNotRegistered
 	}
@@ -78,6 +67,7 @@ func DecodeMessage(typeName string, payload []byte) (any, error) {
 	defaultMessageRegistry.mu.RLock()
 	typ, ok := defaultMessageRegistry.nameToType[typeName]
 	defaultMessageRegistry.mu.RUnlock()
+
 	if !ok {
 		return nil, kkerrors.ErrActorRemoteMsgTypeNotRegistered
 	}

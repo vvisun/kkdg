@@ -23,15 +23,21 @@ type Transport struct {
 	sendSub  *nats.Subscription
 	reqSub   *nats.Subscription
 	receiver actorremotes.IRemoteActorReceiver
+	registry *actorremotes.MessageRegistry
 	mu       sync.RWMutex
 }
 
 var _ actorremotes.IRemoteActorTransport = (*Transport)(nil)
 
-func NewTransport(nodeID string, options nats.Options) *Transport {
+func NewTransport(nodeID string, registry *actorremotes.MessageRegistry, options nats.Options) *Transport {
+	if registry == nil {
+		kklog.Errorf("[kkactor] registry is nil, use default registry")
+		registry = actorremotes.GetDefaultMessageRegistry()
+	}
 	return &Transport{
-		nodeID:  nodeID,
-		options: options,
+		nodeID:   nodeID,
+		registry: registry,
+		options:  options,
 	}
 }
 
@@ -39,10 +45,6 @@ func (t *Transport) SetReceiver(receiver actorremotes.IRemoteActorReceiver) {
 	t.mu.Lock()
 	t.receiver = receiver
 	t.mu.Unlock()
-}
-
-func (t *Transport) RegisterMessage(msg any) error {
-	return actorremotes.RegisterMessage(msg)
 }
 
 func (t *Transport) Start() error {
@@ -211,4 +213,3 @@ func (t *Transport) request(subject string, data []byte, timeout time.Duration) 
 	}
 	return t.conn.Request(subject, data, timeout)
 }
-

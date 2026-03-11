@@ -16,6 +16,7 @@ type stubRemoteTransport struct {
 	startCalls  int
 	closeCalls  int
 	receiverSet actorremotes.IRemoteActorReceiver
+	registrySet *actorremotes.MessageRegistry
 }
 
 func (t *stubRemoteTransport) Start() error {
@@ -30,10 +31,6 @@ func (t *stubRemoteTransport) Close() error {
 
 func (t *stubRemoteTransport) SetReceiver(receiver actorremotes.IRemoteActorReceiver) {
 	t.receiverSet = receiver
-}
-
-func (t *stubRemoteTransport) RegisterMessage(msg any) error {
-	return nil
 }
 
 func (t *stubRemoteTransport) Send(target actorremotes.ActorRef, msg any) error {

@@ -27,8 +27,6 @@ type IRemoteActorTransport interface {
 	Close() error
 	// SetReceiver 设置本地接收器，用于把远程消息投递到当前进程。
 	SetReceiver(receiver IRemoteActorReceiver)
-	// RegisterMessage 注册可远程编解码的消息类型。
-	RegisterMessage(msg any) error
 	// Send 向远程 actor 发送单向消息。
 	Send(target ActorRef, msg any) error
 	// Request 向远程 actor 发送请求并等待响应。

@@ -34,9 +34,17 @@ type remotePong struct {
 
 func TestTransport_SendAndRequest(t *testing.T) {
 	natsURL := requireNATS(t)
+	registry := actorremotes.GetDefaultMessageRegistry()
 
-	transport1 := NewTransport("node1", ApplyNatsOptions(WithURL(natsURL)))
-	transport2 := NewTransport("node2", ApplyNatsOptions(WithURL(natsURL)))
+	if err := registry.Register(&remotePing{}); err != nil {
+		t.Fatalf("register ping on transport1: %v", err)
+	}
+	if err := registry.Register(&remotePong{}); err != nil {
+		t.Fatalf("register pong on transport1: %v", err)
+	}
+
+	transport1 := NewTransport("node1", registry, ApplyNatsOptions(WithURL(natsURL)))
+	transport2 := NewTransport("node2", registry, ApplyNatsOptions(WithURL(natsURL)))
 
 	framework1 := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "", nil)), kkactor.NewActorSystem())
 	framework2 := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node2", "game", "", "", nil)), kkactor.NewActorSystem())
@@ -51,19 +59,6 @@ func TestTransport_SendAndRequest(t *testing.T) {
 		_ = transport1.Close()
 		_ = transport2.Close()
 	}()
-
-	if err := transport1.RegisterMessage(&remotePing{}); err != nil {
-		t.Fatalf("register ping on transport1: %v", err)
-	}
-	if err := transport1.RegisterMessage(&remotePong{}); err != nil {
-		t.Fatalf("register pong on transport1: %v", err)
-	}
-	if err := transport2.RegisterMessage(&remotePing{}); err != nil {
-		t.Fatalf("register ping on transport2: %v", err)
-	}
-	if err := transport2.RegisterMessage(&remotePong{}); err != nil {
-		t.Fatalf("register pong on transport2: %v", err)
-	}
 
 	received := make(chan string, 1)
 	props := actor.PropsFromFunc(func(ctx actor.Context) {
@@ -112,8 +107,9 @@ func TestTransport_SendAndRequest(t *testing.T) {
 
 func TestTransport_Request_UnregisteredMessage(t *testing.T) {
 	natsURL := requireNATS(t)
+	registry := actorremotes.GetDefaultMessageRegistry()
 
-	transport := NewTransport("node1", ApplyNatsOptions(WithURL(natsURL)))
+	transport := NewTransport("node1", registry, ApplyNatsOptions(WithURL(natsURL)))
 	framework := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "", nil)), kkactor.NewActorSystem())
 	if err := framework.SetRemoteTransport(transport); err != nil {
 		t.Fatalf("SetRemoteTransport: %v", err)
