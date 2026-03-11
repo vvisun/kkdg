@@ -2,6 +2,7 @@ package actornats
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ func requireNATS(t *testing.T) string {
 	url := "nats://127.0.0.1:4222"
 	nc, err := nats.Connect(url, nats.Timeout(500*time.Millisecond))
 	if err != nil {
+		fmt.Printf("NATS not available: %v\n", err)
 		t.Skipf("NATS not available: %v", err)
 	}
 	nc.Close()

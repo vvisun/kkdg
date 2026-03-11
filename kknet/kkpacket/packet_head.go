@@ -7,10 +7,15 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+const (
+	PartNameMsgID = "msgID"
+)
+
 // [head] 编码解码器。用于编码解码[head]部分。
 type PacketHead struct {
-	partList []IHeadPart // [head]的各个部分。长度: 0 ~ maxHeadPathCount
-	size     int         // [head]的总字节数
+	partList []IHeadPart    // [head]的各个部分。长度: 0 ~ maxHeadPathCount
+	nameMap  map[string]int // [head]的各个部分的名称。长度: 0 ~ maxHeadPathCount
+	size     int            // [head]的总字节数
 }
 
 func NewPacketHead(parts ...IHeadPart) *PacketHead {
@@ -22,7 +27,45 @@ func NewPacketHead(parts ...IHeadPart) *PacketHead {
 	for _, part := range parts {
 		size += part.GetSize()
 	}
-	return &PacketHead{partList: parts, size: size}
+
+	head := &PacketHead{partList: parts, size: size, nameMap: make(map[string]int)}
+	if len(parts) > 0 {
+		// 默认添加msgID部分
+		head.nameMap[PartNameMsgID] = 0
+	}
+	return head
+}
+
+func NewPacketHeadWithNames(parts []IHeadPart, names []string) *PacketHead {
+	if len(parts) != len(names) {
+		kklog.Errorf("[head] parts count is not equal to names count, parts: %d, names: %d", len(parts), len(names))
+		panic("[head] parts count is not equal to names count")
+	}
+	if len(parts) > maxHeadPathCount {
+		kklog.Errorf("[head] parts count is too many, max is %d", maxHeadPathCount)
+		panic("[head] parts count is too many")
+	}
+	head := NewPacketHead(parts...)
+	if err := head.SetNames(names); err != nil {
+		kklog.Errorf("[head] set names failed, err: %v", err)
+		panic("[head] set names failed")
+	}
+	return head
+}
+
+func (h *PacketHead) SetNames(names []string) error {
+	if len(names) != len(h.partList) {
+		return kkerrors.ErrPacketNamesAndPartsLengthNotMatch
+	}
+	nameMap := make(map[string]int)
+	for idx, name := range names {
+		if _, ok := nameMap[name]; ok {
+			return kkerrors.ErrPacketHeadPartNameRepeated
+		}
+		nameMap[name] = idx
+	}
+	h.nameMap = nameMap
+	return nil
 }
 
 func (h *PacketHead) GetSize() int {
@@ -84,4 +127,17 @@ func (h *PacketHead) UnmarshalTo(headBytes []byte, endian binary.ByteOrder, valu
 		offset += part.GetSize()
 	}
 	return valueList[:h.GetPartCount()], nil
+}
+
+func (h *PacketHead) ReadValueByName(headBytes []byte, endian binary.ByteOrder, name string) (int, error) {
+	idx, ok := h.nameMap[name]
+	if !ok {
+		return 0, kkerrors.ErrPacketHeadPartNameNotFound
+	}
+	part := h.partList[idx]
+	offset := 0
+	for i := 0; i < idx; i++ {
+		offset += h.partList[i].GetSize()
+	}
+	return part.Unmarshal(headBytes[offset:offset+part.GetSize()], endian)
 }

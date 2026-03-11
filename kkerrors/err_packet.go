@@ -34,6 +34,12 @@ var (
 	ErrValueOutOfRange = errors.New("value out of range")
 	// 消息ID已注册
 	ErrMsgIDAlreadyRegistered = errors.New("message id already registered")
+	// 消息头部分名称未找到
+	ErrPacketHeadPartNameNotFound = errors.New("packet head part name not found")
+	// 名字长度和part长度不一致
+	ErrPacketNamesAndPartsLengthNotMatch = errors.New("packet head names and parts length not match")
+	// 消息头名字重复
+	ErrPacketHeadPartNameRepeated = errors.New("packet head part name repeated")
 )
 
 // -------------- for kkcodec -------------------

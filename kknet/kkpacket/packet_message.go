@@ -3,7 +3,6 @@ package kkpacket
 import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kkcodec"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // [message] 编码解码器。用于编码解码[message]部分。
@@ -58,23 +57,11 @@ func (p *MessagePacket) BodyBytes(messageBytes []byte) ([]byte, error) {
 }
 
 func (p *MessagePacket) GetMsgID(messageBytes []byte) (MSGID, error) {
-	headBytes, err := p.HeadBytes(messageBytes)
+	msgID, err := p.head.ReadValueByName(messageBytes, GetByteOrder(), PartNameMsgID)
 	if err != nil {
 		return 0, err
 	}
-	valueList := [maxHeadPathCount]int{0}
-	vList, err := p.head.UnmarshalTo(headBytes, GetByteOrder(), valueList[:])
-	if err != nil {
-		return 0, err
-	}
-
-	msgID := MSGID(vList[0])
-	if p.router.GetMsgType(msgID) == nil {
-		kklog.Warnf("unregistered msgID: %d", msgID)
-		return msgID, kkerrors.ErrInvalidMsgID
-	}
-
-	return msgID, nil
+	return MSGID(msgID), nil
 }
 
 func (p *MessagePacket) HeadValues(messageBytes []byte, valueList []int) ([]int, error) {
