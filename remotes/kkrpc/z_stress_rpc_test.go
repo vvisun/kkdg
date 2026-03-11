@@ -143,7 +143,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 			clients = append(clients, cli)
 			clientsMu.Unlock()
 
-			invoker := NewReqRspInvoker[testReq, testRsp](cli, 0, "testReqRsp")
+			invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
 			for j := 0; j < callsPerConn; j++ {
 				req := testReq{ID: idx*1000 + j, Data: "stress"}
 				var resp testRsp
@@ -268,7 +268,7 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 	}
 	defer cli.Stop()
 
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0, "testReqRsp")
+	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
 	start := time.Now()
 	var wg sync.WaitGroup
 	errCh := make(chan error, numGoroutines)
@@ -358,7 +358,7 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 			clients = append(clients, cli)
 			clientsMu.Unlock()
 
-			invoker := NewOneWayInvoker[testReq](cli, 0, "testOneway")
+			invoker := NewOneWayInvoker[testReq](cli, 0)
 			for j := 0; j < callsPerConn; j++ {
 				req := testReq{ID: idx*1000 + j, Data: "invokenr"}
 				if err := invoker.InvokeNR(context.Background(), &req, CallConfig{}); err != nil {
@@ -433,7 +433,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 	}
 	defer cli.Stop()
 
-	invoker := NewOneWayInvoker[testReq](cli, 0, "testOneway")
+	invoker := NewOneWayInvoker[testReq](cli, 0)
 	start := time.Now()
 	var wg sync.WaitGroup
 	errCh := make(chan error, numGoroutines)

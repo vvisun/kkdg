@@ -31,8 +31,9 @@ type OneWayInvoker[T any] struct {
 
 // NewOneWayInvoker 创建单向调用器。method 必须在 RegisterOneWayMethod 中已注册，否则 panic。
 // 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
-func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID, method string) OneWayInvoker[T] {
-	if !verifyOneWayMethod[T](method) {
+func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) OneWayInvoker[T] {
+	method, ok := verifyOneWayMethod[T]()
+	if !ok {
 		kklog.Errorf("OneWayInvoker: method %q not registered for type %T", method, (*T)(nil))
 		panic("kkrpc: OneWayInvoker method not registered")
 	}
@@ -45,8 +46,9 @@ func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID, method string
 
 // NewReqRspInvoker 创建请求响应调用器。method 必须在 RegisterReqRspMethod 中已注册，否则 panic。
 // 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
-func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID, method string) ReqRspInvoker[T, R] {
-	if !verifyReqRespMethod[T, R](method) {
+func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) ReqRspInvoker[T, R] {
+	method, ok := verifyReqRespMethod[T, R]()
+	if !ok {
 		kklog.Errorf("ReqRspInvoker: method %q not registered for types %T, %T", method, (*T)(nil), (*R)(nil))
 		panic("kkrpc: ReqRspInvoker method not registered")
 	}

@@ -85,7 +85,7 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 	// 这里无需复制，因为InvokeNR会编码自动复制一次。
 	streamBytes := msgBytes
 
-	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](slf.rpcSvr, memberInfo.connId, "c2s")
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](slf.rpcSvr, memberInfo.connId)
 	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcC2S{
 		ClientId:   sessionID,
 		GateNodeId: slf.gateNodeId,
@@ -169,7 +169,7 @@ func (slf *transportorRpc) NotifyClientDisconnect(sessionID string, logicNodeId 
 	if memberInfo == nil {
 		return ErrLogicNodeNotRegistered //逻辑节点未注册
 	}
-	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](slf.rpcSvr, memberInfo.connId, "clientDisconnect")
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](slf.rpcSvr, memberInfo.connId)
 	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcClientDisconnect{
 		ClientId: sessionID,
 	}, kkrpc.CallConfig{})

@@ -53,19 +53,24 @@ func RegistOneWayHandler[T any](router *RpcReceiver, method string, call OneWayH
 
 //----------------------------------------------------------------
 
-type methodType struct {
-	reqType reflect.Type
-	rspType reflect.Type
-}
+type (
+	methodReqRsp struct {
+		reqType reflect.Type
+		rspType reflect.Type
+	}
+	methonOneWay struct {
+		reqType reflect.Type
+	}
+)
 
 type rpcManager struct {
 	mu                sync.Mutex
 	peers             map[string]interface{}
 	oneWays           map[string]interface{}
 	type2methodReqRsp map[reflect.Type]string
-	method2typeReqRsp map[string]methodType
+	method2typeReqRsp map[string]methodReqRsp
 	type2methodOneWay map[reflect.Type]string
-	method2typeOneWay map[string]methodType
+	method2typeOneWay map[string]methonOneWay
 }
 
 func newRpcManager() *rpcManager {
@@ -73,9 +78,9 @@ func newRpcManager() *rpcManager {
 		peers:             make(map[string]interface{}),
 		oneWays:           make(map[string]interface{}),
 		type2methodReqRsp: make(map[reflect.Type]string),
-		method2typeReqRsp: make(map[string]methodType),
+		method2typeReqRsp: make(map[string]methodReqRsp),
 		type2methodOneWay: make(map[reflect.Type]string),
-		method2typeOneWay: make(map[string]methodType),
+		method2typeOneWay: make(map[string]methonOneWay),
 	}
 }
 
@@ -91,29 +96,32 @@ func ClearRpcManagerForTest() {
 	gRpcManager.peers = make(map[string]interface{})
 	gRpcManager.oneWays = make(map[string]interface{})
 	gRpcManager.type2methodReqRsp = make(map[reflect.Type]string)
-	gRpcManager.method2typeReqRsp = make(map[string]methodType)
+	gRpcManager.method2typeReqRsp = make(map[string]methodReqRsp)
 	gRpcManager.type2methodOneWay = make(map[reflect.Type]string)
-	gRpcManager.method2typeOneWay = make(map[string]methodType)
+	gRpcManager.method2typeOneWay = make(map[string]methonOneWay)
 }
 
 // verifyReqRespMethod verifies at init that REQ/RSP types are registered for method. No runtime reflect on hot path.
-func verifyReqRespMethod[REQ any, RSP any](method string) bool {
+func verifyReqRespMethod[REQ any, RSP any]() (string, bool) {
 	typeReq := reflect.TypeFor[REQ]()
 	typeRsp := reflect.TypeFor[RSP]()
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
 	mReq, ok1 := gRpcManager.type2methodReqRsp[typeReq]
 	mRsp, ok2 := gRpcManager.type2methodReqRsp[typeRsp]
-	return ok1 && ok2 && mReq == method && mRsp == method
+	if ok1 && ok2 && mReq == mRsp {
+		return mReq, true
+	}
+	return "", false
 }
 
 // verifyOneWayMethod verifies at init that REQ type is registered for method. No runtime reflect on hot path.
-func verifyOneWayMethod[REQ any](method string) bool {
+func verifyOneWayMethod[REQ any]() (string, bool) {
 	typeReq := reflect.TypeFor[REQ]()
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
 	m, ok := gRpcManager.type2methodOneWay[typeReq]
-	return ok && m == method
+	return m, ok
 }
 
 //----------------------------------------------------------------
@@ -156,7 +164,7 @@ func newReqResp[REQ any, RSP any](method string) (*ReqResp[REQ, RSP], bool) {
 	gRpcManager.peers[method] = p
 	gRpcManager.type2methodReqRsp[typeReq] = method
 	gRpcManager.type2methodReqRsp[typeRsp] = method
-	gRpcManager.method2typeReqRsp[method] = methodType{reqType: typeReq, rspType: typeRsp}
+	gRpcManager.method2typeReqRsp[method] = methodReqRsp{reqType: typeReq, rspType: typeRsp}
 	return p, true
 }
 
@@ -194,6 +202,6 @@ func newOneWay[REQ any](method string) (*OneWay[REQ], bool) {
 	}
 	gRpcManager.oneWays[method] = o
 	gRpcManager.type2methodOneWay[typeReq] = method
-	gRpcManager.method2typeOneWay[method] = methodType{reqType: typeReq}
+	gRpcManager.method2typeOneWay[method] = methonOneWay{reqType: typeReq}
 	return o, true
 }

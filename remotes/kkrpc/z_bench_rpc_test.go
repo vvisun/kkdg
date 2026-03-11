@@ -47,7 +47,7 @@ func Benchmark_InvokeUnary(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		req := testReq{ID: 1, Data: "test"}
 		var resp testRsp
-		invoker := NewReqRspInvoker[testReq, testRsp](cli, 0, "testReqRsp")
+		invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
 		if err := invoker.Invoke(context.Background(), &req, CallConfig{}, &resp); err != nil {
 			b.Fatalf("invoke: %v", err)
 		}
@@ -86,7 +86,7 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0, "testReqRsp")
+	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -130,7 +130,7 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 	}
 	defer cli.Stop()
 
-	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0, "testReqRsp")
+	invoker := NewReqRspInvoker[testReq, testRsp](cli, 0)
 
 	time.Sleep(200 * time.Millisecond)
 

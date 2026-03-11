@@ -68,7 +68,7 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient
 				kklog.Warnf("[ccgame] rpc client stopped, stop register to gateway loop")
 				return
 			}
-			oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0, "register")
+			oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient, 0)
 			err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
 				NodeId:   node.GetNodeId(),
 				NodeType: node.GetNodeType(),
@@ -91,7 +91,7 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 	if len(packet) == 0 {
 		return kkerrors.ErrAppEmptyMsgBytes
 	}
-	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0)
 	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
 		Payload:  packet,
@@ -110,7 +110,7 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 	if len(packet) == 0 {
 		return kkerrors.ErrAppEmptyMsgBytes
 	}
-	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0, "s2cs")
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0)
 	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,
 		Payload:   packet,
@@ -145,7 +145,7 @@ func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 
 	streamBytes := bb.B
 
-	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0)
 	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
 		Payload:  streamBytes,
@@ -176,7 +176,7 @@ func (slf *transportorRpc) SendToClients(sessionIDs []string, msg any) error {
 
 	streamBytes := bb.B
 
-	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0, "s2cs")
+	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0)
 	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,
 		Payload:   streamBytes,
