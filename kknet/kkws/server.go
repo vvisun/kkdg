@@ -173,7 +173,7 @@ func (s *Server) Start() error {
 // Stop shuts down the server.
 func (s *Server) Stop() error {
 	if !s.started.Swap(false) {
-		return kkerrors.ErrServerNotStarted
+		return kkerrors.ErrNetServerNotStarted
 	}
 
 	// Use timeout context for shutdown
@@ -225,7 +225,7 @@ func (s *Server) closeAllConnections(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			conn.closeWithError(s.handler, kkerrors.ErrServerStopped)
+			conn.closeWithError(s.handler, kkerrors.ErrNetServerStopped)
 		}
 	}
 
@@ -262,7 +262,7 @@ func (s *Server) GetConnManager() kknet.IConnManager {
 func (s *Server) SendMsg(connId kknet.CONN_ID, msg any) error {
 	conn := s.connMgr.GetConn(connId)
 	if conn == nil {
-		return kkerrors.ErrConnNotFound
+		return kkerrors.ErrNetConnNotFound
 	}
 	return conn.SendMsg(msg)
 }
@@ -271,7 +271,7 @@ func (s *Server) SendBuffer(connId kknet.CONN_ID, buffer *kkbuffer.ByteBuffer) e
 	conn := s.connMgr.GetConn(connId)
 	if conn == nil {
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnNotFound
+		return kkerrors.ErrNetConnNotFound
 	}
 	return conn.SendBuffer(buffer)
 }

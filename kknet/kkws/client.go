@@ -73,7 +73,7 @@ func (c *Client) Connect() error {
 			return err
 		case <-c.stopCh:
 			c.connected.Store(false)
-			return kkerrors.ErrClientNotConnected
+			return kkerrors.ErrNetClientNotConnected
 		}
 	}
 
@@ -100,26 +100,26 @@ func (c *Client) Connect() error {
 
 func (c *Client) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if buffer == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	c.connMu.Lock()
 	conn := c.conn
 	c.connMu.Unlock()
 	if conn == nil {
-		return kkerrors.ErrClientNotConnected
+		return kkerrors.ErrNetClientNotConnected
 	}
 	return conn.SendBuffer(buffer)
 }
 
 func (c *Client) SendMsg(msg any) error {
 	if msg == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	c.connMu.Lock()
 	conn := c.conn
 	c.connMu.Unlock()
 	if conn == nil {
-		return kkerrors.ErrClientNotConnected
+		return kkerrors.ErrNetClientNotConnected
 	}
 	return conn.SendMsg(msg)
 }
@@ -143,7 +143,7 @@ func (c *Client) Close() error {
 		close(c.stopCh)
 	}
 	if conn == nil {
-		return kkerrors.ErrClientNotConnected
+		return kkerrors.ErrNetClientNotConnected
 	}
 	return conn.Close()
 }
@@ -241,11 +241,11 @@ func (c *Client) reconnectLoop(first chan<- error) {
 
 	for {
 		if c.closing.Load() {
-			reportFirst(kkerrors.ErrClientNotConnected)
+			reportFirst(kkerrors.ErrNetClientNotConnected)
 			return
 		}
 		if maxRetries > 0 && attempts >= maxRetries {
-			err := kkerrors.ErrReconnectAttemptsExceeded
+			err := kkerrors.ErrNetReconnectAttemptsExceeded
 			if cb != nil {
 				cb(attempts, err)
 			}
@@ -299,7 +299,7 @@ func (c *Client) reconnectLoop(first chan<- error) {
 		select {
 		case <-time.After(delay):
 		case <-c.stopCh:
-			reportFirst(kkerrors.ErrClientNotConnected)
+			reportFirst(kkerrors.ErrNetClientNotConnected)
 			return
 		}
 	}

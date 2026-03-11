@@ -2,20 +2,26 @@ package kkerrors
 
 import "errors"
 
-// -------------- for utils -------------------
+// -------------- for xnet -------------------
 var (
 	// 未找到IP地址
-	ErrNotFoundIPAddress = errors.New("not found ip address")
-	// 意外EOF
-	ErrUnexpectedEOF = errors.New("unexpected EOF")
-	// 无效的whence
-	ErrInvalidWhence = errors.New("invalid whence")
-	// 负位置
-	ErrNegativePosition = errors.New("negative position")
-	// v不是[]byte类型
-	ErrNotByteSlice = errors.New("v is not a []byte")
+	ErrXNetNotFoundIPAddress = errors.New("xnet not found ip address")
+)
+
+// -------------- for xreflect -------------------
+var (
 	// 函数为nil
-	ErrFuncIsNil = errors.New("func is nil")
+	ErrXreflectFuncIsNil = errors.New("xreflect func is nil")
 	// 函数类型错误
-	ErrFuncTypeError = errors.New("func type error")
+	ErrXreflectFuncTypeError = errors.New("xreflect func type error")
+)
+
+// -------------- for kkcodec -------------------
+var (
+	// 无法解码为 proto.Message 类型
+	ErrCodecCannotUnmarshalToProtoMessage = errors.New("codec cannot unmarshal to a value that not implements proto.Buffer")
+	// 无法编码为 FlatBuffer 类型（需实现 FlatBufferPackable，即 *XxxT）
+	ErrCodecCannotMarshalFlatBuffer = errors.New("codec cannot marshal to flatbuffer: value must implement FlatBufferPackable (*XxxT)")
+	// 无法解码为 FlatBuffer 类型（需实现 FlatBufferTable，即 *Xxx）
+	ErrCodecCannotUnmarshalFlatBuffer = errors.New("codec cannot unmarshal to flatbuffer: value must implement FlatBufferTable (*Xxx)")
 )

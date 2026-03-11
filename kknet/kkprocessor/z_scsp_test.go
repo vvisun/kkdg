@@ -61,7 +61,7 @@ func Test_Compare_KKChan_vs_KKSCSPSend_DrainNoLoss(t *testing.T) {
 						if err == nil {
 							break
 						}
-						if err == kkerrors.ErrSendQueueFull {
+						if err == kkerrors.ErrNetSendQueueFull {
 							// retry with the same buffer instance (not released)
 							time.Sleep(0)
 							continue

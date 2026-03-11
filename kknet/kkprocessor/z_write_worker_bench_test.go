@@ -53,7 +53,7 @@ func Benchmark_WorkerWriteProcessorSendDrain(b *testing.B) {
 				if err == nil {
 					break
 				}
-				if err == kkerrors.ErrSendQueueFull {
+				if err == kkerrors.ErrNetSendQueueFull {
 					time.Sleep(0)
 					continue
 				}
@@ -66,4 +66,3 @@ func Benchmark_WorkerWriteProcessorSendDrain(b *testing.B) {
 	wp.Stop(nil)
 	_ = drained.Load()
 }
-

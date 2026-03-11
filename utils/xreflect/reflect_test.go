@@ -260,7 +260,7 @@ func TestTypeName(t *testing.T) {
 func TestGetFuncInfo(t *testing.T) {
 	// 测试 nil 函数
 	funcInfo, err := xreflect.GetFuncInfo(nil)
-	if err != kkerrors.ErrFuncIsNil {
+	if err != kkerrors.ErrXreflectFuncIsNil {
 		t.Errorf("Expected ErrFuncIsNil, got %v", err)
 	}
 	if funcInfo.Type != nil {
@@ -270,14 +270,14 @@ func TestGetFuncInfo(t *testing.T) {
 	// 测试非函数类型
 	var i int = 42
 	funcInfo, err = xreflect.GetFuncInfo(i)
-	if err != kkerrors.ErrFuncTypeError {
+	if err != kkerrors.ErrXreflectFuncTypeError {
 		t.Errorf("Expected ErrFuncTypeError, got %v", err)
 	}
 
 	// 测试字符串类型
 	s := "hello"
 	funcInfo, err = xreflect.GetFuncInfo(s)
-	if err != kkerrors.ErrFuncTypeError {
+	if err != kkerrors.ErrXreflectFuncTypeError {
 		t.Errorf("Expected ErrFuncTypeError, got %v", err)
 	}
 

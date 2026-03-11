@@ -4,34 +4,41 @@ import "errors"
 
 var (
 	// 无效的节点ID
-	ErrInvalidNodeID = errors.New("invalid node id")
+	ErrAppInvalidNodeID = errors.New("app invalid node id")
 	// 无效的节点类型
-	ErrInvalidNodeType = errors.New("invalid node type")
+	ErrAppInvalidNodeType = errors.New("app invalid node type")
 	// 应用未初始化
-	ErrAppNotInitialized = errors.New("app is not initialized")
+	ErrAppNotInitialized = errors.New("app not initialized")
 	// 应用已初始化
-	ErrAppInitialized = errors.New("app is already initialized")
+	ErrAppInitialized = errors.New("app already initialized")
 	// 应用未关闭
-	ErrAppNotShutdown = errors.New("app is not shutdown")
+	ErrAppNotShutdown = errors.New("app not shutdown")
 	// 应用已关闭
-	ErrAppShutdown = errors.New("app is already shutdown")
+	ErrAppShutdown = errors.New("app already shutdown")
 	// 应用已启动
-	ErrAppAlreadyStarted = errors.New("app is already started")
+	ErrAppAlreadyStarted = errors.New("app already started")
 	// 应用未启动
-	ErrAppNotStarted = errors.New("app is not started")
+	ErrAppNotStarted = errors.New("app not started")
 	// 应用只能在空状态添加组件
-	ErrAppAddCompMustInNoneState = errors.New("app can only add component in none state")
+	ErrAppAddCompMustInNoneState = errors.New("app add comp must in none state")
 	// 应用spawn actor失败
 	ErrAppSpawnActorFailed = errors.New("app spawn actor failed")
 )
 
-// -------------- for session -------------------
+// -------------- for transportor -------------------
 var (
-	ErrEmptySessionID         = errors.New("empty sessionID")
-	ErrSessionNotFound        = errors.New("session not found")
-	ErrEmptyMsgBytes          = errors.New("empty msgBytes")
-	ErrClusterNotInitialized  = errors.New("cluster not initialized")
-	ErrLogicNodeNotRegistered = errors.New("logic node not registered")
-	ErrLogicShardNotConnected = errors.New("logic shard not connected")
-	ErrTransportorStopped     = errors.New("transportor stopped")
+	// 应用传输层已停止
+	ErrAppTransportorStopped = errors.New("app trans transportor stopped")
+	// 应用传输层空sessionID
+	ErrAppEmptySessionID = errors.New("app trans empty sessionID")
+	// 应用传输层session未找到
+	ErrAppSessionNotFound = errors.New("app trans session not found")
+	// 应用传输层空消息字节
+	ErrAppEmptyMsgBytes = errors.New("app trans empty msgBytes")
+	// 应用传输层集群未初始化
+	ErrAppClusterNotInitialized = errors.New("app trans cluster not initialized")
+	// 应用传输层逻辑节点未注册
+	ErrAppLogicNodeNotRegistered = errors.New("app trans logic node not registered")
+	// 应用传输层逻辑分片未连接
+	ErrAppLogicShardNotConnected = errors.New("app trans logic shard not connected")
 )

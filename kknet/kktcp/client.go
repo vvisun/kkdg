@@ -115,8 +115,8 @@ func (c *GnetClient) Connect() error {
 	c.clientMu.Unlock()
 	if cli == nil {
 		c.connected.Store(false)
-		c.opts.Logger.Infof("kktcp client start... failed to get client: %v", kkerrors.ErrClientNotConnected)
-		return kkerrors.ErrClientNotConnected
+		c.opts.Logger.Infof("kktcp client start... failed to get client: %v", kkerrors.ErrNetClientNotConnected)
+		return kkerrors.ErrNetClientNotConnected
 	}
 
 	if _, err := cli.Dial("tcp", c.addr); err != nil {
@@ -131,13 +131,13 @@ func (c *GnetClient) Connect() error {
 
 func (c *GnetClient) SendMsg(msg any) error {
 	if msg == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	c.connMu.Lock()
 	conn := c.conn
 	c.connMu.Unlock()
 	if conn == nil {
-		return kkerrors.ErrClientNotConnected
+		return kkerrors.ErrNetClientNotConnected
 	}
 	return conn.SendMsg(msg)
 }
@@ -145,14 +145,14 @@ func (c *GnetClient) SendMsg(msg any) error {
 // SendBuffer sends a buffer to the server.
 func (c *GnetClient) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if buffer == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	c.connMu.Lock()
 	conn := c.conn
 	c.connMu.Unlock()
 	if conn == nil {
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrClientNotConnected
+		return kkerrors.ErrNetClientNotConnected
 	}
 	return conn.SendBuffer(buffer)
 }
@@ -168,7 +168,7 @@ func (c *GnetClient) Close() error {
 	c.conn = nil
 	c.connMu.Unlock()
 	if conn == nil {
-		return kkerrors.ErrClientNotConnected
+		return kkerrors.ErrNetClientNotConnected
 	}
 	c.closing.Store(true)
 	c.connected.Store(false)
@@ -225,7 +225,7 @@ func (c *GnetClient) reconnectLoop() {
 		}
 		if maxRetries > 0 && attempts >= maxRetries {
 			if cb != nil {
-				cb(attempts, kkerrors.ErrReconnectAttemptsExceeded)
+				cb(attempts, kkerrors.ErrNetReconnectAttemptsExceeded)
 			}
 			c.opts.Logger.Warnf("gnetclient reconnect exceeded after %d attempts", attempts)
 			c.reconnecting.Store(false)

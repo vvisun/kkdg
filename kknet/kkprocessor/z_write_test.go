@@ -140,14 +140,14 @@ func TestWriteProcessor_BlockMode(t *testing.T) {
 	}
 
 	blockFirst <- struct{}{}
-	wp.Stop(kkerrors.ErrConnectionClosed)
+	wp.Stop(kkerrors.ErrNetConnectionClosed)
 
 	select {
 	case <-blocked:
 	case <-time.After(time.Second):
 		t.Fatal("SendBuffer should unblock after Stop")
 	}
-	if blockErr != kkerrors.ErrConnectionClosed {
+	if blockErr != kkerrors.ErrNetConnectionClosed {
 		t.Errorf("blocked SendBuffer after Stop: got %v, want ErrConnectionClosed", blockErr)
 	}
 }
@@ -213,7 +213,7 @@ func TestWriteProcessor_RetryMode(t *testing.T) {
 
 	select {
 	case err := <-errCh:
-		if err != kkerrors.ErrSendQueueFull {
+		if err != kkerrors.ErrNetSendQueueFull {
 			t.Errorf("SendBuffer after max retries: got %v, want ErrSendQueueFull", err)
 		}
 	case <-time.After(500 * time.Millisecond):
@@ -283,7 +283,7 @@ func TestWriteProcessor_WriteFnRetry_NonRetryable(t *testing.T) {
 	var attempts atomic.Int32
 	writeFn := func(batch []*kkbuffer.ByteBuffer, n int) error {
 		attempts.Add(1)
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	var onErr error
 	var onErrOnce sync.Once
@@ -301,7 +301,7 @@ func TestWriteProcessor_WriteFnRetry_NonRetryable(t *testing.T) {
 	if attempts.Load() != 1 {
 		t.Errorf("writeFn should not be retried for ErrConnectionClosed, got %d attempts", attempts.Load())
 	}
-	if onErr != kkerrors.ErrConnectionClosed {
+	if onErr != kkerrors.ErrNetConnectionClosed {
 		t.Errorf("onWriteError: got %v, want ErrConnectionClosed", onErr)
 	}
 }
@@ -421,7 +421,7 @@ func TestWriteProcessor_SendMsg_UnregisteredType(t *testing.T) {
 	if err == nil {
 		t.Fatal("SendMsg with unregistered type should return error")
 	}
-	if !errors.Is(err, kkerrors.ErrMsgTypeNotRegistered) {
+	if !errors.Is(err, kkerrors.ErrPktMsgTypeNotRegistered) {
 		t.Errorf("SendMsg: got %v, want ErrMsgTypeNotRegistered", err)
 	}
 }
@@ -468,9 +468,9 @@ func TestWriteProcessor_DefaultAction_Unknown(t *testing.T) {
 
 func TestWriteProcessor_FlushTimeout(t *testing.T) {
 	opts := kknet.WriteOptions{
-		SendQueueSize:             4,
-		SendQueueStrict:           false,
-		SendQueueNeedFlushOver:    true,
+		SendQueueSize:          4,
+		SendQueueStrict:        false,
+		SendQueueNeedFlushOver: true,
 		// 小于 500ms 会被 CheckWriteOptions 提升到 500ms，这里直接使用 500ms 方便断言
 		SendQueueTimeoutFlushOver: 500 * time.Millisecond,
 		BatchWriteLimitBytes:      1024,

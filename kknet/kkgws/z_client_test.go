@@ -66,7 +66,7 @@ func TestClient_Connect_Close(t *testing.T) {
 		t.Fatalf("second Connect: %v", err)
 	}
 	_ = client.Close()
-	if err := client.Close(); err != kkerrors.ErrClientNotConnected {
+	if err := client.Close(); err != kkerrors.ErrNetClientNotConnected {
 		t.Errorf("Close when not connected = %v, want ErrClientNotConnected", err)
 	}
 }
@@ -114,7 +114,7 @@ func TestClient_SendBuffer_NotConnected(t *testing.T) {
 	client := NewClient("ws://127.0.0.1:9999/ws", nil, kknet.DefaultOptions())
 	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("x"))
 	err := client.SendBuffer(bb)
-	if err != kkerrors.ErrClientNotConnected {
+	if err != kkerrors.ErrNetClientNotConnected {
 		t.Errorf("SendBuffer when not connected = %v, want ErrClientNotConnected", err)
 	}
 }

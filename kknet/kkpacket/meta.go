@@ -26,11 +26,11 @@ func NewMetaManager() *metaManager {
 func (m *metaManager) AddMeta(msgId MSGID, msgType reflect.Type, msgMeta any) error {
 	if msgId == 0 {
 		kklog.Errorf("message id is 0")
-		return kkerrors.ErrInvalidMsgID
+		return kkerrors.ErrPktInvalidMsgID
 	}
 	if msgType == nil {
 		kklog.Errorf("message type is nil")
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 	m.typeMap[msgType] = msgMeta
 	m.idMap[msgId] = msgMeta
@@ -99,7 +99,7 @@ func (m *msgMeta[T]) Unmarshal(data []byte) (*T, error) {
 
 func (m *msgMeta[T]) Marshal(v *T) ([]byte, error) {
 	if v == nil {
-		return nil, kkerrors.ErrInvalidMessage
+		return nil, kkerrors.ErrPktInvalidMessage
 	}
 	return m.messagePacket.GetBodyCodec().Marshal(v)
 }
@@ -107,21 +107,21 @@ func (m *msgMeta[T]) Marshal(v *T) ([]byte, error) {
 // offset = lfbCount + headSize = stream.LengthFieldByteCount() + messagePacket.GetHead().GetSize()
 func (m *msgMeta[T]) MarshalAppend(v *T, offset int) (*kkbuffer.ByteBuffer, error) {
 	if v == nil {
-		return nil, kkerrors.ErrInvalidMessage
+		return nil, kkerrors.ErrPktInvalidMessage
 	}
 	return m.messagePacket.GetBodyCodec().MarshalAppend(v, offset)
 }
 
 func (m *msgMeta[T]) EncodeStream(v *T, stream IPacket) (*kkbuffer.ByteBuffer, error) {
 	if v == nil {
-		return nil, kkerrors.ErrInvalidMessage
+		return nil, kkerrors.ErrPktInvalidMessage
 	}
 	return EncodeStream(v, stream, m.messagePacket)
 }
 
 func (m *msgMeta[T]) DecodeStream(bb *kkbuffer.ByteBuffer, stream IPacket) (*T, error) {
 	if bb == nil {
-		return nil, kkerrors.ErrInvalidMessage
+		return nil, kkerrors.ErrPktInvalidMessage
 	}
 	messageBytes, err := stream.MessageBytes(bb.B)
 	if err != nil {

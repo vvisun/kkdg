@@ -67,7 +67,7 @@ func (slf *LengthFieldStreamPacket) LengthFieldBytes(packet []byte) []byte {
 // get message bytes. packet = [length,message]
 func (slf *LengthFieldStreamPacket) MessageBytes(packet []byte) ([]byte, error) {
 	if len(packet) < slf.lfbCount {
-		return nil, kkerrors.ErrDataTooShortToDecode
+		return nil, kkerrors.ErrPktDataTooShortToDecode
 	}
 	return packet[slf.lfbCount:], nil
 }
@@ -79,7 +79,7 @@ func (slf *LengthFieldStreamPacket) MessageBytes(packet []byte) ([]byte, error) 
  */
 func (slf *LengthFieldStreamPacket) ReadMessageSize(packet []byte) (int, error) {
 	if len(packet) < slf.lfbCount {
-		return 0, kkerrors.ErrDataTooShortToDecode
+		return 0, kkerrors.ErrPktDataTooShortToDecode
 	}
 	switch slf.lfbCount {
 	case 4:
@@ -87,7 +87,7 @@ func (slf *LengthFieldStreamPacket) ReadMessageSize(packet []byte) (int, error) 
 	case 2:
 		return int(GetByteOrder().Uint16(packet)), nil
 	default:
-		return 0, kkerrors.ErrInvalidLengthFieldByteCount
+		return 0, kkerrors.ErrPktInvalidLengthFieldByteCount
 	}
 }
 
@@ -111,17 +111,17 @@ func (slf *LengthFieldStreamPacket) WriteMessageSize(packet []byte, size int) {
 func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
 	totalLen := len(packet)
 	if totalLen < slf.lfbCount {
-		return kkerrors.ErrDataTooShortToDecode
+		return kkerrors.ErrPktDataTooShortToDecode
 	}
 	if totalLen > slf.maxPacketSize {
-		return kkerrors.ErrMaxMessageSize
+		return kkerrors.ErrPktMaxMessageSize
 	}
 	messageLen, err := slf.ReadMessageSize(packet)
 	if err != nil {
 		return err
 	}
 	if totalLen != messageLen+slf.lfbCount {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	return nil
 }
@@ -132,7 +132,7 @@ func (slf *LengthFieldStreamPacket) CheckPacket(packet []byte) error {
  */
 func (slf *LengthFieldStreamPacket) CheckPacketBuffer(packetBB *kkbuffer.ByteBuffer) error {
 	if packetBB == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	return slf.CheckPacket(packetBB.B)
 }
@@ -145,7 +145,7 @@ func (slf *LengthFieldStreamPacket) CheckPacketBuffer(packetBB *kkbuffer.ByteBuf
  */
 func (slf *LengthFieldStreamPacket) Pack(messageBytes []byte) (*kkbuffer.ByteBuffer, error) {
 	if len(messageBytes) > slf.maxPacketSize-slf.lfbCount {
-		return nil, kkerrors.ErrMaxMessageSize
+		return nil, kkerrors.ErrPktMaxMessageSize
 	}
 
 	lfb := slf.lfbCount
@@ -172,7 +172,7 @@ func (slf *LengthFieldStreamPacket) Unpack(packet []byte) ([]byte, error) {
 	lfb := slf.lfbCount
 	totalLen := lfb + messageLen
 	if len(packet) < totalLen {
-		return nil, kkerrors.ErrInvalidPacket
+		return nil, kkerrors.ErrClusterInvalidPacket
 	}
 	return packet[lfb:totalLen], nil
 }
@@ -210,7 +210,7 @@ func (slf *LengthFieldStreamPacket) Split(packets []byte, recvs [][]byte) ([][]b
 		}
 		totalLen := lfb + messageLen // [length,message]的长度
 		if totalLen > slf.maxPacketSize {
-			errRet = kkerrors.ErrMaxMessageSize // 包体超过了最大长度
+			errRet = kkerrors.ErrPktMaxMessageSize // 包体超过了最大长度
 			leftData = packets[pos:]
 			break
 		}

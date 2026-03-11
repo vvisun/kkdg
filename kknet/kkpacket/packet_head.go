@@ -55,12 +55,12 @@ func NewPacketHeadWithNames(parts []IHeadPart, names []string) *PacketHead {
 
 func (h *PacketHead) SetNames(names []string) error {
 	if len(names) != len(h.partList) {
-		return kkerrors.ErrPacketNamesAndPartsLengthNotMatch
+		return kkerrors.ErrPktNamesAndPartsLengthNotMatch
 	}
 	nameMap := make(map[string]int)
 	for idx, name := range names {
 		if _, ok := nameMap[name]; ok {
-			return kkerrors.ErrPacketHeadPartNameRepeated
+			return kkerrors.ErrPktHeadPartNameRepeated
 		}
 		nameMap[name] = idx
 	}
@@ -78,10 +78,10 @@ func (h *PacketHead) GetPartCount() int {
 
 func (h *PacketHead) Marshal(headBytes []byte, endian binary.ByteOrder, valueList ...int) error {
 	if len(headBytes) < h.size {
-		return kkerrors.ErrDataTooShortToMarshal
+		return kkerrors.ErrPktDataTooShortToMarshal
 	}
 	if len(valueList) < len(h.partList) {
-		return kkerrors.ErrValueListTooShortToMarshal
+		return kkerrors.ErrPktValueListTooShortToMarshal
 	}
 	offset := 0
 	for i, part := range h.partList {
@@ -95,7 +95,7 @@ func (h *PacketHead) Marshal(headBytes []byte, endian binary.ByteOrder, valueLis
 
 func (h *PacketHead) Unmarshal(headBytes []byte, endian binary.ByteOrder) ([]int, error) {
 	if len(headBytes) < h.size {
-		return nil, kkerrors.ErrDataTooShortToUnmarshal
+		return nil, kkerrors.ErrPktDataTooShortToUnmarshal
 	}
 	valueList := make([]int, len(h.partList))
 	offset := 0
@@ -112,7 +112,7 @@ func (h *PacketHead) Unmarshal(headBytes []byte, endian binary.ByteOrder) ([]int
 
 func (h *PacketHead) UnmarshalTo(headBytes []byte, endian binary.ByteOrder, valueList []int) ([]int, error) {
 	if len(headBytes) < h.size || h.GetPartCount() <= 0 {
-		return valueList[:0], kkerrors.ErrDataTooShortToUnmarshal
+		return valueList[:0], kkerrors.ErrPktDataTooShortToUnmarshal
 	}
 	if len(valueList) < h.GetPartCount() {
 		valueList = make([]int, h.GetPartCount())
@@ -132,7 +132,7 @@ func (h *PacketHead) UnmarshalTo(headBytes []byte, endian binary.ByteOrder, valu
 func (h *PacketHead) ReadValueByName(headBytes []byte, endian binary.ByteOrder, name string) (int, error) {
 	idx, ok := h.nameMap[name]
 	if !ok {
-		return 0, kkerrors.ErrPacketHeadPartNameNotFound
+		return 0, kkerrors.ErrPktHeadPartNameNotFound
 	}
 	part := h.partList[idx]
 	offset := 0

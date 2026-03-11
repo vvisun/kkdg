@@ -24,10 +24,10 @@ var _ IHeadPart = (*PartUint8)(nil)
 
 func (p *PartUint8) Marshal(data []byte, endian binary.ByteOrder, value int) error {
 	if len(data) < 1 {
-		return kkerrors.ErrDataTooShortToMarshal
+		return kkerrors.ErrPktDataTooShortToMarshal
 	}
 	if value < 0 || value > 255 {
-		return kkerrors.ErrValueOutOfRange
+		return kkerrors.ErrPktValueOutOfRange
 	}
 	data[0] = uint8(value)
 	return nil
@@ -35,7 +35,7 @@ func (p *PartUint8) Marshal(data []byte, endian binary.ByteOrder, value int) err
 
 func (p *PartUint8) Unmarshal(data []byte, endian binary.ByteOrder) (int, error) {
 	if len(data) < 1 {
-		return 0, kkerrors.ErrDataTooShortToUnmarshal
+		return 0, kkerrors.ErrPktDataTooShortToUnmarshal
 	}
 	return int(data[0]), nil
 }
@@ -52,7 +52,7 @@ var _ IHeadPart = (*PartUint16)(nil)
 
 func (p *PartUint16) Marshal(data []byte, endian binary.ByteOrder, value int) error {
 	if len(data) < 2 {
-		return kkerrors.ErrDataTooShortToMarshal
+		return kkerrors.ErrPktDataTooShortToMarshal
 	}
 	endian.PutUint16(data[:2], uint16(value))
 	return nil
@@ -60,7 +60,7 @@ func (p *PartUint16) Marshal(data []byte, endian binary.ByteOrder, value int) er
 
 func (p *PartUint16) Unmarshal(data []byte, endian binary.ByteOrder) (int, error) {
 	if len(data) < 2 {
-		return 0, kkerrors.ErrDataTooShortToUnmarshal
+		return 0, kkerrors.ErrPktDataTooShortToUnmarshal
 	}
 	return int(endian.Uint16(data[:2])), nil
 }
@@ -77,7 +77,7 @@ var _ IHeadPart = (*PartUint32)(nil)
 
 func (p *PartUint32) Marshal(data []byte, endian binary.ByteOrder, value int) error {
 	if len(data) < 4 {
-		return kkerrors.ErrDataTooShortToMarshal
+		return kkerrors.ErrPktDataTooShortToMarshal
 	}
 	endian.PutUint32(data[:4], uint32(value))
 	return nil
@@ -85,7 +85,7 @@ func (p *PartUint32) Marshal(data []byte, endian binary.ByteOrder, value int) er
 
 func (p *PartUint32) Unmarshal(data []byte, endian binary.ByteOrder) (int, error) {
 	if len(data) < 4 {
-		return 0, kkerrors.ErrDataTooShortToUnmarshal
+		return 0, kkerrors.ErrPktDataTooShortToUnmarshal
 	}
 	return int(endian.Uint32(data[:4])), nil
 }
@@ -102,7 +102,7 @@ var _ IHeadPart = (*PartUint64)(nil)
 
 func (p *PartUint64) Marshal(data []byte, endian binary.ByteOrder, value int) error {
 	if len(data) < 8 {
-		return kkerrors.ErrDataTooShortToMarshal
+		return kkerrors.ErrPktDataTooShortToMarshal
 	}
 	endian.PutUint64(data[:8], uint64(value))
 	return nil
@@ -110,7 +110,7 @@ func (p *PartUint64) Marshal(data []byte, endian binary.ByteOrder, value int) er
 
 func (p *PartUint64) Unmarshal(data []byte, endian binary.ByteOrder) (int, error) {
 	if len(data) < 8 {
-		return 0, kkerrors.ErrDataTooShortToUnmarshal
+		return 0, kkerrors.ErrPktDataTooShortToUnmarshal
 	}
 	return int(endian.Uint64(data[:8])), nil
 }

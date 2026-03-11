@@ -119,9 +119,9 @@ func defaultIsWriteFnRetryable(err error) bool {
 	if err == nil {
 		return true
 	}
-	if errors.Is(err, kkerrors.ErrConnectionClosed) ||
-		errors.Is(err, kkerrors.ErrInvalidPacket) ||
-		errors.Is(err, kkerrors.ErrSendQueueFull) ||
+	if errors.Is(err, kkerrors.ErrNetConnectionClosed) ||
+		errors.Is(err, kkerrors.ErrClusterInvalidPacket) ||
+		errors.Is(err, kkerrors.ErrNetSendQueueFull) ||
 		errors.Is(err, net.ErrClosed) ||
 		errors.Is(err, io.ErrClosedPipe) {
 		return false

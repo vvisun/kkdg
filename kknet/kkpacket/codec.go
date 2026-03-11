@@ -18,7 +18,7 @@ import (
 func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffer.ByteBuffer, error) {
 	msgID := messagePacket.GetRouter().GetMsgID(v)
 	if msgID == 0 {
-		return nil, kkerrors.ErrMsgTypeNotRegistered
+		return nil, kkerrors.ErrPktMsgTypeNotRegistered
 	}
 
 	lfbCount := stream.LengthFieldByteCount()
@@ -27,7 +27,7 @@ func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffe
 	bb, err := messagePacket.GetBodyCodec().MarshalAppend(v, lfbCount+headSize)
 	if err != nil {
 		kkbuffer.Put(bb)
-		return nil, kkerrors.ErrEncodeFailed
+		return nil, kkerrors.ErrPktEncodeFailed
 	}
 
 	stream.WriteMessageSize(bb.B, len(bb.B)-lfbCount)
@@ -77,7 +77,7 @@ func DecodeStream(bb *kkbuffer.ByteBuffer, stream IPacket, messagePacket *Messag
 	msgType := messagePacket.GetRouter().GetMsgType(msgId)
 	if msgType == nil {
 		kkbuffer.Put(bb)
-		return nil, kkerrors.ErrMsgTypeNotRegistered
+		return nil, kkerrors.ErrPktMsgTypeNotRegistered
 	}
 	v := reflect.New(msgType.Elem()).Interface()
 	err = messagePacket.GetBodyCodec().Unmarshal(bodyBytes, &v)
@@ -98,7 +98,7 @@ func DecodeStream(bb *kkbuffer.ByteBuffer, stream IPacket, messagePacket *Messag
 func EncodeMessage(v any, messagePacket *MessagePacket) (*kkbuffer.ByteBuffer, error) {
 	msgID := messagePacket.GetRouter().GetMsgID(v)
 	if msgID == 0 {
-		return nil, kkerrors.ErrMsgTypeNotRegistered
+		return nil, kkerrors.ErrPktMsgTypeNotRegistered
 	}
 	offset := messagePacket.GetHead().GetSize()
 	bb, err := messagePacket.GetBodyCodec().MarshalAppend(v, offset)
@@ -160,7 +160,7 @@ func DecodeMessage(bb *kkbuffer.ByteBuffer, messagePacket *MessagePacket) (any, 
 	msgType := messagePacket.GetRouter().GetMsgType(msgId)
 	if msgType == nil {
 		kkbuffer.Put(bb)
-		return nil, kkerrors.ErrMsgTypeNotRegistered
+		return nil, kkerrors.ErrPktMsgTypeNotRegistered
 	}
 	bodyBytes, err := messagePacket.BodyBytes(messageBytes)
 	if err != nil {

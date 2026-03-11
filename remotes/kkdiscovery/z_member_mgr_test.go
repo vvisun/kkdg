@@ -113,7 +113,7 @@ func TestMemberMgr_GetType(t *testing.T) {
 		t.Fatalf("GetType(n1) = %q, want \"logic\"", typ)
 	}
 
-	if _, err := mgr.GetType("missing"); err != kkerrors.ErrMemberNotFound {
+	if _, err := mgr.GetType("missing"); err != kkerrors.ErrClusterMemberNotFound {
 		t.Fatalf("GetType(missing) error = %v, want ErrMemberNotFound", err)
 	}
 }

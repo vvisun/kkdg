@@ -217,7 +217,7 @@ func TestWSConn_SendQueueFullAction_Block(t *testing.T) {
 	_ = wc.Close()
 	select {
 	case err := <-blockErrCh:
-		if err != kkerrors.ErrConnectionClosed {
+		if err != kkerrors.ErrNetConnectionClosed {
 			t.Errorf("blocked SendBuffer after Close: got %v, want ErrConnectionClosed", err)
 		}
 	case <-time.After(time.Second):
@@ -251,7 +251,7 @@ func TestWSConn_SendQueueFullAction_Retry(t *testing.T) {
 	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("overflow"))
 	if err := wc.SendBuffer(bb); err == nil {
 		t.Fatal("Retry mode: expected ErrSendQueueFull, got nil")
-	} else if err != kkerrors.ErrSendQueueFull {
+	} else if err != kkerrors.ErrNetSendQueueFull {
 		t.Fatalf("Retry mode: got %v, want ErrSendQueueFull", err)
 	}
 	wc.writeMu.Unlock()
@@ -286,7 +286,7 @@ func TestWSConn_SendQueueFullAction_Retry_MaxCount1(t *testing.T) {
 	wc.writeMu.Lock()
 	fillQueueAndBlockWriteBatch(t, wc, "m")
 	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("overflow"))
-	if err := wc.SendBuffer(bb); err != kkerrors.ErrSendQueueFull {
+	if err := wc.SendBuffer(bb); err != kkerrors.ErrNetSendQueueFull {
 		t.Errorf("RetryMaxCount=1: got %v, want ErrSendQueueFull", err)
 	}
 	wc.writeMu.Unlock()
@@ -362,7 +362,7 @@ func TestWSConn_SendQueueFullAction_AfterClose(t *testing.T) {
 
 			bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("after-close"))
 			err = wc.SendBuffer(bb)
-			if err != kkerrors.ErrConnectionClosed {
+			if err != kkerrors.ErrNetConnectionClosed {
 				t.Errorf("SendBuffer after Close: got %v, want ErrConnectionClosed", err)
 			}
 		})
@@ -598,7 +598,7 @@ func TestWSConn_SendBuffer_AfterClose(t *testing.T) {
 		t.Fatalf("pack error: %v", err)
 	}
 	err = wc.SendBuffer(bb)
-	if err != kkerrors.ErrConnectionClosed {
+	if err != kkerrors.ErrNetConnectionClosed {
 		t.Errorf("SendBuffer after Close = %v, want ErrConnectionClosed", err)
 	}
 }

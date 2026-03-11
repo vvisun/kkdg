@@ -48,20 +48,20 @@ func NewMsgRouter() *MsgRouter {
 func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 	if id == 0 {
 		kklog.Errorf("message id is 0")
-		return kkerrors.ErrInvalidMsgID
+		return kkerrors.ErrPktInvalidMsgID
 	}
 	if !xreflect.IsPointer(msgPtr) {
 		kklog.Errorf("message pointer required, got %T", msgPtr)
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 	msgType := reflect.TypeOf(msgPtr)
 	if msgType == nil {
 		kklog.Errorf("message pointer required, got %v", msgType)
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 	if _, ok := r.idToType[id]; ok {
 		kklog.Errorf("message id %v is already registered", id)
-		return kkerrors.ErrMsgIDAlreadyRegistered
+		return kkerrors.ErrPktMsgIDAlreadyRegistered
 	}
 	r.typeToId[msgType] = id
 	r.idToType[id] = msgType
@@ -92,7 +92,7 @@ func (r *MsgRouter) GetMsgRoute(id MSGID) (string, error) {
 	route, ok := r.idToRoute[id]
 	if !ok {
 		kklog.Debugf("message id %v is not registered", id)
-		return "", kkerrors.ErrMsgIDNotRegistered
+		return "", kkerrors.ErrPktMsgIDNotRegistered
 	}
 	return route, nil
 }

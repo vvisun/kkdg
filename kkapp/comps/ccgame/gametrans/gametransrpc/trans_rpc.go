@@ -86,10 +86,10 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity, rpcClient
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](slf.rpcClient, 0, "s2c")
 	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
@@ -105,10 +105,10 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 	oneWayInvoker := kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](slf.rpcClient, 0, "s2cs")
 	err := oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
@@ -123,18 +123,18 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 
 func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
+		return kkerrors.ErrAppEmptySessionID
 	}
 	if msg == nil {
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
 	if sessionInfo == nil {
-		return kkerrors.ErrSessionNotFound
+		return kkerrors.ErrAppSessionNotFound
 	}
 
 	bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
@@ -159,13 +159,13 @@ func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 
 func (slf *transportorRpc) SendToClients(sessionIDs []string, msg any) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
 	if msg == nil {
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 
 	bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())

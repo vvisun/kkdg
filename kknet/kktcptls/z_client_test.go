@@ -14,7 +14,7 @@ type tlsRawRecvHandler struct {
 	ch chan []byte
 }
 
-func (h *tlsRawRecvHandler) OnConnect(kknet.IConn) {}
+func (h *tlsRawRecvHandler) OnConnect(kknet.IConn)      {}
 func (h *tlsRawRecvHandler) OnClose(kknet.IConn, error) {}
 func (h *tlsRawRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data != nil {
@@ -76,7 +76,7 @@ func TestClient_Connect_Close_TLS(t *testing.T) {
 	if err := client.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
-	if err := client.Close(); err != kkerrors.ErrClientNotConnected {
+	if err := client.Close(); err != kkerrors.ErrNetClientNotConnected {
 		t.Errorf("Close when not connected = %v, want ErrClientNotConnected", err)
 	}
 }
@@ -140,7 +140,7 @@ type tlsEchoHandler struct {
 	server kknet.IServer
 }
 
-func (h *tlsEchoHandler) OnConnect(c kknet.IConn) {}
+func (h *tlsEchoHandler) OnConnect(c kknet.IConn)          {}
 func (h *tlsEchoHandler) OnClose(c kknet.IConn, err error) {}
 func (h *tlsEchoHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data == nil || h.server == nil {

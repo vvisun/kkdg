@@ -75,10 +75,10 @@ func (c *tcpConn) Close() error {
 
 func (c *tcpConn) SendMsg(msg any) error {
 	if msg == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	if c.closing.Load() {
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), c.opts.WpOptions.MsgPacket)
 	if err != nil {
@@ -98,11 +98,11 @@ func (c *tcpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	}
 	if c.closing.Load() {
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	if c.wp == nil {
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	return c.wp.SendBuffer(buffer)
 }
@@ -118,7 +118,7 @@ func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		return nil
 	}
 	if c.conn == nil {
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 
 	if n > 1 {

@@ -61,7 +61,7 @@ func TestMsgMeta_MarshalUnmarshal(t *testing.T) {
 	}
 
 	// Marshal should fail on nil
-	if _, err := m.Marshal(nil); err != kkerrors.ErrInvalidMessage {
+	if _, err := m.Marshal(nil); err != kkerrors.ErrPktInvalidMessage {
 		t.Fatalf("Marshal(nil) error = %v, want ErrInvalidMessage", err)
 	}
 
@@ -92,7 +92,7 @@ func TestMsgMeta_EncodeDecodeStream_RoundTrip(t *testing.T) {
 	stream := NewLengthFieldStreamPacket(4, 4*1024) // default stream: [length][message]
 
 	// EncodeStream should fail with nil
-	if _, err := m.EncodeStream(nil, stream); err != kkerrors.ErrInvalidMessage {
+	if _, err := m.EncodeStream(nil, stream); err != kkerrors.ErrPktInvalidMessage {
 		t.Fatalf("EncodeStream(nil) error = %v, want ErrInvalidMessage", err)
 	}
 
@@ -129,7 +129,7 @@ func TestMsgMeta_EncodeDecodeStream_RoundTrip(t *testing.T) {
 	}
 
 	// DecodeStream should fail on nil buffer
-	if v, err := m.DecodeStream(nil, stream); err != kkerrors.ErrInvalidMessage || v != nil {
+	if v, err := m.DecodeStream(nil, stream); err != kkerrors.ErrPktInvalidMessage || v != nil {
 		t.Fatalf("DecodeStream(nil) = (%v, %v), want (nil, ErrInvalidMessage)", v, err)
 	}
 }

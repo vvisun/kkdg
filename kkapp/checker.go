@@ -64,15 +64,15 @@ func isASCIIAlpha(s string) bool {
 func checkNodeID(nodeId string) error {
 	if len(nodeId) < 1 {
 		kklog.Errorf("invalid node id: %s", nodeId)
-		return kkerrors.ErrInvalidNodeID
+		return kkerrors.ErrAppInvalidNodeID
 	}
 	if len(nodeId) > maxNodeIDLength {
 		kklog.Errorf("node id is too long: %s", nodeId)
-		return kkerrors.ErrInvalidNodeID
+		return kkerrors.ErrAppInvalidNodeID
 	}
 	if !isASCIIAlphaNumericUnderscoreHyphen(nodeId) {
 		kklog.Errorf("node id must contain only letters, digits, underscore, or hyphen: %s", nodeId)
-		return kkerrors.ErrInvalidNodeID
+		return kkerrors.ErrAppInvalidNodeID
 	}
 	return nil
 }
@@ -82,15 +82,15 @@ func checkNodeID(nodeId string) error {
 func checkNodeType(nodeType string) error {
 	if len(nodeType) < 1 {
 		kklog.Errorf("invalid node type: %s", nodeType)
-		return kkerrors.ErrInvalidNodeType
+		return kkerrors.ErrAppInvalidNodeType
 	}
 	if len(nodeType) > maxNodeTypeLength {
 		kklog.Errorf("node type is too long: %s", nodeType)
-		return kkerrors.ErrInvalidNodeType
+		return kkerrors.ErrAppInvalidNodeType
 	}
 	if !isASCIIAlpha(nodeType) {
 		kklog.Errorf("node type must contain only letters: %s", nodeType)
-		return kkerrors.ErrInvalidNodeType
+		return kkerrors.ErrAppInvalidNodeType
 	}
 	return nil
 }

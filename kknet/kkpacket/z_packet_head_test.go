@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"errors"
+
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -88,13 +89,13 @@ func TestPacketHead_SetNames_Errors(t *testing.T) {
 	head := NewPacketHead(&PartUint16{}, &PartUint32{})
 
 	// 长度不一致
-	if err := head.SetNames([]string{"a"}); !errors.Is(err, kkerrors.ErrPacketNamesAndPartsLengthNotMatch) {
-		t.Fatalf("SetNames len mismatch err = %v, want %v", err, kkerrors.ErrPacketNamesAndPartsLengthNotMatch)
+	if err := head.SetNames([]string{"a"}); !errors.Is(err, kkerrors.ErrPktNamesAndPartsLengthNotMatch) {
+		t.Fatalf("SetNames len mismatch err = %v, want %v", err, kkerrors.ErrPktNamesAndPartsLengthNotMatch)
 	}
 
 	// 名称重复
-	if err := head.SetNames([]string{"a", "a"}); !errors.Is(err, kkerrors.ErrPacketHeadPartNameRepeated) {
-		t.Fatalf("SetNames duplicate err = %v, want %v", err, kkerrors.ErrPacketHeadPartNameRepeated)
+	if err := head.SetNames([]string{"a", "a"}); !errors.Is(err, kkerrors.ErrPktHeadPartNameRepeated) {
+		t.Fatalf("SetNames duplicate err = %v, want %v", err, kkerrors.ErrPktHeadPartNameRepeated)
 	}
 }
 
@@ -103,14 +104,14 @@ func TestPacketHead_Marshal_Errors(t *testing.T) {
 
 	// headBytes 太短
 	short := make([]byte, head.GetSize()-1)
-	if err := head.Marshal(short, binary.BigEndian, 1, 2); !errors.Is(err, kkerrors.ErrDataTooShortToMarshal) {
-		t.Fatalf("Marshal short err = %v, want %v", err, kkerrors.ErrDataTooShortToMarshal)
+	if err := head.Marshal(short, binary.BigEndian, 1, 2); !errors.Is(err, kkerrors.ErrPktDataTooShortToMarshal) {
+		t.Fatalf("Marshal short err = %v, want %v", err, kkerrors.ErrPktDataTooShortToMarshal)
 	}
 
 	// valueList 太短
 	data := make([]byte, head.GetSize())
-	if err := head.Marshal(data, binary.BigEndian, 1); !errors.Is(err, kkerrors.ErrValueListTooShortToMarshal) {
-		t.Fatalf("Marshal valueList short err = %v, want %v", err, kkerrors.ErrValueListTooShortToMarshal)
+	if err := head.Marshal(data, binary.BigEndian, 1); !errors.Is(err, kkerrors.ErrPktValueListTooShortToMarshal) {
+		t.Fatalf("Marshal valueList short err = %v, want %v", err, kkerrors.ErrPktValueListTooShortToMarshal)
 	}
 }
 
@@ -118,8 +119,8 @@ func TestPacketHead_Unmarshal_Errors(t *testing.T) {
 	head := NewPacketHead(&PartUint16{}, &PartUint32{})
 
 	short := make([]byte, head.GetSize()-1)
-	if _, err := head.Unmarshal(short, binary.BigEndian); !errors.Is(err, kkerrors.ErrDataTooShortToUnmarshal) {
-		t.Fatalf("Unmarshal short err = %v, want %v", err, kkerrors.ErrDataTooShortToUnmarshal)
+	if _, err := head.Unmarshal(short, binary.BigEndian); !errors.Is(err, kkerrors.ErrPktDataTooShortToUnmarshal) {
+		t.Fatalf("Unmarshal short err = %v, want %v", err, kkerrors.ErrPktDataTooShortToUnmarshal)
 	}
 }
 
@@ -133,8 +134,8 @@ func TestPacketHead_UnmarshalTo(t *testing.T) {
 	// headBytes 太短，返回空切片
 	short := data[:head.GetSize()-1]
 	values, err := head.UnmarshalTo(short, binary.BigEndian, nil)
-	if !errors.Is(err, kkerrors.ErrDataTooShortToUnmarshal) || len(values) != 0 {
-		t.Fatalf("UnmarshalTo short = values:%v err:%v, want len 0, err %v", values, err, kkerrors.ErrDataTooShortToUnmarshal)
+	if !errors.Is(err, kkerrors.ErrPktDataTooShortToUnmarshal) || len(values) != 0 {
+		t.Fatalf("UnmarshalTo short = values:%v err:%v, want len 0, err %v", values, err, kkerrors.ErrPktDataTooShortToUnmarshal)
 	}
 
 	// valueList 初始长度不足时，会自动扩容
@@ -154,7 +155,7 @@ func (b *badPart) Marshal(data []byte, endian binary.ByteOrder, value int) error
 }
 
 func (b *badPart) Unmarshal(data []byte, endian binary.ByteOrder) (int, error) {
-	return 0, kkerrors.ErrDataTooShortToUnmarshal
+	return 0, kkerrors.ErrPktDataTooShortToUnmarshal
 }
 
 func (b *badPart) GetSize() int {
@@ -170,8 +171,8 @@ func TestPacketHead_UnmarshalTo_PartErrorPartialResult(t *testing.T) {
 	}
 
 	values, err := head.UnmarshalTo(data, binary.BigEndian, nil)
-	if !errors.Is(err, kkerrors.ErrDataTooShortToUnmarshal) {
-		t.Fatalf("UnmarshalTo err = %v, want %v", err, kkerrors.ErrDataTooShortToUnmarshal)
+	if !errors.Is(err, kkerrors.ErrPktDataTooShortToUnmarshal) {
+		t.Fatalf("UnmarshalTo err = %v, want %v", err, kkerrors.ErrPktDataTooShortToUnmarshal)
 	}
 	if len(values) != 1 || values[0] != 5 {
 		t.Fatalf("UnmarshalTo partial values = %v, want [5]", values)
@@ -185,7 +186,7 @@ func TestPacketHead_ReadValueByName_NameNotFound(t *testing.T) {
 		t.Fatalf("Marshal: %v", err)
 	}
 
-	if _, err := head.ReadValueByName(data, binary.BigEndian, "not_exists"); !errors.Is(err, kkerrors.ErrPacketHeadPartNameNotFound) {
-		t.Fatalf("ReadValueByName name not found err = %v, want %v", err, kkerrors.ErrPacketHeadPartNameNotFound)
+	if _, err := head.ReadValueByName(data, binary.BigEndian, "not_exists"); !errors.Is(err, kkerrors.ErrPktHeadPartNameNotFound) {
+		t.Fatalf("ReadValueByName name not found err = %v, want %v", err, kkerrors.ErrPktHeadPartNameNotFound)
 	}
 }

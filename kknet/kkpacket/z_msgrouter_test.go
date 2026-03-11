@@ -52,7 +52,7 @@ func TestMsgRouter_RegisterAndGetters_Success(t *testing.T) {
 func TestMsgRouter_Register_InvalidID(t *testing.T) {
 	router := NewMsgRouter()
 
-	if err := router.Register(0, &routerTestMsg{}, "/invalid"); err != kkerrors.ErrInvalidMsgID {
+	if err := router.Register(0, &routerTestMsg{}, "/invalid"); err != kkerrors.ErrPktInvalidMsgID {
 		t.Fatalf("Register(0, ...) error = %v, want ErrInvalidMsgID", err)
 	}
 }
@@ -61,7 +61,7 @@ func TestMsgRouter_Register_NonPointer(t *testing.T) {
 	router := NewMsgRouter()
 
 	// non-pointer should be rejected
-	if err := router.Register(1, routerTestMsg{}, "/nonptr"); err != kkerrors.ErrInvalidMessage {
+	if err := router.Register(1, routerTestMsg{}, "/nonptr"); err != kkerrors.ErrPktInvalidMessage {
 		t.Fatalf("Register(non-pointer) error = %v, want ErrInvalidMessage", err)
 	}
 }
@@ -73,7 +73,7 @@ func TestMsgRouter_Register_DuplicateID(t *testing.T) {
 	if err := router.Register(id, &routerTestMsg{}, "/dup1"); err != nil {
 		t.Fatalf("first Register() error = %v, want nil", err)
 	}
-	if err := router.Register(id, &routerTestMsg{}, "/dup2"); err != kkerrors.ErrMsgIDAlreadyRegistered {
+	if err := router.Register(id, &routerTestMsg{}, "/dup2"); err != kkerrors.ErrPktMsgIDAlreadyRegistered {
 		t.Fatalf("second Register() error = %v, want ErrMsgIDAlreadyRegistered", err)
 	}
 }
@@ -96,7 +96,7 @@ func TestMsgRouter_Getters_Unregistered(t *testing.T) {
 	}
 
 	// unregistered id should return ErrMsgIDNotRegistered
-	if route, err := router.GetMsgRoute(999); err != kkerrors.ErrMsgIDNotRegistered || route != "" {
+	if route, err := router.GetMsgRoute(999); err != kkerrors.ErrPktMsgIDNotRegistered || route != "" {
 		t.Fatalf("GetMsgRoute(unregistered) = (%q, %v), want (\"\", ErrMsgIDNotRegistered)", route, err)
 	}
 }

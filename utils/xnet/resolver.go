@@ -100,7 +100,7 @@ func defaultPrivateIPResolver() (string, error) {
 	if ip != "" {
 		return ip, nil
 	} else {
-		return "", kkerrors.ErrNotFoundIPAddress
+		return "", kkerrors.ErrXNetNotFoundIPAddress
 	}
 }
 
@@ -128,7 +128,7 @@ func defaultPublicIPResolver() (string, error) {
 	case ip := <-ch:
 		return ip, nil
 	case <-time.After(timeout):
-		return "", kkerrors.ErrNotFoundIPAddress
+		return "", kkerrors.ErrXNetNotFoundIPAddress
 	}
 }
 
@@ -153,7 +153,7 @@ func doQueryPublicIP(url string, timeout time.Duration) (string, error) {
 	}
 
 	if ip := net.ParseIP(string(body)); ip == nil {
-		return "", kkerrors.ErrNotFoundIPAddress
+		return "", kkerrors.ErrXNetNotFoundIPAddress
 	} else {
 		return ip.String(), nil
 	}

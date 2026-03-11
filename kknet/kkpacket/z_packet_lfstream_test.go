@@ -90,7 +90,7 @@ func TestLengthFieldStreamPacket_Pack_TooLarge(t *testing.T) {
 	p := NewLengthFieldStreamPacket(4, 4*1024)
 	big := make([]byte, p.MaxPacketSize()+1)
 	_, err := p.Pack(big)
-	if err == nil || !errors.Is(err, kkerrors.ErrMaxMessageSize) {
+	if err == nil || !errors.Is(err, kkerrors.ErrPktMaxMessageSize) {
 		t.Errorf("Pack(too large) = %v, want ErrMaxMessageSize", err)
 	}
 }
@@ -98,7 +98,7 @@ func TestLengthFieldStreamPacket_Pack_TooLarge(t *testing.T) {
 func TestLengthFieldStreamPacket_ReadMessageSize_TooShort(t *testing.T) {
 	p := NewLengthFieldStreamPacket(4, 4*1024)
 	_, err := p.ReadMessageSize([]byte{1, 2})
-	if err == nil || !errors.Is(err, kkerrors.ErrDataTooShortToDecode) {
+	if err == nil || !errors.Is(err, kkerrors.ErrPktDataTooShortToDecode) {
 		t.Errorf("ReadMessageSize(short) = %v, want ErrDataTooShortToDecode", err)
 	}
 }
@@ -106,7 +106,7 @@ func TestLengthFieldStreamPacket_ReadMessageSize_TooShort(t *testing.T) {
 func TestLengthFieldStreamPacket_MessageBytes_TooShort(t *testing.T) {
 	p := NewLengthFieldStreamPacket(4, 4*1024)
 	_, err := p.MessageBytes([]byte{1, 2})
-	if err == nil || !errors.Is(err, kkerrors.ErrDataTooShortToDecode) {
+	if err == nil || !errors.Is(err, kkerrors.ErrPktDataTooShortToDecode) {
 		t.Errorf("MessageBytes(short) = %v, want ErrDataTooShortToDecode", err)
 	}
 }
@@ -114,7 +114,7 @@ func TestLengthFieldStreamPacket_MessageBytes_TooShort(t *testing.T) {
 func TestLengthFieldStreamPacket_CheckPacket_TooShort(t *testing.T) {
 	p := NewLengthFieldStreamPacket(4, 4*1024)
 	err := p.CheckPacket([]byte{1, 2})
-	if err == nil || !errors.Is(err, kkerrors.ErrDataTooShortToDecode) {
+	if err == nil || !errors.Is(err, kkerrors.ErrPktDataTooShortToDecode) {
 		t.Errorf("CheckPacket(short) = %v, want ErrDataTooShortToDecode", err)
 	}
 }
@@ -124,7 +124,7 @@ func TestLengthFieldStreamPacket_CheckPacket_InvalidLenMismatch(t *testing.T) {
 	// length field says 10, but total len is 4+3=7
 	packet := []byte{0, 0, 0, 10, 'a', 'b', 'c'}
 	err := p.CheckPacket(packet)
-	if err == nil || !errors.Is(err, kkerrors.ErrInvalidPacket) {
+	if err == nil || !errors.Is(err, kkerrors.ErrClusterInvalidPacket) {
 		t.Errorf("CheckPacket(mismatch) = %v, want ErrInvalidPacket", err)
 	}
 }
@@ -132,7 +132,7 @@ func TestLengthFieldStreamPacket_CheckPacket_InvalidLenMismatch(t *testing.T) {
 func TestLengthFieldStreamPacket_CheckPacket_NilBuffer(t *testing.T) {
 	p := NewLengthFieldStreamPacket(4, 4*1024)
 	err := p.CheckPacketBuffer(nil)
-	if err == nil || !errors.Is(err, kkerrors.ErrInvalidPacket) {
+	if err == nil || !errors.Is(err, kkerrors.ErrClusterInvalidPacket) {
 		t.Errorf("CheckPacketBuffer(nil) = %v, want ErrInvalidPacket", err)
 	}
 }
@@ -142,7 +142,7 @@ func TestLengthFieldStreamPacket_Unpack_TooShort(t *testing.T) {
 	// len=10 but only 6 bytes
 	packet := []byte{0, 0, 0, 10, 'a', 'b'}
 	_, err := p.Unpack(packet)
-	if err == nil || !errors.Is(err, kkerrors.ErrInvalidPacket) {
+	if err == nil || !errors.Is(err, kkerrors.ErrClusterInvalidPacket) {
 		t.Errorf("Unpack(short) = %v, want ErrInvalidPacket", err)
 	}
 }

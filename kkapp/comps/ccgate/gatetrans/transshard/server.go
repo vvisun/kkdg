@@ -69,20 +69,20 @@ func (slf *TransportorShard) getShardIdx(connId kknet.CONN_ID) int {
 func (slf *TransportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
 	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
 	if chooseServer == nil {
-		return kkerrors.ErrLogicNodeNotRegistered
+		return kkerrors.ErrAppLogicNodeNotRegistered
 	}
 	chooseServer.muConns.RLock()
 	sconn := chooseServer.conns[shardIdx%kkapp.BackendShardCnt]
 	chooseServer.muConns.RUnlock()
 	if sconn == nil {
-		return kkerrors.ErrLogicShardNotConnected
+		return kkerrors.ErrAppLogicShardNotConnected
 	}
 	return sconn.conn.SendBuffer(bb)
 }
 
 func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	var msg ptotrans.RpcClientDisconnect
 	msg.ClientId = sessionID
@@ -101,10 +101,10 @@ func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 
 func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(msgBytes) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 	cConn, err := slf.sessionMgr.GetConn(sessionID)
 	if err != nil {
@@ -130,13 +130,13 @@ func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 // @param packet is a full stream packet [length,message]
 func (slf *TransportorShard) ForwardToClient(sessionID string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if sessionID == "" {
 		return nil
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	conn, err := slf.sessionMgr.GetConn(sessionID)
@@ -158,13 +158,13 @@ func (slf *TransportorShard) ForwardToClient(sessionID string, packet []byte) er
 // @param packet is a full stream packet [length,message]
 func (slf *TransportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	var loopErr error

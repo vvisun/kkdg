@@ -212,13 +212,13 @@ func (c *wsConn) readLoop() error {
 
 func (c *wsConn) SendMsg(msg any) error {
 	if msg == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	if c.closing.Load() {
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	if c.wp == nil {
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	return c.wp.SendMsg(msg)
 }
@@ -234,11 +234,11 @@ func (c *wsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	}
 	if c.closing.Load() {
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	if c.wp == nil {
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	return c.wp.SendBuffer(buffer)
 }

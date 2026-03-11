@@ -19,7 +19,7 @@ func (codec) Name() string {
 func (codec) Marshal(v any) ([]byte, error) {
 	msg, ok := v.(proto.Message)
 	if !ok {
-		return nil, kkerrors.ErrCannotUnmarshalToProtoMessage
+		return nil, kkerrors.ErrCodecCannotUnmarshalToProtoMessage
 	}
 	return proto.Marshal(msg)
 }
@@ -28,7 +28,7 @@ func (codec) Marshal(v any) ([]byte, error) {
 func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 	msg, ok := v.(proto.Message)
 	if !ok {
-		return nil, kkerrors.ErrCannotUnmarshalToProtoMessage
+		return nil, kkerrors.ErrCodecCannotUnmarshalToProtoMessage
 	}
 	size := proto.Size(msg) + offset + 64 // 64 bytes more for sure enough capacity
 	bb := kkbuffer.GetWithCapacity(size)
@@ -46,7 +46,7 @@ func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 func (codec) Unmarshal(data []byte, v any) error {
 	msg, ok := v.(proto.Message)
 	if !ok {
-		return kkerrors.ErrCannotUnmarshalToProtoMessage
+		return kkerrors.ErrCodecCannotUnmarshalToProtoMessage
 	}
 	return proto.Unmarshal(data, msg)
 }

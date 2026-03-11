@@ -68,10 +68,10 @@ func (slf *transportorRpc) OnClose(conn kknet.IConn, err error) {
 
 func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(msgBytes) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 	memberInfo := slf.logicNodeMgr.getLogicNode(logicNodeId)
 	if memberInfo == nil {
@@ -100,13 +100,13 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
+		return kkerrors.ErrAppEmptySessionID
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	conn, err := slf.sessionMgr.GetConn(sessionID)
@@ -128,13 +128,13 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 // @param packet is a full stream packet [length,message]
 func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	var loopErr error
@@ -163,7 +163,7 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 
 func (slf *transportorRpc) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	memberInfo := slf.logicNodeMgr.getLogicNode(logicNodeId)
 	if memberInfo == nil {

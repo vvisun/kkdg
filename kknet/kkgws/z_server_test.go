@@ -65,7 +65,7 @@ func TestServer_Start_Stop(t *testing.T) {
 		t.Fatalf("Stop: %v", err)
 	}
 	// second Stop returns ErrServerNotStarted
-	if err := s.Stop(); err != kkerrors.ErrServerNotStarted {
+	if err := s.Stop(); err != kkerrors.ErrNetServerNotStarted {
 		t.Errorf("second Stop() = %v, want ErrServerNotStarted", err)
 	}
 }
@@ -73,7 +73,7 @@ func TestServer_Start_Stop(t *testing.T) {
 func TestServer_Stop_WithoutStart(t *testing.T) {
 	s := NewServer("127.0.0.1:0", nil, kknet.DefaultOptions())
 	err := s.Stop()
-	if err != kkerrors.ErrServerNotStarted {
+	if err != kkerrors.ErrNetServerNotStarted {
 		t.Errorf("Stop() = %v, want ErrServerNotStarted", err)
 	}
 }
@@ -272,4 +272,3 @@ func (h *echoHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 	kkbuffer.Put(data)
 }
-

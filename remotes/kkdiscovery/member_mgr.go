@@ -152,7 +152,7 @@ func (m *MemberMgr) GetType(nodeID string) (string, error) {
 	member, ok := m.members[nodeID]
 	m.membersMu.RUnlock()
 	if !ok {
-		return "", kkerrors.ErrMemberNotFound
+		return "", kkerrors.ErrClusterMemberNotFound
 	}
 	return member.GetNodeType(), nil
 }

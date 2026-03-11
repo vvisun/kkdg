@@ -58,16 +58,16 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 // ForwardToLogic 转发消息到逻辑节点
 func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if slf.cluster == nil {
-		return kkerrors.ErrClusterNotInitialized
+		return kkerrors.ErrAppClusterNotInitialized
 	}
 	if sessionID == "" {
 		return nil
 	}
 	if len(msgBytes) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	pkt := kkcluster.NewClusterPacket()
@@ -81,13 +81,13 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, lo
 // @param packet is a full stream packet [length,message]
 func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
+		return kkerrors.ErrAppEmptySessionID
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	conn, err := slf.sessionMgr.GetConn(sessionID)
@@ -109,13 +109,13 @@ func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) err
 // @param packet is a full stream packet [length,message]
 func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	var loopErr error
@@ -144,13 +144,13 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte)
 
 func (slf *transportorNats) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if slf.cluster == nil {
-		return kkerrors.ErrClusterNotInitialized
+		return kkerrors.ErrAppClusterNotInitialized
 	}
 	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
+		return kkerrors.ErrAppEmptySessionID
 	}
 
 	pkt := kkcluster.NewClusterPacket()

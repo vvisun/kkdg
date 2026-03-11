@@ -51,7 +51,7 @@ func Benchmark_KKSCSPSendDrain(b *testing.B) {
 				if err == nil {
 					break
 				}
-				if err == kkerrors.ErrSendQueueFull {
+				if err == kkerrors.ErrNetSendQueueFull {
 					time.Sleep(0)
 					continue
 				}

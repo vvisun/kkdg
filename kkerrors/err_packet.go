@@ -5,49 +5,45 @@ import "errors"
 // -------------- for kkpacket -------------------
 var (
 	// 无效的消息头类型
-	ErrInvalidMsgHeadType = errors.New("invalid message head type")
+	ErrPktInvalidMsgHeadType = errors.New("kkpacket invalid message head type")
 	// 无效的编解码器
-	ErrInvalidCodec = errors.New("invalid codec")
+	ErrPktInvalidCodec = errors.New("kkpacket invalid codec")
 	// 解码失败
-	ErrDecodeFailed = errors.New("decode failed")
+	ErrPktDecodeFailed = errors.New("kkpacket decode failed")
 	// 数据太短，无法解码
-	ErrDataTooShortToDecode = errors.New("data too short to decode")
+	ErrPktDataTooShortToDecode = errors.New("kkpacket data too short to decode")
 	// 编码失败
-	ErrEncodeFailed = errors.New("encode failed")
+	ErrPktEncodeFailed = errors.New("kkpacket encode failed")
 	// 无效的消息ID
-	ErrInvalidMsgID = errors.New("invalid message id")
+	ErrPktInvalidMsgID = errors.New("kkpacket invalid message id")
 	// 未注册该消息ID
-	ErrMsgIDNotRegistered = errors.New("message id not registered")
+	ErrPktMsgIDNotRegistered = errors.New("kkpacket message id not registered")
 	// 未注册该消息类型
-	ErrMsgTypeNotRegistered = errors.New("message type not registered")
+	ErrPktMsgTypeNotRegistered = errors.New("kkpacket message type not registered")
 	// 未注册该消息的Handler
-	ErrMsgHandlerNotRegistered = errors.New("message handler not registered")
+	ErrPktMsgHandlerNotRegistered = errors.New("kkpacket message handler not registered")
 	// 数据太短，无法编码
-	ErrDataTooShortToMarshal = errors.New("data too short to marshal")
+	ErrPktDataTooShortToMarshal = errors.New("kkpacket data too short to marshal")
 	// 数据太短，无法解码
-	ErrDataTooShortToUnmarshal = errors.New("data too short to unmarshal")
+	ErrPktDataTooShortToUnmarshal = errors.New("kkpacket data too short to unmarshal")
 	// 值列表太短，无法编码
-	ErrValueListTooShortToMarshal = errors.New("value list too short to marshal")
+	ErrPktValueListTooShortToMarshal = errors.New("kkpacket value list too short to marshal")
 	// 值列表太短，无法解码
-	ErrValueListTooShortToUnmarshal = errors.New("value list too short to unmarshal")
+	ErrPktValueListTooShortToUnmarshal = errors.New("kkpacket value list too short to unmarshal")
 	// 值超出范围
-	ErrValueOutOfRange = errors.New("value out of range")
+	ErrPktValueOutOfRange = errors.New("kkpacket value out of range")
 	// 消息ID已注册
-	ErrMsgIDAlreadyRegistered = errors.New("message id already registered")
+	ErrPktMsgIDAlreadyRegistered = errors.New("kkpacket message id already registered")
 	// 消息头部分名称未找到
-	ErrPacketHeadPartNameNotFound = errors.New("packet head part name not found")
+	ErrPktHeadPartNameNotFound = errors.New("kkpacket head part name not found")
 	// 名字长度和part长度不一致
-	ErrPacketNamesAndPartsLengthNotMatch = errors.New("packet head names and parts length not match")
+	ErrPktNamesAndPartsLengthNotMatch = errors.New("kkpacket head names and parts length not match")
 	// 消息头名字重复
-	ErrPacketHeadPartNameRepeated = errors.New("packet head part name repeated")
-)
-
-// -------------- for kkcodec -------------------
-var (
-	// 无法解码为 proto.Message 类型
-	ErrCannotUnmarshalToProtoMessage = errors.New("cannot unmarshal to a value that not implements proto.Buffer")
-	// 无法编码为 FlatBuffer 类型（需实现 FlatBufferPackable，即 *XxxT）
-	ErrCannotMarshalFlatBuffer = errors.New("cannot marshal to flatbuffer: value must implement FlatBufferPackable (*XxxT)")
-	// 无法解码为 FlatBuffer 类型（需实现 FlatBufferTable，即 *Xxx）
-	ErrCannotUnmarshalFlatBuffer = errors.New("cannot unmarshal to flatbuffer: value must implement FlatBufferTable (*Xxx)")
+	ErrPktHeadPartNameRepeated = errors.New("kkpacket head part name repeated")
+	// 最大消息大小超出限制
+	ErrPktMaxMessageSize = errors.New("kkpacket message size exceeds maximum")
+	// 无效消息
+	ErrPktInvalidMessage = errors.New("kkpacket invalid message")
+	// 无效的长度字段字节数
+	ErrPktInvalidLengthFieldByteCount = errors.New("kkpacket invalid length field byte count")
 )

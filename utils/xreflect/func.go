@@ -21,13 +21,13 @@ type FuncInfo struct {
 
 func GetFuncInfo(fn interface{}) (FuncInfo, error) {
 	if fn == nil {
-		return nilFuncInfo, kkerrors.ErrFuncIsNil
+		return nilFuncInfo, kkerrors.ErrXreflectFuncIsNil
 	}
 
 	typ := reflect.TypeOf(fn)
 
 	if typ.Kind() != reflect.Func {
-		return nilFuncInfo, kkerrors.ErrFuncTypeError
+		return nilFuncInfo, kkerrors.ErrXreflectFuncTypeError
 	}
 
 	var inArgs []reflect.Type

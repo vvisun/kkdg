@@ -58,7 +58,7 @@ func PutBuilder(builder *flatbuffers.Builder) {
 func (codec) Marshal(v any) ([]byte, error) {
 	packable, ok := v.(FlatBufferPackable)
 	if !ok {
-		return nil, kkerrors.ErrCannotMarshalFlatBuffer
+		return nil, kkerrors.ErrCodecCannotMarshalFlatBuffer
 	}
 	builder := GetBuilder()
 	offset := packable.Pack(builder)
@@ -72,7 +72,7 @@ func (codec) Marshal(v any) ([]byte, error) {
 func (codec) MarshalAppend(v any, offset int) (*kkbuffer.ByteBuffer, error) {
 	packable, ok := v.(FlatBufferPackable)
 	if !ok {
-		return nil, kkerrors.ErrCannotMarshalFlatBuffer
+		return nil, kkerrors.ErrCodecCannotMarshalFlatBuffer
 	}
 	builder := GetBuilder()
 	root := packable.Pack(builder)
@@ -93,10 +93,10 @@ func (codec) Unmarshal(data []byte, v any) error {
 	}
 	table, ok := v.(FlatBufferTable)
 	if !ok {
-		return kkerrors.ErrCannotUnmarshalFlatBuffer
+		return kkerrors.ErrCodecCannotUnmarshalFlatBuffer
 	}
 	if len(data) < flatbuffers.SizeUOffsetT {
-		return kkerrors.ErrDataTooShortToUnmarshal
+		return kkerrors.ErrPktDataTooShortToUnmarshal
 	}
 	n := flatbuffers.GetUOffsetT(data)
 	table.Init(data, n)

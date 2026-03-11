@@ -172,14 +172,14 @@ func (c *gwsConn) stopPingByTimingWheel() {
 
 func (c *gwsConn) SendMsg(msg any) error {
 	if msg == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	if c.closing.Load() {
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	if enableWP {
 		if c.wp == nil {
-			return kkerrors.ErrConnectionClosed
+			return kkerrors.ErrNetConnectionClosed
 		}
 		return c.wp.SendMsg(msg)
 	}
@@ -201,12 +201,12 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	}
 	if c.closing.Load() {
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	if enableWP {
 		if c.wp == nil {
 			kkbuffer.Put(buffer)
-			return kkerrors.ErrConnectionClosed
+			return kkerrors.ErrNetConnectionClosed
 		}
 		return c.wp.SendBuffer(buffer)
 	}

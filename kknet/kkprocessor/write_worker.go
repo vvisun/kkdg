@@ -97,7 +97,7 @@ func (wp *WorkerWriteProcessor) sendBufferDrop(buffer *kkbuffer.ByteBuffer) erro
 	if wp.closing.Load() {
 		wp.sendMu.Unlock()
 		kkbuffer.Put(buffer)
-		return kkerrors.ErrConnectionClosed
+		return kkerrors.ErrNetConnectionClosed
 	}
 	wasEmpty := wp.sendQueue.IsEmpty()
 	ok := wp.sendQueue.Push(buffer)
@@ -122,7 +122,7 @@ func (wp *WorkerWriteProcessor) sendBufferBlock(buffer *kkbuffer.ByteBuffer) err
 	for {
 		if wp.closing.Load() {
 			kkbuffer.Put(buffer)
-			return kkerrors.ErrConnectionClosed
+			return kkerrors.ErrNetConnectionClosed
 		}
 		wasEmpty := wp.sendQueue.IsEmpty()
 		ok := wp.sendQueue.Push(buffer)
@@ -149,7 +149,7 @@ func (wp *WorkerWriteProcessor) sendBufferRetry(buffer *kkbuffer.ByteBuffer) err
 		if wp.closing.Load() {
 			wp.sendMu.Unlock()
 			kkbuffer.Put(buffer)
-			return kkerrors.ErrConnectionClosed
+			return kkerrors.ErrNetConnectionClosed
 		}
 		wasEmpty := wp.sendQueue.IsEmpty()
 		ok := wp.sendQueue.Push(buffer)
@@ -164,7 +164,7 @@ func (wp *WorkerWriteProcessor) sendBufferRetry(buffer *kkbuffer.ByteBuffer) err
 
 		if maxCount > 0 && i >= maxCount-1 {
 			kkbuffer.Put(buffer)
-			return kkerrors.ErrSendQueueFull
+			return kkerrors.ErrNetSendQueueFull
 		}
 		time.Sleep(interval)
 	}

@@ -210,13 +210,13 @@ func (c *NatsCluster) resubscribe() error {
 // PublishRemote 发布消息到指定节点
 func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPacket) error {
 	if packet == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 
 	// 检查目标节点是否存在
 	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
 	if !found {
-		return kkerrors.ErrMemberNotFound
+		return kkerrors.ErrClusterMemberNotFound
 	}
 
 	// 设置源节点ID
@@ -251,12 +251,12 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 // 如果需要负载均衡（消息只被一个节点接收），应使用 QueueSubscribe
 func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.ClusterPacket) error {
 	if packet == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 
 	// 检查该类型是否有节点（可选，用于提前验证）
 	if members := c.discovery.GetMemberMgr().ListByType(nodeType); len(members) == 0 {
-		return kkerrors.ErrNoMemberOfType
+		return kkerrors.ErrClusterNoMemberOfType
 	}
 
 	// 设置源节点ID
@@ -289,7 +289,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 // RequestRemoteAsync 异步请求（不阻塞），结果通过 callback 回调。使用 reqMap 避免 channel 分配
 func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.ClusterPacket, callback func(data []byte, errCode kkcluster.ClusterErrorCode), timeout ...time.Duration) error {
 	if packet == nil {
-		return kkerrors.ErrInvalidPacket
+		return kkerrors.ErrClusterInvalidPacket
 	}
 	if callback == nil {
 		return kkcluster.ErrFromCode(kkcluster.ClusterErrorCodeInvalidRequest)
@@ -297,7 +297,7 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 
 	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
 	if !found {
-		return kkerrors.ErrMemberNotFound
+		return kkerrors.ErrClusterMemberNotFound
 	}
 
 	reqTimeout := defaultRequestTimeout

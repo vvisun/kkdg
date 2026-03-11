@@ -31,11 +31,11 @@ func NewSessionMgr() ISessionManager {
 
 func (slf *SessionManager) GetConn(sessionID string) (kknet.IConn, error) {
 	if sessionID == "" {
-		return nil, kkerrors.ErrEmptySessionID
+		return nil, kkerrors.ErrAppEmptySessionID
 	}
 	v, ok := slf.connMap.Load(sessionID)
 	if !ok {
-		return nil, kkerrors.ErrSessionNotFound
+		return nil, kkerrors.ErrAppSessionNotFound
 	}
 	return v.(kknet.IConn), nil
 }

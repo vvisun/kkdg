@@ -71,21 +71,21 @@ func (slf *transportorShard) getConn(shardIdx int) *gatewayClient {
 // @param packet is a full stream packet [length,message]
 func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if sessionID == "" {
 		return nil
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
 	if sessionInfo == nil {
-		return kkerrors.ErrSessionNotFound
+		return kkerrors.ErrAppSessionNotFound
 	}
 	conn := slf.getConn(sessionInfo.ShardIdx)
 	if conn == nil {
-		return kkerrors.ErrConnNotFound
+		return kkerrors.ErrNetConnNotFound
 	}
 	payload := packet //EncodeStream会进行复制，这里可以直接传引用
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
@@ -99,13 +99,13 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 // @param packet is a full stream packet [length,message]
 func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(sessionIDs) == 0 {
 		return nil //空sessionID列表返回正常
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 	var loopErr error
 	for _, sessionID := range sessionIDs {
@@ -122,21 +122,21 @@ func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte
 
 func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if sessionID == "" {
 		return nil //空sessionID返回正常
 	}
 	if msg == nil {
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
 	if sessionInfo == nil {
-		return kkerrors.ErrSessionNotFound
+		return kkerrors.ErrAppSessionNotFound
 	}
 	conn := slf.getConn(sessionInfo.ShardIdx)
 	if conn == nil {
-		return kkerrors.ErrConnNotFound
+		return kkerrors.ErrNetConnNotFound
 	}
 	bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
 	if err != nil {
@@ -156,13 +156,13 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 
 func (slf *transportorShard) SendToClients(sessionIDs []string, msg any) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(sessionIDs) == 0 {
 		return nil //空之间返回正常
 	}
 	if msg == nil {
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 	var loopErr error
 	for _, sessionID := range sessionIDs {

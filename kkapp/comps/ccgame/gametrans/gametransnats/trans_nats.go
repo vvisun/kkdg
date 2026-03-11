@@ -57,18 +57,18 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 // @param packet is a full stream packet [length,message]
 func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
+		return kkerrors.ErrAppEmptySessionID
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
 	if sessionInfo == nil {
-		return kkerrors.ErrSessionNotFound
+		return kkerrors.ErrAppSessionNotFound
 	}
 
 	resp := kkcluster.NewClusterPacket()
@@ -85,13 +85,13 @@ func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) err
 // @param packet is a full stream packet [length,message]
 func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
 	if len(packet) == 0 {
-		return kkerrors.ErrEmptyMsgBytes
+		return kkerrors.ErrAppEmptyMsgBytes
 	}
 
 	if len(sessionIDs) == 1 {
@@ -123,18 +123,18 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte)
 
 func (slf *transportorNats) SendToClient(sessionID string, msg any) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if sessionID == "" {
-		return kkerrors.ErrEmptySessionID
+		return kkerrors.ErrAppEmptySessionID
 	}
 	if msg == nil {
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 
 	sessionInfo := slf.sessionMgr.GetSession(sessionID)
 	if sessionInfo == nil {
-		return kkerrors.ErrSessionNotFound
+		return kkerrors.ErrAppSessionNotFound
 	}
 
 	bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
@@ -153,13 +153,13 @@ func (slf *transportorNats) SendToClient(sessionID string, msg any) error {
 
 func (slf *transportorNats) SendToClients(sessionIDs []string, msg any) error {
 	if slf.stopped {
-		return kkerrors.ErrTransportorStopped
+		return kkerrors.ErrAppTransportorStopped
 	}
 	if len(sessionIDs) == 0 {
 		return nil
 	}
 	if msg == nil {
-		return kkerrors.ErrInvalidMessage
+		return kkerrors.ErrPktInvalidMessage
 	}
 
 	if len(sessionIDs) == 1 {

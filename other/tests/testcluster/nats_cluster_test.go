@@ -303,7 +303,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 	if err == nil {
 		t.Error("PublishRemote() should return error for nonexistent node")
 	}
-	if err != kkerrors.ErrMemberNotFound {
+	if err != kkerrors.ErrClusterMemberNotFound {
 		t.Errorf("PublishRemote() error = %v, want ErrMemberNotFound", err)
 	}
 }
@@ -333,7 +333,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 	if err == nil {
 		t.Error("PublishRemoteType() should return error for nonexistent type")
 	}
-	if err != kkerrors.ErrNoMemberOfType {
+	if err != kkerrors.ErrClusterNoMemberOfType {
 		t.Errorf("PublishRemoteType() error = %v, want ErrNoMemberOfType", err)
 	}
 }
@@ -435,7 +435,7 @@ func TestNatsCluster_RequestRemoteAsync_NotFound(t *testing.T) {
 	if err == nil {
 		t.Error("RequestRemoteAsync should return error for nonexistent node")
 	}
-	if err != kkerrors.ErrMemberNotFound {
+	if err != kkerrors.ErrClusterMemberNotFound {
 		t.Errorf("RequestRemoteAsync error = %v, want ErrMemberNotFound", err)
 	}
 }

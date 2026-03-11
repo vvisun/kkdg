@@ -13,11 +13,11 @@ func TestCheckNodeID(t *testing.T) {
 		nodeId  string
 		wantErr error
 	}{
-		{"empty", "", kkerrors.ErrInvalidNodeID},
+		{"empty", "", kkerrors.ErrAppInvalidNodeID},
 		{"valid", "node1", nil},
 		{"underscore", "node_1", nil},
 		{"hyphen", "node-1", nil},
-		{"long", "node123456789012345678", kkerrors.ErrInvalidNodeID},
+		{"long", "node123456789012345678", kkerrors.ErrAppInvalidNodeID},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -41,10 +41,10 @@ func TestCheckNodeType(t *testing.T) {
 		nodeType string
 		wantErr  error
 	}{
-		{"empty", "", kkerrors.ErrInvalidNodeType},
+		{"empty", "", kkerrors.ErrAppInvalidNodeType},
 		{"valid", "gate", nil},
 		{"letters_only", "game", nil},
-		{"digit_suffix", "type1", kkerrors.ErrInvalidNodeType},
+		{"digit_suffix", "type1", kkerrors.ErrAppInvalidNodeType},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

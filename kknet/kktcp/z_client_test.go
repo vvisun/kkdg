@@ -67,7 +67,7 @@ func TestClient_Connect_Close(t *testing.T) {
 	}
 	// kktcp 在 Close 后 gnet client 已停止，再次 Connect 会返回 ErrClientNotConnected
 	_ = client.Connect()
-	if err := client.Close(); err != kkerrors.ErrClientNotConnected {
+	if err := client.Close(); err != kkerrors.ErrNetClientNotConnected {
 		t.Errorf("Close when not connected = %v, want ErrClientNotConnected", err)
 	}
 }
@@ -113,7 +113,7 @@ func TestClient_SendBuffer_NotConnected(t *testing.T) {
 	client := NewClient("127.0.0.1:19999", nil, kknet.DefaultOptions())
 	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("x"))
 	err := client.SendBuffer(bb)
-	if err != kkerrors.ErrClientNotConnected {
+	if err != kkerrors.ErrNetClientNotConnected {
 		t.Errorf("SendBuffer when not connected = %v, want ErrClientNotConnected", err)
 	}
 }

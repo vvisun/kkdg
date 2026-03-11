@@ -44,14 +44,14 @@ func (p *MessagePacket) GetRouter() *MsgRouter {
 
 func (p *MessagePacket) HeadBytes(messageBytes []byte) ([]byte, error) {
 	if len(messageBytes) < p.head.GetSize() {
-		return nil, kkerrors.ErrDataTooShortToDecode
+		return nil, kkerrors.ErrPktDataTooShortToDecode
 	}
 	return messageBytes[:p.head.GetSize()], nil
 }
 
 func (p *MessagePacket) BodyBytes(messageBytes []byte) ([]byte, error) {
 	if len(messageBytes) < p.head.GetSize() {
-		return nil, kkerrors.ErrDataTooShortToDecode
+		return nil, kkerrors.ErrPktDataTooShortToDecode
 	}
 	return messageBytes[p.head.GetSize():], nil
 }

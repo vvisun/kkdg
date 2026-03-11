@@ -98,7 +98,7 @@ func PublicIP() (string, error) {
 	if globalPublicIPResolver != nil {
 		return globalPublicIPResolver()
 	} else {
-		return "", kkerrors.ErrNotFoundIPAddress
+		return "", kkerrors.ErrXNetNotFoundIPAddress
 	}
 }
 
@@ -107,7 +107,7 @@ func PrivateIP() (string, error) {
 	if globalPrivateIPResolver != nil {
 		return globalPrivateIPResolver()
 	} else {
-		return "", kkerrors.ErrNotFoundIPAddress
+		return "", kkerrors.ErrXNetNotFoundIPAddress
 	}
 }
 

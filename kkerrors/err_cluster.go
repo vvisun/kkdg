@@ -3,12 +3,12 @@ package kkerrors
 import "errors"
 
 var (
-	// ErrMemberNotFound 成员未找到
-	ErrMemberNotFound = errors.New("member not found")
-	// ErrInvalidPacket 无效的消息包
-	ErrInvalidPacket = errors.New("invalid packet")
-	// ErrNoMemberOfType 没有该类型的成员
-	ErrNoMemberOfType = errors.New("no member of type")
-	// 无效的编解码器
-	ErrClusterInvalidCodec = errors.New("invalid codec")
+	// ErrClusterMemberNotFound 成员未找到
+	ErrClusterMemberNotFound = errors.New("cluster member not found")
+	// ErrClusterInvalidPacket 无效的消息包
+	ErrClusterInvalidPacket = errors.New("cluster invalid packet")
+	// ErrClusterNoMemberOfType 没有该类型的成员
+	ErrClusterNoMemberOfType = errors.New("cluster no member of type")
+	// ErrClusterInvalidCodec 无效的编解码器
+	ErrClusterInvalidCodec = errors.New("cluster invalid codec")
 )
