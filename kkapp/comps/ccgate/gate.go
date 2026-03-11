@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans/transnat"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans/transrpc"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans/transshard"
+	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -56,6 +57,7 @@ func NewGateComponent(opt Option) *gateComponent {
 	if err := validateOption(&opt); err != nil {
 		panic(err)
 	}
+	ptotrans.InitMsgs()
 	return &gateComponent{
 		opt:        opt,
 		sessionMgr: gatetrans.NewSessionMgr(),

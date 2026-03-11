@@ -1,11 +1,23 @@
 package ptotrans
 
 import (
+	"sync"
+
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
 )
 
-func init() {
+var (
+	initOnce sync.Once
+)
+
+func InitMsgs() {
+	initOnce.Do(func() {
+		initMsgs()
+	})
+}
+
+func initMsgs() {
 	kkrpc.RegisterOneWayMethod[RpcMsgRegister]("register")
 	kkrpc.RegisterOneWayMethod[RpcS2Client]("s2c")
 	kkrpc.RegisterOneWayMethod[RpcS2Clients]("s2cs")
