@@ -16,8 +16,10 @@ func getSessionId(connID kknet.CONN_ID, gateNodeId string) string {
 //------------------------------------------------------------
 
 // 客户端的逻辑节点绑定信息。
+//
+//	节点ID，节点类型，用户ID(是否已登录该节点)
 type clientLogicItem struct {
-	userId   kknet.USER_ID // 用户ID。是否已登录到本逻辑节点
+	userId   kknet.USER_ID // 用户ID。用于标识是否已登录到本逻辑节点
 	nodeId   string        // 逻辑节点ID
 	nodeType string        // 逻辑节点类型
 }
@@ -38,6 +40,8 @@ func newClientLogicItem(nodeId string, nodeType string) *clientLogicItem {
 //------------------------------------------------------------
 
 // 客户端信息。
+//
+//	连接ID，用户ID，会话ID，逻辑节点【节点ID、节点类型、用户ID(是否已登录该节点)】绑定表
 type clientInfo struct {
 	// 客户端连接ID
 	connId kknet.CONN_ID
@@ -102,6 +106,9 @@ func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {
 //------------------------------------------------------------
 
 // 客户端管理器。
+//
+//	管理网关侧连接/会话索引，以及用户ID与客户端的映射关系。
+//	辅助消息路由转发到对应的逻辑节点、顶号踢人、记录连接/玩家的逻辑服绑定信息。
 type clientManager struct {
 	muMaps      sync.RWMutex
 	clientMap   map[kknet.CONN_ID]*clientInfo //kknet.CONN_ID -> *clientInfo
