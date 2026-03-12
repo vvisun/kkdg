@@ -7,7 +7,11 @@ import (
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
-func EncodeFailedResponse(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, frame *Frame) (*kkbuffer.ByteBuffer, error) {
+func EncodeFailedResponse(
+	streamTool kkpacket.IPacket,
+	frameCodec kkcodec.ICodec,
+	frame *Frame,
+) (*kkbuffer.ByteBuffer, error) {
 	if frame.Code == ErrorCodeSuccess {
 		frame.Code = ErrorCodeFailed
 	}
@@ -25,7 +29,16 @@ func EncodeFailedResponse(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec
 	return bb1, nil
 }
 
-func EncodeRpcFrameWithPayload(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec, ft FrameType, reqId uint64, method string, payload []byte, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrameWithPayload(
+	streamTool kkpacket.IPacket,
+	frameCodec kkcodec.ICodec,
+	payloadCodec kkcodec.ICodec,
+	ft FrameType,
+	reqId uint64,
+	method string,
+	payload []byte,
+	deadlineMs int64,
+) (*kkbuffer.ByteBuffer, error) {
 	switch ft {
 	case FrameTypeRequest, FrameTypeResponse:
 		if reqId == 0 {
@@ -54,7 +67,15 @@ func EncodeRpcFrameWithPayload(streamTool kkpacket.IPacket, frameCodec kkcodec.I
 	return bb1, nil
 }
 
-func EncodeRpcFrameEx(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec, ft FrameType, reqId uint64, msg any, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrameEx(
+	streamTool kkpacket.IPacket,
+	frameCodec kkcodec.ICodec,
+	payloadCodec kkcodec.ICodec,
+	ft FrameType,
+	reqId uint64,
+	msg any,
+	deadlineMs int64,
+) (*kkbuffer.ByteBuffer, error) {
 	method := gRpcManager.getMethod(msg)
 	if method == "" {
 		return nil, kkerrors.ErrRpcMethodNotRegistered
@@ -62,7 +83,16 @@ func EncodeRpcFrameEx(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, pa
 	return EncodeRpcFrame(streamTool, frameCodec, payloadCodec, ft, reqId, method, msg, deadlineMs)
 }
 
-func EncodeRpcFrame(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec, ft FrameType, reqId uint64, method string, msg any, deadlineMs int64) (*kkbuffer.ByteBuffer, error) {
+func EncodeRpcFrame(
+	streamTool kkpacket.IPacket,
+	frameCodec kkcodec.ICodec,
+	payloadCodec kkcodec.ICodec,
+	ft FrameType,
+	reqId uint64,
+	method string,
+	msg any,
+	deadlineMs int64,
+) (*kkbuffer.ByteBuffer, error) {
 	payloadBytes, err := payloadCodec.Marshal(msg)
 	if err != nil {
 		return nil, err
@@ -96,7 +126,12 @@ func EncodeRpcFrame(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, payl
 	return bb1, nil
 }
 
-func DecodeRpcPayload[T any](streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec, bb *kkbuffer.ByteBuffer) (*T, error) {
+func DecodeRpcPayload[T any](
+	streamTool kkpacket.IPacket,
+	frameCodec kkcodec.ICodec,
+	payloadCodec kkcodec.ICodec,
+	bb *kkbuffer.ByteBuffer,
+) (*T, error) {
 	frameBytes, err := streamTool.Unpack(bb.Bytes())
 	if err != nil {
 		return nil, err

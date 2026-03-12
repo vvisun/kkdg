@@ -48,14 +48,6 @@ func RegistOneWayHandler[T any](router *RpcReceiver, method string, call OneWayH
 
 //----------------------------------------------------------------
 
-type ReqResp[REQ any, RSP any] struct {
-	method string
-}
-
-type OneWay[REQ any] struct {
-	method string
-}
-
 func newReqResp[REQ any, RSP any](method string) bool {
 	if method == "" {
 		kklog.Errorf("method is empty")

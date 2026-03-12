@@ -41,7 +41,9 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig)
 	if pending.stats != nil {
 		pending.stats.AddOnewayStart()
 	}
-	bb, err := EncodeRpcFrame(i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(), FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
+	bb, err := EncodeRpcFrame(
+		i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(),
+		FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if pending.stats != nil {
@@ -71,7 +73,8 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig)
 // InvokeOneWay 无响应调用（单向调用）
 //
 //	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 会被忽略，直接发送给client所连接的server。
-//	已废弃，请使用【NewOneWayInvoker + InvokeNR】 代替。区别在于：该函数会在调用时反射获取method，而NewOneWayInvoker会缓存method。
+//	已废弃，请使用【NewOneWayInvoker + InvokeNR】 代替。
+//	区别在于：该函数会在调用时反射获取method，而NewOneWayInvoker会缓存method。
 func InvokeOneWay(ctx context.Context, sender ISender, connId kknet.CONN_ID, req any, opts CallConfig) error {
 	method := gRpcManager.getMethod(req)
 	if method == "" {
@@ -84,7 +87,9 @@ func InvokeOneWay(ctx context.Context, sender ISender, connId kknet.CONN_ID, req
 	if pending.stats != nil {
 		pending.stats.AddOnewayStart()
 	}
-	bb, err := EncodeRpcFrame(sender.getStreamTool(), sender.getFrameCodec(), sender.getPayloadCodec(), FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
+	bb, err := EncodeRpcFrame(
+		sender.getStreamTool(), sender.getFrameCodec(), sender.getPayloadCodec(),
+		FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if pending.stats != nil {

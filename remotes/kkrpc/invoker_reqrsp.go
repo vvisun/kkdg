@@ -76,7 +76,9 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		stats.AddRequestStart()
 	}
 
-	bb, err := EncodeRpcFrame(i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
+	bb, err := EncodeRpcFrame(
+		i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(),
+		FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if stats != nil {
@@ -84,7 +86,11 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		}
 		return err
 	}
-	if err = i.sender.SendBuffer(i.connId, bb); err != nil {
+	connId := i.connId
+	if opts.ConnId != 0 {
+		connId = opts.ConnId
+	}
+	if err = i.sender.SendBuffer(connId, bb); err != nil {
 		if stats != nil {
 			stats.AddInternalError()
 		}
@@ -192,7 +198,9 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 	}
 
 	reqId := genReqId()
-	bb, err := EncodeRpcFrame(i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
+	bb, err := EncodeRpcFrame(
+		i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(),
+		FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if pending.stats != nil {
@@ -249,7 +257,11 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 		callback(nil, err)
 		return err
 	}
-	err = i.sender.SendBuffer(i.connId, bb)
+	connId := i.connId
+	if opts.ConnId != 0 {
+		connId = opts.ConnId
+	}
+	err = i.sender.SendBuffer(connId, bb)
 	if err != nil {
 		if stats != nil {
 			stats.AddInternalError()
