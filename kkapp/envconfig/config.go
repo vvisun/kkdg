@@ -9,7 +9,7 @@ import (
 )
 
 type EnvConfig struct {
-	// 默认的字节序
+	// 默认的网络字节序
 	ByteOrderDefault binary.ByteOrder
 	// 默认的流拆解器
 	StreamToolDefault kkpacket.IPacket
