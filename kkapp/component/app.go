@@ -39,8 +39,9 @@ type Application struct {
 var _ kkapp.IApplication = (*Application)(nil)
 
 // new application.
-// each application is a node, a actor
-// if ActorFramework is nil, will use default getGlobalActorFramework()
+//
+//	each application is a node, a actor.
+//	if actorFramework is nil, will use default getGlobalActorFramework()
 func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFramework) *Application {
 	if nodeInfo == nil {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误

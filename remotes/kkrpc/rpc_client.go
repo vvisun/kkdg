@@ -12,14 +12,11 @@ import (
 )
 
 type Client struct {
-	cli          kknet.IClient
-	pending      *pendingMap
-	stopped      bool
-	streamTool   kkpacket.IPacket
-	frameCodec   kkcodec.ICodec
-	payloadCodec kkcodec.ICodec
-	rpcOpts      RpcOption
-	stats        RpcStats
+	cli     kknet.IClient
+	pending *pendingMap
+	stopped bool
+	rpcOpts RpcOption
+	stats   RpcStats
 }
 
 var _ IRpcClient = (*Client)(nil)
@@ -28,17 +25,17 @@ var _ ISender = (*Client)(nil)
 func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
-		streamTool:   rpcRouter.streamTool,
-		frameCodec:   rpcRouter.frameCodec,
-		payloadCodec: rpcRouter.payloadCodec,
-		rpcOpts:      rpcRouter.rpcOpts,
+		rpcOpts: rpcRouter.rpcOpts,
 	}
 	rpcRouter.stats = &cc.stats
 	handler := &clientHandler{
 		cli:       cc,
 		rpcRouter: rpcRouter,
 	}
-	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler), kknet.WithStreamTool(rpcRouter.streamTool))
+	kkoption.ApplyOptionsTo(&opts,
+		kknet.WithRawHandler(handler),
+		kknet.WithStreamTool(rpcRouter.rpcOpts.StreamTool),
+	)
 	cc.cli = kktcp.NewClient(addr, handler, opts)
 	cc.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
 	cc.pending.stats = &cc.stats
@@ -48,17 +45,17 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
-		streamTool:   rpcRouter.streamTool,
-		frameCodec:   rpcRouter.frameCodec,
-		payloadCodec: rpcRouter.payloadCodec,
-		rpcOpts:      rpcRouter.rpcOpts,
+		rpcOpts: rpcRouter.rpcOpts,
 	}
 	rpcRouter.stats = &cc.stats
 	handler := &clientHandler{
 		cli:       cc,
 		rpcRouter: rpcRouter,
 	}
-	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
+	kkoption.ApplyOptionsTo(&opts,
+		kknet.WithRawHandler(handler),
+		kknet.WithStreamTool(rpcRouter.rpcOpts.StreamTool),
+	)
 	cc.cli = cliCreator(handler, opts)
 	cc.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
 	cc.pending.stats = &cc.stats
@@ -91,15 +88,15 @@ func (c *Client) getPending() *pendingMap {
 }
 
 func (c *Client) getStreamTool() kkpacket.IPacket {
-	return c.streamTool
+	return c.rpcOpts.StreamTool
 }
 
 func (c *Client) getFrameCodec() kkcodec.ICodec {
-	return c.frameCodec
+	return c.rpcOpts.FrameCodec
 }
 
 func (c *Client) getPayloadCodec() kkcodec.ICodec {
-	return c.payloadCodec
+	return c.rpcOpts.PayloadCodec
 }
 
 func (c *Client) Stats() RpcStatsSnapshot {

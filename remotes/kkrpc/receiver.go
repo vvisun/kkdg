@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
@@ -92,13 +91,10 @@ func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameTy
 //---------------------------------------------------------------
 
 type RpcReceiver struct {
-	streamTool   kkpacket.IPacket
-	frameCodec   kkcodec.ICodec
-	payloadCodec kkcodec.ICodec
-	stats        *RpcStats
-	hdMap        map[string]IReqRspHandler
-	oneWayMap    map[string]IOneWayHandler
-	rpcOpts      RpcOption
+	stats     *RpcStats
+	hdMap     map[string]IReqRspHandler
+	oneWayMap map[string]IOneWayHandler
+	rpcOpts   RpcOption
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
@@ -106,7 +102,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	if pending != nil {
 		stats = pending.stats
 	}
-	frameBytes, err := r.streamTool.Unpack(data.Bytes())
+	frameBytes, err := r.rpcOpts.StreamTool.Unpack(data.Bytes())
 	if err != nil {
 		if stats != nil {
 			stats.AddInternalError()
@@ -115,7 +111,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 		return nil
 	}
 	var fr Frame
-	err = r.frameCodec.Unmarshal(frameBytes, &fr)
+	err = r.rpcOpts.FrameCodec.Unmarshal(frameBytes, &fr)
 	if err != nil {
 		kklog.Debugf("failed to unmarshal frame: %v", err)
 		if stats != nil {
@@ -175,7 +171,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	if !ok || h == nil {
 		rspFrame.Code = ErrorCodeMethodNotFound
 		rspFrame.Err = "未找到远程方法" + method
-		rspBB, err := EncodeFailedResponse(r.streamTool, r.frameCodec, &rspFrame)
+		rspBB, err := EncodeFailedResponse(r.rpcOpts.StreamTool, r.rpcOpts.FrameCodec, &rspFrame)
 		if err != nil {
 			kklog.Errorf("encode failed response: %v", err)
 			return nil
@@ -189,7 +185,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	if err != nil {
 		rspFrame.Code = ErrorCodeMethodRetErr
 		rspFrame.Err = "远程方法执行失败: " + err.Error()
-		rspBB, err := EncodeFailedResponse(r.streamTool, r.frameCodec, &rspFrame)
+		rspBB, err := EncodeFailedResponse(r.rpcOpts.StreamTool, r.rpcOpts.FrameCodec, &rspFrame)
 		if err != nil {
 			kklog.Errorf("encode failed response: %v", err)
 			return nil
@@ -198,7 +194,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	}
 
 	// encode response
-	rspBB, err := EncodeRpcFrameWithPayload(r.streamTool, r.frameCodec, r.payloadCodec, FrameTypeResponse, fr.ID, method, respBytes, 0)
+	rspBB, err := EncodeRpcFrameWithPayload(r.rpcOpts.StreamTool, r.rpcOpts.FrameCodec, r.rpcOpts.PayloadCodec, FrameTypeResponse, fr.ID, method, respBytes, 0)
 	if err != nil {
 		return nil
 	}
@@ -220,11 +216,8 @@ func (r *RpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) error {
 func NewRpcReceiver(rpcOpts RpcOption) *RpcReceiver {
 	CheckRpcOption(&rpcOpts)
 	return &RpcReceiver{
-		streamTool:   rpcOpts.StreamTool,
-		frameCodec:   rpcOpts.FrameCodec,
-		payloadCodec: rpcOpts.PayloadCodec,
-		hdMap:        make(map[string]IReqRspHandler),
-		oneWayMap:    make(map[string]IOneWayHandler),
-		rpcOpts:      rpcOpts,
+		hdMap:     make(map[string]IReqRspHandler),
+		oneWayMap: make(map[string]IOneWayHandler),
+		rpcOpts:   rpcOpts,
 	}
 }

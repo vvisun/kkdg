@@ -16,9 +16,7 @@ type (
 )
 
 type rpcManager struct {
-	mu sync.Mutex
-	// peers             map[string]interface{}
-	// oneWays           map[string]interface{}
+	mu                sync.Mutex
 	type2methodReqRsp map[reflect.Type]string
 	method2typeReqRsp map[string]methodReqRsp
 	type2methodOneWay map[reflect.Type]string
@@ -40,8 +38,6 @@ func (rm *rpcManager) getMethod(msg any) string {
 
 func newRpcManager() *rpcManager {
 	return &rpcManager{
-		// peers:             make(map[string]interface{}),
-		// oneWays:           make(map[string]interface{}),
 		type2methodReqRsp: make(map[reflect.Type]string),
 		method2typeReqRsp: make(map[string]methodReqRsp),
 		type2methodOneWay: make(map[reflect.Type]string),
@@ -58,8 +54,6 @@ var (
 func ClearRpcManagerForTest() {
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
-	// gRpcManager.peers = make(map[string]interface{})
-	// gRpcManager.oneWays = make(map[string]interface{})
 	gRpcManager.type2methodReqRsp = make(map[reflect.Type]string)
 	gRpcManager.method2typeReqRsp = make(map[string]methodReqRsp)
 	gRpcManager.type2methodOneWay = make(map[reflect.Type]string)

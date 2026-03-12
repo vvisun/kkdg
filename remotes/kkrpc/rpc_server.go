@@ -15,9 +15,6 @@ type Server struct {
 	tcp              kknet.IServer
 	pending          *pendingMap
 	lifeCycleHandler kknet.IConnLifecycleHandler
-	streamTool       kkpacket.IPacket
-	frameCodec       kkcodec.ICodec
-	payloadCodec     kkcodec.ICodec
 	rpcOpts          RpcOption
 	stats            RpcStats
 }
@@ -28,16 +25,16 @@ var _ ISender = (*Server)(nil)
 func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	s := &Server{
-		streamTool:   rpcRouter.streamTool,
-		frameCodec:   rpcRouter.frameCodec,
-		payloadCodec: rpcRouter.payloadCodec,
-		rpcOpts:      rpcRouter.rpcOpts,
+		rpcOpts: rpcRouter.rpcOpts,
 	}
 	handler := &serverHandler{
 		svr:       s,
 		rpcRouter: rpcRouter,
 	}
-	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
+	kkoption.ApplyOptionsTo(&opts,
+		kknet.WithRawHandler(handler),
+		kknet.WithStreamTool(rpcRouter.rpcOpts.StreamTool),
+	)
 	s.tcp = kktcp.NewServer(addr, handler, opts)
 	s.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
 	s.pending.stats = &s.stats
@@ -46,20 +43,17 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 
 func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, rpcOpts RpcOption, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
 	CheckRpcOption(&rpcOpts)
-	rpcRouter.streamTool = rpcOpts.StreamTool
-	rpcRouter.frameCodec = rpcOpts.FrameCodec
-	rpcRouter.payloadCodec = rpcOpts.PayloadCodec
 	s := &Server{
-		streamTool:   rpcOpts.StreamTool,
-		frameCodec:   rpcOpts.FrameCodec,
-		payloadCodec: rpcOpts.PayloadCodec,
-		rpcOpts:      rpcOpts,
+		rpcOpts: rpcOpts,
 	}
 	handler := &serverHandler{
 		svr:       s,
 		rpcRouter: rpcRouter,
 	}
-	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler), kknet.WithStreamTool(rpcRouter.streamTool))
+	kkoption.ApplyOptionsTo(&opts,
+		kknet.WithRawHandler(handler),
+		kknet.WithStreamTool(rpcRouter.rpcOpts.StreamTool),
+	)
 	s.tcp = svrCreator(handler, opts)
 	s.pending = newPendingMap(rpcOpts.MaxPendingCount)
 	s.pending.stats = &s.stats
@@ -92,15 +86,15 @@ func (s *Server) SetLifeCycleHandler(handler kknet.IConnLifecycleHandler) {
 }
 
 func (s *Server) getStreamTool() kkpacket.IPacket {
-	return s.streamTool
+	return s.rpcOpts.StreamTool
 }
 
 func (s *Server) getFrameCodec() kkcodec.ICodec {
-	return s.frameCodec
+	return s.rpcOpts.FrameCodec
 }
 
 func (s *Server) getPayloadCodec() kkcodec.ICodec {
-	return s.payloadCodec
+	return s.rpcOpts.PayloadCodec
 }
 
 func (s *Server) Stats() RpcStatsSnapshot {

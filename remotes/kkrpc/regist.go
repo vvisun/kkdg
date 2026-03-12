@@ -31,7 +31,7 @@ func RegistReqRspHandler[T any, R any](router *RpcReceiver, method string, call 
 	h := &ReqRspHandler[T, R]{
 		call:         call,
 		method:       method,
-		payloadCodec: router.payloadCodec,
+		payloadCodec: router.rpcOpts.PayloadCodec,
 	}
 	router.hdMap[method] = h
 }
@@ -41,7 +41,7 @@ func RegistOneWayHandler[T any](router *RpcReceiver, method string, call OneWayH
 	h := &OneWayHandler[T]{
 		call:         call,
 		method:       method,
-		payloadCodec: router.payloadCodec,
+		payloadCodec: router.rpcOpts.PayloadCodec,
 	}
 	router.oneWayMap[method] = h
 }
@@ -67,10 +67,7 @@ func newReqResp[REQ any, RSP any](method string) (*ReqResp[REQ, RSP], bool) {
 
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
-	// if gRpcManager.peers[method] != nil {
-	// 	kklog.Errorf("method %s already registered", method)
-	// 	return nil, false
-	// }
+
 	if gRpcManager.type2methodReqRsp[typeReq] != "" {
 		kklog.Errorf("type %s already registered", typeReq)
 		return nil, false
@@ -83,7 +80,7 @@ func newReqResp[REQ any, RSP any](method string) (*ReqResp[REQ, RSP], bool) {
 	p := &ReqResp[REQ, RSP]{
 		method: method,
 	}
-	//gRpcManager.peers[method] = p
+
 	gRpcManager.type2methodReqRsp[typeReq] = method
 	gRpcManager.type2methodReqRsp[typeRsp] = method
 	gRpcManager.method2typeReqRsp[method] = methodReqRsp{reqType: typeReq, rspType: typeRsp}
@@ -106,10 +103,7 @@ func newOneWay[REQ any](method string) (*OneWay[REQ], bool) {
 
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
-	// if gRpcManager.oneWays[method] != nil {
-	// 	kklog.Errorf("method %s already registered", method)
-	// 	return nil, false
-	// }
+
 	if gRpcManager.type2methodOneWay[typeReq] != "" {
 		kklog.Errorf("type %s already registered", typeReq)
 		return nil, false
@@ -118,7 +112,7 @@ func newOneWay[REQ any](method string) (*OneWay[REQ], bool) {
 	o := &OneWay[REQ]{
 		method: method,
 	}
-	//gRpcManager.oneWays[method] = o
+
 	gRpcManager.type2methodOneWay[typeReq] = method
 	gRpcManager.method2typeOneWay[method] = methonOneWay{reqType: typeReq}
 
