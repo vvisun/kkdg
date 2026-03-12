@@ -102,8 +102,15 @@ type RpcReceiver struct {
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
+	var stats *RpcStats
+	if pending != nil {
+		stats = pending.stats
+	}
 	frameBytes, err := r.streamTool.Unpack(data.Bytes())
 	if err != nil {
+		if stats != nil {
+			stats.AddInternalError()
+		}
 		kkbuffer.Put(data)
 		return nil
 	}
@@ -111,6 +118,9 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	err = r.frameCodec.Unmarshal(frameBytes, &fr)
 	if err != nil {
 		kklog.Debugf("failed to unmarshal frame: %v", err)
+		if stats != nil {
+			stats.AddInternalError()
+		}
 		kkbuffer.Put(data)
 		return nil
 	}
@@ -141,6 +151,9 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 		}
 		return nil
 	default:
+		if stats != nil {
+			stats.AddInternalError()
+		}
 		kkbuffer.Put(data)
 		kklog.Debugf("收到未知类型的消息: %v, %v", fr.T, fr.M)
 		return nil

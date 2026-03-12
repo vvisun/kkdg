@@ -35,14 +35,15 @@ func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) (ReqRs
 
 // Invoke 同步调用，阻塞直到收到响应或 ctx 取消/超时
 func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig, rsp *R) error {
-	if i.sender.getPending().IsClosed() {
+	pending := i.sender.getPending()
+	if pending.IsClosed() {
 		return kkerrors.ErrRpcConnClosed
 	}
 	fixCallConfig(&opts)
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	pending := i.sender.getPending()
+	stats := pending.stats
 	reqId := genReqId()
 	ch, err := pending.addCh(reqId)
 	if err != nil {
@@ -71,12 +72,22 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		deadlineMs = time.Now().Add(timeout).UnixMilli()
 	}
 
+	if stats != nil {
+		stats.AddRequestStart()
+	}
+
 	bb, err := EncodeRpcFrame(i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
+		if stats != nil {
+			stats.AddInternalError()
+		}
 		return err
 	}
 	if err = i.sender.SendBuffer(i.connId, bb); err != nil {
+		if stats != nil {
+			stats.AddInternalError()
+		}
 		return err
 	}
 
@@ -89,16 +100,28 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 
 	doReturn := func(fr Frame) error {
 		if fr.T != FrameTypeResponse {
+			if stats != nil {
+				stats.AddInternalError()
+			}
 			return kkerrors.ErrRpcInvalidFrameType
 		}
 		err := ErrRpc(fr.Code, fr.Err)
 		if err != nil {
+			if stats != nil {
+				stats.AddRequestError()
+			}
 			return err
 		}
 		err = i.sender.getPayloadCodec().Unmarshal(fr.P, rsp)
 		byteslice.Put(fr.P)
 		if err != nil {
+			if stats != nil {
+				stats.AddInternalError()
+			}
 			return err
+		}
+		if stats != nil {
+			stats.AddRequestSuccess()
 		}
 		return nil
 	}
@@ -107,22 +130,37 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		select {
 		case fr, ok := <-ch:
 			if !ok {
+				if stats != nil {
+					stats.AddRequestError()
+				}
 				return kkerrors.ErrRpcConnClosed
 			}
 			return doReturn(fr)
 		case <-ctx.Done():
+			if stats != nil {
+				stats.AddRequestCanceled()
+			}
 			return ctx.Err()
 		case <-timer.C:
+			if stats != nil {
+				stats.AddRequestTimeout()
+			}
 			return kkerrors.ErrRpcTimeout
 		}
 	} else {
 		select {
 		case fr, ok := <-ch:
 			if !ok {
+				if stats != nil {
+					stats.AddRequestError()
+				}
 				return kkerrors.ErrRpcConnClosed
 			}
 			return doReturn(fr)
 		case <-ctx.Done():
+			if stats != nil {
+				stats.AddRequestCanceled()
+			}
 			return ctx.Err()
 		}
 	}
@@ -132,7 +170,8 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 //
 //	若 opts 或 ctx 设置了超时，超时未收到响应会调用 callback(nil, ErrTimeout)，且仅回调一次。
 func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
-	if i.sender.getPending().IsClosed() {
+	pending := i.sender.getPending()
+	if pending.IsClosed() {
 		return kkerrors.ErrRpcConnClosed
 	}
 	var respInfo *R = new(R)
@@ -156,9 +195,12 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 	bb, err := EncodeRpcFrame(i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
+		if pending.stats != nil {
+			pending.stats.AddInternalError()
+		}
 		return err
 	}
-	pending := i.sender.getPending()
+	stats := pending.stats
 
 	var doneCh chan struct{}
 	if timeout > 0 {
@@ -176,23 +218,42 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 
 		err := ErrRpc(fr.Code, fr.Err)
 		if err != nil {
+			if stats != nil {
+				stats.AddRequestError()
+			}
 			callback(nil, err)
 			return
 		}
 		err = i.sender.getPayloadCodec().Unmarshal(fr.P, respInfo)
 		byteslice.Put(fr.P)
 		if err != nil {
+			if stats != nil {
+				stats.AddInternalError()
+			}
 			callback(nil, err)
 			return
+		}
+		if stats != nil {
+			stats.AddRequestSuccess()
 		}
 		callback(respInfo, nil)
 	})
 	if err != nil {
+		if stats != nil {
+			if err == kkerrors.ErrRpcQueueFull {
+				stats.AddRequestError()
+			} else {
+				stats.AddInternalError()
+			}
+		}
 		callback(nil, err)
 		return err
 	}
 	err = i.sender.SendBuffer(i.connId, bb)
 	if err != nil {
+		if stats != nil {
+			stats.AddInternalError()
+		}
 		callback(nil, err)
 		pending.delCallback(reqId)
 		return err
@@ -205,6 +266,9 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 			select {
 			case <-t.C:
 				if _, ok := pending.takeCallback(reqId); ok {
+					if stats != nil {
+						stats.AddRequestTimeout()
+					}
 					callback(nil, kkerrors.ErrRpcTimeout)
 				}
 			case <-doneCh:

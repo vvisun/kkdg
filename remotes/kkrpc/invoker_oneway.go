@@ -34,12 +34,20 @@ func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) (OneWayInvoke
 //
 //	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 会被忽略，直接发送给client所连接的server。
 func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig) error {
-	if i.sender.getPending().IsClosed() {
+	pending := i.sender.getPending()
+	if pending.IsClosed() {
 		return kkerrors.ErrRpcConnClosed
+	}
+	if pending.stats != nil {
+		pending.stats.AddOnewayStart()
 	}
 	bb, err := EncodeRpcFrame(i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(), FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
+		if pending.stats != nil {
+			pending.stats.AddOnewayError()
+			pending.stats.AddInternalError()
+		}
 		return err
 	}
 	connId := i.connId
@@ -48,6 +56,10 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig)
 	}
 	err = i.sender.SendBuffer(connId, bb)
 	if err != nil {
+		if pending.stats != nil {
+			pending.stats.AddOnewayError()
+			pending.stats.AddInternalError()
+		}
 		return err
 	}
 	return nil
@@ -65,16 +77,28 @@ func InvokeOneWay(ctx context.Context, sender ISender, connId kknet.CONN_ID, req
 	if method == "" {
 		return kkerrors.ErrRpcMethodNotRegistered
 	}
-	if sender.getPending().IsClosed() {
+	pending := sender.getPending()
+	if pending.IsClosed() {
 		return kkerrors.ErrRpcConnClosed
+	}
+	if pending.stats != nil {
+		pending.stats.AddOnewayStart()
 	}
 	bb, err := EncodeRpcFrame(sender.getStreamTool(), sender.getFrameCodec(), sender.getPayloadCodec(), FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
+		if pending.stats != nil {
+			pending.stats.AddOnewayError()
+			pending.stats.AddInternalError()
+		}
 		return err
 	}
 	err = sender.SendBuffer(connId, bb)
 	if err != nil {
+		if pending.stats != nil {
+			pending.stats.AddOnewayError()
+			pending.stats.AddInternalError()
+		}
 		return err
 	}
 	return nil

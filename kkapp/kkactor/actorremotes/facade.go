@@ -19,10 +19,6 @@ import "time"
 //  transport.Send(target, msg)
 //  transport.Request(target, msg, timeout)
 //  transport.RequestAsync(target, msg, timeout, callback)
-//
-// 启动阶段：
-//  actorremotes.ConfigDefaults(myCodec, actorremotes.NewMessageRegistry())
-//  actorremotes.GetDefaultMessageRegistry().Register(&MyMsg{})
 type IRemoteActorReceiver interface {
 	// HandleRemoteSend 处理来自远程节点的单向消息。
 	HandleRemoteSend(target ActorRef, msg any) error
