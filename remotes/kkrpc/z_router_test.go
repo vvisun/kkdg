@@ -9,7 +9,7 @@ import (
 )
 
 func TestRouter_ReqRsp(t *testing.T) {
-	router := NewRpcReceiver(gStreamTool, gFrameCodec, gPayloadCodec)
+	router := NewRpcReceiver(DefaultRpcOption())
 	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		resp.Code = 0
@@ -25,11 +25,11 @@ func TestRouter_ReqRsp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
-	router.OnRaw(1, bb, newPendingMap())
+	router.OnRaw(1, bb, newPendingMap(1024))
 }
 
 func TestRouter_OneWay(t *testing.T) {
-	router := NewRpcReceiver(gStreamTool, gFrameCodec, gPayloadCodec)
+	router := NewRpcReceiver(DefaultRpcOption())
 	RegistOneWayHandler(router, "test", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		return nil
@@ -42,5 +42,5 @@ func TestRouter_OneWay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
-	router.OnRaw(1, bb, newPendingMap())
+	router.OnRaw(1, bb, newPendingMap(1024))
 }

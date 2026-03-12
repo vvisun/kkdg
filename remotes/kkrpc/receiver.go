@@ -97,6 +97,7 @@ type RpcReceiver struct {
 	payloadCodec kkcodec.ICodec
 	hdMap        map[string]IReqRspHandler
 	oneWayMap    map[string]IOneWayHandler
+	rpcOpts      RpcOption
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
@@ -202,12 +203,14 @@ func (r *RpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) error {
 	return h.OnMsg(ctx, fr.P, fr.T, connId)
 }
 
-func NewRpcReceiver(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec) *RpcReceiver {
+func NewRpcReceiver(rpcOpts RpcOption) *RpcReceiver {
+	CheckRpcOption(&rpcOpts)
 	return &RpcReceiver{
-		streamTool:   streamTool,
-		frameCodec:   frameCodec,
-		payloadCodec: payloadCodec,
+		streamTool:   rpcOpts.StreamTool,
+		frameCodec:   rpcOpts.FrameCodec,
+		payloadCodec: rpcOpts.PayloadCodec,
 		hdMap:        make(map[string]IReqRspHandler),
 		oneWayMap:    make(map[string]IOneWayHandler),
+		rpcOpts:      rpcOpts,
 	}
 }

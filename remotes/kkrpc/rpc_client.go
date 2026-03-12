@@ -16,16 +16,19 @@ type Client struct {
 	streamTool   kkpacket.IPacket
 	frameCodec   kkcodec.ICodec
 	payloadCodec kkcodec.ICodec
+	rpcOpts      RpcOption
 }
 
 var _ IRpcClient = (*Client)(nil)
 var _ ISender = (*Client)(nil)
 
 func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
+	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
 		streamTool:   rpcRouter.streamTool,
 		frameCodec:   rpcRouter.frameCodec,
 		payloadCodec: rpcRouter.payloadCodec,
+		rpcOpts:      rpcRouter.rpcOpts,
 	}
 	handler := &clientHandler{
 		cli:       cc,
@@ -33,15 +36,17 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler), kknet.WithStreamTool(rpcRouter.streamTool))
 	cc.cli = kktcp.NewClient(addr, handler, opts)
-	cc.pending = newPendingMap()
+	cc.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
 	return cc
 }
 
 func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
+	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
 		streamTool:   rpcRouter.streamTool,
 		frameCodec:   rpcRouter.frameCodec,
 		payloadCodec: rpcRouter.payloadCodec,
+		rpcOpts:      rpcRouter.rpcOpts,
 	}
 	handler := &clientHandler{
 		cli:       cc,
@@ -49,7 +54,7 @@ func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	cc.cli = cliCreator(handler, opts)
-	cc.pending = newPendingMap()
+	cc.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
 	return cc
 }
 

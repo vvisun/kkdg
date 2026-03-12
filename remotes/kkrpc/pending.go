@@ -9,9 +9,9 @@ const pendingShardCount = 64
 
 // pendingShard 单个分片的 ch/cb 映射，降低锁竞争
 type pendingShard struct {
-	mu     sync.Mutex
-	chMap  map[uint64]chan Frame
-	cbMap  map[uint64]func(Frame)
+	mu    sync.Mutex
+	chMap map[uint64]chan Frame
+	cbMap map[uint64]func(Frame)
 }
 
 func newPendingShard() *pendingShard {
@@ -27,12 +27,15 @@ var chanFramePool = sync.Pool{
 
 // pendingMap 用于管理请求的响应和回调
 type pendingMap struct {
-	closed atomic.Bool
-	shards [pendingShardCount]*pendingShard
+	closed          atomic.Bool
+	shards          [pendingShardCount]*pendingShard
+	maxPendingCount int
 }
 
-func newPendingMap() *pendingMap {
-	p := &pendingMap{}
+func newPendingMap(maxPendingCount int) *pendingMap {
+	p := &pendingMap{
+		maxPendingCount: maxPendingCount,
+	}
 	for i := 0; i < pendingShardCount; i++ {
 		p.shards[i] = newPendingShard()
 	}

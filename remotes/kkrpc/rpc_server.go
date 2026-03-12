@@ -16,16 +16,19 @@ type Server struct {
 	streamTool       kkpacket.IPacket
 	frameCodec       kkcodec.ICodec
 	payloadCodec     kkcodec.ICodec
+	rpcOpts          RpcOption
 }
 
 var _ IRpcServer = (*Server)(nil)
 var _ ISender = (*Server)(nil)
 
 func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
+	CheckRpcOption(&rpcRouter.rpcOpts)
 	s := &Server{
 		streamTool:   rpcRouter.streamTool,
 		frameCodec:   rpcRouter.frameCodec,
 		payloadCodec: rpcRouter.payloadCodec,
+		rpcOpts:      rpcRouter.rpcOpts,
 	}
 	handler := &serverHandler{
 		svr:       s,
@@ -33,15 +36,20 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	s.tcp = kktcp.NewServer(addr, handler, opts)
-	s.pending = newPendingMap()
+	s.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
 	return s
 }
 
-func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
+func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, rpcOpts RpcOption, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
+	CheckRpcOption(&rpcOpts)
+	rpcRouter.streamTool = rpcOpts.StreamTool
+	rpcRouter.frameCodec = rpcOpts.FrameCodec
+	rpcRouter.payloadCodec = rpcOpts.PayloadCodec
 	s := &Server{
-		streamTool:   rpcRouter.streamTool,
-		frameCodec:   rpcRouter.frameCodec,
-		payloadCodec: rpcRouter.payloadCodec,
+		streamTool:   rpcOpts.StreamTool,
+		frameCodec:   rpcOpts.FrameCodec,
+		payloadCodec: rpcOpts.PayloadCodec,
+		rpcOpts:      rpcOpts,
 	}
 	handler := &serverHandler{
 		svr:       s,
@@ -49,7 +57,7 @@ func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, svrCreator
 	}
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler), kknet.WithStreamTool(rpcRouter.streamTool))
 	s.tcp = svrCreator(handler, opts)
-	s.pending = newPendingMap()
+	s.pending = newPendingMap(rpcOpts.MaxPendingCount)
 	return s
 }
 
