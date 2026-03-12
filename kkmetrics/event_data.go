@@ -17,6 +17,8 @@ type MetricsEventData struct {
 	Metrics   map[string]float64 // metrics数据
 }
 
+type collectFunc func(namespace string) *MetricsEventData
+
 // collectClusterMetrics 通过事件总线请求集群模块填充 metrics 数据。
 // 监听方（例如应用中持有的 kkcluster.ICluster 实例）需要订阅 EventClusterMetrics，
 // 在回调中根据 Namespace 调用 kkcluster.MetricsFromSnapshot 并回填到 e.Metrics。

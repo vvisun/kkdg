@@ -25,15 +25,7 @@ func main() {
 
 	// init metrics (Prometheus + OTel), expose /metrics on :2112
 	ctx := context.Background()
-	if err := kkmetrics.Init(ctx, ":2112"); err != nil {
-		kklog.Errorf("init metrics: %v", err)
-	}
-	if err := kkmetrics.InitDiscoveryMetrics(ctx); err != nil {
-		kklog.Errorf("init discovery metrics: %v", err)
-	}
-	if err := kkmetrics.InitClusterMetrics(ctx); err != nil {
-		kklog.Errorf("init cluster metrics: %v", err)
-	}
+	kkmetrics.AutoInit(ctx, ":2112")
 
 	// 等待信号退出
 	signalCh := make(chan os.Signal, 1)
@@ -71,4 +63,3 @@ func runGate() *component.Application {
 	}
 	return gateApp
 }
-
