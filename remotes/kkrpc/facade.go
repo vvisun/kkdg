@@ -31,6 +31,10 @@ func genReqId() uint64 {
 }
 
 type CallConfig struct {
+	// 服务器端调用时 connId 为连接ID；
+	// 客户端调用时 connId 会被忽略，直接发送给client所连接的server。
+	ConnId kknet.CONN_ID
+	// 超时时间
 	Timeout time.Duration
 }
 

@@ -24,6 +24,14 @@ type transportorRpc struct {
 	stopped      bool
 }
 
+var (
+	onewayMsgRegister      kkrpc.OneWayInvoker[ptotrans.RpcMsgRegister]
+	onewayS2C              kkrpc.OneWayInvoker[ptotrans.RpcS2Client]
+	onewayS2Clients        kkrpc.OneWayInvoker[ptotrans.RpcS2Clients]
+	onewayC2S              kkrpc.OneWayInvoker[ptotrans.RpcC2S]
+	onewayClientDisconnect kkrpc.OneWayInvoker[ptotrans.RpcClientDisconnect]
+)
+
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
 
 func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, rpcAddr string) (gatetrans.ITransportor, error) {
@@ -42,6 +50,12 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 		kklog.Errorf("[ccgate] start rpc server error: %v", err)
 		return nil, err
 	}
+
+	onewayMsgRegister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcSvr, 0)
+	onewayS2C, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcSvr, 0)
+	onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcSvr, 0)
+	onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcSvr, 0)
+	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr, 0)
 
 	trans := &transportorRpc{
 		sessionMgr:   sessionMgr,
@@ -90,15 +104,11 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 	// 这里无需复制，因为InvokeNR会编码自动复制一次。
 	streamBytes := msgBytes
 
-	oneWayInvoker, err := kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](slf.rpcSvr, memberInfo.connId)
-	if err != nil {
-		return err
-	}
-	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcC2S{
+	err = onewayC2S.InvokeNR(context.Background(), &ptotrans.RpcC2S{
 		ClientId:   sessionID,
 		GateNodeId: slf.gateNodeId,
 		Payload:    streamBytes,
-	}, kkrpc.CallConfig{})
+	}, kkrpc.CallConfig{ConnId: memberInfo.connId})
 	if err != nil {
 		return err
 	}
@@ -177,13 +187,9 @@ func (slf *transportorRpc) NotifyClientDisconnect(sessionID string, logicNodeId 
 	if memberInfo == nil {
 		return ErrLogicNodeNotRegistered //逻辑节点未注册
 	}
-	oneWayInvoker, err := kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](slf.rpcSvr, memberInfo.connId)
-	if err != nil {
-		return err
-	}
-	err = oneWayInvoker.InvokeNR(context.Background(), &ptotrans.RpcClientDisconnect{
+	err := onewayClientDisconnect.InvokeNR(context.Background(), &ptotrans.RpcClientDisconnect{
 		ClientId: sessionID,
-	}, kkrpc.CallConfig{})
+	}, kkrpc.CallConfig{ConnId: memberInfo.connId})
 	if err != nil {
 		return err
 	}

@@ -42,7 +42,11 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig)
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
 	}
-	err = i.sender.SendBuffer(i.connId, bb)
+	connId := i.connId
+	if opts.ConnId != 0 {
+		connId = opts.ConnId
+	}
+	err = i.sender.SendBuffer(connId, bb)
 	if err != nil {
 		return err
 	}
