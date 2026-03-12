@@ -4,7 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -69,8 +69,8 @@ func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID stri
 	if oldInfo != nil {
 		return
 	}
-	if shardIdx < 0 || shardIdx >= kkapp.BackendShardCnt {
-		shardIdx = int(atomic.AddInt64(&autoShardIdx, 1) % kkapp.BackendShardCnt)
+	if shardIdx < 0 || shardIdx >= transport.BackendShardCnt {
+		shardIdx = int(atomic.AddInt64(&autoShardIdx, 1) % transport.BackendShardCnt)
 	}
 	si := newSessionInfo()
 	si.SessionID = sessionID

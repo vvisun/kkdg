@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
+	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"

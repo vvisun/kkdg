@@ -2,7 +2,7 @@ package gametransnats
 
 import (
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"

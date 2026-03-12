@@ -3,11 +3,11 @@ package ccgame
 import (
 	"errors"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/transport"
 )
 
 type Option struct {
-	TransType    kkapp.TransType
+	TransType    transport.TransType
 	RpcAddr      string
 	DiscoveryUrl string
 	ClusterUrl   string
@@ -15,12 +15,12 @@ type Option struct {
 
 func DefaultOption() Option {
 	return Option{
-		TransType: kkapp.TransTypeNats,
+		TransType: transport.TransTypeNats,
 	}
 }
 
 func validateOption(opt *Option) error {
-	if opt.TransType == kkapp.TransTypeRpc || opt.TransType == kkapp.TransTypeShard {
+	if opt.TransType == transport.TransTypeRpc || opt.TransType == transport.TransTypeShard {
 		if opt.RpcAddr == "" {
 			return errors.New("rpc addr is required")
 		}
@@ -41,7 +41,7 @@ func ApplyOption(opt *Option, opts ...func(o *Option)) *Option {
 	return opt
 }
 
-func WithTransType(transType kkapp.TransType) func(o *Option) {
+func WithTransType(transType transport.TransType) func(o *Option) {
 	return func(o *Option) {
 		o.TransType = transType
 	}

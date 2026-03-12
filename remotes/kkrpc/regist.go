@@ -1,7 +1,6 @@
 package kkrpc
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -13,7 +12,7 @@ func RegisterReqRspMethod[REQ any, RSP any](method string) {
 	_, ok := newReqResp[REQ, RSP](method)
 	if !ok {
 		// 错误直接蹦就行，避免将影响延迟到运行期带来不可预知的错误
-		kklog.PanicLog(fmt.Sprintf("register reqrsp method %s failed", method))
+		kklog.PanicLog("register reqrsp method %s failed", method)
 	}
 }
 
@@ -23,7 +22,7 @@ func RegisterOneWayMethod[REQ any](method string) {
 	_, ok := newOneWay[REQ](method)
 	if !ok {
 		// 错误直接蹦就行，避免将影响延迟到运行期带来不可预知的错误
-		kklog.PanicLog(fmt.Sprintf("register oneway method %s failed", method))
+		kklog.PanicLog("register oneway method %s failed", method)
 	}
 }
 

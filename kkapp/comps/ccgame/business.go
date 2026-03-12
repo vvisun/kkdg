@@ -6,11 +6,12 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransnats"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransrpc"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans/gametransshard"
-	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
+	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans/gametransnats"
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans/gametransrpc"
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans/gametransshard"
+	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
@@ -87,19 +88,19 @@ func (slf *gameComponent) OnInit() error {
 
 	// 初始化 transportor
 	switch slf.opt.TransType {
-	case kkapp.TransTypeNats:
+	case transport.TransTypeNats:
 		transportor, err := gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
-	case kkapp.TransTypeRpc:
+	case transport.TransTypeRpc:
 		transportor, err := gametransrpc.NewTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication(), slf.opt.RpcAddr)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
-	case kkapp.TransTypeShard:
+	case transport.TransTypeShard:
 		nodeId := slf.GetApplication().GetNodeId()
 		nodeType := slf.GetApplication().GetNodeType()
 		transportor, err := gametransshard.NewTransportorShard(slf.sessionManager, slf.msgReceiver, slf.opt.RpcAddr, nodeId, nodeType)

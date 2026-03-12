@@ -3,7 +3,7 @@ package transrpc
 import (
 	"context"
 
-	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
+	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 )
 

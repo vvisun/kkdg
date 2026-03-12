@@ -12,6 +12,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
+	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -90,7 +91,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	natsURL := requireNATS(t)
 	tcpAddr := freePort(t)
 	rpcAddr := freePort(t)
-	const transType = kkapp.TransTypeRpc
+	const transType = transport.TransTypeRpc
 
 	var streamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
 

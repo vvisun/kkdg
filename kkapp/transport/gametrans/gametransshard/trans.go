@@ -4,8 +4,9 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame/gametrans"
-	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
+	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
+	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
@@ -13,7 +14,7 @@ import (
 )
 
 type transportorShard struct {
-	conns   [kkapp.BackendShardCnt]*gatewayClient // 每个shard一个客户端，用于连接网关
+	conns   [transport.BackendShardCnt]*gatewayClient // 每个shard一个客户端，用于连接网关
 	muConns sync.RWMutex
 
 	sessionMgr  *gametrans.SessionManager
@@ -33,7 +34,7 @@ func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgr
 		nodeType:    nodeType,
 	}
 
-	for i := 0; i < kkapp.BackendShardCnt; i++ {
+	for i := 0; i < transport.BackendShardCnt; i++ {
 		trans.conns[i] = NewGatewayClient(i, trans)
 	}
 
@@ -46,7 +47,7 @@ func (slf *transportorShard) Stop() error {
 	}
 	slf.stopped = true
 	slf.muConns.Lock()
-	conns := make([]*gatewayClient, 0, kkapp.BackendShardCnt)
+	conns := make([]*gatewayClient, 0, transport.BackendShardCnt)
 	copy(conns, slf.conns[:])
 	slf.muConns.Unlock()
 	for _, conn := range conns {
@@ -61,7 +62,7 @@ func (slf *transportorShard) getConn(shardIdx int) *gatewayClient {
 	if shardIdx < 0 {
 		shardIdx = 0
 	}
-	shardIdx = shardIdx % kkapp.BackendShardCnt
+	shardIdx = shardIdx % transport.BackendShardCnt
 	slf.muConns.RLock()
 	conn := slf.conns[shardIdx]
 	slf.muConns.RUnlock()

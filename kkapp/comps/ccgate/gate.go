@@ -6,11 +6,12 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans/transnat"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans/transrpc"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans/transshard"
-	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
+	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
+	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transnat"
+	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transrpc"
+	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transshard"
+	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -101,19 +102,19 @@ func (slf *gateComponent) OnInit() error {
 
 	// 初始化 transportor
 	switch slf.opt.TransType {
-	case kkapp.TransTypeNats:
+	case transport.TransTypeNats:
 		transportor, err := transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
-	case kkapp.TransTypeRpc:
+	case transport.TransTypeRpc:
 		transportor, err := transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId(), slf.opt.RpcAddr)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
-	case kkapp.TransTypeShard:
+	case transport.TransTypeShard:
 		transportor, err := transshard.NewTransportorShard(slf.opt.RpcAddr, slf.sessionMgr, slf.GetApplication().GetNodeId())
 		if err != nil {
 			return err
@@ -254,7 +255,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 }
 
 func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
-	if slf.opt.TransType == kkapp.TransTypeShard {
+	if slf.opt.TransType == transport.TransTypeShard {
 		if slf.discovery != nil && slf.discovery.IsRunning() {
 			return slf.chooseFromDiscovery(nodeType)
 		}
@@ -265,7 +266,7 @@ func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
 
 // 从shard中选择权重最小的逻辑节点. return nodeId, found
 func (slf *gateComponent) chooseFromShard(nodeType string) (string, bool) {
-	if slf.opt.TransType == kkapp.TransTypeShard {
+	if slf.opt.TransType == transport.TransTypeShard {
 		trans := slf.transportor.(*transshard.TransportorShard)
 		if trans != nil {
 			return trans.ChooseLogicServer(nodeType, gLogicTotalMgr)

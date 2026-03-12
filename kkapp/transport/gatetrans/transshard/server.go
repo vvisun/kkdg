@@ -4,8 +4,9 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate/gatetrans"
-	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
+	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
+	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -62,7 +63,7 @@ func (slf *TransportorShard) Stop() error {
 
 // 为了保证单个连接的消息顺序性，需要将连接分配到固定的分片索引。
 func (slf *TransportorShard) getShardIdx(connId kknet.CONN_ID) int {
-	return int(connId % kkapp.BackendShardCnt)
+	return int(connId % transport.BackendShardCnt)
 }
 
 // sendToLogicShard 向指定逻辑服的指定 shard 发送已编码包。调用方在返回 err 时负责 Put(bb)。
@@ -72,7 +73,7 @@ func (slf *TransportorShard) sendToLogicShard(logicNodeId string, shardIdx int, 
 		return kkerrors.ErrAppLogicNodeNotRegistered
 	}
 	chooseServer.muConns.RLock()
-	sconn := chooseServer.conns[shardIdx%kkapp.BackendShardCnt]
+	sconn := chooseServer.conns[shardIdx%transport.BackendShardCnt]
 	chooseServer.muConns.RUnlock()
 	if sconn == nil {
 		return kkerrors.ErrAppLogicShardNotConnected

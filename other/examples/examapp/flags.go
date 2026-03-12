@@ -4,7 +4,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/transport"
 )
 
 // ParseFlags 解析命令行参数并更新 NatsURL、GateTCPAddr 等包变量。
@@ -29,7 +29,7 @@ func ParseFlags(args []string) {
 	}
 
 	// 归一化 trans
-	if UseTransType != kkapp.TransTypeNats && UseTransType != kkapp.TransTypeRpc && UseTransType != kkapp.TransTypeShard {
-		UseTransType = kkapp.TransTypeNats
+	if UseTransType != transport.TransTypeNats && UseTransType != transport.TransTypeRpc && UseTransType != transport.TransTypeShard {
+		UseTransType = transport.TransTypeNats
 	}
 }

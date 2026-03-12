@@ -3,13 +3,13 @@ package examapp
 import (
 	"time"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/transport"
 )
 
 // 默认值；通过 ParseFlags() 可由命令行参数覆盖
 var (
 	NatsURL      = "nats://127.0.0.1:4222"
-	UseTransType = kkapp.TransTypeShard
+	UseTransType = transport.TransTypeShard
 	GateTCPAddr  = "127.0.0.1:19090"
 	GateWSAddr   = "127.0.0.1:19091"
 	RpcAddr      = "127.0.0.1:19092"

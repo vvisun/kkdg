@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/other/examples/examext/extframe/extmsg"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xnet"
@@ -21,13 +21,13 @@ const (
 // ====================== 主函数 ======================
 func StartUp() {
 	kklog.Infof("=== 独立逻辑服启动 ===")
-	var conns [kkapp.BackendShardCnt]net.Conn
+	var conns [transport.BackendShardCnt]net.Conn
 
-	for i := 0; i < kkapp.BackendShardCnt; i++ {
+	for i := 0; i < transport.BackendShardCnt; i++ {
 		conns[i] = connectGateway(i)
 	}
 
-	for i := 0; i < kkapp.BackendShardCnt; i++ {
+	for i := 0; i < transport.BackendShardCnt; i++ {
 		go businessLoop(i, conns[i])
 	}
 
