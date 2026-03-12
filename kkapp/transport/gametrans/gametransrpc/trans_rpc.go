@@ -37,7 +37,7 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 	methodMgr := kkrpc.NewMethodManager()
-	ptotrans.InitMsgs(methodMgr)
+	ptotrans.InitRpcMsgs(methodMgr)
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(
 		kkrpc.WithStreamTool(gStreamTool),
 		kkrpc.WithFrameCodec(gFrameCodec),

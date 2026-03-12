@@ -64,12 +64,14 @@ func (p *pendingMap) addCh(reqId uint64) (chan Frame, error) {
 	atomic.AddInt64(&p.curPendingCount, 1)
 	s := p.shard(reqId)
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if p.closed.Load() {
+		s.mu.Unlock()
+		atomic.AddInt64(&p.curPendingCount, -1)
 		return nil, kkerrors.ErrRpcClosed
 	}
 	ch := chanFramePool.Get().(chan Frame)
 	s.chMap[reqId] = ch
+	s.mu.Unlock()
 	return ch, nil
 }
 
@@ -107,6 +109,11 @@ func (p *pendingMap) addCallback(reqId uint64, fn func(Frame)) error {
 	atomic.AddInt64(&p.curPendingCount, 1)
 	s := p.shard(reqId)
 	s.mu.Lock()
+	if p.closed.Load() {
+		s.mu.Unlock()
+		atomic.AddInt64(&p.curPendingCount, -1)
+		return kkerrors.ErrRpcClosed
+	}
 	s.cbMap[reqId] = fn
 	s.mu.Unlock()
 	return nil
@@ -146,6 +153,7 @@ func (p *pendingMap) closeAll() {
 		s.cbMap = make(map[uint64]func(Frame))
 		s.mu.Unlock()
 	}
+	atomic.StoreInt64(&p.curPendingCount, 0)
 }
 
 // deliver 将响应投递给同步等待者（channel）或异步回调，同一 reqId 只会有其一
@@ -160,6 +168,9 @@ func (p *pendingMap) deliver(id uint64, fr Frame) {
 	fn := s.cbMap[id]
 	delete(s.cbMap, id)
 	s.mu.Unlock()
+	if ch != nil || fn != nil {
+		atomic.AddInt64(&p.curPendingCount, -1)
+	}
 	if ch != nil {
 		ch <- fr
 		return

@@ -26,6 +26,7 @@ type transportorShard struct {
 }
 
 func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], gatewayAddr, nodeID, nodeType string) (gametrans.ITransportor, error) {
+	ptotrans.InitShardMsgs()
 	trans := &transportorShard{
 		sessionMgr:  sessionMgr,
 		msgReceiver: msgReceiver,

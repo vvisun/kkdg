@@ -28,6 +28,7 @@ type TransportorShard struct {
 var _ gatetrans.ITransportor = (*TransportorShard)(nil)
 
 func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, nodeId string) (gatetrans.ITransportor, error) {
+	ptotrans.InitShardMsgs()
 	handler := &shardHandler{}
 	serOpts := kknet.ApplyOptions(
 		kknet.WithRawHandler(handler),
