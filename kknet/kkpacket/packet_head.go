@@ -21,7 +21,7 @@ type PacketHead struct {
 func NewPacketHead(parts ...IHeadPart) *PacketHead {
 	if len(parts) > maxHeadPathCount {
 		kklog.Errorf("[head] parts count is too many, max is %d", maxHeadPathCount)
-		panic("[head] parts count is too many")
+		kklog.PanicLog("[head] parts count is too many")
 	}
 	size := 0
 	for _, part := range parts {
@@ -39,16 +39,16 @@ func NewPacketHead(parts ...IHeadPart) *PacketHead {
 func NewPacketHeadWithNames(parts []IHeadPart, names []string) *PacketHead {
 	if len(parts) != len(names) {
 		kklog.Errorf("[head] parts count is not equal to names count, parts: %d, names: %d", len(parts), len(names))
-		panic("[head] parts count is not equal to names count")
+		kklog.PanicLog("[head] parts count is not equal to names count")
 	}
 	if len(parts) > maxHeadPathCount {
 		kklog.Errorf("[head] parts count is too many, max is %d", maxHeadPathCount)
-		panic("[head] parts count is too many")
+		kklog.PanicLog("[head] parts count is too many")
 	}
 	head := NewPacketHead(parts...)
 	if err := head.SetNames(names); err != nil {
 		kklog.Errorf("[head] set names failed, err: %v", err)
-		panic("[head] set names failed")
+		kklog.PanicLog("[head] set names failed")
 	}
 	return head
 }

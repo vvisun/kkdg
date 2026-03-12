@@ -7,6 +7,7 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // IActorFramework 是 Actor 框架的接口，负责管理 Actor 的创建、销毁、消息路由等。
@@ -36,11 +37,11 @@ type ActorFramework struct {
 func NewActorFramework(locator *ActorLocator, actorSys *actor.ActorSystem) *ActorFramework {
 	if locator == nil {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-		panic("locator is nil")
+		kklog.PanicLog("locator is nil")
 	}
 	if actorSys == nil {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-		panic("actorSys is nil")
+		kklog.PanicLog("actorSys is nil")
 	}
 	return &ActorFramework{
 		locator:  locator,

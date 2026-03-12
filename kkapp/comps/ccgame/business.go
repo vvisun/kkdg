@@ -22,7 +22,7 @@ import (
 
 func NewGameComponent(opt Option) *gameComponent {
 	if err := validateOption(&opt); err != nil {
-		panic(err)
+		kklog.PanicErr(err)
 	}
 	ptotrans.InitMsgs()
 	streamTool := kkapp.GetStreamTool()

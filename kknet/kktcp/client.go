@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // GnetClient represents a TCP client based on gnet.
@@ -41,7 +42,7 @@ func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Opti
 	kknet.CheckOptions(&opts)
 	if opts.TLSConfig != nil {
 		// panic as gnet client does not support TLS
-		panic("gnet client does not support TLS. use kktcptls instead.")
+		kklog.PanicLog("gnet client does not support TLS. use kktcptls instead.")
 	}
 	return &GnetClient{
 		addr:    addr,

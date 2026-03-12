@@ -56,7 +56,7 @@ func (slf *gateComponent) Receive(context actor.Context) {
 // NewGateComponent creates a new gate component.
 func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 	if err := validateOption(&gateOpt); err != nil {
-		panic(err)
+		kklog.PanicErr(err)
 	}
 	ptotrans.InitMsgs()
 	return &gateComponent{

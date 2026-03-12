@@ -7,6 +7,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
@@ -41,7 +42,7 @@ var _ kknet.IReadProcessor = (*WorkerReadProcessor)(nil)
 func NewWorkerReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	if opts.RawHandler == nil {
-		panic("RawHandler is required for WorkerReadProcessor")
+		kklog.PanicLog("RawHandler is required for WorkerReadProcessor")
 	}
 
 	// 不保证RawHandler的顺序性，如果需要保证顺序，可以将RecvBatchSize设置为1。

@@ -44,7 +44,7 @@ var _ kkapp.IApplication = (*Application)(nil)
 func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFramework) *Application {
 	if nodeInfo == nil {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-		panic("nodeInfo is nil")
+		kklog.PanicLog("nodeInfo is nil")
 	}
 	if actorFramework == nil {
 		kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application actorFramework is nil, use default", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
@@ -122,19 +122,19 @@ func (slf *Application) Start() error {
 	if slf.pid == nil {
 		kklog.Errorf("[kkapp] application %s spawn actor failed", slf.GetNodeId())
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-		panic(kkerrors.ErrAppSpawnActorFailed)
+		kklog.PanicErr(kkerrors.ErrAppSpawnActorFailed)
 	}
 	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
 	if err != nil {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-		panic(err)
+		kklog.PanicErr(err)
 	}
 	err = slf.actorFramework.GetLocator().AddActor(id, slf.pid)
 	if err != nil {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-		panic(err)
+		kklog.PanicErr(err)
 	}
 	return <-startResultCh
 }
@@ -226,7 +226,7 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		if pid == nil {
 			kklog.Errorf("[kkapp] application %s spawn component %s failed", slf.GetNodeId(), comp.GetCompName())
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-			panic(kkerrors.ErrAppSpawnActorFailed)
+			kklog.PanicErr(kkerrors.ErrAppSpawnActorFailed)
 		}
 
 		comp.SetPID(pid)
@@ -235,13 +235,13 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		if err != nil {
 			kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-			panic(err)
+			kklog.PanicErr(err)
 		}
 		err = slf.actorFramework.GetLocator().AddActor(id, pid)
 		if err != nil {
 			kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-			panic(err)
+			kklog.PanicErr(err)
 		}
 		if err := comp.OnStart(); err != nil {
 			kklog.Errorf("[kkapp] application %s start component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)

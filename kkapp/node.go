@@ -1,16 +1,18 @@
 package kkapp
 
+import "github.com/vvisun/kkdg/utils/kklog"
+
 // NewNodeInfo 创建节点信息
 // 一般在启动时，从配置文件中读取节点信息并创建节点信息。
 func NewNodeInfo(nodeId, nodeType, address, rpcAddress string, settings map[string]string) *NodeInfo {
 	if checkNodeID(nodeId) != nil {
-		panic("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
+		kklog.PanicLog("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
 	}
 	if checkNodeType(nodeType) != nil {
-		panic("invalid node type") //一般都是启动时配置节点信息。非法类型直接panic，避免影响正常启动。
+		kklog.PanicLog("invalid node type") //一般都是启动时配置节点信息。非法类型直接panic，避免影响正常启动。
 	}
 	if !IsValidActorNodeId(nodeId) {
-		panic("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
+		kklog.PanicLog("invalid node id") //一般都是启动时配置节点信息。非法id直接panic，避免影响后续逻辑
 	}
 	return &NodeInfo{
 		nodeId:     nodeId,

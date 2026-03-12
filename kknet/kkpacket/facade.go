@@ -2,6 +2,7 @@ package kkpacket
 
 import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // 完整包。流拆解器
@@ -90,10 +91,10 @@ type FullPacket struct {
 // @param messageTool 消息编码解码器
 func NewFullPacket(streamTool IPacket, messageTool *MessagePacket) *FullPacket {
 	if streamTool == nil {
-		panic("streamTool is nil")
+		kklog.PanicLog("streamTool is nil")
 	}
 	if messageTool == nil {
-		panic("messageTool is nil")
+		kklog.PanicLog("messageTool is nil")
 	}
 	return &FullPacket{
 		streamTool:  streamTool,

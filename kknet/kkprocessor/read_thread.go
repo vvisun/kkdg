@@ -7,6 +7,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -48,7 +49,7 @@ var _ kknet.IReadProcessor = (*ReadProcessor)(nil)
 func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	if opts.RawHandler == nil {
-		panic("RawHandler is required")
+		kklog.PanicLog("RawHandler is required")
 	}
 
 	return &ReadProcessor{

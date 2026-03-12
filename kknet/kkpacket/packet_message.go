@@ -3,6 +3,7 @@ package kkpacket
 import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // [message] 编码解码器。用于编码解码[message]部分。
@@ -15,13 +16,13 @@ type MessagePacket struct {
 
 func NewMessagePacket(head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRouter) *MessagePacket {
 	if head == nil {
-		panic("head is nil")
+		kklog.PanicLog("head is nil")
 	}
 	if bodyCodec == nil {
-		panic("bodyCodec is nil")
+		kklog.PanicLog("bodyCodec is nil")
 	}
 	if router == nil {
-		panic("router is nil")
+		kklog.PanicLog("router is nil")
 	}
 	return &MessagePacket{
 		head:      head,

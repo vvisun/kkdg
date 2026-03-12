@@ -6,6 +6,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // IStreamReader provides buffered stream access for unpacking.
@@ -30,18 +31,18 @@ type LengthFieldStreamPacket struct {
 //	@param maxPacketSize 整包[length,message]最大长度（字节数）
 func NewLengthFieldStreamPacket(lfb int, maxPacketSize int) IPacket {
 	if lfb != 2 && lfb != 4 {
-		panic("length field byte count must be 2 or 4")
+		kklog.PanicLog("length field byte count must be 2 or 4")
 	}
 	if maxPacketSize <= 0 {
-		panic("max packet size must be greater than 0")
+		kklog.PanicLog("max packet size must be greater than 0")
 	}
 	// 2字节长度字段，最大长度为65535 (2^16-1)，超过则溢出
 	if lfb == 2 && maxPacketSize > 65535 {
-		panic("max packet size must be less than 65535")
+		kklog.PanicLog("max packet size must be less than 65535")
 	}
 	// 4字节长度字段，最大长度为4294967295 (2^32-1)，超过则溢出
 	if lfb == 4 && maxPacketSize > 4294967295 {
-		panic("max packet size must be less than 4294967295")
+		kklog.PanicLog("max packet size must be less than 4294967295")
 	}
 	return &LengthFieldStreamPacket{
 		lfbCount:      lfb,

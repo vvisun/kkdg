@@ -9,6 +9,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xos"
 )
 
@@ -34,7 +35,7 @@ func NewServer(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Opti
 	kknet.CheckOptions(&opts)
 	if opts.TLSConfig != nil {
 		// panic as gnet server does not support TLS
-		panic("gnet server does not support TLS. use kktcptls instead.")
+		kklog.PanicLog("gnet server does not support TLS. use kktcptls instead.")
 	}
 	return &Server{
 		addr:    addr,

@@ -70,7 +70,7 @@ func initWriteGroups() {
 // 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
 func writeLoop(gid int) {
 	if !EnableWriteGroup {
-		panic("EnableWriteGroup is false")
+		kklog.PanicLog("EnableWriteGroup is false")
 	}
 	q := writeGroup[gid]
 	for {
