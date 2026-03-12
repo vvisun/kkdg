@@ -95,6 +95,7 @@ type RpcReceiver struct {
 	streamTool   kkpacket.IPacket
 	frameCodec   kkcodec.ICodec
 	payloadCodec kkcodec.ICodec
+	stats        *RpcStats
 	hdMap        map[string]IReqRspHandler
 	oneWayMap    map[string]IOneWayHandler
 	rpcOpts      RpcOption

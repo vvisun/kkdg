@@ -31,6 +31,7 @@ var chanFramePool = sync.Pool{
 type pendingMap struct {
 	maxPendingCount int64
 	curPendingCount int64
+	stats           *RpcStats
 	closed          atomic.Bool
 	shards          [pendingShardCount]*pendingShard
 }

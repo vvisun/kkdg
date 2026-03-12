@@ -1,6 +1,8 @@
 package kkrpc
 
 import (
+	"sync/atomic"
+
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -17,6 +19,7 @@ type Server struct {
 	frameCodec       kkcodec.ICodec
 	payloadCodec     kkcodec.ICodec
 	rpcOpts          RpcOption
+	stats            RpcStats
 }
 
 var _ IRpcServer = (*Server)(nil)
@@ -37,6 +40,7 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	s.tcp = kktcp.NewServer(addr, handler, opts)
 	s.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
+	s.pending.stats = &s.stats
 	return s
 }
 
@@ -58,6 +62,7 @@ func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, rpcOpts Rp
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler), kknet.WithStreamTool(rpcRouter.streamTool))
 	s.tcp = svrCreator(handler, opts)
 	s.pending = newPendingMap(rpcOpts.MaxPendingCount)
+	s.pending.stats = &s.stats
 	return s
 }
 
@@ -96,6 +101,10 @@ func (s *Server) getFrameCodec() kkcodec.ICodec {
 
 func (s *Server) getPayloadCodec() kkcodec.ICodec {
 	return s.payloadCodec
+}
+
+func (s *Server) Stats() RpcStatsSnapshot {
+	return s.stats.Snapshot(atomic.LoadInt64(&s.pending.curPendingCount), atomic.LoadInt64(&s.pending.maxPendingCount))
 }
 
 //----------------------------------------------------------------

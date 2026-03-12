@@ -1,6 +1,8 @@
 package kkrpc
 
 import (
+	"sync/atomic"
+
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -17,6 +19,7 @@ type Client struct {
 	frameCodec   kkcodec.ICodec
 	payloadCodec kkcodec.ICodec
 	rpcOpts      RpcOption
+	stats        RpcStats
 }
 
 var _ IRpcClient = (*Client)(nil)
@@ -30,6 +33,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 		payloadCodec: rpcRouter.payloadCodec,
 		rpcOpts:      rpcRouter.rpcOpts,
 	}
+	rpcRouter.stats = &cc.stats
 	handler := &clientHandler{
 		cli:       cc,
 		rpcRouter: rpcRouter,
@@ -37,6 +41,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler), kknet.WithStreamTool(rpcRouter.streamTool))
 	cc.cli = kktcp.NewClient(addr, handler, opts)
 	cc.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
+	cc.pending.stats = &cc.stats
 	return cc
 }
 
@@ -48,6 +53,7 @@ func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator
 		payloadCodec: rpcRouter.payloadCodec,
 		rpcOpts:      rpcRouter.rpcOpts,
 	}
+	rpcRouter.stats = &cc.stats
 	handler := &clientHandler{
 		cli:       cc,
 		rpcRouter: rpcRouter,
@@ -55,6 +61,7 @@ func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator
 	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
 	cc.cli = cliCreator(handler, opts)
 	cc.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
+	cc.pending.stats = &cc.stats
 	return cc
 }
 
@@ -93,6 +100,10 @@ func (c *Client) getFrameCodec() kkcodec.ICodec {
 
 func (c *Client) getPayloadCodec() kkcodec.ICodec {
 	return c.payloadCodec
+}
+
+func (c *Client) Stats() RpcStatsSnapshot {
+	return c.stats.Snapshot(atomic.LoadInt64(&c.pending.curPendingCount), atomic.LoadInt64(&c.pending.maxPendingCount))
 }
 
 //----------------------------------------------------------------
