@@ -49,8 +49,8 @@ type ReqResp[REQ any, RSP any] struct {
 	method string
 }
 
-func (p *ReqResp[REQ, RSP]) GetMethod() string {
-	return p.method
+type OneWay[REQ any] struct {
+	method string
 }
 
 func newReqResp[REQ any, RSP any](method string) (*ReqResp[REQ, RSP], bool) {
@@ -59,15 +59,15 @@ func newReqResp[REQ any, RSP any](method string) (*ReqResp[REQ, RSP], bool) {
 		return nil, false
 	}
 
-	typeReq := reflect.TypeFor[REQ]()
-	typeRsp := reflect.TypeFor[RSP]()
+	typeReq := reflect.TypeFor[*REQ]()
+	typeRsp := reflect.TypeFor[*RSP]()
 
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
-	if gRpcManager.peers[method] != nil {
-		kklog.Errorf("method %s already registered", method)
-		return nil, false
-	}
+	// if gRpcManager.peers[method] != nil {
+	// 	kklog.Errorf("method %s already registered", method)
+	// 	return nil, false
+	// }
 	if gRpcManager.type2methodReqRsp[typeReq] != "" {
 		kklog.Errorf("type %s already registered", typeReq)
 		return nil, false
@@ -80,21 +80,17 @@ func newReqResp[REQ any, RSP any](method string) (*ReqResp[REQ, RSP], bool) {
 	p := &ReqResp[REQ, RSP]{
 		method: method,
 	}
-	gRpcManager.peers[method] = p
+	//gRpcManager.peers[method] = p
 	gRpcManager.type2methodReqRsp[typeReq] = method
 	gRpcManager.type2methodReqRsp[typeRsp] = method
 	gRpcManager.method2typeReqRsp[method] = methodReqRsp{reqType: typeReq, rspType: typeRsp}
+
+	typeReqValue := reflect.TypeFor[REQ]()
+	typeRspValue := reflect.TypeFor[RSP]()
+	gRpcManager.type2methodReqRsp[typeReqValue] = method
+	gRpcManager.type2methodReqRsp[typeRspValue] = method
+
 	return p, true
-}
-
-//----------------------------------------------------------------
-
-type OneWay[REQ any] struct {
-	method string
-}
-
-func (o *OneWay[REQ]) GetMethod() string {
-	return o.method
 }
 
 func newOneWay[REQ any](method string) (*OneWay[REQ], bool) {
@@ -103,14 +99,14 @@ func newOneWay[REQ any](method string) (*OneWay[REQ], bool) {
 		return nil, false
 	}
 
-	typeReq := reflect.TypeFor[REQ]()
+	typeReq := reflect.TypeFor[*REQ]()
 
 	gRpcManager.mu.Lock()
 	defer gRpcManager.mu.Unlock()
-	if gRpcManager.oneWays[method] != nil {
-		kklog.Errorf("method %s already registered", method)
-		return nil, false
-	}
+	// if gRpcManager.oneWays[method] != nil {
+	// 	kklog.Errorf("method %s already registered", method)
+	// 	return nil, false
+	// }
 	if gRpcManager.type2methodOneWay[typeReq] != "" {
 		kklog.Errorf("type %s already registered", typeReq)
 		return nil, false
@@ -119,8 +115,35 @@ func newOneWay[REQ any](method string) (*OneWay[REQ], bool) {
 	o := &OneWay[REQ]{
 		method: method,
 	}
-	gRpcManager.oneWays[method] = o
+	//gRpcManager.oneWays[method] = o
 	gRpcManager.type2methodOneWay[typeReq] = method
 	gRpcManager.method2typeOneWay[method] = methonOneWay{reqType: typeReq}
+
+	typeReqValue := reflect.TypeFor[REQ]()
+	gRpcManager.type2methodOneWay[typeReqValue] = method
+
 	return o, true
+}
+
+// verifyReqRespMethod verifies at init that REQ/RSP types are registered for method. No runtime reflect on hot path.
+func verifyReqRespMethod[REQ any, RSP any]() (string, bool) {
+	typeReq := reflect.TypeFor[*REQ]()
+	typeRsp := reflect.TypeFor[*RSP]()
+	gRpcManager.mu.Lock()
+	defer gRpcManager.mu.Unlock()
+	mReq, ok1 := gRpcManager.type2methodReqRsp[typeReq]
+	mRsp, ok2 := gRpcManager.type2methodReqRsp[typeRsp]
+	if ok1 && ok2 && mReq == mRsp {
+		return mReq, true
+	}
+	return "", false
+}
+
+// verifyOneWayMethod verifies at init that REQ type is registered for method. No runtime reflect on hot path.
+func verifyOneWayMethod[REQ any]() (string, bool) {
+	typeReq := reflect.TypeFor[*REQ]()
+	gRpcManager.mu.Lock()
+	defer gRpcManager.mu.Unlock()
+	m, ok := gRpcManager.type2methodOneWay[typeReq]
+	return m, ok
 }

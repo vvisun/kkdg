@@ -61,6 +61,18 @@ func newTestServerClient(t *testing.T, rpcRouter *RpcReceiver) (*Server, *Client
 	return svr, cli
 }
 
+func Test_InvokeOneWay(t *testing.T) {
+	setupTestRpcManager(t)
+	rpcRouter := NewRpcReceiver()
+	rp := &rpcProcessor{}
+	RegistOneWayHandler(rpcRouter, "testOneway", rp.onTestReq)
+	_, cli := newTestServerClient(t, rpcRouter)
+	err := InvokeOneWay(context.Background(), cli, 0, testReq{ID: 1, Data: "test"}, CallConfig{})
+	if err != nil {
+		t.Fatalf("invoke oneway: %v", err)
+	}
+}
+
 func Test_RpcProcessor(t *testing.T) {
 	setupTestRpcManager(t)
 	rpcRouter := NewRpcReceiver()

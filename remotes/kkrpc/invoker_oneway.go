@@ -15,14 +15,14 @@ type OneWayInvoker[T any] struct {
 }
 
 // NewOneWayInvoker 创建单向调用器。method 必须在 RegisterOneWayMethod 中已注册，否则 panic。
-// 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
-func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) (*OneWayInvoker[T], error) {
+// 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 会被忽略，直接发送给client所连接的server。
+func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) (OneWayInvoker[T], error) {
 	method, ok := verifyOneWayMethod[T]()
 	if !ok {
 		kklog.Errorf("OneWayInvoker: method %q not registered for type %T", method, (*T)(nil))
-		return nil, kkerrors.ErrRpcMethodNotRegistered
+		return OneWayInvoker[T]{}, kkerrors.ErrRpcMethodNotRegistered
 	}
-	return &OneWayInvoker[T]{
+	return OneWayInvoker[T]{
 		sender: sender,
 		connId: connId,
 		method: method,
@@ -30,6 +30,7 @@ func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) (*OneWayInvok
 }
 
 // InvokeNR 无响应调用（单向调用）
+// 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 会被忽略，直接发送给client所连接的server。
 func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig) error {
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrRpcConnClosed
@@ -40,6 +41,30 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig)
 		return err
 	}
 	err = i.sender.SendBuffer(i.connId, bb)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//----------------------------------------------------------------
+
+// InvokeOneWay 无响应调用（单向调用）
+// 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 会被忽略，直接发送给client所连接的server。
+func InvokeOneWay(ctx context.Context, sender ISender, connId kknet.CONN_ID, req any, opts CallConfig) error {
+	method := gRpcManager.getMethod(req)
+	if method == "" {
+		return kkerrors.ErrRpcMethodNotRegistered
+	}
+	if sender.getPending().IsClosed() {
+		return kkerrors.ErrRpcConnClosed
+	}
+	bb, err := EncodeRpcFrame(FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
+	if err != nil {
+		kklog.Errorf("encode rpc frame: %v", err)
+		return err
+	}
+	err = sender.SendBuffer(connId, bb)
 	if err != nil {
 		return err
 	}
