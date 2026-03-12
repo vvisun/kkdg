@@ -107,7 +107,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     transType,
 	}
-	gate := ccgate.NewGateComponent(gateOpt)
+	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())
 	if err := gateApp.AddComponent(gate); err != nil {
 		t.Fatalf("add gate: %v", err)
 	}

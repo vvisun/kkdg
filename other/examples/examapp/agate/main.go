@@ -48,7 +48,7 @@ func runGate() *component.Application {
 			})
 		},
 	}
-	gate := ccgate.NewGateComponent(gateOpt)
+	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())
 	if err := gateApp.AddComponent(gate); err != nil {
 		kklog.Errorf("add gate: %v", err)
 	}

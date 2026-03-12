@@ -20,14 +20,16 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
 // 网关服
 type gateComponent struct {
 	component.Component
-	opt     Option
-	server  kknet.IServer
-	handler *gateHandler
+	opt       Option
+	serverOpt kknet.Options
+	server    kknet.IServer
+	handler   *gateHandler
 
 	discovery   kkdiscovery.IDiscovery
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
@@ -52,13 +54,14 @@ func (slf *gateComponent) Receive(context actor.Context) {
 }
 
 // NewGateComponent creates a new gate component.
-func NewGateComponent(opt Option) *gateComponent {
-	if err := validateOption(&opt); err != nil {
+func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
+	if err := validateOption(&gateOpt); err != nil {
 		panic(err)
 	}
 	ptotrans.InitMsgs()
 	return &gateComponent{
-		opt:        opt,
+		opt:        gateOpt,
+		serverOpt:  serverOpt,
 		sessionMgr: gatetrans.NewSessionMgr(),
 		clientMgr:  newClientManager(),
 	}
@@ -181,7 +184,8 @@ func (slf *gateComponent) OnStop() error {
 
 func (slf *gateComponent) startTCPServer() error {
 	// 创建 TCP 服务器
-	opts := kknet.ApplyOptions(
+	opts := slf.serverOpt
+	kkoption.ApplyOptionsTo(&opts,
 		kknet.WithStreamTool(kkapp.GetStreamTool()),
 		kknet.WithRawHandler(slf.handler),
 	)
@@ -199,7 +203,8 @@ func (slf *gateComponent) startTCPServer() error {
 
 func (slf *gateComponent) startWSServer() error {
 	// 创建 WebSocket 服务器
-	opts := kknet.ApplyOptions(
+	opts := slf.serverOpt
+	kkoption.ApplyOptionsTo(&opts,
 		kknet.WithStreamTool(kkapp.GetStreamTool()),
 		kknet.WithRawHandler(slf.handler),
 		kknet.WithWorkerQueueMaxConcurrency(1),
