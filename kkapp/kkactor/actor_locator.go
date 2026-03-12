@@ -55,24 +55,31 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) error {
 	if node == nil {
 		return kkerrors.ErrActorAddInvalidNode
 	}
-	if !kkapp.IsValidActorNodeId(node.GetNodeId()) {
-		return kkerrors.ErrActorInvalidNodeId
-	}
 	nodeId := node.GetNodeId()
 	slf.mu.Lock()
 	// 如果移除的是本地节点，则需要移除本地Actor。
-	for id := range slf.actors {
-		ok, err := slf.isLocalActor(id)
-		if err != nil {
-			continue
-		}
-		if id.nodeID == nodeId && ok {
-			delete(slf.actors, id)
+	if slf.isLocalNode(nodeId) {
+		for id := range slf.actors {
+			ok, err := slf.isLocalActor(id)
+			if err != nil {
+				continue
+			}
+			if id.nodeID == nodeId && ok {
+				delete(slf.actors, id)
+			}
 		}
 	}
 	delete(slf.nodes, nodeId)
 	slf.mu.Unlock()
 	return nil
+}
+
+func (slf *ActorLocator) isLocalNode(nodeId string) bool {
+	if nodeId == "" {
+		return true //空nodeId表示本地Node
+	}
+	_, ok := slf.nodes[nodeId]
+	return ok
 }
 
 func (slf *ActorLocator) GetActor(id LucencyActorID) (*actor.PID, error) {
