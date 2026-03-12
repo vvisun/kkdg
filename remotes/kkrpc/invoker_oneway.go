@@ -35,7 +35,7 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig)
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrRpcConnClosed
 	}
-	bb, err := EncodeRpcFrame(i.sender.getFrameCodec(), i.sender.getPayloadCodec(), FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
+	bb, err := EncodeRpcFrame(i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(), FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err
@@ -59,7 +59,7 @@ func InvokeOneWay(ctx context.Context, sender ISender, connId kknet.CONN_ID, req
 	if sender.getPending().IsClosed() {
 		return kkerrors.ErrRpcConnClosed
 	}
-	bb, err := EncodeRpcFrame(sender.getFrameCodec(), sender.getPayloadCodec(), FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
+	bb, err := EncodeRpcFrame(sender.getStreamTool(), sender.getFrameCodec(), sender.getPayloadCodec(), FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		return err

@@ -2,6 +2,7 @@ package kkrpc
 
 import (
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
@@ -12,6 +13,7 @@ type Client struct {
 	cli          kknet.IClient
 	pending      *pendingMap
 	stopped      bool
+	streamTool   kkpacket.IPacket
 	frameCodec   kkcodec.ICodec
 	payloadCodec kkcodec.ICodec
 }
@@ -21,6 +23,7 @@ var _ ISender = (*Client)(nil)
 
 func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
 	cc := &Client{
+		streamTool:   rpcRouter.streamTool,
 		frameCodec:   rpcRouter.frameCodec,
 		payloadCodec: rpcRouter.payloadCodec,
 	}
@@ -28,7 +31,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 		cli:       cc,
 		rpcRouter: rpcRouter,
 	}
-	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
+	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler), kknet.WithStreamTool(rpcRouter.streamTool))
 	cc.cli = kktcp.NewClient(addr, handler, opts)
 	cc.pending = newPendingMap()
 	return cc
@@ -36,6 +39,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 
 func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
 	cc := &Client{
+		streamTool:   rpcRouter.streamTool,
 		frameCodec:   rpcRouter.frameCodec,
 		payloadCodec: rpcRouter.payloadCodec,
 	}
@@ -72,6 +76,10 @@ func (c *Client) IsStopped() bool {
 
 func (c *Client) getPending() *pendingMap {
 	return c.pending
+}
+
+func (c *Client) getStreamTool() kkpacket.IPacket {
+	return c.streamTool
 }
 
 func (c *Client) getFrameCodec() kkcodec.ICodec {

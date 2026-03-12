@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -46,9 +47,10 @@ func runRpcDemo(addr string) {
 	kkrpc.RegisterReqRspMethod[EchoReq, EchoRsp]("Echo")
 	kkrpc.RegisterOneWayMethod[PingReq]("Ping")
 
+	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-	rpcRouter := kkrpc.NewRpcReceiver(gFrameCodec, gPayloadCodec)
+	rpcRouter := kkrpc.NewRpcReceiver(gStreamTool, gFrameCodec, gPayloadCodec)
 	kkrpc.RegistReqRspHandler(rpcRouter, "Echo", onEcho)
 	kkrpc.RegistOneWayHandler(rpcRouter, "Ping", onPing)
 

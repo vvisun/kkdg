@@ -99,14 +99,16 @@ func TestWSConn_AsyncSend_Order(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 
-	opts := kknet.ApplyOptions()
+	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(testStreamTool),
+	)
 	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
 	const n = 50
 	for i := 0; i < n; i++ {
 		payload := []byte(fmt.Sprintf("m%d", i))
-		bb, err := testStreamTool.Pack(payload)
+		bb, err := opts.StreamTool.Pack(payload)
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -117,7 +119,7 @@ func TestWSConn_AsyncSend_Order(t *testing.T) {
 
 	for i := 0; i < n; i++ {
 		frame := mustRecv(t, recv, 2*time.Second)
-		msg, err := testStreamTool.Unpack(frame)
+		msg, err := opts.StreamTool.Unpack(frame)
 		if err != nil {
 			t.Fatalf("unpack error: %v", err)
 		}
@@ -134,7 +136,7 @@ func TestWSConn_AsyncSend_Order(t *testing.T) {
 func fillQueueAndBlockWriteBatch(t *testing.T, wc *wsConn, prefix string) {
 	t.Helper()
 	for i := 0; i < 2; i++ {
-		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("%s%d", prefix, i)))
+		bb, err := wc.opts.StreamTool.Pack([]byte(fmt.Sprintf("%s%d", prefix, i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -144,7 +146,7 @@ func fillQueueAndBlockWriteBatch(t *testing.T, wc *wsConn, prefix string) {
 	}
 	time.Sleep(50 * time.Millisecond)
 	for i := 2; i < 4; i++ {
-		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("%s%d", prefix, i)))
+		bb, err := wc.opts.StreamTool.Pack([]byte(fmt.Sprintf("%s%d", prefix, i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -161,7 +163,10 @@ func TestWSConn_SendQueueFullAction_Drop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(2))
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueSize(2),
+		kknet.WithStreamTool(testStreamTool),
+	)
 	opts.WpOptions.SendQueueStrict = true
 	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionDrop
 	opts.WpOptions.SendQueueNeedFlushOver = false
@@ -170,7 +175,7 @@ func TestWSConn_SendQueueFullAction_Drop(t *testing.T) {
 
 	wc.writeMu.Lock()
 	fillQueueAndBlockWriteBatch(t, wc, "d")
-	bb, _ := testStreamTool.Pack([]byte("overflow"))
+	bb, _ := opts.StreamTool.Pack([]byte("overflow"))
 	// Drop 模式：队列满时返回 nil，消息被丢弃
 	if err := wc.SendBuffer(bb); err != nil {
 		t.Fatalf("Drop mode should return nil when full, got %v", err)
@@ -194,7 +199,10 @@ func TestWSConn_SendQueueFullAction_Block(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(2))
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueSize(2),
+		kknet.WithStreamTool(testStreamTool),
+	)
 	opts.WpOptions.SendQueueStrict = true
 	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionBlock
 	opts.WpOptions.SendQueueNeedFlushOver = false
@@ -204,7 +212,7 @@ func TestWSConn_SendQueueFullAction_Block(t *testing.T) {
 	fillQueueAndBlockWriteBatch(t, wc, "b")
 	blockErrCh := make(chan error, 1)
 	go func() {
-		bb, _ := testStreamTool.Pack([]byte("blocked"))
+		bb, _ := wc.opts.StreamTool.Pack([]byte("blocked"))
 		blockErrCh <- wc.SendBuffer(bb)
 	}()
 	// Block 模式：应阻塞
@@ -239,7 +247,10 @@ func TestWSConn_SendQueueFullAction_Retry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(2))
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueSize(2),
+		kknet.WithStreamTool(testStreamTool),
+	)
 	opts.WpOptions.SendQueueStrict = true
 	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionRetry
 	opts.WpOptions.SendQueueRetryMaxCount = 3
@@ -250,7 +261,7 @@ func TestWSConn_SendQueueFullAction_Retry(t *testing.T) {
 
 	wc.writeMu.Lock()
 	fillQueueAndBlockWriteBatch(t, wc, "r")
-	bb, _ := testStreamTool.Pack([]byte("overflow"))
+	bb, _ := wc.opts.StreamTool.Pack([]byte("overflow"))
 	if err := wc.SendBuffer(bb); err == nil {
 		t.Fatal("Retry mode: expected ErrSendQueueFull, got nil")
 	} else if err != kkerrors.ErrNetSendQueueFull {
@@ -276,7 +287,10 @@ func TestWSConn_SendQueueFullAction_Retry_MaxCount1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(2))
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueSize(2),
+		kknet.WithStreamTool(testStreamTool),
+	)
 	opts.WpOptions.SendQueueStrict = true
 	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionRetry
 	opts.WpOptions.SendQueueRetryMaxCount = 1
@@ -287,7 +301,7 @@ func TestWSConn_SendQueueFullAction_Retry_MaxCount1(t *testing.T) {
 
 	wc.writeMu.Lock()
 	fillQueueAndBlockWriteBatch(t, wc, "m")
-	bb, _ := testStreamTool.Pack([]byte("overflow"))
+	bb, _ := wc.opts.StreamTool.Pack([]byte("overflow"))
 	if err := wc.SendBuffer(bb); err != kkerrors.ErrNetSendQueueFull {
 		t.Errorf("RetryMaxCount=1: got %v, want ErrSendQueueFull", err)
 	}
@@ -306,7 +320,10 @@ func TestWSConn_SendQueueStrict_False(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(4))
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueSize(4),
+		kknet.WithStreamTool(testStreamTool),
+	)
 	opts.WpOptions.SendQueueStrict = false
 	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionRetry
 	opts.WpOptions.SendQueueNeedFlushOver = false
@@ -316,7 +333,7 @@ func TestWSConn_SendQueueStrict_False(t *testing.T) {
 	// 快速发送较多消息，非严格模式应全部成功
 	const n = 100
 	for i := 0; i < n; i++ {
-		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("n%d", i)))
+		bb, err := wc.opts.StreamTool.Pack([]byte(fmt.Sprintf("n%d", i)))
 		if err != nil {
 			t.Fatalf("pack: %v", err)
 		}
@@ -355,14 +372,17 @@ func TestWSConn_SendQueueFullAction_AfterClose(t *testing.T) {
 			if err != nil {
 				t.Fatalf("dial: %v", err)
 			}
-			opts := kknet.ApplyOptions(kknet.WithSendQueueSize(2))
+			opts := kknet.ApplyOptions(
+				kknet.WithSendQueueSize(2),
+				kknet.WithStreamTool(testStreamTool),
+			)
 			opts.WpOptions.SendQueueStrict = true
 			opts.WpOptions.SendQueueFullAction = action
 			opts.WpOptions.SendQueueRetryMaxCount = 3
 			wc := newWSConn(c, &opts, nil)
 			_ = wc.Close()
 
-			bb, _ := testStreamTool.Pack([]byte("after-close"))
+			bb, _ := wc.opts.StreamTool.Pack([]byte("after-close"))
 			err = wc.SendBuffer(bb)
 			if err != kkerrors.ErrNetConnectionClosed {
 				t.Errorf("SendBuffer after Close: got %v, want ErrConnectionClosed", err)
@@ -380,7 +400,10 @@ func TestWSConn_Close_FlushOver(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(64))
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueSize(64),
+		kknet.WithStreamTool(testStreamTool),
+	)
 	opts.WpOptions.SendQueueNeedFlushOver = true
 	opts.WpOptions.SendQueueTimeoutFlushOver = 2 * time.Second
 	wc := newWSConn(c, &opts, nil)
@@ -389,7 +412,7 @@ func TestWSConn_Close_FlushOver(t *testing.T) {
 	wc.writeMu.Lock()
 	const n = 10
 	for i := 0; i < n; i++ {
-		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("f%d", i)))
+		bb, err := wc.opts.StreamTool.Pack([]byte(fmt.Sprintf("f%d", i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -478,6 +501,7 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 		kknet.WithSendQueueSize(256),
 		kknet.WithWriteTimeout(300*time.Millisecond),
 		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithStreamTool(testStreamTool),
 	)
 	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
@@ -492,7 +516,7 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 	// enqueue multiple messages quickly; some will be pending when peer closes.
 	const n = 50
 	for i := 0; i < n; i++ {
-		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("e%d", i)))
+		bb, err := wc.opts.StreamTool.Pack([]byte(fmt.Sprintf("e%d", i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -530,13 +554,16 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 		t.Fatalf("dial error: %v", err)
 	}
 
-	opts := kknet.ApplyOptions(kknet.WithSendQueueSize(256))
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueSize(256),
+		kknet.WithStreamTool(testStreamTool),
+	)
 	opts.WpOptions.SendQueueNeedFlushOver = false
 	wc := newWSConn(c, &opts, nil)
 
 	// enqueue some messages, then close immediately. We only assert it doesn't block.
 	for i := 0; i < 100; i++ {
-		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("c%d", i)))
+		bb, err := wc.opts.StreamTool.Pack([]byte(fmt.Sprintf("c%d", i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -573,7 +600,9 @@ func TestWSConn_RemoteAddr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial error: %v", err)
 	}
-	opts := kknet.ApplyOptions()
+	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(testStreamTool),
+	)
 	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 
@@ -591,11 +620,13 @@ func TestWSConn_SendBuffer_AfterClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial error: %v", err)
 	}
-	opts := kknet.ApplyOptions()
+	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(testStreamTool),
+	)
 	wc := newWSConn(c, &opts, nil)
 	_ = wc.Close()
 
-	bb, err := testStreamTool.Pack([]byte("after close"))
+	bb, err := wc.opts.StreamTool.Pack([]byte("after close"))
 	if err != nil {
 		t.Fatalf("pack error: %v", err)
 	}
@@ -613,7 +644,9 @@ func TestWSConn_InvalidPacket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial error: %v", err)
 	}
-	opts := kknet.ApplyOptions()
+	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(testStreamTool),
+	)
 	wc := newWSConn(c, &opts, nil)
 	defer wc.Close()
 

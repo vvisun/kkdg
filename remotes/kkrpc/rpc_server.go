@@ -2,6 +2,7 @@ package kkrpc
 
 import (
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
@@ -12,6 +13,7 @@ type Server struct {
 	tcp              kknet.IServer
 	pending          *pendingMap
 	lifeCycleHandler kknet.IConnLifecycleHandler
+	streamTool       kkpacket.IPacket
 	frameCodec       kkcodec.ICodec
 	payloadCodec     kkcodec.ICodec
 }
@@ -21,6 +23,7 @@ var _ ISender = (*Server)(nil)
 
 func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
 	s := &Server{
+		streamTool:   rpcRouter.streamTool,
 		frameCodec:   rpcRouter.frameCodec,
 		payloadCodec: rpcRouter.payloadCodec,
 	}
@@ -36,6 +39,7 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 
 func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
 	s := &Server{
+		streamTool:   rpcRouter.streamTool,
 		frameCodec:   rpcRouter.frameCodec,
 		payloadCodec: rpcRouter.payloadCodec,
 	}
@@ -43,7 +47,7 @@ func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, svrCreator
 		svr:       s,
 		rpcRouter: rpcRouter,
 	}
-	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler))
+	kkoption.ApplyOptionsTo(&opts, kknet.WithRawHandler(handler), kknet.WithStreamTool(rpcRouter.streamTool))
 	s.tcp = svrCreator(handler, opts)
 	s.pending = newPendingMap()
 	return s
@@ -72,6 +76,10 @@ func (s *Server) getPending() *pendingMap {
 
 func (s *Server) SetLifeCycleHandler(handler kknet.IConnLifecycleHandler) {
 	s.lifeCycleHandler = handler
+}
+
+func (s *Server) getStreamTool() kkpacket.IPacket {
+	return s.streamTool
 }
 
 func (s *Server) getFrameCodec() kkcodec.ICodec {

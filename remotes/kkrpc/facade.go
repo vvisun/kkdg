@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
@@ -18,6 +19,7 @@ type ISender interface {
 	//  @return error 错误
 	SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) error
 	getPending() *pendingMap
+	getStreamTool() kkpacket.IPacket
 	getFrameCodec() kkcodec.ICodec
 	getPayloadCodec() kkcodec.ICodec
 }
