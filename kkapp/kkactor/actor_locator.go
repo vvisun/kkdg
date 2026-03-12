@@ -101,6 +101,26 @@ func (slf *ActorLocator) AddActor(id LucencyActorID, pid *actor.PID) error {
 	return nil
 }
 
+func (slf *ActorLocator) AddActorEx(nodeId, actorKey string, pid *actor.PID) error {
+	if !kkapp.IsValidActorKey(actorKey) {
+		return kkerrors.ErrActorInvalidActorKey
+	}
+	if !kkapp.IsValidActorNodeId(nodeId) {
+		return kkerrors.ErrActorInvalidNodeId
+	}
+	if pid == nil {
+		return kkerrors.ErrActorAddInvalidPID
+	}
+	id := LucencyActorID{
+		nodeID:   nodeId,
+		actorKey: actorKey,
+	}
+	slf.mu.Lock()
+	slf.actors[id] = pid
+	slf.mu.Unlock()
+	return nil
+}
+
 func (slf *ActorLocator) RemoveActor(id LucencyActorID) error {
 	slf.mu.Lock()
 	delete(slf.actors, id)

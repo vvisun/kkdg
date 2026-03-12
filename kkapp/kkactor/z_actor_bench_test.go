@@ -72,6 +72,7 @@ func BenchmarkActorLocator_AddActor(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		id, _ := NewLucencyActorID("", "bench_actor")
 		_ = loc.AddActor(id, pids[i%poolSize])
+		// _ = loc.AddActorEx("", "bench_actor", pids[i%poolSize])
 	}
 }
 
