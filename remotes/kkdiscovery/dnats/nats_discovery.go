@@ -7,8 +7,10 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkmetrics"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -56,7 +58,7 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 	if settings == nil {
 		settings = make(map[string]string)
 	}
-	return &NatsDiscovery{
+	d := &NatsDiscovery{
 		name:        name,
 		nodeID:      nodeInfo.GetNodeId(),
 		nodeType:    nodeInfo.GetNodeType(),
@@ -69,6 +71,17 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 		options:     opts,
 		msgCodec:    discoveryOpt.MsgCodec,
 	}
+
+	// 订阅 discovery metrics 事件，通过 Stats 快照填充 MetricsEventData
+	_ = kkevent.Subscribe(kkmetrics.EventDiscoveryMetrics, func(e *kkmetrics.MetricsEventData) {
+		if e == nil {
+			return
+		}
+		snap := d.Stats()
+		e.Metrics = kkdiscovery.MetricsFromSnapshot(e.Namespace, snap)
+	})
+
+	return d
 }
 
 // Name 返回发现服务名称

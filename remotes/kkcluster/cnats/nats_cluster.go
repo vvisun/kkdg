@@ -7,10 +7,12 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kkmetrics"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kktime"
 	"github.com/vvisun/kkdg/utils/xcall"
@@ -88,6 +90,10 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 // Start 初始化集群
 func (c *NatsCluster) Start() error {
 	kklog.Infof("NatsCluster(%s) startup", c.nodeID)
+	kkevent.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
+		snap := c.Stats()
+		e.Metrics = kkcluster.MetricsFromSnapshot(e.Namespace, snap)
+	})
 	return c.connectAndSubscribe()
 }
 

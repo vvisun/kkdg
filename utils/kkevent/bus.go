@@ -265,3 +265,17 @@ func (bus *EventBus) setUpPublish(callback *eventHandler, args ...interface{}) [
 func (bus *EventBus) WaitAsync() {
 	bus.wg.Wait()
 }
+
+// DefaultBus is a global event bus instance for simple use cases.
+var DefaultBus = NewEventBus()
+
+// Publish sends an event on the default bus.
+func Publish(topic string, args ...interface{}) {
+	DefaultBus.Publish(topic, args...)
+}
+
+// Subscribe registers a handler on the default bus.
+func Subscribe(topic string, fn interface{}) error {
+	return DefaultBus.Subscribe(topic, fn)
+}
+

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -8,6 +9,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
+	"github.com/vvisun/kkdg/kkmetrics"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
@@ -20,6 +22,18 @@ func main() {
 
 	// gate 节点
 	gateApp := runGate()
+
+	// init metrics (Prometheus + OTel), expose /metrics on :2112
+	ctx := context.Background()
+	if err := kkmetrics.Init(ctx, ":2112"); err != nil {
+		kklog.Errorf("init metrics: %v", err)
+	}
+	if err := kkmetrics.InitDiscoveryMetrics(ctx); err != nil {
+		kklog.Errorf("init discovery metrics: %v", err)
+	}
+	if err := kkmetrics.InitClusterMetrics(ctx); err != nil {
+		kklog.Errorf("init cluster metrics: %v", err)
+	}
 
 	// 等待信号退出
 	signalCh := make(chan os.Signal, 1)
@@ -57,3 +71,4 @@ func runGate() *component.Application {
 	}
 	return gateApp
 }
+
