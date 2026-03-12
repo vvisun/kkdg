@@ -17,8 +17,9 @@ type ReqRspInvoker[T any, R any] struct {
 	method string // 构造时验证并缓存，调用时不再 CheckReqResp
 }
 
-// NewReqRspInvoker 创建请求响应调用器。method 必须在 RegisterReqRspMethod 中已注册，否则 panic。
-// 服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
+// NewReqRspInvoker 创建请求响应调用器。method 必须在 RegisterReqRspMethod 中已注册。
+//
+//	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
 func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) (ReqRspInvoker[T, R], error) {
 	method, ok := verifyReqRespMethod[T, R]()
 	if !ok {
@@ -127,7 +128,9 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 	}
 }
 
-// InvokeAsync 异步调用（非阻塞等待结果）。若 opts 或 ctx 设置了超时，超时未收到响应会调用 callback(nil, ErrTimeout)，且仅回调一次。
+// InvokeAsync 异步调用（非阻塞等待结果）。
+//
+//	若 opts 或 ctx 设置了超时，超时未收到响应会调用 callback(nil, ErrTimeout)，且仅回调一次。
 func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
 	if i.sender.getPending().IsClosed() {
 		return kkerrors.ErrRpcConnClosed
