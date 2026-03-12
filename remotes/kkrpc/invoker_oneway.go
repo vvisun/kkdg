@@ -18,7 +18,7 @@ type OneWayInvoker[T any] struct {
 //
 //	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 会被忽略，直接发送给client所连接的server。
 func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) (OneWayInvoker[T], error) {
-	method, ok := verifyOneWayMethod[T]()
+	method, ok := verifyOneWayMethod[T](sender.getMethodManager())
 	if !ok {
 		kklog.Errorf("OneWayInvoker: method %q not registered for type %T", method, (*T)(nil))
 		return OneWayInvoker[T]{}, kkerrors.ErrRpcMethodNotRegistered
@@ -75,36 +75,36 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig)
 //	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 会被忽略，直接发送给client所连接的server。
 //	已废弃，请使用【NewOneWayInvoker + InvokeNR】 代替。
 //	区别在于：该函数会在调用时反射获取method，而NewOneWayInvoker会缓存method。
-func InvokeOneWay(ctx context.Context, sender ISender, connId kknet.CONN_ID, req any, opts CallConfig) error {
-	method := gRpcManager.getMethod(req)
-	if method == "" {
-		return kkerrors.ErrRpcMethodNotRegistered
-	}
-	pending := sender.getPending()
-	if pending.IsClosed() {
-		return kkerrors.ErrRpcConnClosed
-	}
-	if pending.stats != nil {
-		pending.stats.AddOnewayStart()
-	}
-	bb, err := EncodeRpcFrame(
-		sender.getStreamTool(), sender.getFrameCodec(), sender.getPayloadCodec(),
-		FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
-	if err != nil {
-		kklog.Errorf("encode rpc frame: %v", err)
-		if pending.stats != nil {
-			pending.stats.AddOnewayError()
-			pending.stats.AddInternalError()
-		}
-		return err
-	}
-	err = sender.SendBuffer(connId, bb)
-	if err != nil {
-		if pending.stats != nil {
-			pending.stats.AddOnewayError()
-			pending.stats.AddInternalError()
-		}
-		return err
-	}
-	return nil
-}
+// func InvokeOneWay(ctx context.Context, sender ISender, connId kknet.CONN_ID, req any, opts CallConfig) error {
+// 	method := gRpcManager.getMethod(req)
+// 	if method == "" {
+// 		return kkerrors.ErrRpcMethodNotRegistered
+// 	}
+// 	pending := sender.getPending()
+// 	if pending.IsClosed() {
+// 		return kkerrors.ErrRpcConnClosed
+// 	}
+// 	if pending.stats != nil {
+// 		pending.stats.AddOnewayStart()
+// 	}
+// 	bb, err := EncodeRpcFrame(
+// 		sender.getStreamTool(), sender.getFrameCodec(), sender.getPayloadCodec(),
+// 		FrameTypeOneway, 0, method, req, ctxDeadlineUnixMs(ctx))
+// 	if err != nil {
+// 		kklog.Errorf("encode rpc frame: %v", err)
+// 		if pending.stats != nil {
+// 			pending.stats.AddOnewayError()
+// 			pending.stats.AddInternalError()
+// 		}
+// 		return err
+// 	}
+// 	err = sender.SendBuffer(connId, bb)
+// 	if err != nil {
+// 		if pending.stats != nil {
+// 			pending.stats.AddOnewayError()
+// 			pending.stats.AddInternalError()
+// 		}
+// 		return err
+// 	}
+// 	return nil
+// }

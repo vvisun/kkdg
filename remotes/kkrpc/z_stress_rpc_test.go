@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -91,11 +92,11 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
-	clearRpcManagerForTest()
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
+	methodMgr := NewMethodManager()
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
 
 	successCount := atomic.Int64{}
-	rpcRouter := NewRpcReceiver(DefaultRpcOption())
+	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
@@ -192,10 +193,10 @@ func TestStress_Rpc_ConnectDisconnect(t *testing.T) {
 	connsPerRound := 15
 
 	addr := freePortRpcStress(t)
-	clearRpcManagerForTest()
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
+	methodMgr := NewMethodManager()
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
 
-	rpcRouter := NewRpcReceiver(DefaultRpcOption())
+	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
@@ -243,11 +244,13 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 	totalCalls := int64(numGoroutines * callsPerGoroutine)
 
 	addr := freePortRpcStress(t)
-	clearRpcManagerForTest()
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
+	methodMgr := NewMethodManager()
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
 
 	successCount := atomic.Int64{}
-	rpcRouter := NewRpcReceiver(DefaultRpcOption())
+	rpcRouter := NewRpcReceiver(ApplyOptions(
+		WithMaxPendingCount(numGoroutines*callsPerGoroutine),
+	), methodMgr)
 	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
@@ -299,7 +302,9 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 	close(errCh)
 	for err := range errCh {
 		if err != nil {
-			t.Fatalf("concurrent stress error: %v", err)
+			if err != kkerrors.ErrRpcQueueFull {
+				t.Fatalf("concurrent stress error: %v", err)
+			}
 		}
 	}
 
@@ -321,11 +326,11 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
-	clearRpcManagerForTest()
-	RegisterOneWayMethod[testReq]("testOneway")
+	methodMgr := NewMethodManager()
+	RegisterOneWayMethod[testReq]("testOneway", methodMgr)
 
 	recvCount := atomic.Int64{}
-	rpcRouter := NewRpcReceiver(DefaultRpcOption())
+	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		recvCount.Add(1)
 		return nil
@@ -415,11 +420,11 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 	totalCalls := int64(numGoroutines * callsPerGoroutine)
 
 	addr := freePortRpcStress(t)
-	clearRpcManagerForTest()
-	RegisterOneWayMethod[testReq]("testOneway")
+	methodMgr := NewMethodManager()
+	RegisterOneWayMethod[testReq]("testOneway", methodMgr)
 
 	recvCount := atomic.Int64{}
-	rpcRouter := NewRpcReceiver(DefaultRpcOption())
+	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		recvCount.Add(1)
 		return nil

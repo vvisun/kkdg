@@ -67,21 +67,21 @@ func EncodeRpcFrameWithPayload(
 	return bb1, nil
 }
 
-func EncodeRpcFrameEx(
-	streamTool kkpacket.IPacket,
-	frameCodec kkcodec.ICodec,
-	payloadCodec kkcodec.ICodec,
-	ft FrameType,
-	reqId uint64,
-	msg any,
-	deadlineMs int64,
-) (*kkbuffer.ByteBuffer, error) {
-	method := gRpcManager.getMethod(msg)
-	if method == "" {
-		return nil, kkerrors.ErrRpcMethodNotRegistered
-	}
-	return EncodeRpcFrame(streamTool, frameCodec, payloadCodec, ft, reqId, method, msg, deadlineMs)
-}
+// func EncodeRpcFrameEx(
+// 	streamTool kkpacket.IPacket,
+// 	frameCodec kkcodec.ICodec,
+// 	payloadCodec kkcodec.ICodec,
+// 	ft FrameType,
+// 	reqId uint64,
+// 	msg any,
+// 	deadlineMs int64,
+// ) (*kkbuffer.ByteBuffer, error) {
+// 	method := gRpcManager.getMethod(msg)
+// 	if method == "" {
+// 		return nil, kkerrors.ErrRpcMethodNotRegistered
+// 	}
+// 	return EncodeRpcFrame(streamTool, frameCodec, payloadCodec, ft, reqId, method, msg, deadlineMs)
+// }
 
 func EncodeRpcFrame(
 	streamTool kkpacket.IPacket,

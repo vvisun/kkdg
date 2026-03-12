@@ -11,19 +11,19 @@ var (
 	initOnce sync.Once
 )
 
-func InitMsgs() {
+func InitMsgs(methodMgr *kkrpc.MethodManager) {
+	kkrpc.RegisterOneWayMethod[RpcMsgRegister]("register", methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcS2Client]("s2c", methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcS2Clients]("s2cs", methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcC2S]("c2s", methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcClientDisconnect]("clientDisconnect", methodMgr)
+
 	initOnce.Do(func() {
-		initMsgs()
+		initShardMsgs()
 	})
 }
 
-func initMsgs() {
-	kkrpc.RegisterOneWayMethod[RpcMsgRegister]("register")
-	kkrpc.RegisterOneWayMethod[RpcS2Client]("s2c")
-	kkrpc.RegisterOneWayMethod[RpcS2Clients]("s2cs")
-	kkrpc.RegisterOneWayMethod[RpcC2S]("c2s")
-	kkrpc.RegisterOneWayMethod[RpcClientDisconnect]("clientDisconnect")
-
+func initShardMsgs() {
 	kkapp.GetTransMsgPacket().GetRouter().Register(1, &RpcMsgRegister{}, "logic")
 	kkapp.GetTransMsgPacket().GetRouter().Register(2, &RpcS2Client{}, "logic")
 	kkapp.GetTransMsgPacket().GetRouter().Register(3, &RpcS2Clients{}, "logic")

@@ -21,7 +21,7 @@ type ReqRspInvoker[T any, R any] struct {
 //
 //	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
 func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) (ReqRspInvoker[T, R], error) {
-	method, ok := verifyReqRespMethod[T, R]()
+	method, ok := verifyReqRespMethod[T, R](sender.getMethodManager())
 	if !ok {
 		kklog.Errorf("ReqRspInvoker: method %q not registered for types %T, %T", method, (*T)(nil), (*R)(nil))
 		return ReqRspInvoker[T, R]{}, kkerrors.ErrRpcMethodNotRegistered

@@ -17,6 +17,7 @@ type Server struct {
 	lifeCycleHandler kknet.IConnLifecycleHandler
 	rpcOpts          RpcOption
 	stats            RpcStats
+	methodMgr        *MethodManager //不用创建，从rpcRouter中传入
 }
 
 var _ IRpcServer = (*Server)(nil)
@@ -25,7 +26,8 @@ var _ ISender = (*Server)(nil)
 func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	s := &Server{
-		rpcOpts: rpcRouter.rpcOpts,
+		rpcOpts:   rpcRouter.rpcOpts,
+		methodMgr: rpcRouter.methodMgr,
 	}
 	handler := &serverHandler{
 		svr:       s,
@@ -44,7 +46,8 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, rpcOpts RpcOption, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
 	CheckRpcOption(&rpcOpts)
 	s := &Server{
-		rpcOpts: rpcOpts,
+		rpcOpts:   rpcOpts,
+		methodMgr: rpcRouter.methodMgr,
 	}
 	handler := &serverHandler{
 		svr:       s,
@@ -95,6 +98,10 @@ func (s *Server) getFrameCodec() kkcodec.ICodec {
 
 func (s *Server) getPayloadCodec() kkcodec.ICodec {
 	return s.rpcOpts.PayloadCodec
+}
+
+func (s *Server) getMethodManager() *MethodManager {
+	return s.methodMgr
 }
 
 func (s *Server) Stats() RpcStatsSnapshot {

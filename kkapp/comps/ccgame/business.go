@@ -11,7 +11,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans/gametransnats"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans/gametransrpc"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans/gametransshard"
-	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
@@ -25,7 +24,6 @@ func NewGameComponent(opt Option) *gameComponent {
 	if err := validateOption(&opt); err != nil {
 		kklog.PanicErr(err)
 	}
-	ptotrans.InitMsgs()
 	streamTool := kkapp.GetStreamTool()
 	messageTool := kkapp.GetMsgPacket()
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)

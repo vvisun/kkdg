@@ -22,6 +22,7 @@ type ISender interface {
 	getStreamTool() kkpacket.IPacket
 	getFrameCodec() kkcodec.ICodec
 	getPayloadCodec() kkcodec.ICodec
+	getMethodManager() *MethodManager
 	Stats() RpcStatsSnapshot
 }
 

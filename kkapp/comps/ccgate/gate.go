@@ -11,7 +11,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transnat"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transrpc"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transshard"
-	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -59,7 +58,6 @@ func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 	if err := validateOption(&gateOpt); err != nil {
 		kklog.PanicErr(err)
 	}
-	ptotrans.InitMsgs()
 	return &gateComponent{
 		opt:        gateOpt,
 		serverOpt:  serverOpt,

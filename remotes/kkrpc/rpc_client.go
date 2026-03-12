@@ -12,11 +12,12 @@ import (
 )
 
 type Client struct {
-	cli     kknet.IClient
-	pending *pendingMap
-	stopped bool
-	rpcOpts RpcOption
-	stats   RpcStats
+	cli       kknet.IClient
+	pending   *pendingMap
+	stopped   bool
+	rpcOpts   RpcOption
+	stats     RpcStats
+	methodMgr *MethodManager //不用创建，从rpcRouter中传入
 }
 
 var _ IRpcClient = (*Client)(nil)
@@ -25,7 +26,8 @@ var _ ISender = (*Client)(nil)
 func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
-		rpcOpts: rpcRouter.rpcOpts,
+		rpcOpts:   rpcRouter.rpcOpts,
+		methodMgr: rpcRouter.methodMgr,
 	}
 	rpcRouter.stats = &cc.stats
 	handler := &clientHandler{
@@ -45,7 +47,8 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
-		rpcOpts: rpcRouter.rpcOpts,
+		rpcOpts:   rpcRouter.rpcOpts,
+		methodMgr: rpcRouter.methodMgr,
 	}
 	rpcRouter.stats = &cc.stats
 	handler := &clientHandler{
@@ -97,6 +100,10 @@ func (c *Client) getFrameCodec() kkcodec.ICodec {
 
 func (c *Client) getPayloadCodec() kkcodec.ICodec {
 	return c.rpcOpts.PayloadCodec
+}
+
+func (c *Client) getMethodManager() *MethodManager {
+	return c.methodMgr
 }
 
 func (c *Client) Stats() RpcStatsSnapshot {

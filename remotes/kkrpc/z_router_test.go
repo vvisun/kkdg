@@ -9,7 +9,9 @@ import (
 )
 
 func TestRouter_ReqRsp(t *testing.T) {
-	router := NewRpcReceiver(DefaultRpcOption())
+	methodMgr := NewMethodManager()
+	RegisterReqRspMethod[testReq, testRsp]("test", methodMgr)
+	router := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		resp.Code = 0
@@ -29,7 +31,9 @@ func TestRouter_ReqRsp(t *testing.T) {
 }
 
 func TestRouter_OneWay(t *testing.T) {
-	router := NewRpcReceiver(DefaultRpcOption())
+	methodMgr := NewMethodManager()
+	RegisterOneWayMethod[testReq]("test", methodMgr)
+	router := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistOneWayHandler(router, "test", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		return nil

@@ -15,7 +15,7 @@ type (
 	}
 )
 
-type rpcManager struct {
+type MethodManager struct {
 	mu                sync.Mutex
 	type2methodReqRsp map[reflect.Type]string
 	method2typeReqRsp map[string]methodReqRsp
@@ -23,7 +23,7 @@ type rpcManager struct {
 	method2typeOneWay map[string]methonOneWay
 }
 
-func (rm *rpcManager) getMethod(msg any) string {
+func (rm *MethodManager) getMethod(msg any) string {
 	tp := reflect.TypeOf(msg)
 	method, ok := rm.type2methodOneWay[tp]
 	if ok {
@@ -36,8 +36,8 @@ func (rm *rpcManager) getMethod(msg any) string {
 	return ""
 }
 
-func newRpcManager() *rpcManager {
-	return &rpcManager{
+func NewMethodManager() *MethodManager {
+	return &MethodManager{
 		type2methodReqRsp: make(map[reflect.Type]string),
 		method2typeReqRsp: make(map[string]methodReqRsp),
 		type2methodOneWay: make(map[reflect.Type]string),

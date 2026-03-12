@@ -91,10 +91,21 @@ func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameTy
 //---------------------------------------------------------------
 
 type RpcReceiver struct {
-	stats     *RpcStats
+	stats     *RpcStats //不用创建，从rpcServer/rpcClient中传入
 	hdMap     map[string]IReqRspHandler
 	oneWayMap map[string]IOneWayHandler
 	rpcOpts   RpcOption
+	methodMgr *MethodManager
+}
+
+func NewRpcReceiver(rpcOpts RpcOption, methodMgr *MethodManager) *RpcReceiver {
+	CheckRpcOption(&rpcOpts)
+	return &RpcReceiver{
+		hdMap:     make(map[string]IReqRspHandler),
+		oneWayMap: make(map[string]IOneWayHandler),
+		rpcOpts:   rpcOpts,
+		methodMgr: methodMgr,
+	}
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
@@ -211,13 +222,4 @@ func (r *RpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) error {
 	ctx, cancel := deadlineCtx(fr.DL)
 	defer cancel()
 	return h.OnMsg(ctx, fr.P, fr.T, connId)
-}
-
-func NewRpcReceiver(rpcOpts RpcOption) *RpcReceiver {
-	CheckRpcOption(&rpcOpts)
-	return &RpcReceiver{
-		hdMap:     make(map[string]IReqRspHandler),
-		oneWayMap: make(map[string]IOneWayHandler),
-		rpcOpts:   rpcOpts,
-	}
 }
