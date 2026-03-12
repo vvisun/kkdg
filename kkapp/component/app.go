@@ -47,6 +47,7 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFrame
 		panic("nodeInfo is nil")
 	}
 	if actorFramework == nil {
+		kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application actorFramework is nil, use default", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 		actorFramework = getGlobalActorFramework()
 	}
 	actorFramework.GetLocator().AddNode(nodeInfo)
@@ -56,7 +57,7 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFrame
 		state:          ComponentStateNone,
 		compList:       make([]kkapp.IComponent, 0),
 	}
-	kklog.Infof("[kkapp] new application nodeId: %s, nodeType: %s", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
+	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
 }
 

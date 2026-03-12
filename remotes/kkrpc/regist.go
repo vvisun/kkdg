@@ -12,6 +12,7 @@ import (
 func RegisterReqRspMethod[REQ any, RSP any](method string) {
 	_, ok := newReqResp[REQ, RSP](method)
 	if !ok {
+		// 错误直接蹦就行，避免将影响延迟到运行期带来不可预知的错误
 		panic(fmt.Sprintf("register reqrsp method %s failed", method))
 	}
 }
@@ -21,6 +22,7 @@ func RegisterReqRspMethod[REQ any, RSP any](method string) {
 func RegisterOneWayMethod[REQ any](method string) {
 	_, ok := newOneWay[REQ](method)
 	if !ok {
+		// 错误直接蹦就行，避免将影响延迟到运行期带来不可预知的错误
 		panic(fmt.Sprintf("register oneway method %s failed", method))
 	}
 }
