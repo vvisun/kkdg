@@ -51,7 +51,7 @@ func main() {
 }
 
 func runOneClient() kknet.IClient {
-	streamTool := kkpacket.DefaultStreamPacket()
+	streamTool := kkapp.GetStreamTool()
 	messageTool := kkapp.GetMsgPacket()
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	msgReceiver := msgreceiver.NewMsgReceiver[kknet.CONN_ID](packetTool)
@@ -65,8 +65,9 @@ func runOneClient() kknet.IClient {
 
 	var client kknet.IClient
 	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(streamTool),
+		kknet.WithMsgPacket(messageTool),
 		kknet.WithRawHandler(msgReceiver),
-		kknet.WithMsgPacket(packetTool.GetMessageTool()),
 	)
 	if examapp.GateWSAddr != "" {
 		u := url.URL{Scheme: "ws", Host: examapp.GateWSAddr, Path: "/ws"}

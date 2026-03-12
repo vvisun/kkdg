@@ -79,6 +79,7 @@ func runEchoDemo(addr string, tlsCfg *tls.Config) {
 	streamTool := kkpacket.DefaultStreamPacket()
 
 	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(streamTool),
 		kknet.WithRawHandler(echoHandler),
 		kknet.WithLogger(kklog.GetConsoleLogger()),
 		kknet.WithTLSConfig(tlsCfg),

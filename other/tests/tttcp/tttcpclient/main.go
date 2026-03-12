@@ -92,6 +92,7 @@ func (h *stressRecvHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
 func runOneClient(serverAddr string, rawMsg []byte) {
 	recv := &stressRecvHandler{}
 	client := kktcp.NewClient(serverAddr, nil, kknet.ApplyOptions(
+		kknet.WithStreamTool(streamTool),
 		kknet.WithNoneCopyHandler(recv),
 		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		kknet.WithLogger(kklog.GetConsoleLogger()),

@@ -121,6 +121,7 @@ func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
 		t.Fatalf("Register: %v", err)
 	}
 	kkapp.ConfigDefaults(
+		kkpacket.DefaultStreamPacket(),
 		kkpacket.NewMessagePacket(
 			kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
 			kkcodec.GetCodec(kkcodec.CodecTypeJson),
@@ -191,6 +192,7 @@ func Benchmark_gateHandler_OnRaw_throughput(b *testing.B) {
 		b.Fatalf("Register: %v", err)
 	}
 	kkapp.ConfigDefaults(
+		kkpacket.DefaultStreamPacket(),
 		kkpacket.NewMessagePacket(
 			kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
 			kkcodec.GetCodec(kkcodec.CodecTypeJson),
@@ -252,6 +254,7 @@ func Benchmark_gateHandler_OnRaw_withEncode(b *testing.B) {
 		b.Fatalf("Register: %v", err)
 	}
 	kkapp.ConfigDefaults(
+		kkpacket.DefaultStreamPacket(),
 		kkpacket.NewMessagePacket(
 			kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
 			kkcodec.GetCodec(kkcodec.CodecTypeJson),

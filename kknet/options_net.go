@@ -147,6 +147,10 @@ func CheckOptions(opts *Options) {
 		opts.ShutdownTimeout = 500 * time.Millisecond
 	}
 
+	// 对齐
+	opts.WpOptions.StreamTool = opts.StreamTool
+	opts.RpOptions.StreamTool = opts.StreamTool
+
 	CheckWriteOptions(&opts.WpOptions)
 	CheckReadOptions(&opts.RpOptions)
 }

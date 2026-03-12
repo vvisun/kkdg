@@ -55,7 +55,10 @@ func GetTransMsgPacket() *kkpacket.MessagePacket {
 //
 //	@param msgPacket 网关与客户端之间的消息编码解码器
 //	@param transMsgPacket 网关与业务服之间的消息编码解码器
-func ConfigDefaults(msgPacket *kkpacket.MessagePacket, transMsgPacket *kkpacket.MessagePacket) {
+func ConfigDefaults(streamTool kkpacket.IPacket, msgPacket *kkpacket.MessagePacket, transMsgPacket *kkpacket.MessagePacket) {
+	if streamTool != nil {
+		gStreamTool = streamTool
+	}
 	if msgPacket != nil {
 		gMsgPacket = msgPacket
 	}

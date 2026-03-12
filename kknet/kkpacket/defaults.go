@@ -11,24 +11,7 @@ import (
 const maxHeadPathCount = 4
 
 // 默认解包器
-var (
-	defaultStreamPacket       = NewLengthFieldStreamPacket(4, 4*1024)
-	initedDefaultStreamPacket atomic.Bool
-)
-
-// 设置默认解包器。启动阶段初始化，运行期间不要修改。
-// @param packet 解包器
-func setDefaultStreamPacket(packet IPacket) {
-	if packet == nil {
-		kklog.Warn("[kknet] setDefaultStreamPacket packet is nil, ignore")
-		return
-	}
-	if !initedDefaultStreamPacket.CompareAndSwap(false, true) {
-		kklog.Warnf("[kknet] default stream packet already setted, ignore")
-		return
-	}
-	defaultStreamPacket = packet
-}
+var defaultStreamPacket = NewLengthFieldStreamPacket(4, 4*1024)
 
 func DefaultStreamPacket() IPacket {
 	return defaultStreamPacket
@@ -62,10 +45,7 @@ func GetByteOrder() binary.ByteOrder {
 //
 //	@param streamTool 流拆解器
 //	@param byteOrder 字节序
-func ConfigDefaults(streamTool IPacket, byteOrder binary.ByteOrder) {
-	if streamTool != nil {
-		setDefaultStreamPacket(streamTool)
-	}
+func ConfigDefaults(byteOrder binary.ByteOrder) {
 	if byteOrder != nil {
 		setByteOrder(byteOrder)
 	}

@@ -11,6 +11,10 @@ import (
 )
 
 type EnvConfig struct {
+	// 默认的字节序
+	ByteOrderDefault binary.ByteOrder
+	// 默认的流拆解器
+	StreamToolDefault kkpacket.IPacket
 	// 网关与客户端之间的消息编码解码器
 	PacketGateAndClient *kkpacket.MessagePacket
 	// 网关与业务服之间的消息编码解码器
@@ -19,10 +23,6 @@ type EnvConfig struct {
 	MsgCodecActor kkcodec.ICodec
 	// 远程Actor消息注册表
 	MessageRegistryActor *actorremotes.MessageRegistry
-	// 默认的流拆解器
-	StreamToolDefault kkpacket.IPacket
-	// 默认的字节序
-	ByteOrderDefault binary.ByteOrder
 }
 
 // 配置默认值。启动阶段初始化，运行期间不要修改。
@@ -32,7 +32,7 @@ func ConfigDefaults(cfg *EnvConfig) {
 		kklog.Warn("[envconfig] config is nil, ignore")
 		return
 	}
-	kkapp.ConfigDefaults(cfg.PacketGateAndClient, cfg.PacketGateAndBusiness)
+	kkapp.ConfigDefaults(cfg.StreamToolDefault, cfg.PacketGateAndClient, cfg.PacketGateAndBusiness)
 	actorremotes.ConfigDefaults(cfg.MsgCodecActor, cfg.MessageRegistryActor)
-	kkpacket.ConfigDefaults(cfg.StreamToolDefault, cfg.ByteOrderDefault)
+	kkpacket.ConfigDefaults(cfg.ByteOrderDefault)
 }

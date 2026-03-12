@@ -182,6 +182,7 @@ func (slf *gateComponent) OnStop() error {
 func (slf *gateComponent) startTCPServer() error {
 	// 创建 TCP 服务器
 	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(kkapp.GetStreamTool()),
 		kknet.WithRawHandler(slf.handler),
 	)
 	server := kktcp.NewServer(slf.opt.TCPAddr, slf.handler, opts)
@@ -199,6 +200,7 @@ func (slf *gateComponent) startTCPServer() error {
 func (slf *gateComponent) startWSServer() error {
 	// 创建 WebSocket 服务器
 	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(kkapp.GetStreamTool()),
 		kknet.WithRawHandler(slf.handler),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),

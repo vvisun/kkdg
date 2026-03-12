@@ -37,6 +37,7 @@ func runEchoDemo(addr string) {
 	streamTool := kkpacket.DefaultStreamPacket()
 
 	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(streamTool),
 		kknet.WithRawHandler(echoHandler),
 		kknet.WithLogger(kklog.GetConsoleLogger()),
 		kknet.WithPingInterval(5*time.Second),
