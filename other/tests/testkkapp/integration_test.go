@@ -71,18 +71,18 @@ type gameHandler struct {
 }
 
 func (h *gameHandler) onMsgTest1(sessionID string, msg *MsgTest1) error {
-	kklog.Infof("onMsgTest1: %v", msg)
+	kklog.Infof("收到rpc消息 onMsgTest1: %v", msg)
 	h.sendToClient(sessionID, msg)
 	return nil
 }
 
 func (h *gameHandler) onMsgTest2(sessionID string, msg *MsgTest2) error {
-	kklog.Infof("onMsgTest2: %v", msg)
+	kklog.Infof("收到rpc消息 onMsgTest2: %v", msg)
 	return nil
 }
 
 func (h *gameHandler) onMsgTest3(sessionID string, msg *MsgTest3) error {
-	kklog.Infof("onMsgTest3: %v", msg)
+	kklog.Infof("收到rpc消息 onMsgTest3: %v", msg)
 	return nil
 }
 
@@ -205,9 +205,9 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		recvMu.Lock()
 		got := string(recvData)
 		recvMu.Unlock()
-		kklog.Infof("recv = %q, want %q", got, string(payload))
+		kklog.Infof("收到rpc消息 recv = %q, want %q", got, string(payload))
 		if got != string(payload) {
-			t.Errorf("recv = %q, want %q", got, string(payload))
+			t.Errorf("收到rpc消息 recv = %q, want %q", got, string(payload))
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("timeout waiting for echo")
