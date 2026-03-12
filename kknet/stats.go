@@ -119,3 +119,34 @@ func ReadMetricsStress(activeConns int64) (heapUsedMB uint64, heapKBPerConn floa
 	}
 	return heapUsedMB, heapKBPerConn
 }
+
+//----------------------------------------------------------
+
+// MetricsFromSnapshot 将 StatsSnapshot 转换为可用于 metrics 导出的键值对。
+//
+// - namespace 用于区分不同实例/模块，为空则不加前缀。
+// - 返回的 key 采用 "<namespace>.<name>" 或仅 "<name>" 形式，值统一为 float64，方便接入 Prometheus、StatsD 等。
+//
+// 约定的度量名称（未加 namespace）：
+//   - kknet_active_conns
+//   - kknet_total_conns
+//   - kknet_closed_conns
+//   - kknet_recv_msgs_total
+//   - kknet_sent_msgs_total
+//   - kknet_errors_total
+func MetricsFromSnapshot(namespace string, snap StatsSnapshot) map[string]float64 {
+	prefix := ""
+	if namespace != "" {
+		prefix = namespace + "."
+	}
+
+	m := make(map[string]float64, 6)
+	m[prefix+"kknet_active_conns"] = float64(snap.ActiveConns)
+	m[prefix+"kknet_total_conns"] = float64(snap.TotalConns)
+	m[prefix+"kknet_closed_conns"] = float64(snap.ClosedConns)
+	m[prefix+"kknet_recv_msgs_total"] = float64(snap.RecvMsgs)
+	m[prefix+"kknet_sent_msgs_total"] = float64(snap.SentMsgs)
+	m[prefix+"kknet_errors_total"] = float64(snap.Errors)
+
+	return m
+}
