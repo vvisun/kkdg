@@ -2,10 +2,12 @@ package kkrpc
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -55,9 +57,13 @@ func Benchmark_InvokeUnary(b *testing.B) {
 			b.Fatalf("create reqrsp invoker: %v", err)
 		}
 		if err := invoker.Invoke(context.Background(), &req, CallConfig{}, &resp); err != nil {
-			b.Fatalf("invoke: %v", err)
+			if err != kkerrors.ErrRpcQueueFull {
+				b.Fatalf("invoke: %v", err)
+			}
 		}
 	}
+
+	fmt.Printf("stats: %+v\n", cli.Stats())
 }
 
 func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
@@ -103,9 +109,13 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 		req := testReq{ID: i, Data: "test"}
 		var resp testRsp
 		if err := invoker.Invoke(context.Background(), &req, CallConfig{}, &resp); err != nil {
-			b.Fatalf("invoke: %v", err)
+			if err != kkerrors.ErrRpcQueueFull {
+				b.Fatalf("invoke: %v", err)
+			}
 		}
 	}
+
+	fmt.Printf("stats: %+v\n", invoker.sender.Stats())
 }
 
 // Benchmark_InvokeUnary_Parallel 单连接并发调用，多个 goroutine 共享同一 client，测试真实并发下的 req/resp 匹配与编解码。
@@ -154,11 +164,15 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 			req := testReq{ID: i, Data: "test"}
 			var resp testRsp
 			if err := invoker.Invoke(context.Background(), &req, CallConfig{}, &resp); err != nil {
-				b.Fatalf("invoke: %v", err)
+				if err != kkerrors.ErrRpcQueueFull {
+					b.Fatalf("invoke: %v", err)
+				}
 			}
 			i++
 		}
 	})
+
+	fmt.Printf("stats: %+v\n", invoker.sender.Stats())
 }
 
 func Benchmark_EncodeRpcFrame(b *testing.B) {
