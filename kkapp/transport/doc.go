@@ -1,13 +1,16 @@
 // Package transport 提供数据传输组件。
+// 用于网关与业务服之间的消息转发。
+// 支持以下传输方式：
+//   - nats：使用nats集群转发消息
+//   - rpc：使用rpc转发消息
+//   - shard：使用shard转发消息
+//
+// shard模式的分片数支持：
+//   - 8：8个分片
+//
+// nats模式的支持以下消息转发函数名：
+//   - c2s：客户端->网关->业务服的消息转发函数名
+//   - 1：业务服->网关->客户端的消息转发函数名
+//   - N：业务服->网关->多个客户端的消息转发函数名
+//   - cliMiss：网关 -> 业务服：客户端断开事件
 package transport
-
-// 传输层类型。用于网关与业务服之间的消息转发。
-type TransType = string
-
-const (
-	TransTypeNats  TransType = "nats"  // 使用nats集群转发消息
-	TransTypeRpc   TransType = "rpc"   // 使用rpc转发消息
-	TransTypeShard TransType = "shard" // 使用shard转发消息
-)
-
-const BackendShardCnt = 8

@@ -3,7 +3,7 @@ package transnat
 import (
 	"strings"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
@@ -45,9 +45,9 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 		return
 	}
 	switch packet.FuncName {
-	case kkapp.FuncNameSendToClient:
+	case transport.FuncNameSendToClient:
 		slf.ForwardToClient(packet.Sid, packet.ArgBytes)
-	case kkapp.FuncNameSendToClients:
+	case transport.FuncNameSendToClients:
 		sids := strings.Split(packet.Sid, ",")
 		for _, sid := range sids {
 			slf.ForwardToClient(sid, packet.ArgBytes)
@@ -71,8 +71,8 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, lo
 	}
 
 	pkt := kkcluster.NewClusterPacket()
-	pkt.FuncName = kkapp.FuncNameC2S //暂时没用到
-	pkt.ArgBytes = msgBytes          //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
+	pkt.FuncName = transport.FuncNameC2S //暂时没用到
+	pkt.ArgBytes = msgBytes              //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	pkt.Sid = sessionID
 	return slf.cluster.PublishRemote(logicNodeId, pkt)
 }
@@ -154,7 +154,7 @@ func (slf *transportorNats) NotifyClientDisconnect(sessionID string, logicNodeId
 	}
 
 	pkt := kkcluster.NewClusterPacket()
-	pkt.FuncName = kkapp.FuncNameClientDisconnect
+	pkt.FuncName = transport.FuncNameClientDisconnect
 	pkt.ArgBytes = nil
 	pkt.Sid = sessionID
 	return slf.cluster.PublishRemote(logicNodeId, pkt)

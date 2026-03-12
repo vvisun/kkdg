@@ -12,14 +12,6 @@ const (
 	maxNodeTypeLength int = 16
 )
 
-const (
-	// nodeId与actorKey的分隔符
-	ActorKeySep_NodeAndActor = "/"
-
-	// actorKey分隔符，用于分隔层级，例如 "game_player"、"gate_router"
-	ActorKeySep_ParantAndChild = "_"
-)
-
 func isASCIIAlphaNumeric(s string) bool {
 	if s == "" {
 		return false
