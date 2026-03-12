@@ -88,20 +88,6 @@ func initMeter(ctx context.Context, addr string) error {
 	return nil
 }
 
-// initClusterMetrics registers observable gauges for cluster metrics.
-// 同样通过 CollectClusterMetrics 触发事件，由集群模块回填 MetricsEventData，
-// 然后根据返回的 key 自动生成指标，避免在这里手写 metric 名称。
-func initClusterMetrics(ctx context.Context) error {
-	return initTrigger(ctx, "cluster", collectClusterMetrics)
-}
-
-// initDiscoveryMetrics registers observable gauges for discovery metrics.
-// 它通过 CollectDiscoveryMetrics (event-based) 拉取最新快照，根据返回的 key 动态生成指标，
-// 避免在这里手写/维护具体的 metric 名称。
-func initDiscoveryMetrics(ctx context.Context) error {
-	return initTrigger(ctx, "discovery", collectDiscoveryMetrics)
-}
-
 func initTrigger(ctx context.Context, namespace string, collectFunc collectFunc) error {
 	if Meter == nil {
 		return errMetricsNotInitialized
