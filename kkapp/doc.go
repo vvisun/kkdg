@@ -1,4 +1,4 @@
-// Package kkapp 提供应用程序框架。
+// Package kkapp 提供应用程序框架。该包主要用于展示如何使用kkdg框架。
 //
 // 注意：在app初始化阶段，调用ConfigDefaults()配置默认值。运行期间不要修改。
 // eg:
