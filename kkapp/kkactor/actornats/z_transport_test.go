@@ -12,6 +12,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 func requireNATS(t *testing.T) string {
@@ -34,17 +35,22 @@ type remotePong struct {
 	Text string
 }
 
-func TestTransport_SendAndRequest(t *testing.T) {
-	natsURL := requireNATS(t)
-
-	registry := actorremotes.GetDefaultMessageRegistry()
+func getTestMessageRegistry(t *testing.T) *actorremotes.MessageRegistry {
+	t.Helper()
+	registry := actorremotes.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeMsgpack))
 	if err := registry.Register(&remotePing{}); err != nil {
 		t.Fatalf("register ping on transport1: %v", err)
 	}
 	if err := registry.Register(&remotePong{}); err != nil {
 		t.Fatalf("register pong on transport1: %v", err)
 	}
+	return registry
+}
 
+func TestTransport_SendAndRequest(t *testing.T) {
+	natsURL := requireNATS(t)
+
+	registry := getTestMessageRegistry(t)
 	transport1 := NewTransport("node1", registry, ApplyNatsOptions(WithURL(natsURL)))
 	transport2 := NewTransport("node2", registry, ApplyNatsOptions(WithURL(natsURL)))
 
@@ -109,7 +115,7 @@ func TestTransport_SendAndRequest(t *testing.T) {
 
 func TestTransport_Request_UnregisteredMessage(t *testing.T) {
 	natsURL := requireNATS(t)
-	registry := actorremotes.GetDefaultMessageRegistry()
+	registry := getTestMessageRegistry(t)
 
 	transport := NewTransport("node1", registry, ApplyNatsOptions(WithURL(natsURL)))
 	framework := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "", nil)), kkactor.NewActorSystem())

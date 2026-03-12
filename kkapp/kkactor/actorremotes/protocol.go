@@ -32,11 +32,11 @@ func (ref ActorRef) IsValid() bool {
 	return ref.NodeID != "" && kkapp.IsValidActorNodeId(ref.NodeID) && kkapp.IsValidActorKey(ref.ActorKey)
 }
 
-func BuildRequestEnvelope(target ActorRef, msg any, timeout time.Duration) (*RequestEnvelope, error) {
+func BuildRequestEnvelope(registry *MessageRegistry, target ActorRef, msg any, timeout time.Duration) (*RequestEnvelope, error) {
 	if !target.IsValid() {
 		return nil, kkerrors.ErrActorRemoteInvalidTarget
 	}
-	typeName, payload, err := EncodeMessage(msg)
+	typeName, payload, err := EncodeMessage(registry, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -48,50 +48,50 @@ func BuildRequestEnvelope(target ActorRef, msg any, timeout time.Duration) (*Req
 	}, nil
 }
 
-func EncodeRequestEnvelope(target ActorRef, msg any, timeout time.Duration) ([]byte, error) {
-	env, err := BuildRequestEnvelope(target, msg, timeout)
+func EncodeRequestEnvelope(registry *MessageRegistry, target ActorRef, msg any, timeout time.Duration) ([]byte, error) {
+	env, err := BuildRequestEnvelope(registry, target, msg, timeout)
 	if err != nil {
 		return nil, err
 	}
-	return msgCodec.Marshal(env)
+	return registry.codec.Marshal(env)
 }
 
-func DecodeRequestEnvelope(data []byte) (*RequestEnvelope, any, error) {
+func DecodeRequestEnvelope(registry *MessageRegistry, data []byte) (*RequestEnvelope, any, error) {
 	var env RequestEnvelope
-	if err := msgCodec.Unmarshal(data, &env); err != nil {
+	if err := registry.codec.Unmarshal(data, &env); err != nil {
 		return nil, nil, err
 	}
 	if !env.Target.IsValid() {
 		return nil, nil, kkerrors.ErrActorRemoteInvalidTarget
 	}
-	msg, err := DecodeMessage(env.MessageType, env.Payload)
+	msg, err := DecodeMessage(registry, env.MessageType, env.Payload)
 	if err != nil {
 		return nil, nil, err
 	}
 	return &env, msg, nil
 }
 
-func EncodeResponseEnvelope(result any, callErr error) ([]byte, error) {
+func EncodeResponseEnvelope(registry *MessageRegistry, result any, callErr error) ([]byte, error) {
 	resp := ResponseEnvelope{}
 	if callErr != nil {
 		resp.Error = callErr.Error()
-		return msgCodec.Marshal(&resp)
+		return registry.codec.Marshal(&resp)
 	}
 	if result == nil {
-		return msgCodec.Marshal(&resp)
+		return registry.codec.Marshal(&resp)
 	}
-	typeName, payload, err := EncodeMessage(result)
+	typeName, payload, err := EncodeMessage(registry, result)
 	if err != nil {
 		return nil, err
 	}
 	resp.MessageType = typeName
 	resp.Payload = payload
-	return msgCodec.Marshal(&resp)
+	return registry.codec.Marshal(&resp)
 }
 
-func DecodeResponseEnvelope(data []byte) (any, error) {
+func DecodeResponseEnvelope(registry *MessageRegistry, data []byte) (any, error) {
 	var resp ResponseEnvelope
-	if err := msgCodec.Unmarshal(data, &resp); err != nil {
+	if err := registry.codec.Unmarshal(data, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Error != "" {
@@ -100,5 +100,5 @@ func DecodeResponseEnvelope(data []byte) (any, error) {
 	if resp.MessageType == "" && len(resp.Payload) == 0 {
 		return nil, nil
 	}
-	return DecodeMessage(resp.MessageType, resp.Payload)
+	return DecodeMessage(registry, resp.MessageType, resp.Payload)
 }

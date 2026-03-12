@@ -31,8 +31,8 @@ var _ actorremotes.IRemoteActorTransport = (*Transport)(nil)
 
 func NewTransport(nodeID string, registry *actorremotes.MessageRegistry, options nats.Options) *Transport {
 	if registry == nil {
-		kklog.Errorf("[kkactor] registry is nil, use default registry")
-		registry = actorremotes.GetDefaultMessageRegistry()
+		kklog.PanicLog("MessageRegistry is nil")
+		return nil
 	}
 	return &Transport{
 		nodeID:   nodeID,
@@ -92,7 +92,7 @@ func (t *Transport) Send(target actorremotes.ActorRef, msg any) error {
 	if !target.IsValid() {
 		return kkerrors.ErrActorRemoteInvalidTarget
 	}
-	data, err := actorremotes.EncodeRequestEnvelope(target, msg, 0)
+	data, err := actorremotes.EncodeRequestEnvelope(t.registry, target, msg, 0)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.
 	if !target.IsValid() {
 		return nil, kkerrors.ErrActorRemoteInvalidTarget
 	}
-	data, err := actorremotes.EncodeRequestEnvelope(target, msg, timeout)
+	data, err := actorremotes.EncodeRequestEnvelope(t.registry, target, msg, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.
 	if err != nil {
 		return nil, err
 	}
-	return actorremotes.DecodeResponseEnvelope(respMsg.Data)
+	return actorremotes.DecodeResponseEnvelope(t.registry, respMsg.Data)
 }
 
 func (t *Transport) RequestAsync(target actorremotes.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
@@ -141,7 +141,7 @@ func (t *Transport) subscribe() error {
 }
 
 func (t *Transport) handleSend(msg *nats.Msg) {
-	env, payload, err := actorremotes.DecodeRequestEnvelope(msg.Data)
+	env, payload, err := actorremotes.DecodeRequestEnvelope(t.registry, msg.Data)
 	if err != nil {
 		kklog.Errorf("[kkactor] decode remote send failed: %v", err)
 		return
@@ -157,7 +157,7 @@ func (t *Transport) handleSend(msg *nats.Msg) {
 }
 
 func (t *Transport) handleRequest(msg *nats.Msg) {
-	env, payload, err := actorremotes.DecodeRequestEnvelope(msg.Data)
+	env, payload, err := actorremotes.DecodeRequestEnvelope(t.registry, msg.Data)
 	if err != nil {
 		t.respond(msg, nil, err)
 		return
@@ -178,7 +178,7 @@ func (t *Transport) handleRequest(msg *nats.Msg) {
 }
 
 func (t *Transport) respond(msg *nats.Msg, result any, resultErr error) {
-	data, err := actorremotes.EncodeResponseEnvelope(result, resultErr)
+	data, err := actorremotes.EncodeResponseEnvelope(t.registry, result, resultErr)
 	if err != nil {
 		kklog.Errorf("[kkactor] marshal remote response failed: %v", err)
 		return

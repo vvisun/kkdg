@@ -5,12 +5,15 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
 // 远程Actor消息注册表
 type MessageRegistry struct {
 	mu         sync.RWMutex
+	codec      kkcodec.ICodec
 	typeToName map[reflect.Type]string
 	nameToType map[string]reflect.Type
 }
@@ -32,8 +35,13 @@ func (r *MessageRegistry) Register(msg any) error {
 	return nil
 }
 
-func NewMessageRegistry() *MessageRegistry {
+func NewMessageRegistry(codec kkcodec.ICodec) *MessageRegistry {
+	if codec == nil {
+		kklog.Warn("[actorremotes] codec is nil, use default codec: %s", "msgpack")
+		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	}
 	return &MessageRegistry{
+		codec:      codec,
 		typeToName: make(map[reflect.Type]string),
 		nameToType: make(map[string]reflect.Type),
 	}
@@ -41,31 +49,31 @@ func NewMessageRegistry() *MessageRegistry {
 
 //-------------------------------------------------------------------------
 
-func EncodeMessage(msg any) (string, []byte, error) {
+func EncodeMessage(registry *MessageRegistry, msg any) (string, []byte, error) {
 	if msg == nil {
 		return "", nil, kkerrors.ErrActorRemoteMsgTypeNotRegistered
 	}
 	typ := reflect.TypeOf(msg)
 
-	defaultMessageRegistry.mu.RLock()
-	typeName, ok := defaultMessageRegistry.typeToName[typ]
-	defaultMessageRegistry.mu.RUnlock()
+	registry.mu.RLock()
+	typeName, ok := registry.typeToName[typ]
+	registry.mu.RUnlock()
 
 	if !ok {
 		return "", nil, kkerrors.ErrActorRemoteMsgTypeNotRegistered
 	}
 
-	payload, err := msgCodec.Marshal(msg)
+	payload, err := registry.codec.Marshal(msg)
 	if err != nil {
 		return "", nil, err
 	}
 	return typeName, payload, nil
 }
 
-func DecodeMessage(typeName string, payload []byte) (any, error) {
-	defaultMessageRegistry.mu.RLock()
-	typ, ok := defaultMessageRegistry.nameToType[typeName]
-	defaultMessageRegistry.mu.RUnlock()
+func DecodeMessage(registry *MessageRegistry, typeName string, payload []byte) (any, error) {
+	registry.mu.RLock()
+	typ, ok := registry.nameToType[typeName]
+	registry.mu.RUnlock()
 
 	if !ok {
 		return nil, kkerrors.ErrActorRemoteMsgTypeNotRegistered
@@ -77,7 +85,7 @@ func DecodeMessage(typeName string, payload []byte) (any, error) {
 	} else {
 		target = reflect.New(typ)
 	}
-	if err := msgCodec.Unmarshal(payload, target.Interface()); err != nil {
+	if err := registry.codec.Unmarshal(payload, target.Interface()); err != nil {
 		return nil, err
 	}
 	if typ.Kind() == reflect.Ptr {
