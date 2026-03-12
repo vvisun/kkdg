@@ -91,7 +91,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 
 	successCount := atomic.Int64{}
@@ -192,7 +192,7 @@ func TestStress_Rpc_ConnectDisconnect(t *testing.T) {
 	connsPerRound := 15
 
 	addr := freePortRpcStress(t)
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 
 	rpcRouter := NewRpcReceiver(DefaultRpcOption())
@@ -243,7 +243,7 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 	totalCalls := int64(numGoroutines * callsPerGoroutine)
 
 	addr := freePortRpcStress(t)
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 
 	successCount := atomic.Int64{}
@@ -321,7 +321,7 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterOneWayMethod[testReq]("testOneway")
 
 	recvCount := atomic.Int64{}
@@ -415,7 +415,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 	totalCalls := int64(numGoroutines * callsPerGoroutine)
 
 	addr := freePortRpcStress(t)
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterOneWayMethod[testReq]("testOneway")
 
 	recvCount := atomic.Int64{}

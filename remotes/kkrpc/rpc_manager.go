@@ -44,18 +44,3 @@ func newRpcManager() *rpcManager {
 		method2typeOneWay: make(map[string]methonOneWay),
 	}
 }
-
-var (
-	gRpcManager *rpcManager = newRpcManager()
-)
-
-// ClearRpcManagerForTest 清空 gRpcManager 中所有注册信息。
-// 仅用于测试场景，便于多测试重复注册。生产环境请勿调用。
-func ClearRpcManagerForTest() {
-	gRpcManager.mu.Lock()
-	defer gRpcManager.mu.Unlock()
-	gRpcManager.type2methodReqRsp = make(map[reflect.Type]string)
-	gRpcManager.method2typeReqRsp = make(map[string]methodReqRsp)
-	gRpcManager.type2methodOneWay = make(map[reflect.Type]string)
-	gRpcManager.method2typeOneWay = make(map[string]methonOneWay)
-}

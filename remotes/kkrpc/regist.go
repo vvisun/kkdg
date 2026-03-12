@@ -6,6 +6,10 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+var (
+	gRpcManager *rpcManager = newRpcManager()
+)
+
 // RegisterReqRspMethod 注册请求响应方法。method的参数类型和返回类型必须为REQ和RSP。
 // 相当于函数签名: func method(REQ) RSP
 func RegisterReqRspMethod[REQ any, RSP any](method string) {

@@ -16,7 +16,7 @@ import (
 var gStreamTool = kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 
 func Benchmark_InvokeUnary(b *testing.B) {
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -67,7 +67,7 @@ func Benchmark_InvokeUnary(b *testing.B) {
 }
 
 func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -120,7 +120,7 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 
 // Benchmark_InvokeUnary_Parallel 单连接并发调用，多个 goroutine 共享同一 client，测试真实并发下的 req/resp 匹配与编解码。
 func Benchmark_InvokeUnary_Parallel(b *testing.B) {
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -176,7 +176,7 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 }
 
 func Benchmark_EncodeRpcFrame(b *testing.B) {
-	ClearRpcManagerForTest()
+	clearRpcManagerForTest()
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp")
 
 	msg := &testReq{ID: 1, Data: "benchmark"}
