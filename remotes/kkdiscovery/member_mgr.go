@@ -69,6 +69,9 @@ func (m *MemberMgr) AddMember(info *MemberInfo) IMember {
 
 	if !existed {
 		m.notifyAddListeners(member)
+		kklog.Debugf("discovery add member... %v", info)
+	} else {
+		kklog.Debugf("discovery upd member... %v", info)
 	}
 	return member
 }
@@ -93,6 +96,7 @@ func (m *MemberMgr) RemoveMember(nodeID string) {
 
 	if existed {
 		m.notifyRemoveListeners(member)
+		kklog.Debugf("discovery del member... %v", member)
 	}
 }
 
