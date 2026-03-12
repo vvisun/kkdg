@@ -12,31 +12,17 @@ import (
 )
 
 var (
-	globalActorFramework *kkactor.ActorFramework
-	onceActorFramework   sync.Once
+	defaultActorFramework *kkactor.ActorFramework
+	onceActorFramework    sync.Once
 )
 
-// 获取全局Actor框架, 线上一般用全局即可，避免混乱。
+// NewApplication中actorFramework参数为nil时，会使用该默认的全局ActorFramework
 func getGlobalActorFramework() *kkactor.ActorFramework {
 	onceActorFramework.Do(func() {
-		globalActorFramework = kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+		defaultActorFramework = kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
 	})
-	return globalActorFramework
+	return defaultActorFramework
 }
-
-type Application struct {
-	nodeInfo       *kkapp.NodeInfo
-	actorFramework *kkactor.ActorFramework
-	pid            *actor.PID
-	state          ComponentState
-	compList       []kkapp.IComponent
-	startResultCh  chan error
-	mu             sync.RWMutex
-
-	configDir string // 配置文件所在目录
-}
-
-var _ kkapp.IApplication = (*Application)(nil)
 
 // new application.
 //
@@ -61,6 +47,20 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFrame
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
 }
+
+type Application struct {
+	nodeInfo       *kkapp.NodeInfo
+	actorFramework *kkactor.ActorFramework
+	pid            *actor.PID
+	state          ComponentState
+	compList       []kkapp.IComponent
+	startResultCh  chan error
+	mu             sync.RWMutex
+
+	configDir string // 配置文件所在目录
+}
+
+var _ kkapp.IApplication = (*Application)(nil)
 
 func (slf *Application) GetCompName() string {
 	return slf.nodeInfo.GetNodeId()
