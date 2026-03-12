@@ -156,7 +156,7 @@ func Test_gateHandler_OnRaw_end_to_end(t *testing.T) {
 	handler.OnConnect(conn)
 
 	// 4) encode a login message using kkapp.GetMsgPacket
-	packetBuf, err := kkpacket.EncodeStream(&LoginReq{User: "u1"}, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
+	packetBuf, err := kkpacket.EncodeStream(&LoginReq{User: "u1"}, kkapp.GetStreamTool(), kkapp.GetMsgPacket())
 	if err != nil {
 		t.Fatalf("EncodeStream: %v", err)
 	}
@@ -220,7 +220,7 @@ func Benchmark_gateHandler_OnRaw_throughput(b *testing.B) {
 	handler.OnConnect(conn)
 
 	// Pre-encode a packet to avoid counting encoding cost.
-	packetBuf, err := kkpacket.EncodeStream(&LoginReq{User: "bench"}, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
+	packetBuf, err := kkpacket.EncodeStream(&LoginReq{User: "bench"}, kkapp.GetStreamTool(), kkapp.GetMsgPacket())
 	if err != nil {
 		b.Fatalf("EncodeStream: %v", err)
 	}
@@ -282,7 +282,7 @@ func Benchmark_gateHandler_OnRaw_withEncode(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			bb, err := kkpacket.EncodeStream(&LoginReq{User: "bench"}, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
+			bb, err := kkpacket.EncodeStream(&LoginReq{User: "bench"}, kkapp.GetStreamTool(), kkapp.GetMsgPacket())
 			if err != nil {
 				b.Fatalf("EncodeStream: %v", err)
 			}

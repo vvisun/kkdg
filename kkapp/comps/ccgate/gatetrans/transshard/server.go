@@ -86,7 +86,7 @@ func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 	}
 	var msg ptotrans.RpcClientDisconnect
 	msg.ClientId = sessionID
-	bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -114,7 +114,7 @@ func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 	msg.ClientId = sessionID
 	msg.GateNodeId = slf.gateNodeId
 	msg.Payload = msgBytes
-	bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -205,7 +205,7 @@ type shardHandler struct {
 
 func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	defer kkbuffer.Put(data)
-	messageBytes, err := kkpacket.DefaultStreamPacket().MessageBytes(data.B)
+	messageBytes, err := kkapp.GetStreamTool().MessageBytes(data.B)
 	if err != nil {
 		kklog.Errorf("shard handler on raw get message bytes error: %v", err)
 		return

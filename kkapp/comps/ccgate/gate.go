@@ -13,7 +13,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
@@ -343,7 +342,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 
 	// Best-effort: derive route from msgID if it is registered.
-	msgBytes, err := kkpacket.DefaultStreamPacket().MessageBytes(data.B)
+	msgBytes, err := kkapp.GetStreamTool().MessageBytes(data.B)
 	if err != nil {
 		kklog.Warnf("[ccgate] get message bytes error: %v", err)
 		return

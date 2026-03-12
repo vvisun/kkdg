@@ -76,6 +76,8 @@ func runEchoDemo(addr string, tlsCfg *tls.Config) {
 	recvCh := make(chan []byte, 4)
 	echoHandler := &tlsEchoHandler{}
 
+	streamTool := kkpacket.DefaultStreamPacket()
+
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(echoHandler),
 		kknet.WithLogger(kklog.GetConsoleLogger()),
@@ -113,7 +115,7 @@ func runEchoDemo(addr string, tlsCfg *tls.Config) {
 	time.Sleep(100 * time.Millisecond)
 
 	payload := []byte("hello examtcptls")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	bb, err := streamTool.Pack(payload)
 	if err != nil {
 		panic(err)
 	}
@@ -123,7 +125,7 @@ func runEchoDemo(addr string, tlsCfg *tls.Config) {
 
 	select {
 	case got := <-recvCh:
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(got)
+		msg, err := streamTool.Unpack(got)
 		if err != nil {
 			panic(err)
 		}

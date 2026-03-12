@@ -34,6 +34,8 @@ func runEchoDemo(addr string) {
 	recvCh := make(chan []byte, 4)
 	echoHandler := &wsEchoHandler{}
 
+	streamTool := kkpacket.DefaultStreamPacket()
+
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(echoHandler),
 		kknet.WithLogger(kklog.GetConsoleLogger()),
@@ -70,7 +72,7 @@ func runEchoDemo(addr string) {
 
 	// 发送消息
 	payload := []byte("hello examws")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	bb, err := streamTool.Pack(payload)
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +83,7 @@ func runEchoDemo(addr string) {
 	// 等待回显
 	select {
 	case got := <-recvCh:
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(got)
+		msg, err := streamTool.Unpack(got)
 		if err != nil {
 			panic(err)
 		}

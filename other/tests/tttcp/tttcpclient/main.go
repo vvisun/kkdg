@@ -30,7 +30,8 @@ var (
 )
 
 var (
-	cliMgr *clientsMgr = newClientsMgr()
+	cliMgr     *clientsMgr      = newClientsMgr()
+	streamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
 )
 
 func main() {
@@ -46,7 +47,7 @@ func main() {
 	for i := range rawMsg {
 		rawMsg[i] = 0x01
 	}
-	if _, err := kkpacket.DefaultStreamPacket().Pack(rawMsg); err != nil {
+	if _, err := streamTool.Pack(rawMsg); err != nil {
 		println("pack error:", err.Error())
 		return
 	}
@@ -106,7 +107,7 @@ func runOneClient(serverAddr string, rawMsg []byte) {
 	ticker := time.NewTicker(*sendInterval)
 	defer ticker.Stop()
 	for range ticker.C {
-		bb, err := kkpacket.DefaultStreamPacket().Pack(rawMsg)
+		bb, err := streamTool.Pack(rawMsg)
 		if err != nil {
 			println("pack error:", err.Error())
 			return

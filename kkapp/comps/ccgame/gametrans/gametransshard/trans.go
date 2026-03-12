@@ -89,7 +89,7 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 	}
 	payload := packet //EncodeStream会进行复制，这里可以直接传引用
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
-	bb, err := kkpacket.EncodeStream(rpcMsg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(rpcMsg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	if conn == nil {
 		return kkerrors.ErrNetConnNotFound
 	}
-	bb, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetMsgPacket())
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -146,7 +146,7 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	// 下行必须走转发协议 RpcS2Client，网关按 msgID=2 解析后 ForwardToClient(Payload) 再写 WS
 	payload := bb.B //EncodeStream编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
-	bbTrans, err := kkpacket.EncodeStream(rpcMsg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	bbTrans, err := kkpacket.EncodeStream(rpcMsg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
 	kkbuffer.Put(bb)
 	if err != nil {
 		return err

@@ -25,7 +25,7 @@ func NewGameComponent(opt Option) *gameComponent {
 		panic(err)
 	}
 	ptotrans.InitMsgs()
-	streamTool := kkpacket.DefaultStreamPacket()
+	streamTool := kkapp.GetStreamTool()
 	messageTool := kkapp.GetMsgPacket()
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	return &gameComponent{

@@ -95,7 +95,7 @@ func (h *gatewayHandler) sendRpcMsgRegister() error {
 		NodeId:   h.cli.trans.nodeId,
 		NodeType: h.cli.trans.nodeType,
 	}
-	bb, err := kkpacket.EncodeStream(&msg, kkpacket.DefaultStreamPacket(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
 	if err != nil {
 		kklog.Warnf("[分流%d] 编码 RpcMsgRegister: %v", h.shardIdx, err)
 		return err
@@ -115,7 +115,7 @@ func (h *gatewayHandler) OnClose(conn kknet.IConn, err error) {
 func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	defer kkbuffer.Put(data)
 	pkt := data.B
-	messageBytes, err := kkpacket.DefaultStreamPacket().MessageBytes(pkt)
+	messageBytes, err := kkapp.GetStreamTool().MessageBytes(pkt)
 	if err != nil {
 		return
 	}

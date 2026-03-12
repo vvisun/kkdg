@@ -28,7 +28,10 @@ var (
 	connDelay    = flag.Duration("connDelay", 5*time.Millisecond, "delay between starting each connection (avoid Windows buffer space error)")
 )
 
-var cliMgr = newClientsMgr()
+var (
+	cliMgr     *clientsMgr      = newClientsMgr()
+	streamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
+)
 
 func main() {
 	flag.Parse()
@@ -43,7 +46,7 @@ func main() {
 	for i := range rawMsg {
 		rawMsg[i] = 0x01
 	}
-	_, err := kkpacket.DefaultStreamPacket().Pack(rawMsg)
+	_, err := streamTool.Pack(rawMsg)
 	if err != nil {
 		println("pack error:", err.Error())
 		return
@@ -106,7 +109,7 @@ func runOneClient(serverURL string, rawMsg []byte) {
 	ticker := time.NewTicker(*sendInterval)
 	defer ticker.Stop()
 	for range ticker.C {
-		bb, err := kkpacket.DefaultStreamPacket().Pack(rawMsg)
+		bb, err := streamTool.Pack(rawMsg)
 		if err != nil {
 			println("pack error:", err.Error())
 			return

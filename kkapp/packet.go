@@ -17,6 +17,15 @@ const (
 	FuncNameClientDisconnect = "cliMiss"
 )
 
+var (
+	gStreamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
+)
+
+// 获取默认的流拆解器
+func GetStreamTool() kkpacket.IPacket {
+	return gStreamTool
+}
+
 // 网关与客户端之间的消息编码解码器
 var gMsgPacket = kkpacket.NewMessagePacket(
 	kkpacket.NewPacketHead(&kkpacket.PartUint32{}),

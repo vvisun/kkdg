@@ -33,6 +33,7 @@ func freePort() string {
 func runEchoDemo(addr string) {
 	recvCh := make(chan []byte, 4)
 	echoHandler := &tcpEchoHandler{}
+	streamTool := kkpacket.DefaultStreamPacket()
 
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(echoHandler),
@@ -65,7 +66,7 @@ func runEchoDemo(addr string) {
 	time.Sleep(100 * time.Millisecond)
 
 	payload := []byte("hello examtcp")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	bb, err := streamTool.Pack(payload)
 	if err != nil {
 		panic(err)
 	}
@@ -75,7 +76,7 @@ func runEchoDemo(addr string) {
 
 	select {
 	case got := <-recvCh:
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(got)
+		msg, err := streamTool.Unpack(got)
 		if err != nil {
 			panic(err)
 		}
