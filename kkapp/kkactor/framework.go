@@ -2,6 +2,8 @@ package kkactor
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
@@ -22,6 +24,19 @@ type IActorFramework interface {
 }
 
 func NewActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
+	return actor.NewActorSystem(options...)
+}
+
+// NewSilentActorSystem 创建一个关闭 protoactor-go 日志输出的 ActorSystem，主要用于测试/压测场景。
+func NewSilentActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
+	silentLogger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
+		Level: slog.LevelError,
+	}))
+	options = append(options, actor.WithLoggerFactory(
+		func(system *actor.ActorSystem) *slog.Logger {
+			return silentLogger
+		},
+	))
 	return actor.NewActorSystem(options...)
 }
 

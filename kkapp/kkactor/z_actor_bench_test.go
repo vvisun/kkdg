@@ -47,7 +47,7 @@ func BenchmarkNewLucencyActorID(b *testing.B) {
 //------------------------------------------------------------------------------
 
 func BenchmarkActorLocator_AddActor(b *testing.B) {
-	actorSys := NewActorSystem()
+	actorSys := NewSilentActorSystem()
 	loc := NewActorLocator()
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
@@ -77,7 +77,7 @@ func BenchmarkActorLocator_AddActor(b *testing.B) {
 }
 
 func BenchmarkActorLocator_GetActor(b *testing.B) {
-	actorSys := NewActorSystem()
+	actorSys := NewSilentActorSystem()
 	loc := NewActorLocator()
 	id, _ := NewLucencyActorID("", "bench_actor")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
@@ -104,7 +104,7 @@ func BenchmarkActorLocator_IsLocalActor(b *testing.B) {
 }
 
 func BenchmarkActorLocator_AddGetRemove(b *testing.B) {
-	actorSys := NewActorSystem()
+	actorSys := NewSilentActorSystem()
 	loc := NewActorLocator()
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
