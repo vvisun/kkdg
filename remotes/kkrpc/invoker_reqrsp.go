@@ -188,6 +188,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 		callback(respInfo, nil)
 	})
 	if err != nil {
+		callback(nil, err)
 		return err
 	}
 	err = i.sender.SendBuffer(i.connId, bb)
