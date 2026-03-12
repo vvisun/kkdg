@@ -19,7 +19,10 @@ var (
 	// rpc消息里的Data字段编码器
 	gPayloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 	// 默认的流拆解器
-	gStreamTool kkpacket.IPacket = kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
+	gStreamTool kkpacket.IPacket = kkpacket.NewLengthFieldStreamPacket(
+		kkpacket.DefaultStreamPacket().LengthFieldByteCount(),
+		kkpacket.DefaultStreamPacket().MaxPacketSize()+256, // 预留256字节，避免溢出
+	)
 )
 
 // 配置默认值。启动阶段初始化，运行期间不要修改。
