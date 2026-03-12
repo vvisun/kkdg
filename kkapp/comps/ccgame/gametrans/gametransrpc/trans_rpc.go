@@ -13,6 +13,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -24,7 +25,9 @@ type transportorRpc struct {
 }
 
 func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity, rpcAddr string) (gametrans.ITransportor, error) {
-	rpcRouter := kkrpc.NewRpcReceiver()
+	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
+	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	rpcRouter := kkrpc.NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)

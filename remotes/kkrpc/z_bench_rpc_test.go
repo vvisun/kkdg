@@ -21,7 +21,7 @@ func Benchmark_InvokeUnary(b *testing.B) {
 	addr := ln.Addr().String()
 	_ = ln.Close()
 
-	rpcRouter := NewRpcReceiver()
+	rpcRouter := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "test success"
@@ -68,7 +68,7 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 	addr := ln.Addr().String()
 	_ = ln.Close()
 
-	rpcRouter := NewRpcReceiver()
+	rpcRouter := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "test success"
@@ -117,7 +117,7 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 	addr := ln.Addr().String()
 	_ = ln.Close()
 
-	rpcRouter := NewRpcReceiver()
+	rpcRouter := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "test success"
@@ -166,7 +166,7 @@ func Benchmark_EncodeRpcFrame(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		bb, err := EncodeRpcFrame(FrameTypeRequest, uint64(i+1), "testReqRsp", msg, 0)
+		bb, err := EncodeRpcFrame(gFrameCodec, gPayloadCodec, FrameTypeRequest, uint64(i+1), "testReqRsp", msg, 0)
 		if err != nil {
 			b.Fatalf("encode: %v", err)
 		}

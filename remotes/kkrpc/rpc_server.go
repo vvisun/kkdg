@@ -4,6 +4,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
@@ -11,13 +12,18 @@ type Server struct {
 	tcp              kknet.IServer
 	pending          *pendingMap
 	lifeCycleHandler kknet.IConnLifecycleHandler
+	frameCodec       kkcodec.ICodec
+	payloadCodec     kkcodec.ICodec
 }
 
 var _ IRpcServer = (*Server)(nil)
 var _ ISender = (*Server)(nil)
 
 func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
-	s := &Server{}
+	s := &Server{
+		frameCodec:   rpcRouter.frameCodec,
+		payloadCodec: rpcRouter.payloadCodec,
+	}
 	handler := &serverHandler{
 		svr:       s,
 		rpcRouter: rpcRouter,
@@ -29,7 +35,10 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 }
 
 func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
-	s := &Server{}
+	s := &Server{
+		frameCodec:   rpcRouter.frameCodec,
+		payloadCodec: rpcRouter.payloadCodec,
+	}
 	handler := &serverHandler{
 		svr:       s,
 		rpcRouter: rpcRouter,
@@ -63,6 +72,14 @@ func (s *Server) getPending() *pendingMap {
 
 func (s *Server) SetLifeCycleHandler(handler kknet.IConnLifecycleHandler) {
 	s.lifeCycleHandler = handler
+}
+
+func (s *Server) getFrameCodec() kkcodec.ICodec {
+	return s.frameCodec
+}
+
+func (s *Server) getPayloadCodec() kkcodec.ICodec {
+	return s.payloadCodec
 }
 
 //----------------------------------------------------------------

@@ -4,20 +4,26 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
 type Client struct {
-	cli     kknet.IClient
-	pending *pendingMap
-	stopped bool
+	cli          kknet.IClient
+	pending      *pendingMap
+	stopped      bool
+	frameCodec   kkcodec.ICodec
+	payloadCodec kkcodec.ICodec
 }
 
 var _ IRpcClient = (*Client)(nil)
 var _ ISender = (*Client)(nil)
 
 func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
-	cc := &Client{}
+	cc := &Client{
+		frameCodec:   rpcRouter.frameCodec,
+		payloadCodec: rpcRouter.payloadCodec,
+	}
 	handler := &clientHandler{
 		cli:       cc,
 		rpcRouter: rpcRouter,
@@ -29,7 +35,10 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 }
 
 func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
-	cc := &Client{}
+	cc := &Client{
+		frameCodec:   rpcRouter.frameCodec,
+		payloadCodec: rpcRouter.payloadCodec,
+	}
 	handler := &clientHandler{
 		cli:       cc,
 		rpcRouter: rpcRouter,
@@ -63,6 +72,14 @@ func (c *Client) IsStopped() bool {
 
 func (c *Client) getPending() *pendingMap {
 	return c.pending
+}
+
+func (c *Client) getFrameCodec() kkcodec.ICodec {
+	return c.frameCodec
+}
+
+func (c *Client) getPayloadCodec() kkcodec.ICodec {
+	return c.payloadCodec
 }
 
 //----------------------------------------------------------------

@@ -9,7 +9,7 @@ import (
 )
 
 func TestRouter_ReqRsp(t *testing.T) {
-	router := NewRpcReceiver()
+	router := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		resp.Code = 0
@@ -21,7 +21,7 @@ func TestRouter_ReqRsp(t *testing.T) {
 		ID:   1,
 		Data: "test",
 	}
-	bb, err := EncodeRpcFrame(FrameTypeRequest, 1, "test", msg, 0)
+	bb, err := EncodeRpcFrame(router.frameCodec, router.payloadCodec, FrameTypeRequest, 1, "test", msg, 0)
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
@@ -29,7 +29,7 @@ func TestRouter_ReqRsp(t *testing.T) {
 }
 
 func TestRouter_OneWay(t *testing.T) {
-	router := NewRpcReceiver()
+	router := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	RegistOneWayHandler(router, "test", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		return nil
@@ -38,7 +38,7 @@ func TestRouter_OneWay(t *testing.T) {
 		ID:   1,
 		Data: "test",
 	}
-	bb, err := EncodeRpcFrame(FrameTypeOneway, 1, "test", msg, 0)
+	bb, err := EncodeRpcFrame(router.frameCodec, router.payloadCodec, FrameTypeOneway, 1, "test", msg, 0)
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}

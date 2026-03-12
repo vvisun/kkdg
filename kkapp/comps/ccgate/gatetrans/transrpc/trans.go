@@ -9,6 +9,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -25,7 +26,9 @@ type transportorRpc struct {
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
 
 func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, rpcAddr string) (gatetrans.ITransportor, error) {
-	rpcRouter := kkrpc.NewRpcReceiver()
+	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
+	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	rpcRouter := kkrpc.NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)

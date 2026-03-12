@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -13,7 +14,7 @@ type ReqRspHandlerFunc[T any, R any] func(ctx context.Context, msg *T, resp *R, 
 type OneWayHandlerFunc[T any] func(ctx context.Context, msg *T, connId kknet.CONN_ID) error
 
 // 消息接收器 req resp
-type IRpcHandler interface {
+type IReqRspHandler interface {
 	// GetMethod 返回 RPC 方法名
 	GetMethod() string
 	// 消息回调
@@ -31,8 +32,9 @@ type IOneWayHandler interface {
 //----------------------------------------------------------------
 
 type OneWayHandler[T any] struct {
-	call   OneWayHandlerFunc[T]
-	method string
+	call         OneWayHandlerFunc[T]
+	method       string
+	payloadCodec kkcodec.ICodec
 }
 
 func (h *OneWayHandler[T]) GetMethod() string {
@@ -41,7 +43,7 @@ func (h *OneWayHandler[T]) GetMethod() string {
 
 func (h *OneWayHandler[T]) OnMsg(ctx context.Context, payload []byte, frameType FrameType, connId kknet.CONN_ID) error {
 	var data T
-	if err := gPayloadCodec.Unmarshal(payload, &data); err != nil {
+	if err := h.payloadCodec.Unmarshal(payload, &data); err != nil {
 		return err
 	}
 	err := h.call(ctx, &data, connId)
@@ -54,8 +56,9 @@ func (h *OneWayHandler[T]) OnMsg(ctx context.Context, payload []byte, frameType 
 //----------------------------------------------------------------
 
 type ReqRspHandler[T any, R any] struct {
-	call   ReqRspHandlerFunc[T, R]
-	method string
+	call         ReqRspHandlerFunc[T, R]
+	method       string
+	payloadCodec kkcodec.ICodec
 }
 
 func (h *ReqRspHandler[T, R]) GetMethod() string {
@@ -65,7 +68,7 @@ func (h *ReqRspHandler[T, R]) GetMethod() string {
 func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameType FrameType, connId kknet.CONN_ID) ([]byte, error) {
 	var data T
 	var resp R
-	if err := gPayloadCodec.Unmarshal(payload, &data); err != nil {
+	if err := h.payloadCodec.Unmarshal(payload, &data); err != nil {
 		return nil, err
 	}
 	// kklog.Debugf("收到远程方法调用请求: %v", data)
@@ -78,7 +81,7 @@ func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameTy
 		return nil, nil
 	}
 
-	respBytes, err := gPayloadCodec.Marshal(&resp)
+	respBytes, err := h.payloadCodec.Marshal(&resp)
 	if err != nil {
 		return nil, err
 	}
@@ -88,8 +91,10 @@ func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameTy
 //---------------------------------------------------------------
 
 type RpcReceiver struct {
-	hdMap     map[string]IRpcHandler
-	oneWayMap map[string]IOneWayHandler
+	frameCodec   kkcodec.ICodec
+	payloadCodec kkcodec.ICodec
+	hdMap        map[string]IReqRspHandler
+	oneWayMap    map[string]IOneWayHandler
 }
 
 func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
@@ -99,7 +104,7 @@ func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 		return nil
 	}
 	var fr Frame
-	err = gFrameCodec.Unmarshal(frameBytes, &fr)
+	err = r.frameCodec.Unmarshal(frameBytes, &fr)
 	if err != nil {
 		kklog.Debugf("failed to unmarshal frame: %v", err)
 		kkbuffer.Put(data)
@@ -153,7 +158,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	if !ok || h == nil {
 		rspFrame.Code = ErrorCodeMethodNotFound
 		rspFrame.Err = "未找到远程方法" + method
-		rspBB, err := EncodeFailedResponse(&rspFrame)
+		rspBB, err := EncodeFailedResponse(r.frameCodec, &rspFrame)
 		if err != nil {
 			kklog.Errorf("encode failed response: %v", err)
 			return nil
@@ -167,7 +172,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	if err != nil {
 		rspFrame.Code = ErrorCodeMethodRetErr
 		rspFrame.Err = "远程方法执行失败: " + err.Error()
-		rspBB, err := EncodeFailedResponse(&rspFrame)
+		rspBB, err := EncodeFailedResponse(r.frameCodec, &rspFrame)
 		if err != nil {
 			kklog.Errorf("encode failed response: %v", err)
 			return nil
@@ -176,7 +181,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	}
 
 	// encode response
-	rspBB, err := EncodeRpcFrameWithPayload(FrameTypeResponse, fr.ID, method, respBytes, 0)
+	rspBB, err := EncodeRpcFrameWithPayload(r.frameCodec, r.payloadCodec, FrameTypeResponse, fr.ID, method, respBytes, 0)
 	if err != nil {
 		return nil
 	}
@@ -195,9 +200,11 @@ func (r *RpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) error {
 	return h.OnMsg(ctx, fr.P, fr.T, connId)
 }
 
-func NewRpcReceiver() *RpcReceiver {
+func NewRpcReceiver(frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec) *RpcReceiver {
 	return &RpcReceiver{
-		hdMap:     make(map[string]IRpcHandler),
-		oneWayMap: make(map[string]IOneWayHandler),
+		frameCodec:   frameCodec,
+		payloadCodec: payloadCodec,
+		hdMap:        make(map[string]IReqRspHandler),
+		oneWayMap:    make(map[string]IOneWayHandler),
 	}
 }

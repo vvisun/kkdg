@@ -6,7 +6,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/remotes/kkrpc"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -24,12 +23,6 @@ type EnvConfig struct {
 	StreamToolDefault kkpacket.IPacket
 	// 默认的字节序
 	ByteOrderDefault binary.ByteOrder
-	// rpc帧编码器
-	RpcFrameCodec kkcodec.ICodec
-	// rpc帧里的Data字段编码器
-	RpcPayloadCodec kkcodec.ICodec
-	// rpc的流拆解器
-	RpcStreamTool kkpacket.IPacket
 }
 
 // 配置默认值。启动阶段初始化，运行期间不要修改。
@@ -42,5 +35,4 @@ func ConfigDefaults(cfg *EnvConfig) {
 	kkapp.ConfigDefaults(cfg.PacketGateAndClient, cfg.PacketGateAndBusiness)
 	actorremotes.ConfigDefaults(cfg.MsgCodecActor, cfg.MessageRegistryActor)
 	kkpacket.ConfigDefaults(cfg.StreamToolDefault, cfg.ByteOrderDefault)
-	kkrpc.ConfigDefaults(cfg.RpcFrameCodec, cfg.RpcPayloadCodec, cfg.RpcStreamTool)
 }

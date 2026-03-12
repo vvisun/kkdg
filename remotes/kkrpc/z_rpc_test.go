@@ -63,7 +63,7 @@ func newTestServerClient(t *testing.T, rpcRouter *RpcReceiver) (*Server, *Client
 
 func Test_InvokeOneWay(t *testing.T) {
 	setupTestRpcManager(t)
-	rpcRouter := NewRpcReceiver()
+	rpcRouter := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	rp := &rpcProcessor{}
 	RegistOneWayHandler(rpcRouter, "testOneway", rp.onTestReq)
 	_, cli := newTestServerClient(t, rpcRouter)
@@ -75,7 +75,7 @@ func Test_InvokeOneWay(t *testing.T) {
 
 func Test_RpcProcessor(t *testing.T) {
 	setupTestRpcManager(t)
-	rpcRouter := NewRpcReceiver()
+	rpcRouter := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	rp := &rpcProcessor{}
 	RegistReqRspHandler(rpcRouter, "testReqRsp", rp.onTestReqTestRsp)
 	RegistOneWayHandler(rpcRouter, "testOneway", rp.onTestReq)
@@ -131,7 +131,7 @@ func Test_RpcProcessor(t *testing.T) {
 func newTestServerClientWithHandler(t *testing.T, handler ReqRspHandlerFunc[testReq, testRsp]) (*Server, *Client) {
 	t.Helper()
 	setupTestRpcManager(t)
-	rpcRouter := NewRpcReceiver()
+	rpcRouter := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	RegistReqRspHandler(rpcRouter, "testReqRsp", handler)
 	return newTestServerClient(t, rpcRouter)
 }
@@ -321,7 +321,7 @@ func Test_InvokeAsync_Timeout(t *testing.T) {
 func Test_InvokeNR(t *testing.T) {
 	setupTestRpcManager(t)
 	called := make(chan struct{}, 1)
-	rpcRouter := NewRpcReceiver()
+	rpcRouter := NewRpcReceiver(gFrameCodec, gPayloadCodec)
 	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		select {
 		case called <- struct{}{}:
