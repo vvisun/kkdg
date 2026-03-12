@@ -2,6 +2,7 @@ package kkmetrics
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -17,42 +18,20 @@ import (
 // Meter is the global metric.Meter used by kkdg.
 var Meter metric.Meter
 
-// Init initializes the global MeterProvider and exposes /metrics on the given address.
-// Example: addr = ":2112"
-func Init(ctx context.Context, addr string) error {
-	exp, err := prometheus.New()
-	if err != nil {
-		return err
-	}
-
-	mp := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(exp),
-	)
-	otel.SetMeterProvider(mp)
-	Meter = mp.Meter("github.com/vvisun/kkdg")
-
-	// expose /metrics
-	go func() {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		if err := http.ListenAndServe(addr, mux); err != nil {
-			log.Printf("metrics http server error: %v", err)
-		}
-	}()
-
-	return nil
-}
+var (
+	errMetricsNotInitialized = errors.New("metrics not initialized")
+)
 
 func AutoInit(ctx context.Context, addr string) {
 	modInits := []func(ctx context.Context) error{
-		InitClusterMetrics,
-		InitDiscoveryMetrics,
+		initClusterMetrics,
+		initDiscoveryMetrics,
 	}
 	curInitIndex := 0
 
 	go func() {
 		for {
-			if Init(ctx, addr) == nil {
+			if initMeter(ctx, addr) == nil {
 				// 成功初始化指标，退出循环
 				break
 			}
@@ -83,30 +62,56 @@ func AutoInit(ctx context.Context, addr string) {
 	}()
 }
 
-// InitClusterMetrics registers observable gauges for cluster metrics.
+// initMeter initializes the global MeterProvider and exposes /metrics on the given address.
+// Example: addr = ":2112"
+func initMeter(ctx context.Context, addr string) error {
+	exp, err := prometheus.New()
+	if err != nil {
+		return err
+	}
+
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(exp),
+	)
+	otel.SetMeterProvider(mp)
+	Meter = mp.Meter("github.com/vvisun/kkdg")
+
+	// expose /metrics
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		if err := http.ListenAndServe(addr, mux); err != nil {
+			log.Printf("metrics http server error: %v", err)
+		}
+	}()
+
+	return nil
+}
+
+// initClusterMetrics registers observable gauges for cluster metrics.
 // 同样通过 CollectClusterMetrics 触发事件，由集群模块回填 MetricsEventData，
 // 然后根据返回的 key 自动生成指标，避免在这里手写 metric 名称。
-func InitClusterMetrics(ctx context.Context) error {
+func initClusterMetrics(ctx context.Context) error {
 	return initTrigger(ctx, "cluster", collectClusterMetrics)
 }
 
-// InitDiscoveryMetrics registers observable gauges for discovery metrics.
+// initDiscoveryMetrics registers observable gauges for discovery metrics.
 // 它通过 CollectDiscoveryMetrics (event-based) 拉取最新快照，根据返回的 key 动态生成指标，
 // 避免在这里手写/维护具体的 metric 名称。
-func InitDiscoveryMetrics(ctx context.Context) error {
+func initDiscoveryMetrics(ctx context.Context) error {
 	return initTrigger(ctx, "discovery", collectDiscoveryMetrics)
 }
 
 func initTrigger(ctx context.Context, namespace string, collectFunc collectFunc) error {
 	if Meter == nil {
-		return nil
+		return errMetricsNotInitialized
 	}
 
 	// 先触发一次事件，拿到当前快照中的所有 key，用于生成指标元数据
 	e := collectFunc(namespace)
 	if e == nil || len(e.Metrics) == 0 {
 		// 没有监听者或暂时没有数据，直接返回即可，后面可以在其他地方再次调用 InitXXXXMetrics
-		return nil
+		return errMetricsNotInitialized
 	}
 
 	gauges := make(map[string]metric.Float64ObservableGauge, len(e.Metrics))
@@ -139,6 +144,7 @@ func initTrigger(ctx context.Context, namespace string, collectFunc collectFunc)
 
 	if err == nil {
 		kklog.Infof("metrics %s initialized", namespace)
+		return nil
 	}
 
 	return err
