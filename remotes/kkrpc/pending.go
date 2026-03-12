@@ -27,14 +27,15 @@ var chanFramePool = sync.Pool{
 
 // pendingMap 用于管理请求的响应和回调
 type pendingMap struct {
+	maxPendingCount int64
+	curPendingCount int64
 	closed          atomic.Bool
 	shards          [pendingShardCount]*pendingShard
-	maxPendingCount int
 }
 
 func newPendingMap(maxPendingCount int) *pendingMap {
 	p := &pendingMap{
-		maxPendingCount: maxPendingCount,
+		maxPendingCount: int64(maxPendingCount),
 	}
 	for i := 0; i < pendingShardCount; i++ {
 		p.shards[i] = newPendingShard()
@@ -54,6 +55,10 @@ func (p *pendingMap) addCh(reqId uint64) (chan Frame, bool) {
 	if p.closed.Load() {
 		return nil, false
 	}
+	if atomic.LoadInt64(&p.curPendingCount) >= p.maxPendingCount {
+		return nil, false
+	}
+	atomic.AddInt64(&p.curPendingCount, 1)
 	s := p.shard(reqId)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -78,6 +83,7 @@ func (p *pendingMap) delCh(reqId uint64) (removed chan Frame) {
 		default:
 		}
 		chanFramePool.Put(ch)
+		atomic.AddInt64(&p.curPendingCount, -1)
 	}
 	return ch
 }
@@ -92,6 +98,10 @@ func (p *pendingMap) addCallback(reqId uint64, fn func(Frame)) {
 	if p.closed.Load() {
 		return
 	}
+	if atomic.LoadInt64(&p.curPendingCount) >= p.maxPendingCount {
+		return
+	}
+	atomic.AddInt64(&p.curPendingCount, 1)
 	s := p.shard(reqId)
 	s.mu.Lock()
 	s.cbMap[reqId] = fn
@@ -101,8 +111,12 @@ func (p *pendingMap) addCallback(reqId uint64, fn func(Frame)) {
 func (p *pendingMap) delCallback(reqId uint64) {
 	s := p.shard(reqId)
 	s.mu.Lock()
+	_, ok := s.cbMap[reqId]
 	delete(s.cbMap, reqId)
 	s.mu.Unlock()
+	if ok {
+		atomic.AddInt64(&p.curPendingCount, -1)
+	}
 }
 
 // takeCallback 移除并返回指定 reqId 的 callback，用于超时等场景下保证只回调一次。
