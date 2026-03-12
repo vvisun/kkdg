@@ -1,6 +1,7 @@
 package kkevent
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -234,27 +235,124 @@ func TestPublishNil(t *testing.T) {
 	}
 }
 
-func BenchmarkPublish(b *testing.B) {
-	bus := NewEventBus()
-	topic := "bench"
-	handler := func(a int, b string, c bool) {}
-	bus.Subscribe(topic, handler)
+// ----------------- Additional edge / error tests -----------------
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bus.Publish(topic, 1, "test", true)
+// TestSubscribeInvalidHandler verifies that subscribing a non-func handler returns error.
+func TestSubscribeInvalidHandler(t *testing.T) {
+	bus := NewEventBus()
+	err := bus.Subscribe("test-invalid", "not-a-func")
+	if err == nil {
+		t.Fatalf("expected error when subscribing non-func handler")
+	}
+	if !strings.Contains(err.Error(), "is not of type reflect.Func") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func BenchmarkPublishAsync(b *testing.B) {
+// TestUnsubscribeErrors covers Unsubscribe error branches: non-existent topic and handler-not-found.
+func TestUnsubscribeErrors(t *testing.T) {
 	bus := NewEventBus()
-	topic := "bench-async"
-	handler := func() {}
-	bus.SubscribeAsync(topic, handler, false)
+	topic := "test-unsub-errors"
+	h1 := func() {}
+	h2 := func() {}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bus.Publish(topic)
+	// topic not exist
+	if err := bus.Unsubscribe("no-such-topic", h1); err == nil {
+		t.Fatalf("expected error for non-existent topic")
 	}
+
+	// handler not found
+	if err := bus.Subscribe(topic, h1); err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	if err := bus.Unsubscribe(topic, h2); err == nil {
+		t.Fatalf("expected error for handler not found")
+	}
+}
+
+// TestSubscribeOnceAsync verifies that SubscribeOnceAsync handlers fire only once even with async.
+func TestSubscribeOnceAsync(t *testing.T) {
+	bus := NewEventBus()
+	topic := "test-once-async"
+	var mu sync.Mutex
+	count := 0
+
+	handler := func() {
+		mu.Lock()
+		count++
+		mu.Unlock()
+	}
+
+	if err := bus.SubscribeOnceAsync(topic, handler); err != nil {
+		t.Fatalf("SubscribeOnceAsync: %v", err)
+	}
+	bus.Publish(topic)
+	bus.Publish(topic)
 	bus.WaitAsync()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if count != 1 {
+		t.Fatalf("expected handler called once, got %d", count)
+	}
+}
+
+// TestGlobalBus verifies the convenience wrappers around defaultBus.
+func TestGlobalBus(t *testing.T) {
+	topic := "test-global-bus"
+	ch := make(chan struct{}, 1)
+
+	if err := Subscribe(topic, func(v int) {
+		if v == 42 {
+			ch <- struct{}{}
+		}
+	}); err != nil {
+		t.Fatalf("Subscribe on global bus: %v", err)
+	}
+
+	Publish(topic, 42)
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		t.Fatalf("global Publish/Subscribe did not deliver event in time")
+	}
+}
+
+// TestConcurrentPublishSubscribe does a small race-style sanity check for
+// concurrent subscribe/unsubscribe while publishing, exercising the COW logic.
+func TestConcurrentPublishSubscribe(t *testing.T) {
+	bus := NewEventBus()
+	topic := "test-concurrent"
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	// publisher
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				bus.Publish(topic, 1)
+			}
+		}
+	}()
+
+	// concurrent subscribe/unsubscribe
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		handler := func(int) {}
+		for i := 0; i < 1000; i++ {
+			_ = bus.Subscribe(topic, handler)
+			_ = bus.Unsubscribe(topic, handler)
+		}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	close(stop)
+	wg.Wait()
 }
