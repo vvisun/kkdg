@@ -22,11 +22,12 @@ var (
 	errMetricsNotInitialized = errors.New("metrics not initialized")
 )
 
+var modInits = []func(ctx context.Context) error{
+	initClusterMetrics,
+	initDiscoveryMetrics,
+}
+
 func AutoInit(ctx context.Context, addr string) {
-	modInits := []func(ctx context.Context) error{
-		initClusterMetrics,
-		initDiscoveryMetrics,
-	}
 	curInitIndex := 0
 
 	go func() {
