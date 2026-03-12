@@ -44,9 +44,9 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 	}
 	pending := i.sender.getPending()
 	reqId := genReqId()
-	ch, ok := pending.addCh(reqId)
-	if !ok {
-		return kkerrors.ErrRpcConnClosed
+	ch, err := pending.addCh(reqId)
+	if err != nil {
+		return err
 	}
 	defer func() {
 		removed := pending.delCh(reqId)
@@ -165,7 +165,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 		doneCh = make(chan struct{})
 	}
 
-	pending.addCallback(reqId, func(fr Frame) {
+	err = pending.addCallback(reqId, func(fr Frame) {
 		if fr.ID != reqId || fr.T != FrameTypeResponse {
 			return
 		}
@@ -187,6 +187,9 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 		}
 		callback(respInfo, nil)
 	})
+	if err != nil {
+		return err
+	}
 	err = i.sender.SendBuffer(i.connId, bb)
 	if err != nil {
 		callback(nil, err)

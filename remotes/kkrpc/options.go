@@ -14,7 +14,7 @@ type RpcOption struct {
 
 func DefaultRpcOption() RpcOption {
 	return RpcOption{
-		MaxPendingCount: 1024,
+		MaxPendingCount: 4096,
 		StreamTool:      kkpacket.DefaultStreamPacket(),
 		FrameCodec:      kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
 		PayloadCodec:    kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
@@ -23,7 +23,7 @@ func DefaultRpcOption() RpcOption {
 
 func CheckRpcOption(opt *RpcOption) {
 	if opt.MaxPendingCount <= 0 {
-		opt.MaxPendingCount = 1024
+		opt.MaxPendingCount = 4096
 	}
 	if opt.StreamTool == nil {
 		opt.StreamTool = kkpacket.DefaultStreamPacket()

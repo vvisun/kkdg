@@ -6,6 +6,10 @@ import (
 )
 
 var (
+	// Rpc已关闭
+	ErrRpcClosed = errors.New("kkrpc: closed")
+	// 请求队列已满
+	ErrRpcQueueFull = errors.New("kkrpc: queue full")
 	// 客户端未连接
 	ErrRpcNotConnected = errors.New("kkrpc: not connected")
 	// 客户端已关闭

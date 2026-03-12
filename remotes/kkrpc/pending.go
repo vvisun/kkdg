@@ -3,6 +3,8 @@ package kkrpc
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/vvisun/kkdg/kkerrors"
 )
 
 const pendingShardCount = 64
@@ -51,23 +53,23 @@ func (p *pendingMap) IsClosed() bool {
 	return p.closed.Load()
 }
 
-func (p *pendingMap) addCh(reqId uint64) (chan Frame, bool) {
+func (p *pendingMap) addCh(reqId uint64) (chan Frame, error) {
 	if p.closed.Load() {
-		return nil, false
+		return nil, kkerrors.ErrRpcClosed
 	}
 	if atomic.LoadInt64(&p.curPendingCount) >= p.maxPendingCount {
-		return nil, false
+		return nil, kkerrors.ErrRpcQueueFull
 	}
 	atomic.AddInt64(&p.curPendingCount, 1)
 	s := p.shard(reqId)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if p.closed.Load() {
-		return nil, false
+		return nil, kkerrors.ErrRpcClosed
 	}
 	ch := chanFramePool.Get().(chan Frame)
 	s.chMap[reqId] = ch
-	return ch, true
+	return ch, nil
 }
 
 // delCh 移除 reqId 对应的 channel。若找到则排空后放回池并返回该 channel；若已由 deliver 移除则返回 nil。
@@ -94,18 +96,19 @@ func (p *pendingMap) putChBack(ch chan Frame) {
 	}
 }
 
-func (p *pendingMap) addCallback(reqId uint64, fn func(Frame)) {
+func (p *pendingMap) addCallback(reqId uint64, fn func(Frame)) error {
 	if p.closed.Load() {
-		return
+		return kkerrors.ErrRpcClosed
 	}
 	if atomic.LoadInt64(&p.curPendingCount) >= p.maxPendingCount {
-		return
+		return kkerrors.ErrRpcQueueFull
 	}
 	atomic.AddInt64(&p.curPendingCount, 1)
 	s := p.shard(reqId)
 	s.mu.Lock()
 	s.cbMap[reqId] = fn
 	s.mu.Unlock()
+	return nil
 }
 
 func (p *pendingMap) delCallback(reqId uint64) {
