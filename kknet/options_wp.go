@@ -21,6 +21,7 @@ const (
 const BatchPacketSize = 32
 
 type WriteOptions struct {
+	StreamTool kkpacket.IPacket
 	// 消息包解码器
 	MsgPacket *kkpacket.MessagePacket
 
@@ -61,6 +62,7 @@ type WriteOptions struct {
 
 func DefaultWriteOptions() WriteOptions {
 	return WriteOptions{
+		StreamTool:                kkpacket.DefaultStreamPacket(),
 		SendQueueSize:             128,
 		SendQueueStrict:           false,
 		SendQueueNeedFlushOver:    true,
@@ -77,6 +79,10 @@ func DefaultWriteOptions() WriteOptions {
 func CheckWriteOptions(opts *WriteOptions) {
 	if opts == nil {
 		return
+	}
+	if opts.StreamTool == nil {
+		kklog.Debugf("wp StreamTool is nil, use default stream tool")
+		opts.StreamTool = kkpacket.DefaultStreamPacket()
 	}
 	if opts.MsgPacket == nil {
 		// kklog.Warnf("wp MsgPacket is nil, SendMsg will work error")

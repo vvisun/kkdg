@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -178,7 +177,7 @@ func (c *Client) dialAndStart() (*wsConn, <-chan struct{}, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	conn.SetReadLimit(int64(kkpacket.DefaultStreamPacket().MaxPacketSize()))
+	conn.SetReadLimit(int64(c.opts.StreamTool.MaxPacketSize()))
 
 	wsConn := newWSConn(conn, &c.opts, &c.stats)
 

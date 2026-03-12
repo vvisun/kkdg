@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
 func freePortBench(b *testing.B) string {
@@ -41,7 +40,7 @@ func BenchmarkWSConn_SendBuffer(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+		bb, err := opts.StreamTool.Pack(payload)
 		if err != nil {
 			b.Fatal(err)
 		}

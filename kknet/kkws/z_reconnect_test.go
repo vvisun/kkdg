@@ -10,7 +10,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
 type testLifecycleHandler struct {
@@ -73,7 +72,7 @@ func TestKKWS_Client_Reconnect(t *testing.T) {
 					continue
 				}
 				// We only need the first packet for this test.
-				msg, err := kkpacket.DefaultStreamPacket().Unpack(data)
+				msg, err := testStreamTool.Unpack(data)
 				if err != nil {
 					continue
 				}
@@ -124,7 +123,7 @@ func TestKKWS_Client_Reconnect(t *testing.T) {
 	}
 
 	// After reconnect, client should be able to send.
-	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("hi"))
+	bb, err := testStreamTool.Pack([]byte("hi"))
 	if err != nil {
 		t.Fatalf("pack error: %v", err)
 	}

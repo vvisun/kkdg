@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
@@ -148,7 +147,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	}
 
 	// Parse [length,message][length,message]...
-	stream := kkpacket.DefaultStreamPacket()
+	stream := rp.opts.StreamTool
 	packets, leftData, err := stream.Split(buf, rp.splitBuf[:0])
 	if err != nil {
 		if rp.recvBuf != nil {

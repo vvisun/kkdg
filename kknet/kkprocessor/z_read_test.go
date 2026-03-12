@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -57,18 +56,18 @@ func (m *mockConnForRead) GetExtraData() any                     { return nil }
 
 func TestReadProcessor_OnRecvBytes_SinglePacket(t *testing.T) {
 	h := &collectingRawHandler{}
-	opts := kknet.ReadOptions{
-		RawHandler:       h,
-		RecvQueueSize:    32,
-		RecvQueueStrict:  false,
-		RecvBufShrinkCap: 2048,
-	}
-	rp := NewReadProcessor(opts).(*ReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+		kknet.WithRecvBufShrinkCap(2048),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
 	conn := &mockConnForRead{id: 100}
 	rp.Start(conn)
 	defer rp.Stop()
 
-	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("hello"))
+	bb, err := opts.StreamTool.Pack([]byte("hello"))
 	if err != nil {
 		t.Fatalf("Pack: %v", err)
 	}
@@ -87,7 +86,7 @@ func TestReadProcessor_OnRecvBytes_SinglePacket(t *testing.T) {
 	if recvd[0].connID != 100 {
 		t.Errorf("connID = %d, want 100", recvd[0].connID)
 	}
-	msg, _ := kkpacket.DefaultStreamPacket().Unpack(recvd[0].data)
+	msg, _ := opts.StreamTool.Unpack(recvd[0].data)
 	if string(msg) != "hello" {
 		t.Errorf("data = %q, want hello", msg)
 	}
@@ -95,20 +94,20 @@ func TestReadProcessor_OnRecvBytes_SinglePacket(t *testing.T) {
 
 func TestReadProcessor_OnRecvBytes_MultiPacket(t *testing.T) {
 	h := &collectingRawHandler{}
-	opts := kknet.ReadOptions{
-		RawHandler:       h,
-		RecvQueueSize:    32,
-		RecvQueueStrict:  false,
-		RecvBufShrinkCap: 2048,
-	}
-	rp := NewReadProcessor(opts).(*ReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+		kknet.WithRecvBufShrinkCap(2048),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
 	conn := &mockConnForRead{id: 1}
 	rp.Start(conn)
 	defer rp.Stop()
 
 	var combined []byte
 	for _, msg := range []string{"a", "bb", "ccc"} {
-		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(msg))
+		bb, err := opts.StreamTool.Pack([]byte(msg))
 		if err != nil {
 			t.Fatalf("Pack: %v", err)
 		}
@@ -127,7 +126,7 @@ func TestReadProcessor_OnRecvBytes_MultiPacket(t *testing.T) {
 		t.Fatalf("expected 3 packets, got %d", len(recvd))
 	}
 	for i, want := range []string{"a", "bb", "ccc"} {
-		msg, _ := kkpacket.DefaultStreamPacket().Unpack(recvd[i].data)
+		msg, _ := opts.StreamTool.Unpack(recvd[i].data)
 		if string(msg) != want {
 			t.Errorf("packet %d: got %q, want %q", i, msg, want)
 		}
@@ -136,18 +135,18 @@ func TestReadProcessor_OnRecvBytes_MultiPacket(t *testing.T) {
 
 func TestReadProcessor_OnRecvBytes_PartialThenComplete(t *testing.T) {
 	h := &collectingRawHandler{}
-	opts := kknet.ReadOptions{
-		RawHandler:       h,
-		RecvQueueSize:    32,
-		RecvQueueStrict:  false,
-		RecvBufShrinkCap: 2048,
-	}
-	rp := NewReadProcessor(opts).(*ReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+		kknet.WithRecvBufShrinkCap(2048),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
 	conn := &mockConnForRead{id: 1}
 	rp.Start(conn)
 	defer rp.Stop()
 
-	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("full"))
+	bb, err := opts.StreamTool.Pack([]byte("full"))
 	if err != nil {
 		t.Fatalf("Pack: %v", err)
 	}
@@ -173,7 +172,7 @@ func TestReadProcessor_OnRecvBytes_PartialThenComplete(t *testing.T) {
 	if len(recvd) != 1 {
 		t.Fatalf("expected 1 packet after complete, got %d", len(recvd))
 	}
-	msg, _ := kkpacket.DefaultStreamPacket().Unpack(recvd[0].data)
+	msg, _ := opts.StreamTool.Unpack(recvd[0].data)
 	if string(msg) != "full" {
 		t.Errorf("got %q, want full", msg)
 	}
@@ -181,12 +180,12 @@ func TestReadProcessor_OnRecvBytes_PartialThenComplete(t *testing.T) {
 
 func TestReadProcessor_OnRecvBytes_Empty(t *testing.T) {
 	h := &collectingRawHandler{}
-	opts := kknet.ReadOptions{
-		RawHandler:      h,
-		RecvQueueSize:   32,
-		RecvQueueStrict: false,
-	}
-	rp := NewReadProcessor(opts).(*ReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
 	conn := &mockConnForRead{id: 1}
 	rp.Start(conn)
 	defer rp.Stop()
@@ -206,17 +205,17 @@ func TestReadProcessor_OnRecvBytes_Empty(t *testing.T) {
 func TestReadProcessor_RecvQueueFullCallback(t *testing.T) {
 	var fullCount int
 	blockCh := make(chan struct{})
-	opts := kknet.ReadOptions{
-		RawHandler:       &blockingRawHandler{block: blockCh},
-		RecvQueueSize:    2,
-		RecvQueueStrict:  true,
-		RecvBufShrinkCap: 2048,
-		RecvQueueFullCallback: func(_ kknet.IConn) {
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&blockingRawHandler{block: blockCh}),
+		kknet.WithRecvQueueSize(2),
+		kknet.WithRecvQueueStrict(true),
+		kknet.WithRecvBufShrinkCap(2048),
+		kknet.WithRecvQueueFullCallback(func(_ kknet.IConn) {
 			fullCount++
 			kklog.Infof("RecvQueueFullCallback: fullCount=%d", fullCount)
-		},
-	}
-	rp := NewReadProcessor(opts).(*ReadProcessor)
+		}),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
 	conn := &mockConnForRead{id: 1}
 	rp.Start(conn)
 	defer func() {
@@ -225,15 +224,15 @@ func TestReadProcessor_RecvQueueFullCallback(t *testing.T) {
 	}()
 
 	// 第 1 条：消费者 pop 后在 OnRaw 中阻塞，队列空
-	bb1, _ := kkpacket.DefaultStreamPacket().Pack([]byte("1"))
+	bb1, _ := opts.StreamTool.Pack([]byte("1"))
 	defer kkbuffer.Put(bb1)
 	_ = rp.OnRecvBytes(bb1.B)
 	time.Sleep(20 * time.Millisecond)
 
 	// 第 2、3、4 条：队列 size=2，前 2 条填满，第 3 条 Push 失败触发 RecvQueueFullCallback
-	bb2, _ := kkpacket.DefaultStreamPacket().Pack([]byte("2"))
-	bb3, _ := kkpacket.DefaultStreamPacket().Pack([]byte("3"))
-	bb4, _ := kkpacket.DefaultStreamPacket().Pack([]byte("4"))
+	bb2, _ := opts.StreamTool.Pack([]byte("2"))
+	bb3, _ := opts.StreamTool.Pack([]byte("3"))
+	bb4, _ := opts.StreamTool.Pack([]byte("4"))
 	defer kkbuffer.Put(bb2)
 	defer kkbuffer.Put(bb3)
 	defer kkbuffer.Put(bb4)
@@ -255,13 +254,13 @@ func (h *blockingRawHandler) OnRaw(_ kknet.CONN_ID, _ *kkbuffer.ByteBuffer) {
 
 func TestReadProcessor_EnqueuePacket(t *testing.T) {
 	h := &collectingRawHandler{}
-	opts := kknet.ReadOptions{
-		RawHandler:       h,
-		RecvQueueSize:    32,
-		RecvQueueStrict:  false,
-		RecvBufShrinkCap: 2048,
-	}
-	rp := NewReadProcessor(opts).(*ReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+		kknet.WithRecvBufShrinkCap(2048),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
 	conn := &mockConnForRead{id: 42}
 	rp.Start(conn)
 	defer rp.Stop()
@@ -277,7 +276,7 @@ func TestReadProcessor_EnqueuePacket(t *testing.T) {
 	if recvd[0].connID != 42 {
 		t.Errorf("connID = %d, want 42", recvd[0].connID)
 	}
-	msg, _ := kkpacket.DefaultStreamPacket().Unpack(recvd[0].data)
+	msg, _ := opts.StreamTool.Unpack(recvd[0].data)
 	if string(msg) != "hello" {
 		t.Errorf("data = %q, want hello", msg)
 	}
@@ -285,11 +284,12 @@ func TestReadProcessor_EnqueuePacket(t *testing.T) {
 
 func TestReadProcessor_EnqueuePacket_Empty(t *testing.T) {
 	h := &collectingRawHandler{}
-	opts := kknet.ReadOptions{
-		RawHandler:    h,
-		RecvQueueSize: 32,
-	}
-	rp := NewReadProcessor(opts).(*ReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
 	conn := &mockConnForRead{id: 1}
 	rp.Start(conn)
 	defer rp.Stop()
@@ -326,15 +326,15 @@ func (h *syncCollectingHandler) get() []recvdPacket {
 
 func TestSyncReadProcessor_OnRecvBytes(t *testing.T) {
 	h := &syncCollectingHandler{}
-	opts := kknet.ReadOptions{
-		NoneCopyHandler: h,
-		RecvQueueSize:   32,
-	}
-	rp := NewSyncReadProcessor(opts).(*SyncReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(32),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
 	conn := &mockConnForRead{id: 7}
 	rp.Start(conn)
 
-	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("sync-hello"))
+	bb, err := opts.StreamTool.Pack([]byte("sync-hello"))
 	if err != nil {
 		t.Fatalf("Pack: %v", err)
 	}
@@ -352,7 +352,7 @@ func TestSyncReadProcessor_OnRecvBytes(t *testing.T) {
 	if recvd[0].connID != 7 {
 		t.Errorf("connID = %d, want 7", recvd[0].connID)
 	}
-	msg, _ := kkpacket.DefaultStreamPacket().Unpack(recvd[0].data)
+	msg, _ := opts.StreamTool.Unpack(recvd[0].data)
 	if string(msg) != "sync-hello" {
 		t.Errorf("data = %q, want sync-hello", msg)
 	}
@@ -360,11 +360,11 @@ func TestSyncReadProcessor_OnRecvBytes(t *testing.T) {
 
 func TestSyncReadProcessor_EnqueuePacket(t *testing.T) {
 	h := &syncCollectingHandler{}
-	opts := kknet.ReadOptions{
-		NoneCopyHandler: h,
-		RecvQueueSize:   32,
-	}
-	rp := NewSyncReadProcessor(opts).(*SyncReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(32),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
 	conn := &mockConnForRead{id: 99}
 	rp.Start(conn)
 
@@ -378,7 +378,7 @@ func TestSyncReadProcessor_EnqueuePacket(t *testing.T) {
 	if recvd[0].connID != 99 {
 		t.Errorf("connID = %d, want 99", recvd[0].connID)
 	}
-	msg, _ := kkpacket.DefaultStreamPacket().Unpack(recvd[0].data)
+	msg, _ := opts.StreamTool.Unpack(recvd[0].data)
 	if string(msg) != "test" {
 		t.Errorf("data = %q, want test", msg)
 	}
@@ -386,17 +386,17 @@ func TestSyncReadProcessor_EnqueuePacket(t *testing.T) {
 
 func TestReadProcessor_Stop_DrainsRemaining(t *testing.T) {
 	h := &collectingRawHandler{}
-	opts := kknet.ReadOptions{
-		RawHandler:       h,
-		RecvQueueSize:    32,
-		RecvQueueStrict:  false,
-		RecvBufShrinkCap: 2048,
-	}
-	rp := NewReadProcessor(opts).(*ReadProcessor)
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+		kknet.WithRecvBufShrinkCap(2048),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
 	conn := &mockConnForRead{id: 1}
 	rp.Start(conn)
 
-	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("drain"))
+	bb, _ := opts.StreamTool.Pack([]byte("drain"))
 	defer kkbuffer.Put(bb)
 	rp.EnqueuePacket(bb.B)
 

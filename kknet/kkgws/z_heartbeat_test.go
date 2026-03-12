@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -117,7 +116,7 @@ func TestPingPong_Keepalive(t *testing.T) {
 
 	// 仍能正常收发说明连接未因读超时断开
 	payload := []byte("alive")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	bb, err := opts.StreamTool.Pack(payload)
 	if err != nil {
 		t.Fatalf("Pack: %v", err)
 	}
@@ -126,7 +125,7 @@ func TestPingPong_Keepalive(t *testing.T) {
 	}
 	select {
 	case got := <-recvCh:
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(got)
+		msg, err := opts.StreamTool.Unpack(got)
 		if err != nil {
 			t.Fatalf("Unpack: %v", err)
 		}
@@ -137,4 +136,3 @@ func TestPingPong_Keepalive(t *testing.T) {
 		t.Fatal("timeout waiting for message after idle (Ping/Pong keepalive may not be active)")
 	}
 }
-

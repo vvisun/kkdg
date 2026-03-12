@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -197,7 +196,7 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 				return
 			}
 			for j := 0; j < msgsPerConn; j++ {
-				bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+				bb, err := testStreamTool.Pack(payload)
 				if err != nil {
 					errCh <- err
 					return

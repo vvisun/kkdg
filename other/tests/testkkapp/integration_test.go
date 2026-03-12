@@ -92,6 +92,8 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	rpcAddr := freePort(t)
 	const transType = kkapp.TransTypeNats
 
+	var streamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
+
 	InitMsgs(t)
 
 	// gate 节点
@@ -153,7 +155,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	handler := &clientHandler{
 		onRaw: func(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-			msg, e := kkpacket.DecodeStream(data, kkpacket.DefaultStreamPacket(), kkapp.GetMsgPacket())
+			msg, e := kkpacket.DecodeStream(data, streamTool, kkapp.GetMsgPacket())
 
 			if e != nil {
 				t.Logf("unpack recv: %v", e)
@@ -187,7 +189,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	bb, err := kkpacket.EncodeStream(
 		&MsgTest1{ID: 1, Data: string(payload)},
-		kkpacket.DefaultStreamPacket(),
+		streamTool,
 		kkapp.GetMsgPacket(),
 	)
 	if err != nil {

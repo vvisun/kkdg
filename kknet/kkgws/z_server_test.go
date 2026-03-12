@@ -7,7 +7,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -229,7 +228,7 @@ func TestServerClient_Integration_Echo(t *testing.T) {
 	}
 
 	payload := []byte("echo test")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	bb, err := opts.StreamTool.Pack(payload)
 	if err != nil {
 		t.Fatalf("Pack: %v", err)
 	}
@@ -238,7 +237,7 @@ func TestServerClient_Integration_Echo(t *testing.T) {
 	}
 	select {
 	case got := <-recvCh:
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(got)
+		msg, err := opts.StreamTool.Unpack(got)
 		if err != nil {
 			t.Fatalf("Unpack: %v", err)
 		}

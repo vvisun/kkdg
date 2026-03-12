@@ -1,8 +1,12 @@
 package kknet
 
-import "github.com/vvisun/kkdg/utils/kklog"
+import (
+	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/kklog"
+)
 
 type ReadOptions struct {
+	StreamTool kkpacket.IPacket
 	//消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket）
 	RawHandler IRawHandler
 	//消费函数, data: [length,message], 如果同步调用已经快过拷贝，可以直接同步消费数据。
@@ -27,6 +31,7 @@ type ReadOptions struct {
 
 func DefaultReadOptions() ReadOptions {
 	return ReadOptions{
+		StreamTool:                kkpacket.DefaultStreamPacket(),
 		RecvQueueSize:             256,
 		RecvQueueStrict:           false,
 		RecvBufShrinkCap:          2 * 1024, // 2KB
@@ -37,6 +42,10 @@ func DefaultReadOptions() ReadOptions {
 func CheckReadOptions(opts *ReadOptions) {
 	if opts == nil {
 		return
+	}
+	if opts.StreamTool == nil {
+		kklog.Debugf("rp StreamTool is nil, use default stream tool")
+		opts.StreamTool = kkpacket.DefaultStreamPacket()
 	}
 	if opts.RecvQueueSize <= 0 {
 		kklog.Debugf("rp RecvQueueSize fixed from %d to %d", opts.RecvQueueSize, 256)

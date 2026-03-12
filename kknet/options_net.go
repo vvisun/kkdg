@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -32,6 +33,7 @@ func ReconnectBackoff(base, maxInterval time.Duration, consecutiveFails int) tim
 
 // Options are common network settings.
 type Options struct {
+	StreamTool           kkpacket.IPacket             // 流拆解器
 	Logger               kklog.ILogger                // 日志记录器
 	ReadBufferSize       int                          // 读缓冲区大小 1-64KB
 	WriteBufferSize      int                          // 写缓冲区大小 1-64KB
@@ -64,6 +66,7 @@ type Option func(*Options)
 // DefaultOptions returns default settings.
 func DefaultOptions() Options {
 	return Options{
+		StreamTool:           kkpacket.DefaultStreamPacket(),
 		Logger:               kklog.GetConsoleLogger(),
 		ReadBufferSize:       4 * 1024,
 		WriteBufferSize:      4 * 1024,
@@ -88,6 +91,11 @@ func DefaultOptions() Options {
 func CheckOptions(opts *Options) {
 	if opts == nil {
 		return
+	}
+
+	if opts.StreamTool == nil {
+		kklog.Debugf("opts StreamTool is nil, use default stream tool")
+		opts.StreamTool = kkpacket.DefaultStreamPacket()
 	}
 
 	// 读写缓冲区大小。太大连接数一多内存消耗非常高。太小影响性能。
@@ -160,6 +168,17 @@ func WithLogger(l kklog.ILogger) Option {
 	return func(o *Options) {
 		if l != nil {
 			o.Logger = l
+		}
+	}
+}
+
+// WithStreamTool sets stream tool.
+func WithStreamTool(streamTool kkpacket.IPacket) Option {
+	return func(o *Options) {
+		if streamTool != nil {
+			o.StreamTool = streamTool
+			o.WpOptions.StreamTool = streamTool
+			o.RpOptions.StreamTool = streamTool
 		}
 	}
 }

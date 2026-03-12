@@ -171,7 +171,7 @@ func (wp *WriteProcessor) sendBufferRetry(buffer *kkbuffer.ByteBuffer) error {
 // 发送消息。
 func (wp *WriteProcessor) SendMsg(msg any) error {
 	// 编码消息
-	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), wp.opts.MsgPacket)
+	buffer, err := kkpacket.EncodeStream(msg, wp.opts.StreamTool, wp.opts.MsgPacket)
 	if err != nil {
 		kkbuffer.Put(buffer)
 		return err

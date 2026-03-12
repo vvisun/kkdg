@@ -10,7 +10,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -153,7 +152,7 @@ func (c *tlsConn) SendMsg(msg any) error {
 }
 
 func (c *tlsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
-	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+	if err := c.opts.StreamTool.CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}

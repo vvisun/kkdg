@@ -193,7 +193,7 @@ func (c *gwsConn) SendMsg(msg any) error {
 		}
 		return c.wp.SendMsg(msg)
 	}
-	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), c.opts.WpOptions.MsgPacket)
+	buffer, err := kkpacket.EncodeStream(msg, c.opts.StreamTool, c.opts.WpOptions.MsgPacket)
 	if err != nil {
 		kkbuffer.Put(buffer)
 		return err
@@ -202,7 +202,7 @@ func (c *gwsConn) SendMsg(msg any) error {
 }
 
 func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
-	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+	if err := c.opts.StreamTool.CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}

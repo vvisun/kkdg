@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -48,7 +47,7 @@ func TestConn_SendBuffer_Order(t *testing.T) {
 	const n = 50
 	for i := 0; i < n; i++ {
 		payload := []byte(fmt.Sprintf("m%d", i))
-		bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+		bb, err := opts.StreamTool.Pack(payload)
 		if err != nil {
 			t.Fatalf("Pack: %v", err)
 		}
@@ -60,7 +59,7 @@ func TestConn_SendBuffer_Order(t *testing.T) {
 	for i := 0; i < n; i++ {
 		select {
 		case frame := <-recvCh:
-			msg, err := kkpacket.DefaultStreamPacket().Unpack(frame)
+			msg, err := opts.StreamTool.Unpack(frame)
 			if err != nil {
 				t.Fatalf("Unpack: %v", err)
 			}

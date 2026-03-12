@@ -3,7 +3,6 @@ package kktcp
 import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
 type tcpEventHandler struct {
@@ -67,9 +66,9 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	if !ok {
 		return gnet.Close
 	}
-
+	streamTool := tc.opts.StreamTool
 	for {
-		data, ok, err := kkpacket.DefaultStreamPacket().SplitSR(c)
+		data, ok, err := streamTool.SplitSR(c)
 		if err != nil {
 			h.server.stats.AddError()
 			return gnet.Close

@@ -90,7 +90,7 @@ func (c *tcpConn) SendMsg(msg any) error {
 	if c.closing.Load() {
 		return kkerrors.ErrNetConnectionClosed
 	}
-	buffer, err := kkpacket.EncodeStream(msg, kkpacket.DefaultStreamPacket(), c.opts.WpOptions.MsgPacket)
+	buffer, err := kkpacket.EncodeStream(msg, c.opts.StreamTool, c.opts.WpOptions.MsgPacket)
 	if err != nil {
 		kkbuffer.Put(buffer)
 		return err
@@ -99,7 +99,7 @@ func (c *tcpConn) SendMsg(msg any) error {
 }
 
 func (c *tcpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
-	if err := kkpacket.DefaultStreamPacket().CheckPacketBuffer(buffer); err != nil {
+	if err := c.opts.StreamTool.CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}

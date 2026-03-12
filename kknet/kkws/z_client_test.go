@@ -6,7 +6,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -94,7 +93,7 @@ func TestClient_SendBuffer(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	payload := []byte("hello")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	bb, err := opts.StreamTool.Pack(payload)
 	if err != nil {
 		t.Fatalf("Pack: %v", err)
 	}
@@ -103,7 +102,7 @@ func TestClient_SendBuffer(t *testing.T) {
 	}
 	select {
 	case got := <-recvCh:
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(got)
+		msg, err := opts.StreamTool.Unpack(got)
 		if err != nil {
 			t.Fatalf("Unpack: %v", err)
 		}
@@ -116,8 +115,9 @@ func TestClient_SendBuffer(t *testing.T) {
 }
 
 func TestClient_SendBuffer_NotConnected(t *testing.T) {
-	client := NewClient("ws://127.0.0.1:9999/ws", nil, kknet.DefaultOptions())
-	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("x"))
+	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	client := NewClient("ws://127.0.0.1:9999/ws", nil, opts)
+	bb, _ := opts.StreamTool.Pack([]byte("x"))
 	err := client.SendBuffer(bb)
 	if err != kkerrors.ErrNetClientNotConnected {
 		t.Errorf("SendBuffer when not connected = %v, want ErrClientNotConnected", err)

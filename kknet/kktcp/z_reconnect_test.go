@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
 type reconnectLifecycleHandler struct {
@@ -37,6 +36,17 @@ func (h *reconnectLifecycleHandler) OnClose(_ kknet.IConn, _ error) {
 // It verifies that when the first connection is closed by server, the client
 // performs reconnect attempts and can send data on the new connection.
 func TestGnetClient_Reconnect(t *testing.T) {
+	var cbAttempts atomic.Int32
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithIsNeedReconnect(true),
+		kknet.WithReconnectInterval(50*time.Millisecond, 20),
+		kknet.WithReconnectCallback(func(_ int, _ error) {
+			cbAttempts.Add(1)
+		}),
+		kknet.WithSendQueueSize(64),
+	)
+
 	var connNum atomic.Int32
 	recvCh := make(chan []byte, 16)
 
@@ -75,7 +85,7 @@ func TestGnetClient_Reconnect(t *testing.T) {
 				}
 				// Best‑effort: unpack first stream packet.
 				frame := buf[:n]
-				msg, err := kkpacket.DefaultStreamPacket().Unpack(frame)
+				msg, err := opts.StreamTool.Unpack(frame)
 				if err != nil {
 					return
 				}
@@ -92,16 +102,6 @@ func TestGnetClient_Reconnect(t *testing.T) {
 		onCloseCh:   make(chan struct{}, 8),
 	}
 
-	var cbAttempts atomic.Int32
-	opts := kknet.ApplyOptions(
-		kknet.WithRawHandler(&noopRawHandler{}),
-		kknet.WithIsNeedReconnect(true),
-		kknet.WithReconnectInterval(50*time.Millisecond, 20),
-		kknet.WithReconnectCallback(func(_ int, _ error) {
-			cbAttempts.Add(1)
-		}),
-		kknet.WithSendQueueSize(64),
-	)
 	cli := NewClient(addr, h, opts)
 
 	if err := cli.Connect(); err != nil {
@@ -122,7 +122,7 @@ func TestGnetClient_Reconnect(t *testing.T) {
 	}
 
 	// After reconnect, client should be able to send.
-	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("hi"))
+	bb, err := opts.StreamTool.Pack([]byte("hi"))
 	if err != nil {
 		t.Fatalf("Pack error: %v", err)
 	}
@@ -148,4 +148,3 @@ func TestGnetClient_Reconnect(t *testing.T) {
 	}
 	_ = cbAttempts.Load() // ensure callback executed at least once (coverage)
 }
-

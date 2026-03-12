@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 )
 
 type testLifecycleHandler struct {
@@ -84,7 +83,7 @@ func TestKKGWS_Client_Reconnect(t *testing.T) {
 	}
 
 	// 重连后应能正常发送
-	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("hi"))
+	bb, err := opts.StreamTool.Pack([]byte("hi"))
 	if err != nil {
 		t.Fatalf("Pack: %v", err)
 	}
@@ -93,7 +92,7 @@ func TestKKGWS_Client_Reconnect(t *testing.T) {
 	}
 	select {
 	case frame := <-recvCh:
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(frame)
+		msg, err := opts.StreamTool.Unpack(frame)
 		if err != nil {
 			t.Fatalf("Unpack: %v", err)
 		}

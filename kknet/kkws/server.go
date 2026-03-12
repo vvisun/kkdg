@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -79,7 +78,7 @@ func (s *Server) Start() error {
 		}
 
 		wsConn := newWSConn(conn, &s.opts, &s.stats)
-		wsConn.conn.SetReadLimit(int64(kkpacket.DefaultStreamPacket().MaxPacketSize()))
+		wsConn.conn.SetReadLimit(int64(s.opts.StreamTool.MaxPacketSize()))
 
 		// Set read/write timeouts if configured
 		if s.opts.ReadTimeout > 0 {

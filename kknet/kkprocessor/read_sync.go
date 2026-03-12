@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
@@ -89,7 +88,7 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 	}
 
 	// Parse [length,message][length,message]...
-	stream := kkpacket.DefaultStreamPacket()
+	stream := rp.opts.StreamTool
 	packets, leftData, err := stream.Split(buf, rp.splitBuf[:0])
 	if err != nil {
 		if rp.recvBuf != nil {

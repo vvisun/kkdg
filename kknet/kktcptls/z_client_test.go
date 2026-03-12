@@ -6,7 +6,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -115,7 +114,7 @@ func TestClient_SendBuffer_Echo(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	payload := []byte("hello tls")
-	bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+	bb, err := cliOpts.StreamTool.Pack(payload)
 	if err != nil {
 		t.Fatalf("Pack: %v", err)
 	}
@@ -124,7 +123,7 @@ func TestClient_SendBuffer_Echo(t *testing.T) {
 	}
 	select {
 	case got := <-recvCh:
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(got)
+		msg, err := cliOpts.StreamTool.Unpack(got)
 		if err != nil {
 			t.Fatalf("Unpack: %v", err)
 		}

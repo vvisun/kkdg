@@ -15,6 +15,8 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
+var testStreamTool = kkpacket.DefaultStreamPacket()
+
 func startTestWSServer(t *testing.T) (wsURL string, recv <-chan []byte, closeFn func()) {
 	t.Helper()
 
@@ -45,14 +47,14 @@ func startTestWSServer(t *testing.T) (wsURL string, recv <-chan []byte, closeFn 
 				// One ws message may contain multiple stream packets: [len,msg][len,msg]...
 				pos := 0
 				for pos < len(data) {
-					if len(data)-pos < kkpacket.DefaultStreamPacket().LengthFieldByteCount() {
+					if len(data)-pos < testStreamTool.LengthFieldByteCount() {
 						break
 					}
-					size, err := kkpacket.DefaultStreamPacket().ReadMessageSize(data[pos:])
+					size, err := testStreamTool.ReadMessageSize(data[pos:])
 					if err != nil {
 						break
 					}
-					totalLen := kkpacket.DefaultStreamPacket().LengthFieldByteCount() + size
+					totalLen := testStreamTool.LengthFieldByteCount() + size
 					if len(data)-pos < totalLen {
 						break
 					}
@@ -104,7 +106,7 @@ func TestWSConn_AsyncSend_Order(t *testing.T) {
 	const n = 50
 	for i := 0; i < n; i++ {
 		payload := []byte(fmt.Sprintf("m%d", i))
-		bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+		bb, err := testStreamTool.Pack(payload)
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -115,7 +117,7 @@ func TestWSConn_AsyncSend_Order(t *testing.T) {
 
 	for i := 0; i < n; i++ {
 		frame := mustRecv(t, recv, 2*time.Second)
-		msg, err := kkpacket.DefaultStreamPacket().Unpack(frame)
+		msg, err := testStreamTool.Unpack(frame)
 		if err != nil {
 			t.Fatalf("unpack error: %v", err)
 		}
@@ -132,7 +134,7 @@ func TestWSConn_AsyncSend_Order(t *testing.T) {
 func fillQueueAndBlockWriteBatch(t *testing.T, wc *wsConn, prefix string) {
 	t.Helper()
 	for i := 0; i < 2; i++ {
-		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(fmt.Sprintf("%s%d", prefix, i)))
+		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("%s%d", prefix, i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -142,7 +144,7 @@ func fillQueueAndBlockWriteBatch(t *testing.T, wc *wsConn, prefix string) {
 	}
 	time.Sleep(50 * time.Millisecond)
 	for i := 2; i < 4; i++ {
-		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(fmt.Sprintf("%s%d", prefix, i)))
+		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("%s%d", prefix, i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -168,7 +170,7 @@ func TestWSConn_SendQueueFullAction_Drop(t *testing.T) {
 
 	wc.writeMu.Lock()
 	fillQueueAndBlockWriteBatch(t, wc, "d")
-	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("overflow"))
+	bb, _ := testStreamTool.Pack([]byte("overflow"))
 	// Drop 模式：队列满时返回 nil，消息被丢弃
 	if err := wc.SendBuffer(bb); err != nil {
 		t.Fatalf("Drop mode should return nil when full, got %v", err)
@@ -202,7 +204,7 @@ func TestWSConn_SendQueueFullAction_Block(t *testing.T) {
 	fillQueueAndBlockWriteBatch(t, wc, "b")
 	blockErrCh := make(chan error, 1)
 	go func() {
-		bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("blocked"))
+		bb, _ := testStreamTool.Pack([]byte("blocked"))
 		blockErrCh <- wc.SendBuffer(bb)
 	}()
 	// Block 模式：应阻塞
@@ -248,7 +250,7 @@ func TestWSConn_SendQueueFullAction_Retry(t *testing.T) {
 
 	wc.writeMu.Lock()
 	fillQueueAndBlockWriteBatch(t, wc, "r")
-	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("overflow"))
+	bb, _ := testStreamTool.Pack([]byte("overflow"))
 	if err := wc.SendBuffer(bb); err == nil {
 		t.Fatal("Retry mode: expected ErrSendQueueFull, got nil")
 	} else if err != kkerrors.ErrNetSendQueueFull {
@@ -285,7 +287,7 @@ func TestWSConn_SendQueueFullAction_Retry_MaxCount1(t *testing.T) {
 
 	wc.writeMu.Lock()
 	fillQueueAndBlockWriteBatch(t, wc, "m")
-	bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("overflow"))
+	bb, _ := testStreamTool.Pack([]byte("overflow"))
 	if err := wc.SendBuffer(bb); err != kkerrors.ErrNetSendQueueFull {
 		t.Errorf("RetryMaxCount=1: got %v, want ErrSendQueueFull", err)
 	}
@@ -314,7 +316,7 @@ func TestWSConn_SendQueueStrict_False(t *testing.T) {
 	// 快速发送较多消息，非严格模式应全部成功
 	const n = 100
 	for i := 0; i < n; i++ {
-		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(fmt.Sprintf("n%d", i)))
+		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("n%d", i)))
 		if err != nil {
 			t.Fatalf("pack: %v", err)
 		}
@@ -360,7 +362,7 @@ func TestWSConn_SendQueueFullAction_AfterClose(t *testing.T) {
 			wc := newWSConn(c, &opts, nil)
 			_ = wc.Close()
 
-			bb, _ := kkpacket.DefaultStreamPacket().Pack([]byte("after-close"))
+			bb, _ := testStreamTool.Pack([]byte("after-close"))
 			err = wc.SendBuffer(bb)
 			if err != kkerrors.ErrNetConnectionClosed {
 				t.Errorf("SendBuffer after Close: got %v, want ErrConnectionClosed", err)
@@ -387,7 +389,7 @@ func TestWSConn_Close_FlushOver(t *testing.T) {
 	wc.writeMu.Lock()
 	const n = 10
 	for i := 0; i < n; i++ {
-		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(fmt.Sprintf("f%d", i)))
+		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("f%d", i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -442,10 +444,10 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 			if err == nil {
 				// Split packets in first ws message and forward the first packet (if any).
 				pos := 0
-				if len(data) >= kkpacket.DefaultStreamPacket().LengthFieldByteCount() {
-					size, e := kkpacket.DefaultStreamPacket().ReadMessageSize(data[pos:])
+				if len(data) >= testStreamTool.LengthFieldByteCount() {
+					size, e := testStreamTool.ReadMessageSize(data[pos:])
 					if e == nil {
-						totalLen := kkpacket.DefaultStreamPacket().LengthFieldByteCount() + size
+						totalLen := testStreamTool.LengthFieldByteCount() + size
 						if len(data) >= totalLen {
 							cp := make([]byte, totalLen)
 							copy(cp, data[:totalLen])
@@ -490,7 +492,7 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 	// enqueue multiple messages quickly; some will be pending when peer closes.
 	const n = 50
 	for i := 0; i < n; i++ {
-		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(fmt.Sprintf("e%d", i)))
+		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("e%d", i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -534,7 +536,7 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 
 	// enqueue some messages, then close immediately. We only assert it doesn't block.
 	for i := 0; i < 100; i++ {
-		bb, err := kkpacket.DefaultStreamPacket().Pack([]byte(fmt.Sprintf("c%d", i)))
+		bb, err := testStreamTool.Pack([]byte(fmt.Sprintf("c%d", i)))
 		if err != nil {
 			t.Fatalf("pack error: %v", err)
 		}
@@ -593,7 +595,7 @@ func TestWSConn_SendBuffer_AfterClose(t *testing.T) {
 	wc := newWSConn(c, &opts, nil)
 	_ = wc.Close()
 
-	bb, err := kkpacket.DefaultStreamPacket().Pack([]byte("after close"))
+	bb, err := testStreamTool.Pack([]byte("after close"))
 	if err != nil {
 		t.Fatalf("pack error: %v", err)
 	}

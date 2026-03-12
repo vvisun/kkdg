@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -153,14 +152,14 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		payload[i] = 0x01
 	}
 
-	clientOpts := []kknet.Option{
+	clientOpts := kknet.ApplyOptions(
 		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		kknet.WithNoneCopyHandler(&clientHandler{}),
 		kknet.WithSendQueueNeedFlushOver(true),
-		kknet.WithSendQueueTimeoutFlushOver(5 * time.Second),
+		kknet.WithSendQueueTimeoutFlushOver(5*time.Second),
 		kknet.WithBufferSizes(2*1024, 2*1024),
 		kknet.WithLogger(kklog.Nop()),
-	}
+	)
 	start := time.Now()
 	var wg sync.WaitGroup
 	errCh := make(chan error, numConns)
@@ -173,13 +172,13 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 			defer wg.Done()
 			connSem <- struct{}{}
 			defer func() { <-connSem }()
-			client := NewClient(serverAddr, nil, kknet.ApplyOptions(clientOpts...))
+			client := NewClient(serverAddr, nil, clientOpts)
 			if err := connectWithRetry(client, 30, 10*time.Millisecond); err != nil {
 				errCh <- err
 				return
 			}
 			for j := 0; j < msgsPerConn; j++ {
-				bb, err := kkpacket.DefaultStreamPacket().Pack(payload)
+				bb, err := clientOpts.StreamTool.Pack(payload)
 				if err != nil {
 					errCh <- err
 					return
