@@ -24,11 +24,15 @@ var autoId int64 = 0
 var (
 	sendedId   int64 = 0
 	receivedId int64 = 0
+
+	clientMap = make(map[kknet.IClient]map[string]any)
 )
 
 func main() {
 	examapp.ParseFlags(nil)
 	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
+
+	clientMap = make(map[kknet.IClient]map[string]any)
 
 	client := runOneClient()
 
@@ -50,13 +54,15 @@ func main() {
 	os.Exit(0)
 }
 
+var autoUserId int64 = 0
+
 func runOneClient() kknet.IClient {
 	streamTool := kkapp.GetStreamTool()
 	messageTool := kkapp.GetMsgPacket()
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	msgReceiver := msgreceiver.NewMsgReceiver[kknet.CONN_ID](packetTool)
 	gh := &gameHandler{}
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginResp)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg2Broadcast)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onTipServerBusy)
@@ -87,22 +93,40 @@ func runOneClient() kknet.IClient {
 		return nil
 	}
 
+	userId := atomic.AddInt64(&autoUserId, 1)
+	gh.client = client
+	clientMap[client] = make(map[string]any)
+	clientMap[client]["user_id"] = userId
+
 	//定时发送消息
 	go func() {
 		for {
 			time.Sleep(examapp.ClientSendInterval)
-			sendMsg(client)
+
+			_, ok := clientMap[client]["login_session_id"]
+
+			if ok {
+				curId := atomic.AddInt64(&autoId, 1)
+				atomic.StoreInt64(&sendedId, curId)
+				payload := []byte("hello")
+				msg := &ptoexam.Msg1Req{ID: int32(curId), Data: string(payload)}
+				sendMsg(client, msg)
+			} else {
+				msg1 := &ptoexam.LoginReq{
+					UserID:   userId,
+					Token:    "token",
+					Password: "password",
+				}
+				sendMsg(client, msg1)
+			}
 		}
 	}()
 
 	return client
 }
 
-func sendMsg(client kknet.IClient) {
-	curId := atomic.AddInt64(&autoId, 1)
-	payload := []byte("hello")
-	atomic.StoreInt64(&sendedId, curId)
-	if err := client.SendMsg(&ptoexam.Msg1Req{ID: int32(curId), Data: string(payload)}); err != nil {
+func sendMsg(client kknet.IClient, msg any) {
+	if err := client.SendMsg(msg); err != nil {
 		kklog.Errorf("send: %v", err)
 	}
 }
@@ -119,10 +143,12 @@ func (h *clientHandler) OnClose(kknet.IConn, error) {
 }
 
 type gameHandler struct {
+	client kknet.IClient
 }
 
-func (h *gameHandler) onMsg1Req(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Req) error {
-	kklog.Infof("onMsg1Req: %v", msg)
+func (h *gameHandler) onLoginResp(sessionID kknet.CONN_ID, msg *ptoexam.LoginResp) error {
+	kklog.Infof("onLoginResp: %v", msg)
+	clientMap[h.client]["login_session_id"] = msg.SessionID
 	return nil
 }
 

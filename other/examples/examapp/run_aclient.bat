@@ -5,5 +5,5 @@ setlocal
 cd /d "%~dp0"
 cd ..\..\..
 
-go run ./other/examples/examapp/aclient -conn-num=1000 -conn-delay=5ms -send-interval=220ms -gate-tcp=127.0.0.1:19090 -gate-ws=127.0.0.1:19091
+go run ./other/examples/examapp/aclient -conn-num=1 -conn-delay=5ms -send-interval=3220ms -gate-tcp=127.0.0.1:19090 -gate-ws=127.0.0.1:19091
 endlocal

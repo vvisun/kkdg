@@ -36,3 +36,8 @@ func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kk
 	rh.trans.ForwardToLogic(msg.ClientId, msg.Payload, logicNode.nodeId)
 	return nil
 }
+
+func (rh *rpcHandler) onClientLoginLogout(ctx context.Context, msg *ptotrans.RpcClientLoginLogout, connId kknet.CONN_ID) error {
+	rh.trans.msgHooker.Notify(ptotrans.MsgIDRpcClientLoginLogout, msg)
+	return nil
+}

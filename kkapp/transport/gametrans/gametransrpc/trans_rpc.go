@@ -25,11 +25,12 @@ type transportorRpc struct {
 }
 
 var (
-	onewayMsgRegister      kkrpc.OneWayInvoker[ptotrans.RpcMsgRegister]
-	onewayS2Client         kkrpc.OneWayInvoker[ptotrans.RpcS2Client]
-	onewayS2Clients        kkrpc.OneWayInvoker[ptotrans.RpcS2Clients]
-	onewayC2S              kkrpc.OneWayInvoker[ptotrans.RpcC2S]
-	onewayClientDisconnect kkrpc.OneWayInvoker[ptotrans.RpcClientDisconnect]
+	onewayMsgRegister       kkrpc.OneWayInvoker[ptotrans.RpcMsgRegister]
+	onewayS2Client          kkrpc.OneWayInvoker[ptotrans.RpcS2Client]
+	onewayS2Clients         kkrpc.OneWayInvoker[ptotrans.RpcS2Clients]
+	onewayC2S               kkrpc.OneWayInvoker[ptotrans.RpcC2S]
+	onewayClientDisconnect  kkrpc.OneWayInvoker[ptotrans.RpcClientDisconnect]
+	onewayClientLoginLogout kkrpc.OneWayInvoker[ptotrans.RpcClientLoginLogout]
 )
 
 func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity, rpcAddr string) (gametrans.ITransportor, error) {
@@ -61,6 +62,7 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcClient, 0)
 	onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcClient, 0)
 	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcClient, 0)
+	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcClient, 0)
 
 	trans := &transportorRpc{
 		sessionMgr:  sessionMgr,
@@ -205,6 +207,27 @@ func (slf *transportorRpc) SendToClients(sessionIDs []string, msg any) error {
 		return err
 	}
 	return nil
+}
+
+func (slf *transportorRpc) NotifyClientLoginLogout(sessionID string, userId int64, isLogin bool) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	if sessionID == "" {
+		return nil
+	}
+	sessionInfo := slf.sessionMgr.GetSession(sessionID)
+	if sessionInfo == nil {
+		return kkerrors.ErrAppSessionNotFound
+	}
+	var msg ptotrans.RpcClientLoginLogout
+	msg.ClientId = sessionID
+	msg.UserId = userId
+	msg.IsLogin = isLogin
+	msg.NodeType = ""
+	msg.NodeId = ""
+	msg.GateNodeId = sessionInfo.GetGateNodeID()
+	return onewayClientLoginLogout.InvokeNR(context.Background(), &msg, kkrpc.CallConfig{})
 }
 
 //----------------------------------------------------------------

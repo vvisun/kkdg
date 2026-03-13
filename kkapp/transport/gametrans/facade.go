@@ -14,4 +14,6 @@ type ITransportor interface {
 	SendToClient(sessionID string, msg any) error
 	// SendToClients sends a message to multiple clients.
 	SendToClients(sessionIDs []string, msg any) error
+	// NotifyClientLoginLogout notifies a client login or logout.
+	NotifyClientLoginLogout(sessionID string, userId int64, isLogin bool) error
 }

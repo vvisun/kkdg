@@ -25,7 +25,11 @@ type transportorShard struct {
 	stopped     bool
 }
 
-func NewTransportorShard(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], gatewayAddr, nodeID, nodeType string) (gametrans.ITransportor, error) {
+func NewTransportorShard(
+	sessionMgr *gametrans.SessionManager,
+	msgReceiver *msgreceiver.MsgReceiver[string],
+	gatewayAddr, nodeID, nodeType string,
+) (gametrans.ITransportor, error) {
 	ptotrans.InitShardMsgs()
 	trans := &transportorShard{
 		sessionMgr:  sessionMgr,
@@ -177,4 +181,33 @@ func (slf *transportorShard) SendToClients(sessionIDs []string, msg any) error {
 		}
 	}
 	return loopErr
+}
+
+func (slf *transportorShard) NotifyClientLoginLogout(sessionID string, userId int64, isLogin bool) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	if sessionID == "" {
+		return nil
+	}
+	sessionInfo := slf.sessionMgr.GetSession(sessionID)
+	if sessionInfo == nil {
+		return kkerrors.ErrAppSessionNotFound
+	}
+	conn := slf.getConn(sessionInfo.GetShardIdx())
+	if conn == nil {
+		return kkerrors.ErrNetConnNotFound
+	}
+	var msg ptotrans.RpcClientLoginLogout
+	msg.ClientId = sessionID
+	msg.UserId = userId
+	msg.IsLogin = isLogin
+	msg.NodeType = slf.nodeType
+	msg.NodeId = slf.nodeId
+	msg.GateNodeId = sessionInfo.GetGateNodeID()
+	bbTrans, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	if err != nil {
+		return err
+	}
+	return conn.cli.SendBuffer(bbTrans)
 }

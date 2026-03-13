@@ -3,10 +3,12 @@ package transnat
 import (
 	"strings"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -54,6 +56,15 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 		for _, sid := range sids {
 			slf.ForwardToClient(sid, packet.ArgBytes)
 		}
+	case ptotrans.FuncNameClientLoginLogout:
+		bb := kkbuffer.GetWithCapacity(len(packet.ArgBytes))
+		bb.WriteBytes(packet.ArgBytes)
+		msg, err := kkpacket.DecodeStream(bb, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+		if err != nil {
+			kklog.Errorf("[ccgate] decode client login logout error: %v", err)
+			return
+		}
+		slf.msgHooker.Notify(ptotrans.MsgIDRpcClientLoginLogout, msg)
 	}
 }
 

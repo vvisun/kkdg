@@ -50,7 +50,10 @@ func runGame() *component.Application {
 	}
 
 	msgReceiver := game.GetMsgReceiver()
-	gh := &gameHandler{transportor: game.GetTransportor()}
+	gh := &gameHandler{
+		transportor: game.GetTransportor(),
+		nodeInfo:    gameApp.GetNodeInfo(),
+	}
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginReq)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onRegisterReq)
@@ -60,6 +63,7 @@ func runGame() *component.Application {
 
 type gameHandler struct {
 	transportor gametrans.ITransportor
+	nodeInfo    *kkapp.NodeInfo
 }
 
 func (h *gameHandler) onMsg1Req(sessionID string, msg *ptoexam.Msg1Req) error {
@@ -70,6 +74,17 @@ func (h *gameHandler) onMsg1Req(sessionID string, msg *ptoexam.Msg1Req) error {
 
 func (h *gameHandler) onLoginReq(sessionID string, msg *ptoexam.LoginReq) error {
 	kklog.Infof("onLoginReq: %v", msg)
+
+	h.transportor.NotifyClientLoginLogout(sessionID, msg.UserID, true)
+
+	resp := &ptoexam.LoginResp{
+		UserID:    msg.UserID,
+		SessionID: sessionID,
+		Token:     "token",
+		UserData:  "userData",
+	}
+	h.transportor.SendToClient(sessionID, resp)
+
 	return nil
 }
 

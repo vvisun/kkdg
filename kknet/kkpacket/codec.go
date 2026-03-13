@@ -89,6 +89,26 @@ func DecodeStream(bb *kkbuffer.ByteBuffer, stream IPacket, messagePacket *Messag
 	return v, nil
 }
 
+/**编码完整包。
+ *@param v any 消息对象
+ *@param fullPacket *FullPacket 完整包工具
+ *@return *kkbuffer.ByteBuffer 完整包数据[length,message]
+ *@return error 错误
+ */
+func EncodeFullPacket(v any, fullPacket *FullPacket) (*kkbuffer.ByteBuffer, error) {
+	return EncodeStream(v, fullPacket.GetStreamTool(), fullPacket.GetMessageTool())
+}
+
+/**解码完整包。
+ *@param bb *kkbuffer.ByteBuffer 完整包数据[length,message]
+ *@param fullPacket *FullPacket 完整包工具
+ *@return any 消息对象
+ *@return error 错误
+ */
+func DecodeFullPacket(bb *kkbuffer.ByteBuffer, fullPacket *FullPacket) (any, error) {
+	return DecodeStream(bb, fullPacket.GetStreamTool(), fullPacket.GetMessageTool())
+}
+
 /**编码消息。
  *@param v any 消息对象
  *@param messagePacket *MessagePacket 消息包
@@ -117,26 +137,6 @@ func EncodeMessage(v any, messagePacket *MessagePacket) (*kkbuffer.ByteBuffer, e
 		return nil, err
 	}
 	return bb, nil
-}
-
-/**编码完整包。
- *@param v any 消息对象
- *@param fullPacket *FullPacket 完整包工具
- *@return *kkbuffer.ByteBuffer 完整包数据[length,message]
- *@return error 错误
- */
-func EncodeFullPacket(v any, fullPacket *FullPacket) (*kkbuffer.ByteBuffer, error) {
-	return EncodeStream(v, fullPacket.GetStreamTool(), fullPacket.GetMessageTool())
-}
-
-/**解码完整包。
- *@param bb *kkbuffer.ByteBuffer 完整包数据[length,message]
- *@param fullPacket *FullPacket 完整包工具
- *@return any 消息对象
- *@return error 错误
- */
-func DecodeFullPacket(bb *kkbuffer.ByteBuffer, fullPacket *FullPacket) (any, error) {
-	return DecodeStream(bb, fullPacket.GetStreamTool(), fullPacket.GetMessageTool())
 }
 
 /**解码消息。
