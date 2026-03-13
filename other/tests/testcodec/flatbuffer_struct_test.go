@@ -1,4 +1,4 @@
-package flatbuffer
+package testcodec
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
-var usingCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+var usingCodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 
 func TestFlatBuffer_MarshalStruct_UnmarshalStruct(t *testing.T) {
 	obj := &fbtrpc.Frame{
