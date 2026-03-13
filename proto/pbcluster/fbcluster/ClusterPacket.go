@@ -81,7 +81,7 @@ func (rcv *ClusterPacket) TargetPath() []byte {
 	return nil
 }
 
-func (rcv *ClusterPacket) FuncName() []byte {
+func (rcv *ClusterPacket) Sid() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
@@ -89,8 +89,16 @@ func (rcv *ClusterPacket) FuncName() []byte {
 	return nil
 }
 
-func (rcv *ClusterPacket) ArgBytes(j int) byte {
+func (rcv *ClusterPacket) FuncName() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *ClusterPacket) ArgBytes(j int) byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.GetByte(a + flatbuffers.UOffsetT(j*1))
@@ -99,7 +107,7 @@ func (rcv *ClusterPacket) ArgBytes(j int) byte {
 }
 
 func (rcv *ClusterPacket) ArgBytesLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -107,23 +115,6 @@ func (rcv *ClusterPacket) ArgBytesLength() int {
 }
 
 func (rcv *ClusterPacket) ArgBytesBytes() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
-func (rcv *ClusterPacket) MutateArgBytes(j int, n byte) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
-	if o != 0 {
-		a := rcv._tab.Vector(o)
-		return rcv._tab.MutateByte(a+flatbuffers.UOffsetT(j*1), n)
-	}
-	return false
-}
-
-func (rcv *ClusterPacket) Sid() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
@@ -131,56 +122,17 @@ func (rcv *ClusterPacket) Sid() []byte {
 	return nil
 }
 
-func (rcv *ClusterPacket) Uid() int64 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+func (rcv *ClusterPacket) MutateArgBytes(j int, n byte) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
-		return rcv._tab.GetInt64(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *ClusterPacket) MutateUid(n int64) bool {
-	return rcv._tab.MutateInt64Slot(18, n)
-}
-
-func (rcv *ClusterPacket) AgentPath() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
-func (rcv *ClusterPacket) Ip() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
-func (rcv *ClusterPacket) ExtendData(obj *MapExtendDataEntry, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
-	if o != 0 {
-		x := rcv._tab.Vector(o)
-		x += flatbuffers.UOffsetT(j) * 4
-		x = rcv._tab.Indirect(x)
-		obj.Init(rcv._tab.Bytes, x)
-		return true
+		a := rcv._tab.Vector(o)
+		return rcv._tab.MutateByte(a+flatbuffers.UOffsetT(j*1), n)
 	}
 	return false
 }
 
-func (rcv *ClusterPacket) ExtendDataLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
-	if o != 0 {
-		return rcv._tab.VectorLen(o)
-	}
-	return 0
-}
-
 func ClusterPacketStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(7)
 }
 func ClusterPacketAddBuildTime(builder *flatbuffers.Builder, buildTime int64) {
 	builder.PrependInt64Slot(0, buildTime, 0)
@@ -194,32 +146,17 @@ func ClusterPacketAddSourcePath(builder *flatbuffers.Builder, sourcePath flatbuf
 func ClusterPacketAddTargetPath(builder *flatbuffers.Builder, targetPath flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(targetPath), 0)
 }
+func ClusterPacketAddSid(builder *flatbuffers.Builder, sid flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(sid), 0)
+}
 func ClusterPacketAddFuncName(builder *flatbuffers.Builder, funcName flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(funcName), 0)
+	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(funcName), 0)
 }
 func ClusterPacketAddArgBytes(builder *flatbuffers.Builder, argBytes flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(argBytes), 0)
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(argBytes), 0)
 }
 func ClusterPacketStartArgBytesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(1, numElems, 1)
-}
-func ClusterPacketAddSid(builder *flatbuffers.Builder, sid flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(sid), 0)
-}
-func ClusterPacketAddUid(builder *flatbuffers.Builder, uid int64) {
-	builder.PrependInt64Slot(7, uid, 0)
-}
-func ClusterPacketAddAgentPath(builder *flatbuffers.Builder, agentPath flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(8, flatbuffers.UOffsetT(agentPath), 0)
-}
-func ClusterPacketAddIp(builder *flatbuffers.Builder, ip flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(ip), 0)
-}
-func ClusterPacketAddExtendData(builder *flatbuffers.Builder, extendData flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(extendData), 0)
-}
-func ClusterPacketStartExtendDataVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
-	return builder.StartVector(4, numElems, 4)
 }
 func ClusterPacketEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

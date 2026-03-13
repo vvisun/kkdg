@@ -5,22 +5,17 @@ table MapSettingsEntry {
   value: string;
 }
 
-table MapExtendDataEntry {
-  key: string;
-  value: string;
-}
-
-table Member {
+table MemberInfo {
   NodeID: string;
   NodeType: string;
   Address: string;
+  Weight: long;
+  Status: long;
   Settings: [MapSettingsEntry];
-  LastAt: long;
-  HeartbeatTimeout: long;
 }
 
-table MemberList {
-  List: [Member];
+table MemberInfoList {
+  List: [MemberInfo];
 }
 
 table DiscoveryRequest {
@@ -32,13 +27,9 @@ table ClusterPacket {
   Timeout: long;
   SourcePath: string;
   TargetPath: string;
+  Sid: string;
   FuncName: string;
   ArgBytes: [ubyte];
-  Sid: string;
-  Uid: long;
-  AgentPath: string;
-  Ip: string;
-  ExtendData: [MapExtendDataEntry];
 }
 
 table ClusterRequest {

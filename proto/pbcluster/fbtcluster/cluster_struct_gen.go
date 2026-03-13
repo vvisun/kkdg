@@ -36,101 +36,71 @@ func (s *MapSettingsEntry) unpackFrom(t *fb.MapSettingsEntry) {
 	s.Value = string(t.Value())
 }
 
-// MapExtendDataEntry 对应 table MapExtendDataEntry，用于 flatbuffer 编解码
-type MapExtendDataEntry struct {
-	Key string
-	Value string
-}
-
-// Pack 实现 flatbuffer.FlatBufferPackable
-func (s *MapExtendDataEntry) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
-	var oKey flatbuffers.UOffsetT
-	if s.Key != "" { oKey = builder.CreateString(s.Key) }
-	var oValue flatbuffers.UOffsetT
-	if s.Value != "" { oValue = builder.CreateString(s.Value) }
-	fb.MapExtendDataEntryStart(builder)
-	fb.MapExtendDataEntryAddKey(builder, oKey)
-	fb.MapExtendDataEntryAddValue(builder, oValue)
-	return fb.MapExtendDataEntryEnd(builder)
-}
-
-// UnmarshalFlatBuffer 实现 flatbuffer.FlatBufferUnmarshaler，从 bytes 填充结构体
-func (s *MapExtendDataEntry) UnmarshalFlatBuffer(data []byte) error {
-	t := fb.GetRootAsMapExtendDataEntry(data, 0)
-	s.unpackFrom(t)
-	return nil
-}
-
-func (s *MapExtendDataEntry) unpackFrom(t *fb.MapExtendDataEntry) {
-	s.Key = string(t.Key())
-	s.Value = string(t.Value())
-}
-
-// Member 对应 table Member，用于 flatbuffer 编解码
-type Member struct {
+// MemberInfo 对应 table MemberInfo，用于 flatbuffer 编解码
+type MemberInfo struct {
 	NodeID string
 	NodeType string
 	Address string
+	Weight int64
+	Status int64
 	Settings []*MapSettingsEntry
-	LastAt int64
-	HeartbeatTimeout int64
 }
 
 // Pack 实现 flatbuffer.FlatBufferPackable
-func (s *Member) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+func (s *MemberInfo) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	var oNodeId flatbuffers.UOffsetT
 	if s.NodeID != "" { oNodeId = builder.CreateString(s.NodeID) }
 	var oNodeType flatbuffers.UOffsetT
 	if s.NodeType != "" { oNodeType = builder.CreateString(s.NodeType) }
 	var oAddress flatbuffers.UOffsetT
 	if s.Address != "" { oAddress = builder.CreateString(s.Address) }
-	fb.MemberStart(builder)
-	fb.MemberAddNodeId(builder, oNodeId)
-	fb.MemberAddNodeType(builder, oNodeType)
-	fb.MemberAddAddress(builder, oAddress)
+	fb.MemberInfoStart(builder)
+	fb.MemberInfoAddNodeId(builder, oNodeId)
+	fb.MemberInfoAddNodeType(builder, oNodeType)
+	fb.MemberInfoAddAddress(builder, oAddress)
+	fb.MemberInfoAddWeight(builder, s.Weight)
+	fb.MemberInfoAddStatus(builder, s.Status)
 	// TODO: MapSettingsEntry Settings
-	fb.MemberAddLastAt(builder, s.LastAt)
-	fb.MemberAddHeartbeatTimeout(builder, s.HeartbeatTimeout)
-	return fb.MemberEnd(builder)
+	return fb.MemberInfoEnd(builder)
 }
 
 // UnmarshalFlatBuffer 实现 flatbuffer.FlatBufferUnmarshaler，从 bytes 填充结构体
-func (s *Member) UnmarshalFlatBuffer(data []byte) error {
-	t := fb.GetRootAsMember(data, 0)
+func (s *MemberInfo) UnmarshalFlatBuffer(data []byte) error {
+	t := fb.GetRootAsMemberInfo(data, 0)
 	s.unpackFrom(t)
 	return nil
 }
 
-func (s *Member) unpackFrom(t *fb.Member) {
+func (s *MemberInfo) unpackFrom(t *fb.MemberInfo) {
 	s.NodeID = string(t.NodeId())
 	s.NodeType = string(t.NodeType())
 	s.Address = string(t.Address())
+	s.Weight = t.Weight()
+	s.Status = t.Status()
 	// TODO: vector MapSettingsEntry
-	s.LastAt = t.LastAt()
-	s.HeartbeatTimeout = t.HeartbeatTimeout()
 }
 
-// MemberList 对应 table MemberList，用于 flatbuffer 编解码
-type MemberList struct {
-	List []*Member
+// MemberInfoList 对应 table MemberInfoList，用于 flatbuffer 编解码
+type MemberInfoList struct {
+	List []*MemberInfo
 }
 
 // Pack 实现 flatbuffer.FlatBufferPackable
-func (s *MemberList) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
-	fb.MemberListStart(builder)
-	// TODO: Member List
-	return fb.MemberListEnd(builder)
+func (s *MemberInfoList) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	fb.MemberInfoListStart(builder)
+	// TODO: MemberInfo List
+	return fb.MemberInfoListEnd(builder)
 }
 
 // UnmarshalFlatBuffer 实现 flatbuffer.FlatBufferUnmarshaler，从 bytes 填充结构体
-func (s *MemberList) UnmarshalFlatBuffer(data []byte) error {
-	t := fb.GetRootAsMemberList(data, 0)
+func (s *MemberInfoList) UnmarshalFlatBuffer(data []byte) error {
+	t := fb.GetRootAsMemberInfoList(data, 0)
 	s.unpackFrom(t)
 	return nil
 }
 
-func (s *MemberList) unpackFrom(t *fb.MemberList) {
-	// TODO: vector Member
+func (s *MemberInfoList) unpackFrom(t *fb.MemberInfoList) {
+	// TODO: vector MemberInfo
 }
 
 // DiscoveryRequest 对应 table DiscoveryRequest，用于 flatbuffer 编解码
@@ -164,13 +134,9 @@ type ClusterPacket struct {
 	Timeout int64
 	SourcePath string
 	TargetPath string
+	Sid string
 	FuncName string
 	ArgBytes []byte
-	Sid string
-	Uid int64
-	AgentPath string
-	Ip string
-	ExtendData []*MapExtendDataEntry
 }
 
 // Pack 实现 flatbuffer.FlatBufferPackable
@@ -179,6 +145,8 @@ func (s *ClusterPacket) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if s.SourcePath != "" { oSourcePath = builder.CreateString(s.SourcePath) }
 	var oTargetPath flatbuffers.UOffsetT
 	if s.TargetPath != "" { oTargetPath = builder.CreateString(s.TargetPath) }
+	var oSid flatbuffers.UOffsetT
+	if s.Sid != "" { oSid = builder.CreateString(s.Sid) }
 	var oFuncName flatbuffers.UOffsetT
 	if s.FuncName != "" { oFuncName = builder.CreateString(s.FuncName) }
 	var pArgBytes flatbuffers.UOffsetT
@@ -187,24 +155,14 @@ func (s *ClusterPacket) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 		for i := len(s.ArgBytes) - 1; i >= 0; i-- { builder.PrependByte(s.ArgBytes[i]) }
 		pArgBytes = builder.EndVector(len(s.ArgBytes))
 	}
-	var oSid flatbuffers.UOffsetT
-	if s.Sid != "" { oSid = builder.CreateString(s.Sid) }
-	var oAgentPath flatbuffers.UOffsetT
-	if s.AgentPath != "" { oAgentPath = builder.CreateString(s.AgentPath) }
-	var oIp flatbuffers.UOffsetT
-	if s.Ip != "" { oIp = builder.CreateString(s.Ip) }
 	fb.ClusterPacketStart(builder)
 	fb.ClusterPacketAddBuildTime(builder, s.BuildTime)
 	fb.ClusterPacketAddTimeout(builder, s.Timeout)
 	fb.ClusterPacketAddSourcePath(builder, oSourcePath)
 	fb.ClusterPacketAddTargetPath(builder, oTargetPath)
+	fb.ClusterPacketAddSid(builder, oSid)
 	fb.ClusterPacketAddFuncName(builder, oFuncName)
 	fb.ClusterPacketAddArgBytes(builder, pArgBytes)
-	fb.ClusterPacketAddSid(builder, oSid)
-	fb.ClusterPacketAddUid(builder, s.Uid)
-	fb.ClusterPacketAddAgentPath(builder, oAgentPath)
-	fb.ClusterPacketAddIp(builder, oIp)
-	// TODO: MapExtendDataEntry ExtendData
 	return fb.ClusterPacketEnd(builder)
 }
 
@@ -220,13 +178,9 @@ func (s *ClusterPacket) unpackFrom(t *fb.ClusterPacket) {
 	s.Timeout = t.Timeout()
 	s.SourcePath = string(t.SourcePath())
 	s.TargetPath = string(t.TargetPath())
+	s.Sid = string(t.Sid())
 	s.FuncName = string(t.FuncName())
 	s.ArgBytes = t.ArgBytesBytes()
-	s.Sid = string(t.Sid())
-	s.Uid = t.Uid()
-	s.AgentPath = string(t.AgentPath())
-	s.Ip = string(t.Ip())
-	// TODO: vector MapExtendDataEntry
 }
 
 // ClusterRequest 对应 table ClusterRequest，用于 flatbuffer 编解码

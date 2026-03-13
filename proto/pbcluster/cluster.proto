@@ -3,18 +3,18 @@ package pbcluster;
 option go_package = ".;pbcluster";
 
 // member data
-message Member {
-	string              NodeID = 1;           // node id
-	string              NodeType = 2;         // node type
-	string              Address = 3;          // rpc ip address
-	map<string, string> Settings = 4;         // node settings data
-	int64               LastAt = 5;           // last check time
-	int64               HeartbeatTimeout = 6; // The heartbeat timeout period (in milliseconds) for custom node configuration
+message MemberInfo {
+	string              NodeID = 1;
+	string              NodeType = 2;
+	string              Address = 3;
+	int64               Weight = 4;
+	int64               Status = 5;
+	map<string, string> Settings = 6;
 }
 
 // member list data
-message MemberList {
-	repeated Member List = 1;
+message MemberInfoList {
+	repeated MemberInfo List = 1;
 }
 
 message DiscoveryRequest {
@@ -28,14 +28,9 @@ message ClusterPacket {
 	int64 Timeout = 2; 		// 函数请求超时时间(毫秒)
 	string SourcePath = 3; 	// 源节点路径
 	string TargetPath = 4; 	// 目标节点路径
+	string Sid = 7;				// session unique id
 	string FuncName = 5;	// 函数名
 	bytes ArgBytes = 6;		// 函数参数
-	
-	string Sid = 7;				// session unique id
-	int64 Uid = 8;				// user id
-	string AgentPath = 9;		// frontend actor agent path
-	string Ip = 10;				// ip address
-	map<string, string> ExtendData = 11;   // extend data
 }
 
 message ClusterRequest {
