@@ -18,7 +18,7 @@ type OneWayInvoker[T any] struct {
 //
 //	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 会被忽略，直接发送给client所连接的server。
 func NewOneWayInvoker[T any](sender ISender, connId kknet.CONN_ID) (OneWayInvoker[T], error) {
-	method, ok := verifyOneWayMethod[T](sender.getMethodManager())
+	method, ok := verifyOneWayMethod[T](sender.getMethodMgr())
 	if !ok {
 		kklog.Errorf("OneWayInvoker: method %q not registered for type %T", method, (*T)(nil))
 		return OneWayInvoker[T]{}, kkerrors.ErrRpcMethodNotRegistered
@@ -41,9 +41,7 @@ func (i OneWayInvoker[T]) InvokeNR(ctx context.Context, req *T, opts CallConfig)
 	if pending.stats != nil {
 		pending.stats.AddOnewayStart()
 	}
-	bb, err := EncodeRpcFrame(
-		i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(),
-		FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
+	bb, err := EncodeRpcFrame(i.sender.getMethodMgr(), FrameTypeOneway, 0, i.method, req, ctxDeadlineUnixMs(ctx))
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if pending.stats != nil {

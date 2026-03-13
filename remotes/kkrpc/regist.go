@@ -27,21 +27,21 @@ func RegisterOneWayMethod[REQ any](method string, methodMgr *MethodManager) {
 }
 
 // RegistReqRspHandler 注册请求响应方法 handler
-func RegistReqRspHandler[T any, R any](router *RpcReceiver, method string, call ReqRspHandlerFunc[T, R]) {
+func RegistReqRspHandler[T any, R any](router *rpcReceiver, method string, call ReqRspHandlerFunc[T, R]) {
 	h := &ReqRspHandler[T, R]{
 		call:         call,
 		method:       method,
-		payloadCodec: router.rpcOpts.PayloadCodec,
+		payloadCodec: router.methodMgr.payloadCodec,
 	}
 	router.hdMap[method] = h
 }
 
 // RegistOneWayHandler 注册单向消息方法 handler
-func RegistOneWayHandler[T any](router *RpcReceiver, method string, call OneWayHandlerFunc[T]) {
+func RegistOneWayHandler[T any](router *rpcReceiver, method string, call OneWayHandlerFunc[T]) {
 	h := &OneWayHandler[T]{
 		call:         call,
 		method:       method,
-		payloadCodec: router.rpcOpts.PayloadCodec,
+		payloadCodec: router.methodMgr.payloadCodec,
 	}
 	router.oneWayMap[method] = h
 }

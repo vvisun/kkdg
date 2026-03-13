@@ -3,6 +3,9 @@ package kkrpc
 import (
 	"reflect"
 	"sync"
+
+	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 type (
@@ -16,6 +19,9 @@ type (
 )
 
 type MethodManager struct {
+	streamTool        kkpacket.IPacket
+	frameCodec        kkcodec.ICodec
+	payloadCodec      kkcodec.ICodec
 	mu                sync.Mutex
 	type2methodReqRsp map[reflect.Type]string
 	method2typeReqRsp map[string]methodReqRsp

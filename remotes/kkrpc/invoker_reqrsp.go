@@ -21,7 +21,7 @@ type ReqRspInvoker[T any, R any] struct {
 //
 //	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
 func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) (ReqRspInvoker[T, R], error) {
-	method, ok := verifyReqRespMethod[T, R](sender.getMethodManager())
+	method, ok := verifyReqRespMethod[T, R](sender.getMethodMgr())
 	if !ok {
 		kklog.Errorf("ReqRspInvoker: method %q not registered for types %T, %T", method, (*T)(nil), (*R)(nil))
 		return ReqRspInvoker[T, R]{}, kkerrors.ErrRpcMethodNotRegistered
@@ -76,9 +76,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		stats.AddRequestStart()
 	}
 
-	bb, err := EncodeRpcFrame(
-		i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(),
-		FrameTypeRequest, reqId, i.method, req, deadlineMs)
+	bb, err := EncodeRpcFrame(i.sender.getMethodMgr(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if stats != nil {
@@ -118,7 +116,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 			}
 			return err
 		}
-		err = i.sender.getPayloadCodec().Unmarshal(fr.P, rsp)
+		err = i.sender.getMethodMgr().payloadCodec.Unmarshal(fr.P, rsp)
 		byteslice.Put(fr.P)
 		if err != nil {
 			if stats != nil {
@@ -198,9 +196,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 	}
 
 	reqId := genReqId()
-	bb, err := EncodeRpcFrame(
-		i.sender.getStreamTool(), i.sender.getFrameCodec(), i.sender.getPayloadCodec(),
-		FrameTypeRequest, reqId, i.method, req, deadlineMs)
+	bb, err := EncodeRpcFrame(i.sender.getMethodMgr(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if pending.stats != nil {
@@ -232,7 +228,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 			callback(nil, err)
 			return
 		}
-		err = i.sender.getPayloadCodec().Unmarshal(fr.P, respInfo)
+		err = i.sender.getMethodMgr().payloadCodec.Unmarshal(fr.P, respInfo)
 		byteslice.Put(fr.P)
 		if err != nil {
 			if stats != nil {

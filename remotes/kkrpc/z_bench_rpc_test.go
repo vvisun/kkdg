@@ -9,11 +9,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
-
-var gStreamTool = kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 
 func Benchmark_InvokeUnary(b *testing.B) {
 	methodMgr := NewMethodManager()
@@ -173,20 +169,4 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 	})
 
 	fmt.Printf("stats: %+v\n", invoker.sender.Stats())
-}
-
-func Benchmark_EncodeRpcFrame(b *testing.B) {
-	methodMgr := NewMethodManager()
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
-
-	msg := &testReq{ID: 1, Data: "benchmark"}
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		bb, err := EncodeRpcFrame(gStreamTool, gFrameCodec, gPayloadCodec, FrameTypeRequest, uint64(i+1), "testReqRsp", msg, 0)
-		if err != nil {
-			b.Fatalf("encode: %v", err)
-		}
-		kkbuffer.Put(bb)
-	}
 }

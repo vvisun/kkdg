@@ -4,10 +4,8 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
@@ -23,7 +21,7 @@ type Server struct {
 var _ IRpcServer = (*Server)(nil)
 var _ ISender = (*Server)(nil)
 
-func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
+func NewServer(addr string, opts kknet.Options, rpcRouter *rpcReceiver) *Server {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	s := &Server{
 		rpcOpts:   rpcRouter.rpcOpts,
@@ -43,7 +41,7 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server 
 	return s
 }
 
-func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, rpcOpts RpcOption, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
+func NewServerWithCreator(opts kknet.Options, rpcRouter *rpcReceiver, rpcOpts RpcOption, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
 	CheckRpcOption(&rpcOpts)
 	s := &Server{
 		rpcOpts:   rpcOpts,
@@ -88,19 +86,7 @@ func (s *Server) SetLifeCycleHandler(handler kknet.IConnLifecycleHandler) {
 	s.lifeCycleHandler = handler
 }
 
-func (s *Server) getStreamTool() kkpacket.IPacket {
-	return s.rpcOpts.StreamTool
-}
-
-func (s *Server) getFrameCodec() kkcodec.ICodec {
-	return s.rpcOpts.FrameCodec
-}
-
-func (s *Server) getPayloadCodec() kkcodec.ICodec {
-	return s.rpcOpts.PayloadCodec
-}
-
-func (s *Server) getMethodManager() *MethodManager {
+func (s *Server) getMethodMgr() *MethodManager {
 	return s.methodMgr
 }
 
@@ -112,7 +98,7 @@ func (s *Server) Stats() RpcStatsSnapshot {
 
 type serverHandler struct {
 	svr       *Server
-	rpcRouter *RpcReceiver
+	rpcRouter *rpcReceiver
 }
 
 func (h *serverHandler) OnConnect(conn kknet.IConn) {

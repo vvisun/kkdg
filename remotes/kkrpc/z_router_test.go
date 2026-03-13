@@ -23,7 +23,7 @@ func TestRouter_ReqRsp(t *testing.T) {
 		ID:   1,
 		Data: "test",
 	}
-	bb, err := EncodeRpcFrame(router.rpcOpts.StreamTool, router.rpcOpts.FrameCodec, router.rpcOpts.PayloadCodec, FrameTypeRequest, 1, "test", msg, 0)
+	bb, err := EncodeRpcFrame(router.methodMgr, FrameTypeRequest, 1, "test", msg, 0)
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestRouter_OneWay(t *testing.T) {
 		ID:   1,
 		Data: "test",
 	}
-	bb, err := EncodeRpcFrame(router.rpcOpts.StreamTool, router.rpcOpts.FrameCodec, router.rpcOpts.PayloadCodec, FrameTypeOneway, 1, "test", msg, 0)
+	bb, err := EncodeRpcFrame(router.methodMgr, FrameTypeOneway, 1, "test", msg, 0)
 	if err != nil {
 		t.Fatalf("encode rpc frame: %v", err)
 	}

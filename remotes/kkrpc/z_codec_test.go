@@ -3,6 +3,8 @@ package kkrpc
 import (
 	"fmt"
 	"testing"
+
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
 func Test_FrameCodec(t *testing.T) {
@@ -94,5 +96,24 @@ func Benchmark_Unmarshal_RpcResponse(b *testing.B) {
 		if err != nil {
 			b.Fatalf("unmarshal response: %v", err)
 		}
+	}
+}
+
+func Benchmark_EncodeRpcFrame(b *testing.B) {
+	methodMgr := NewMethodManager()
+	methodMgr.streamTool = gStreamTool
+	methodMgr.frameCodec = gFrameCodec
+	methodMgr.payloadCodec = gPayloadCodec
+	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
+
+	msg := &testReq{ID: 1, Data: "benchmark"}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		bb, err := EncodeRpcFrame(methodMgr, FrameTypeRequest, uint64(i+1), "testReqRsp", msg, 0)
+		if err != nil {
+			b.Fatalf("encode: %v", err)
+		}
+		kkbuffer.Put(bb)
 	}
 }

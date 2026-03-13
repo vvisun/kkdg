@@ -4,10 +4,8 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
@@ -23,7 +21,7 @@ type Client struct {
 var _ IRpcClient = (*Client)(nil)
 var _ ISender = (*Client)(nil)
 
-func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
+func NewClient(addr string, opts kknet.Options, rpcRouter *rpcReceiver) *Client {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
 		rpcOpts:   rpcRouter.rpcOpts,
@@ -44,7 +42,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client 
 	return cc
 }
 
-func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
+func NewClientWithCreator(opts kknet.Options, rpcRouter *rpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
 		rpcOpts:   rpcRouter.rpcOpts,
@@ -90,19 +88,7 @@ func (c *Client) getPending() *pendingMap {
 	return c.pending
 }
 
-func (c *Client) getStreamTool() kkpacket.IPacket {
-	return c.rpcOpts.StreamTool
-}
-
-func (c *Client) getFrameCodec() kkcodec.ICodec {
-	return c.rpcOpts.FrameCodec
-}
-
-func (c *Client) getPayloadCodec() kkcodec.ICodec {
-	return c.rpcOpts.PayloadCodec
-}
-
-func (c *Client) getMethodManager() *MethodManager {
+func (c *Client) getMethodMgr() *MethodManager {
 	return c.methodMgr
 }
 
@@ -114,7 +100,7 @@ func (c *Client) Stats() RpcStatsSnapshot {
 
 type clientHandler struct {
 	cli       *Client
-	rpcRouter *RpcReceiver
+	rpcRouter *rpcReceiver
 }
 
 func (h *clientHandler) OnConnect(_ kknet.IConn) {
