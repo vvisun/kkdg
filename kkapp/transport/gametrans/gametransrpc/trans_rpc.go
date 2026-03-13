@@ -30,6 +30,7 @@ var (
 	onewayS2Client          kkrpc.OneWayInvoker[ptotrans.RpcS2Client]
 	onewayS2Clients         kkrpc.OneWayInvoker[ptotrans.RpcS2Clients]
 	onewayC2S               kkrpc.OneWayInvoker[ptotrans.RpcC2S]
+	onewayAllocClient       kkrpc.OneWayInvoker[ptotrans.RpcAllocClient]
 	onewayClientDisconnect  kkrpc.OneWayInvoker[ptotrans.RpcClientDisconnect]
 	onewayClientLoginLogout kkrpc.OneWayInvoker[ptotrans.RpcClientLoginLogout]
 )
@@ -42,14 +43,12 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	ptotrans.InitRpcMsgs(methodMgr)
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
 	rpcProcessor := &rpcHandler{}
-	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
-	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)
-	kkrpc.RegistOneWayHandler(rpcRouter, "s2cs", rpcProcessor.onS2Clients)
 	kkrpc.RegistOneWayHandler(rpcRouter, "c2s", rpcProcessor.onC2S)
+	kkrpc.RegistOneWayHandler(rpcRouter, "clientDisconnect", rpcProcessor.onClientDisconnect)
 
 	rpcClient := kkrpc.NewClient(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcClient.Start(); err != nil {
-		kklog.Errorf("[ccgame] start rpc client error: %v", err)
+		kklog.Errorf("[gametransrpc] 启动rpc客户端失败: %v", err)
 		rpcClient.Stop()
 		return nil, err
 	}
@@ -58,6 +57,7 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	onewayS2Client, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcClient, 0)
 	onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcClient, 0)
 	onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcClient, 0)
+	onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcClient, 0)
 	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcClient, 0)
 	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcClient, 0)
 
@@ -89,7 +89,7 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity) {
 		//循环注册到网关，直到成功为止
 		for {
 			if slf.stopped {
-				kklog.Warnf("[ccgame] rpc client stopped, stop register to gateway loop")
+				kklog.Warnf("[gametransrpc] rpc client stopped, stop register to gateway loop")
 				return
 			}
 			err := onewayMsgRegister.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
@@ -97,10 +97,10 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity) {
 				NodeType: node.GetNodeType(),
 			}, kkrpc.CallConfig{})
 			if err == nil {
-				kklog.Infof("[ccgame] register to gateway success")
+				kklog.Infof("[gametransrpc] 注册到网关成功")
 				return
 			}
-			kklog.Warnf("[ccgame] register to gateway failed, retrying...")
+			kklog.Warnf("[gametransrpc] 注册到网关失败, 重试中...")
 			time.Sleep(1 * time.Second)
 		}
 	}()
@@ -234,18 +234,7 @@ type rpcHandler struct {
 	trans *transportorRpc
 }
 
-func (rh *rpcHandler) onRegister(ctx context.Context, msg *ptotrans.RpcMsgRegister, connId kknet.CONN_ID) error {
-	return nil
-}
-
-func (rh *rpcHandler) onS2C(ctx context.Context, msg *ptotrans.RpcS2Client, connId kknet.CONN_ID) error {
-	return nil
-}
-
-func (rh *rpcHandler) onS2Clients(ctx context.Context, msg *ptotrans.RpcS2Clients, connId kknet.CONN_ID) error {
-	return nil
-}
-
+// 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
 func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kknet.CONN_ID) error {
 	if rh.trans.sessionMgr.GetSession(msg.ClientId) == nil {
 		rh.trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
@@ -254,5 +243,15 @@ func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kk
 	streamBytes := msg.Payload
 
 	rh.trans.msgReceiver.OnSession(msg.ClientId, streamBytes)
+	return nil
+}
+
+// 网关转发客户端断开事件到逻辑服: 客户端->网关->逻辑服
+func (rh *rpcHandler) onClientDisconnect(ctx context.Context, msg *ptotrans.RpcClientDisconnect, connId kknet.CONN_ID) error {
+	rh.trans.sessionMgr.RemoveSession(msg.ClientId)
+	for _, clientId := range msg.ClientIds {
+		rh.trans.sessionMgr.RemoveSession(clientId)
+	}
+	kklog.Debugf("[gametransrpc] 客户端断开 clientId=%s clientIds=%v", msg.ClientId, msg.ClientIds)
 	return nil
 }

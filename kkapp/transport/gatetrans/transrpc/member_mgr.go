@@ -53,7 +53,7 @@ func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, connI
 		nodeType: nodeType,
 		connId:   connId,
 	}
-	kklog.Infof("[ccgate] register logic node... nodeId=%s, nodeType=%s, connId=%d", nodeId, nodeType, connId)
+	kklog.Infof("[transrpc] 注册逻辑服... nodeId=%s, nodeType=%s, connId=%d", nodeId, nodeType, connId)
 	slf.logicNodeMap.Store(nodeId, memberInfo)
 	slf.connMap.Store(connId, nodeId)
 }
@@ -66,7 +66,7 @@ func (slf *logicNodeMgr) unregisterLogicNode(nodeId string) {
 	memberInfo := info.(*logicMemberInfo)
 	slf.connMap.Delete(memberInfo.connId)
 	slf.logicNodeMap.Delete(nodeId)
-	kklog.Infof("[ccgate] unregister logic node... nodeId=%s", nodeId)
+	kklog.Infof("[transrpc] 注销逻辑服... nodeId=%s", nodeId)
 }
 
 func (slf *logicNodeMgr) getLogicNode(nodeId string) *logicMemberInfo {

@@ -53,7 +53,7 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 
 	rpcSvr := kkrpc.NewServer(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcSvr.Start(); err != nil {
-		kklog.Errorf("[ccgate] start rpc server error: %v", err)
+		kklog.Errorf("[transrpc] 启动rpc服务器失败: %v", err)
 		return nil, err
 	}
 
@@ -87,11 +87,11 @@ func (slf *transportorRpc) Stop() error {
 }
 
 func (slf *transportorRpc) OnConnect(conn kknet.IConn) {
-	kklog.Infof("[ccgate] rpc server new connection... connId=%d", conn.ID())
+	kklog.Infof("[transrpc] rpc服务器新连接... connId=%d", conn.ID())
 }
 
 func (slf *transportorRpc) OnClose(conn kknet.IConn, err error) {
-	kklog.Infof("[ccgate] rpc server connection closed... connId=%d, err=%v", conn.ID(), err)
+	kklog.Infof("[transrpc] rpc服务器连接关闭... connId=%d, err=%v", conn.ID(), err)
 }
 
 func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
@@ -146,7 +146,7 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 	streamBytes.WriteBytes(packet)
 
 	if err := conn.SendBuffer(streamBytes); err != nil {
-		kklog.Errorf("[ccgate] send response error: %v", err)
+		kklog.Errorf("[transrpc] 发送响应失败: %v", err)
 		return err
 	}
 	return nil
@@ -181,7 +181,7 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 		streamBytes.WriteBytes(packet)
 
 		if err := conn.SendBuffer(streamBytes); err != nil {
-			kklog.Errorf("[ccgate] send response error: %v", err)
+			kklog.Errorf("[transrpc] 发送响应失败: %v", err)
 			loopErr = err
 		}
 	}

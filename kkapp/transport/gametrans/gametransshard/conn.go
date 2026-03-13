@@ -150,7 +150,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 			kklog.Warnf("[分流%d] 解析 RpcClientDisconnect: %v", h.shardIdx, err)
 			return
 		}
-		kklog.Debugf("[分流%d] 玩家断开 clientId=%s clientIds=%v", h.shardIdx, msg.ClientId, msg.ClientIds)
+		kklog.Debugf("[分流%d] 客户端断开 clientId=%s clientIds=%v", h.shardIdx, msg.ClientId, msg.ClientIds)
 		trans.sessionMgr.RemoveSession(msg.ClientId)
 		for _, clientId := range msg.ClientIds {
 			trans.sessionMgr.RemoveSession(clientId)
