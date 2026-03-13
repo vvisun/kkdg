@@ -141,7 +141,7 @@ func (slf *transportorNats) SendToClient(sessionID string, msg any) error {
 		return kkerrors.ErrAppSessionNotFound
 	}
 
-	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetClientMsgPacket())
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -170,7 +170,7 @@ func (slf *transportorNats) SendToClients(sessionIDs []string, msg any) error {
 		return slf.SendToClient(sessionIDs[0], msg)
 	}
 
-	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetClientMsgPacket())
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err

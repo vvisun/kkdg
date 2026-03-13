@@ -224,7 +224,7 @@ func (slf *gateComponent) startWSServer() error {
 	opts := slf.serverOpt
 	kkoption.ApplyOptionsTo(&opts,
 		kknet.WithStreamTool(kkapp.GetStreamTool()),
-		kknet.WithMsgPacket(kkapp.GetMsgPacket()),
+		kknet.WithMsgPacket(kkapp.GetClientMsgPacket()),
 		kknet.WithRawHandler(slf.handler),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
@@ -397,12 +397,12 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		kklog.Warnf("[ccgate] get message bytes error: %v", err)
 		return
 	}
-	msgID, err := kkapp.GetMsgPacket().GetMsgID(msgBytes)
+	msgID, err := kkapp.GetClientMsgPacket().GetMsgID(msgBytes)
 	if err != nil {
 		kklog.Warnf("[ccgate] get message id error: %v", err)
 		return
 	}
-	route, err := kkapp.GetMsgPacket().GetRouter().GetMsgRoute(msgID)
+	route, err := kkapp.GetClientMsgPacket().GetRouter().GetMsgRoute(msgID)
 	if err != nil {
 		kklog.Warnf("[ccgate] get message route error: %v", err)
 		return

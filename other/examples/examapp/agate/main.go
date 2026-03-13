@@ -18,7 +18,7 @@ import (
 
 func main() {
 	examapp.ParseFlags(nil)
-	ptoexam.InitMsgs(kkapp.GetMsgPacket().GetRouter())
+	ptoexam.InitMsgs(kkapp.GetClientMsgPacket().GetRouter())
 
 	// gate 节点
 	gateApp := runGate()

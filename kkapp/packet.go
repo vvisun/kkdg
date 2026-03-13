@@ -15,15 +15,15 @@ func GetStreamTool() kkpacket.IPacket {
 }
 
 // 网关与客户端之间的消息编码解码器
-var gMsgPacket = kkpacket.NewMessagePacket(
+var gClientMsgPacket = kkpacket.NewMessagePacket(
 	kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
 	kkcodec.GetCodec(kkcodec.CodecTypeJson),
 	kkpacket.NewMsgRouter(),
 )
 
-// GetMsgPacket 获取网关与客户端之间的消息编码解码器
-func GetMsgPacket() *kkpacket.MessagePacket {
-	return gMsgPacket
+// GetClientMsgPacket 获取网关与客户端之间的消息编码解码器
+func GetClientMsgPacket() *kkpacket.MessagePacket {
+	return gClientMsgPacket
 }
 
 // 网关与业务服之间的消息编码解码器
@@ -48,7 +48,7 @@ func ConfigDefaults(streamTool kkpacket.IPacket, msgPacket *kkpacket.MessagePack
 		gStreamTool = streamTool
 	}
 	if msgPacket != nil {
-		gMsgPacket = msgPacket
+		gClientMsgPacket = msgPacket
 	}
 	if transMsgPacket != nil {
 		gTransMsgPacket = transMsgPacket

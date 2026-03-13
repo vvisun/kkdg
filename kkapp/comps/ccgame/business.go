@@ -27,7 +27,7 @@ func NewGameComponent(opt Option) *gameComponent {
 		kklog.PanicErr(err)
 	}
 	streamTool := kkapp.GetStreamTool()
-	messageTool := kkapp.GetMsgPacket()
+	messageTool := kkapp.GetClientMsgPacket()
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	return &gameComponent{
 		msgReceiver:    msgreceiver.NewMsgReceiver[string](packetTool),

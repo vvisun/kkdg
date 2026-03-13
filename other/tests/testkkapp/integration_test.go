@@ -57,7 +57,7 @@ type (
 )
 
 func InitMsgs(t *testing.T) {
-	router := kkapp.GetMsgPacket().GetRouter()
+	router := kkapp.GetClientMsgPacket().GetRouter()
 	// 避免在单测和 benchmark 混合运行时重复注册相同消息 ID。
 	if router.GetMsgType(1) != nil {
 		return
@@ -162,7 +162,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	handler := &clientHandler{
 		onRaw: func(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-			msg, e := kkpacket.DecodeStream(data, streamTool, kkapp.GetMsgPacket())
+			msg, e := kkpacket.DecodeStream(data, streamTool, kkapp.GetClientMsgPacket())
 
 			if e != nil {
 				t.Logf("unpack recv: %v", e)
@@ -197,7 +197,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	bb, err := kkpacket.EncodeStream(
 		&MsgTest1{ID: 1, Data: string(payload)},
 		streamTool,
-		kkapp.GetMsgPacket(),
+		kkapp.GetClientMsgPacket(),
 	)
 	if err != nil {
 		t.Fatalf("pack: %v", err)

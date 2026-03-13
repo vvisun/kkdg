@@ -144,7 +144,7 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	if conn == nil {
 		return kkerrors.ErrNetConnNotFound
 	}
-	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetClientMsgPacket())
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
