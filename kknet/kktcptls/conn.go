@@ -26,6 +26,7 @@ type tlsConn struct {
 	wp kknet.IWriteProcessor
 
 	extraData any // 自定义数据
+	extraMu   sync.RWMutex
 }
 
 var _ kknet.IConn = (*tlsConn)(nil)
@@ -61,11 +62,16 @@ func (c *tlsConn) RemoteAddr() string {
 }
 
 func (c *tlsConn) SetExtraData(extraData any) {
+	c.extraMu.Lock()
 	c.extraData = extraData
+	c.extraMu.Unlock()
 }
 
 func (c *tlsConn) GetExtraData() any {
-	return c.extraData
+	c.extraMu.RLock()
+	data := c.extraData
+	c.extraMu.RUnlock()
+	return data
 }
 
 func (c *tlsConn) Close() error {

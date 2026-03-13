@@ -33,6 +33,7 @@ type gwsConn struct {
 
 	pingTimer unsafe.Pointer // *timingwheel.Timer
 
+	extraMu   sync.RWMutex
 	extraData any // 自定义数据
 }
 
@@ -84,11 +85,16 @@ func (c *gwsConn) RemoteAddr() string {
 }
 
 func (c *gwsConn) SetExtraData(extraData any) {
+	c.extraMu.Lock()
 	c.extraData = extraData
+	c.extraMu.Unlock()
 }
 
 func (c *gwsConn) GetExtraData() any {
-	return c.extraData
+	c.extraMu.RLock()
+	data := c.extraData
+	c.extraMu.RUnlock()
+	return data
 }
 
 func (c *gwsConn) Close() error {

@@ -1,6 +1,7 @@
 package kktcp
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/panjf2000/gnet/v2"
@@ -22,6 +23,7 @@ type gnetClientConn struct {
 	wp kknet.IWriteProcessor
 
 	extraData any // 自定义数据
+	extraMu   sync.RWMutex
 }
 
 var _ kknet.IConn = (*gnetClientConn)(nil)
@@ -64,11 +66,16 @@ func (c *gnetClientConn) RemoteAddr() string {
 }
 
 func (c *gnetClientConn) SetExtraData(extraData any) {
+	c.extraMu.Lock()
 	c.extraData = extraData
+	c.extraMu.Unlock()
 }
 
 func (c *gnetClientConn) GetExtraData() any {
-	return c.extraData
+	c.extraMu.RLock()
+	data := c.extraData
+	c.extraMu.RUnlock()
+	return data
 }
 
 func (c *gnetClientConn) Close() error {
