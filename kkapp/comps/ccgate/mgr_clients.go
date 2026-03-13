@@ -55,6 +55,16 @@ type clientInfo struct {
 	sessionId string
 }
 
+func (c *clientInfo) rangeLogicNodes(fn func(nodeType string, lgcInfo *clientLogicItem) bool) {
+	c.logicNodeMap.Range(func(key any, value any) bool {
+		item := value.(*clientLogicItem)
+		if item == nil {
+			return true
+		}
+		return fn(key.(string), item)
+	})
+}
+
 // 获取本客户端链接的nodeType类型的逻辑节点信息。
 func (c *clientInfo) getLogicNode(nodeType string) *clientLogicItem {
 	info, ok := c.logicNodeMap.Load(nodeType)

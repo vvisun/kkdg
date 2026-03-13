@@ -13,6 +13,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transshard"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
@@ -314,7 +315,8 @@ func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
 //------------------------------------------------------------
 
 type gateHandler struct {
-	gate *gateComponent
+	gate   *gateComponent
+	wQueue *kkprocessor.WorkerQueue
 }
 
 var _ kknet.IConnLifecycleHandler = (*gateHandler)(nil)
@@ -322,7 +324,8 @@ var _ kknet.IRawHandler = (*gateHandler)(nil)
 
 func newGateHandler(gate *gateComponent) *gateHandler {
 	return &gateHandler{
-		gate: gate,
+		gate:   gate,
+		wQueue: kkprocessor.NewWorkerQueue(2),
 	}
 }
 
@@ -334,23 +337,25 @@ func (h *gateHandler) OnConnect(c kknet.IConn) {
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	sid := getSessionId(c.ID(), h.gate.GetApplication().GetNodeId())
 	cid := c.ID()
+	sid := getSessionId(cid, h.gate.GetApplication().GetNodeId())
+
 	// 在 removeClient 前取出该客户端已分配的逻辑服 nodeId，用于通知断开
-	var logicNodeId string
-	if cliInfo := h.gate.clientMgr.getClient(c.ID()); cliInfo != nil {
-		if lgc := cliInfo.getLogicNode(h.gate.opt.LogicNodeType); lgc != nil {
-			logicNodeId = lgc.nodeId
-		}
+	if cliInfo := h.gate.clientMgr.getClient(cid); cliInfo != nil {
+		cliInfo.rangeLogicNodes(func(nodeType string, lgcInfo *clientLogicItem) bool {
+			if lgcInfo.nodeId != "" {
+				logicNodeId := lgcInfo.nodeId
+				h.wQueue.Push(func() {
+					h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
+				})
+			}
+			return true
+		})
 	}
-	go func() {
-		if logicNodeId != "" {
-			h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
-		}
-	}()
+
 	h.gate.sessionMgr.RemoveConn(sid)
-	h.gate.clientMgr.removeClient(c.ID())
-	kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
+	h.gate.clientMgr.removeClient(cid)
+	kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", cid, c.RemoteAddr(), err)
 }
 
 // OnRaw 收到客户端消息，转发给逻辑节点
