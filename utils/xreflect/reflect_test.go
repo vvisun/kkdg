@@ -436,3 +436,27 @@ func TestGetFuncInfo(t *testing.T) {
 		t.Error("Expected Type to match reflect.TypeOf")
 	}
 }
+
+func TestIsSameFunc(t *testing.T) {
+	f1 := func(a int) int { return a + 1 }
+	f2 := f1
+	f3 := func(a int) int { return a + 1 }
+
+	// same function value (alias)
+	if !xreflect.IsSameFunc(f1, f2) {
+		t.Errorf("expected f1 and f2 to be the same function")
+	}
+
+	// different function values, even if body looks identical
+	if xreflect.IsSameFunc(f1, f3) {
+		t.Errorf("expected f1 and f3 to be different functions")
+	}
+
+	// nil / non-func / error paths should return false
+	if xreflect.IsSameFunc(nil, f1) {
+		t.Errorf("expected nil and f1 to not be the same function")
+	}
+	if xreflect.IsSameFunc(f1, 123) {
+		t.Errorf("expected f1 and non-func to not be the same function")
+	}
+}
