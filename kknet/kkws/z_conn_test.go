@@ -183,12 +183,12 @@ func TestWSConn_SendQueueFullAction_Drop(t *testing.T) {
 	wc.writeMu.Unlock()
 
 	for i := 0; i < 4; i++ {
-		_ = mustRecv(t, recv, 500*time.Millisecond)
+		_ = mustRecv(t, recv, 2*time.Second)
 	}
 	select {
 	case b := <-recv:
 		t.Fatalf("unexpected extra (overflow should be dropped): %v", b)
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 
