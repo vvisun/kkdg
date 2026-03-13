@@ -83,7 +83,6 @@ func (slf *gateComponent) OnInit() error {
 	slf.discovery = dnats.NewNatsDiscovery(
 		"gate."+slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeInfo(),
-		nil,
 		discoveryOpts,
 		kkdiscovery.ApplyOptions(),
 	)
@@ -205,6 +204,7 @@ func (slf *gateComponent) startWSServer() error {
 	opts := slf.serverOpt
 	kkoption.ApplyOptionsTo(&opts,
 		kknet.WithStreamTool(kkapp.GetStreamTool()),
+		kknet.WithMsgPacket(kkapp.GetMsgPacket()),
 		kknet.WithRawHandler(slf.handler),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
@@ -212,7 +212,6 @@ func (slf *gateComponent) startWSServer() error {
 		kknet.WithRecvQueueStrict(true),
 		kknet.WithRecvBufShrinkCap(2*1024),
 		kknet.WithRecvQueueFullCallback(slf.opt.RecvQueueFullCallback),
-		kknet.WithMsgPacket(kkapp.GetMsgPacket()),
 	)
 	server := kkgws.NewServer(slf.opt.WSAddr, slf.handler, opts)
 

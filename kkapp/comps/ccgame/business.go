@@ -70,7 +70,6 @@ func (slf *gameComponent) OnInit() error {
 	slf.discovery = dnats.NewNatsDiscovery(
 		"logic."+slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeInfo(),
-		nil,
 		discoveryOpts,
 		kkdiscovery.ApplyOptions(),
 	)
