@@ -92,7 +92,11 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	natsURL := requireNATS(t)
 	tcpAddr := freePort(t)
 	rpcAddr := freePort(t)
-	const transType = transport.TransTypeRpc
+
+	// 可以在这里调整传输层类型
+	// const transType = transport.TransTypeRpc
+	// const transType = transport.TransTypeNats
+	const transType = transport.TransTypeShard
 
 	var streamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
 
