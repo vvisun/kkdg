@@ -7,6 +7,20 @@ import (
 
 var (
 	gStreamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
+
+	// 网关与客户端之间的消息编码解码器
+	gClientMsgPacket = kkpacket.NewMessagePacket(
+		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+		kkcodec.GetCodec(kkcodec.CodecTypeJson),
+		kkpacket.NewMsgRouter(),
+	)
+
+	// 网关与业务服之间的消息编码解码器
+	gTransMsgPacket = kkpacket.NewMessagePacket(
+		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+		kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		kkpacket.NewMsgRouter(),
+	)
 )
 
 // 获取默认的流拆解器
@@ -14,24 +28,10 @@ func GetStreamTool() kkpacket.IPacket {
 	return gStreamTool
 }
 
-// 网关与客户端之间的消息编码解码器
-var gClientMsgPacket = kkpacket.NewMessagePacket(
-	kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-	kkcodec.GetCodec(kkcodec.CodecTypeJson),
-	kkpacket.NewMsgRouter(),
-)
-
 // GetClientMsgPacket 获取网关与客户端之间的消息编码解码器
 func GetClientMsgPacket() *kkpacket.MessagePacket {
 	return gClientMsgPacket
 }
-
-// 网关与业务服之间的消息编码解码器
-var gTransMsgPacket = kkpacket.NewMessagePacket(
-	kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-	kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
-	kkpacket.NewMsgRouter(),
-)
 
 // GetTransMsgPacket 获取网关与业务服之间的消息编码解码器
 func GetTransMsgPacket() *kkpacket.MessagePacket {
