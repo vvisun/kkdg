@@ -22,6 +22,7 @@ type transportorRpc struct {
 	sessionMgr  *gametrans.SessionManager
 	msgReceiver *msgreceiver.MsgReceiver[string]
 	stopped     bool
+	nodeInfo    kkapp.INodeIdentity
 }
 
 var (
@@ -68,6 +69,7 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 		sessionMgr:  sessionMgr,
 		msgReceiver: msgReceiver,
 		rpcClient:   rpcClient,
+		nodeInfo:    node,
 	}
 	rpcProcessor.trans = trans
 	msgReceiver.SetNeedCopyInOnSession(true)
@@ -224,8 +226,8 @@ func (slf *transportorRpc) NotifyClientLoginLogout(sessionID string, userId int6
 	msg.ClientId = sessionID
 	msg.UserId = userId
 	msg.IsLogin = isLogin
-	msg.NodeType = ""
-	msg.NodeId = ""
+	msg.NodeType = slf.nodeInfo.GetNodeType()
+	msg.NodeId = slf.nodeInfo.GetNodeId()
 	msg.GateNodeId = sessionInfo.GetGateNodeID()
 	return onewayClientLoginLogout.InvokeNR(context.Background(), &msg, kkrpc.CallConfig{})
 }

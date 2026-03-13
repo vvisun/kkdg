@@ -30,6 +30,7 @@ func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr gatetrans.ISessio
 		sessionMgr: sessionMgr,
 		msgHooker:  gatetrans.NewMsgHooker(),
 	}
+	ptotrans.InitShardMsgs()
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans, nil
 }

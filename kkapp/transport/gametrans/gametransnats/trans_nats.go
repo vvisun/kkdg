@@ -18,14 +18,17 @@ type transportorNats struct {
 	sessionMgr  *gametrans.SessionManager
 	msgReceiver *msgreceiver.MsgReceiver[string]
 	stopped     bool
+	nodeInfo    kkapp.INodeIdentity
 }
 
-func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *gametrans.SessionManager) (gametrans.ITransportor, error) {
+func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *gametrans.SessionManager, nodeInfo kkapp.INodeIdentity) (gametrans.ITransportor, error) {
 	trans := &transportorNats{
 		cluster:     cluster,
 		sessionMgr:  sessionManager,
 		msgReceiver: msgReceiver,
+		nodeInfo:    nodeInfo,
 	}
+	ptotrans.InitShardMsgs()
 	msgReceiver.SetNeedCopyInOnSession(false)
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans, nil
@@ -196,8 +199,8 @@ func (slf *transportorNats) NotifyClientLoginLogout(sessionID string, userId int
 	msg.ClientId = sessionID
 	msg.UserId = userId
 	msg.IsLogin = isLogin
-	msg.NodeType = ""
-	msg.NodeId = ""
+	msg.NodeType = slf.nodeInfo.GetNodeType()
+	msg.NodeId = slf.nodeInfo.GetNodeId()
 	msg.GateNodeId = sessionInfo.GetGateNodeID()
 	bbTrans, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
 	if err != nil {
