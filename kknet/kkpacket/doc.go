@@ -7,6 +7,4 @@
 //   - [body]：消息体（对象二进制数据）
 //
 // stream = [length, message]，message = [head, body]
-//
-// 注意：在app初始化阶段，调用ConfigDefaults()配置默认值。运行期间不要修改。
 package kkpacket

@@ -5,21 +5,29 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// 完整包。流拆解器
-// 包结构：[length,message] = [length,head,body]
-// length表示message的长度，占LengthFieldByteCount()个字节。
-// [message] = [head,body]
+// 完整包。流拆解器。
+//
+//	包结构：[length,message] = [length,head,body]
+//	length表示[message]部分的字节数，[length]部分占LengthFieldByteCount()个字节。
+//	[message] = [head,body]
 type IPacket interface {
-	// get length field byte count. [length].
+	// get length field byte count.
+	//  @return int [length]的字节数
 	LengthFieldByteCount() int
 
-	// get max packet size. 整包[length,message]最大长度（字节数）
+	// get max packet size.
+	//  @return int 整包[length,message]最大长度（字节数）
 	MaxPacketSize() int
 
-	// length field bytes. packet = [length,message]
+	// length field bytes.
+	//  @param packet []byte 整包数据 [length,message]
+	//  @return []byte [length]
 	LengthFieldBytes(packet []byte) []byte
 
-	// get message bytes. packet = [length,message]
+	// get message bytes.
+	//  @param packet []byte 整包数据 [length,message]
+	//  @return []byte [message]
+	//  @return error 错误
 	MessageBytes(packet []byte) ([]byte, error)
 
 	/**get byte count of message.
