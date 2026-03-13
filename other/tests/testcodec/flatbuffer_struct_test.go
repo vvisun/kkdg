@@ -7,10 +7,12 @@ import (
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
-var usingCodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
+var flatbufferCodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
+
+type flatbufferFrame = fbtrpc.Frame
 
 func TestFlatBuffer_MarshalStruct_UnmarshalStruct(t *testing.T) {
-	obj := &fbtrpc.Frame{
+	obj := &flatbufferFrame{
 		T:    1,
 		ID:   100,
 		DL:   0,
@@ -20,7 +22,7 @@ func TestFlatBuffer_MarshalStruct_UnmarshalStruct(t *testing.T) {
 		Err:  "",
 	}
 
-	data, err := usingCodec.Marshal(obj)
+	data, err := flatbufferCodec.Marshal(obj)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
@@ -28,8 +30,8 @@ func TestFlatBuffer_MarshalStruct_UnmarshalStruct(t *testing.T) {
 		t.Fatal("Marshal: empty output")
 	}
 
-	var result fbtrpc.Frame
-	err = usingCodec.Unmarshal(data, &result)
+	var result flatbufferFrame
+	err = flatbufferCodec.Unmarshal(data, &result)
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -41,11 +43,11 @@ func TestFlatBuffer_MarshalStruct_UnmarshalStruct(t *testing.T) {
 }
 
 func TestFlatBuffer_UnmarshalToNewStruct(t *testing.T) {
-	obj := &fbtrpc.Frame{T: 42, M: "test"}
-	data, _ := usingCodec.Marshal(obj)
+	obj := &flatbufferFrame{T: 42, M: "test"}
+	data, _ := flatbufferCodec.Marshal(obj)
 
-	result := &fbtrpc.Frame{}
-	err := usingCodec.Unmarshal(data, result)
+	result := &flatbufferFrame{}
+	err := flatbufferCodec.Unmarshal(data, result)
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -57,7 +59,7 @@ func TestFlatBuffer_UnmarshalToNewStruct(t *testing.T) {
 //----------------------------------------------------------------
 // 性能测试
 
-var benchFrameStruct = &fbtrpc.Frame{
+var benchFrameStruct = &flatbufferFrame{
 	T:    1,
 	ID:   100,
 	DL:   0,
@@ -70,14 +72,14 @@ var benchFrameStruct = &fbtrpc.Frame{
 var benchFrameStructData []byte
 
 func init() {
-	benchFrameStructData, _ = usingCodec.Marshal(benchFrameStruct)
+	benchFrameStructData, _ = flatbufferCodec.Marshal(benchFrameStruct)
 }
 
 func Benchmark_Marshal_FrameStruct(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, err := usingCodec.Marshal(benchFrameStruct)
+		_, err := flatbufferCodec.Marshal(benchFrameStruct)
 		if err != nil {
 			b.Fatalf("Marshal: %v", err)
 		}
@@ -88,8 +90,8 @@ func Benchmark_Unmarshal_FrameStruct(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		var result fbtrpc.Frame
-		err := usingCodec.Unmarshal(benchFrameStructData, &result)
+		var result flatbufferFrame
+		err := flatbufferCodec.Unmarshal(benchFrameStructData, &result)
 		if err != nil {
 			b.Fatalf("Unmarshal: %v", err)
 		}
@@ -100,12 +102,12 @@ func Benchmark_Marshal_Unmarshal_FrameStruct(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		data, err := usingCodec.Marshal(benchFrameStruct)
+		data, err := flatbufferCodec.Marshal(benchFrameStruct)
 		if err != nil {
 			b.Fatalf("Marshal: %v", err)
 		}
-		var result fbtrpc.Frame
-		err = usingCodec.Unmarshal(data, &result)
+		var result flatbufferFrame
+		err = flatbufferCodec.Unmarshal(data, &result)
 		if err != nil {
 			b.Fatalf("Unmarshal: %v", err)
 		}
