@@ -302,7 +302,7 @@ func TestGlobalBus(t *testing.T) {
 	topic := "test-global-bus"
 	ch := make(chan struct{}, 1)
 
-	if err := Subscribe(topic, func(v int) {
+	if err := GlobalBus.Subscribe(topic, func(v int) {
 		if v == 42 {
 			ch <- struct{}{}
 		}
@@ -310,7 +310,7 @@ func TestGlobalBus(t *testing.T) {
 		t.Fatalf("Subscribe on global bus: %v", err)
 	}
 
-	Publish(topic, 42)
+	GlobalBus.Publish(topic, 42)
 	select {
 	case <-ch:
 	case <-time.After(time.Second):

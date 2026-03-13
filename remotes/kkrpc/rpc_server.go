@@ -3,9 +3,11 @@ package kkrpc
 import (
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkmetrics"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
@@ -66,10 +68,19 @@ func (s *Server) SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 }
 
 func (s *Server) Start() error {
+	// 订阅 rpc服务端metrics事件，通过 Stats 快照填充 MetricsEventData
+	_ = kkevent.GlobalBus.Subscribe(kkmetrics.EventRpcServerMetrics, func(e *kkmetrics.MetricsEventData) {
+		if e == nil {
+			return
+		}
+		snap := s.Stats()
+		e.Metrics = MetricsFromSnapshot(e.Namespace, snap)
+	})
 	return s.tcp.Start()
 }
 
 func (s *Server) Stop() error {
+	kkevent.GlobalBus.UnsubscribeAll(kkmetrics.EventRpcServerMetrics)
 	s.pending.closeAll()
 	return s.tcp.Stop()
 }

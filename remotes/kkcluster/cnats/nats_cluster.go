@@ -90,7 +90,7 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 // Start 初始化集群
 func (c *NatsCluster) Start() error {
 	kklog.Infof("NatsCluster(%s) startup", c.nodeID)
-	kkevent.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
+	kkevent.GlobalBus.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := c.Stats()
 		e.Metrics = kkcluster.MetricsFromSnapshot(e.Namespace, snap)
 	})
@@ -463,6 +463,9 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 // Stop 停止集群
 func (c *NatsCluster) Stop() {
 	kklog.Infof("NatsCluster(%s) shutdown", c.nodeID)
+
+	kkevent.GlobalBus.UnsubscribeAll(kkmetrics.EventClusterMetrics)
+
 	select {
 	case <-c.stopCh:
 		return

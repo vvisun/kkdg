@@ -18,6 +18,8 @@ type BusSubscriber interface {
 	SubscribeOnceAsync(topic string, fn interface{}) error
 	// Unsubscribe removes a callback defined for a topic.
 	Unsubscribe(topic string, handler interface{}) error
+	// UnsubscribeAll removes all callbacks defined for a topic.
+	UnsubscribeAll(topic string) error
 }
 
 // BusPublisher defines publishing-related bus behavior
@@ -154,6 +156,14 @@ func (bus *EventBus) Unsubscribe(topic string, handler interface{}) error {
 		delete(bus.handlers, topic)
 	}
 
+	return nil
+}
+
+// UnsubscribeAll removes all callbacks defined for a topic.
+func (bus *EventBus) UnsubscribeAll(topic string) error {
+	bus.lock.Lock()
+	delete(bus.handlers, topic)
+	bus.lock.Unlock()
 	return nil
 }
 

@@ -73,7 +73,7 @@ func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, settings map[string
 	}
 
 	// 订阅 discovery metrics 事件，通过 Stats 快照填充 MetricsEventData
-	_ = kkevent.Subscribe(kkmetrics.EventDiscoveryMetrics, func(e *kkmetrics.MetricsEventData) {
+	_ = kkevent.GlobalBus.Subscribe(kkmetrics.EventDiscoveryMetrics, func(e *kkmetrics.MetricsEventData) {
 		if e == nil {
 			return
 		}
@@ -154,6 +154,8 @@ func (d *NatsDiscovery) Stop() error {
 
 	d.publishSelf()                    // 将离线通知出去
 	time.Sleep(500 * time.Millisecond) // 等待500毫秒，让离线通知出去
+
+	kkevent.GlobalBus.UnsubscribeAll(kkmetrics.EventDiscoveryMetrics)
 
 	select {
 	case <-d.stopCh:

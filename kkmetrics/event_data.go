@@ -12,6 +12,10 @@ const (
 	EventClusterMetrics = "cluster_metrics"
 	// 发现metrics事件
 	EventDiscoveryMetrics = "discovery_metrics"
+	// rpc客户端metrics事件
+	EventRpcClientMetrics = "rpc_client_metrics"
+	// rpc服务端metrics事件
+	EventRpcServerMetrics = "rpc_server_metrics"
 )
 
 // MetricsEventData 是向各模块发出的请求事件的数据结构
@@ -32,7 +36,7 @@ func collectClusterMetrics(namespace string) *MetricsEventData {
 		Namespace: namespace,
 		Metrics:   make(map[string]float64),
 	}
-	kkevent.Publish(EventClusterMetrics, e)
+	kkevent.GlobalBus.Publish(EventClusterMetrics, e)
 	return e
 }
 
@@ -44,7 +48,31 @@ func collectDiscoveryMetrics(namespace string) *MetricsEventData {
 		Namespace: namespace,
 		Metrics:   make(map[string]float64),
 	}
-	kkevent.Publish(EventDiscoveryMetrics, e)
+	kkevent.GlobalBus.Publish(EventDiscoveryMetrics, e)
+	return e
+}
+
+// collectRpcClientMetrics 通过事件总线请求rpc客户端模块填充 metrics 数据。
+// 监听方需要订阅 EventRpcClientMetrics，在回调中调用 kkrpc.MetricsFromSnapshot 并回填。
+func collectRpcClientMetrics(namespace string) *MetricsEventData {
+	e := &MetricsEventData{
+		EventType: EventRpcClientMetrics,
+		Namespace: namespace,
+		Metrics:   make(map[string]float64),
+	}
+	kkevent.GlobalBus.Publish(EventRpcClientMetrics, e)
+	return e
+}
+
+// collectRpcServerMetrics 通过事件总线请求rpc服务端模块填充 metrics 数据。
+// 监听方需要订阅 EventRpcServerMetrics，在回调中调用 kkrpc.MetricsFromSnapshot 并回填。
+func collectRpcServerMetrics(namespace string) *MetricsEventData {
+	e := &MetricsEventData{
+		EventType: EventRpcServerMetrics,
+		Namespace: namespace,
+		Metrics:   make(map[string]float64),
+	}
+	kkevent.GlobalBus.Publish(EventRpcServerMetrics, e)
 	return e
 }
 
@@ -60,4 +88,14 @@ func initClusterMetrics(ctx context.Context) error {
 // 避免在这里手写/维护具体的 metric 名称。
 func initDiscoveryMetrics(ctx context.Context) error {
 	return initTrigger(ctx, "discovery", collectDiscoveryMetrics)
+}
+
+// initRpcClientMetrics registers observable gauges for rpc client metrics.
+func initRpcClientMetrics(ctx context.Context) error {
+	return initTrigger(ctx, "rpc_client", collectRpcClientMetrics)
+}
+
+// initRpcServerMetrics registers observable gauges for rpc server metrics.
+func initRpcServerMetrics(ctx context.Context) error {
+	return initTrigger(ctx, "rpc_server", collectRpcServerMetrics)
 }

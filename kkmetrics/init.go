@@ -25,6 +25,8 @@ var (
 var modInits = []func(ctx context.Context) error{
 	initClusterMetrics,
 	initDiscoveryMetrics,
+	initRpcClientMetrics,
+	initRpcServerMetrics,
 }
 
 func AutoInit(ctx context.Context, addr string) {
