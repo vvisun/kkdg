@@ -13,6 +13,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -67,12 +68,12 @@ func InitMsgs(t *testing.T) {
 }
 
 type gameHandler struct {
-	sendToClient func(sessionID string, msg any) error
+	transportor gametrans.ITransportor
 }
 
 func (h *gameHandler) onMsgTest1(sessionID string, msg *MsgTest1) error {
 	kklog.Infof("收到rpc消息 onMsgTest1: %v", msg)
-	h.sendToClient(sessionID, msg)
+	h.transportor.SendToClient(sessionID, msg)
 	return nil
 }
 
@@ -127,19 +128,19 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		ClusterUrl:   natsURL,
 	})
 
-	msgReceiver := game.GetMsgReceiver()
-	gh := &gameHandler{}
-	gh.sendToClient = game.SendToClient
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest1)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest2)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest3)
-
 	if err := gameApp.AddComponent(game); err != nil {
 		t.Fatalf("add game: %v", err)
 	}
 	if err := gameApp.Start(); err != nil {
 		t.Fatalf("game start: %v", err)
 	}
+
+	msgReceiver := game.GetMsgReceiver()
+	gh := &gameHandler{transportor: game.GetTransportor()}
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest1)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest2)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest3)
+
 	t.Cleanup(func() { _ = gameApp.Stop() })
 
 	// 等待 discovery 建立（requestAllMembers 约 1s 后触发，再留时间收响应）

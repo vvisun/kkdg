@@ -53,3 +53,16 @@ func GetFuncInfo(fn interface{}) (FuncInfo, error) {
 
 	return funcInfo, nil
 }
+
+// IsSameFunc 判断两个函数是否是同一个函数。
+func IsSameFunc(fn1, fn2 interface{}) bool {
+	info1, err := GetFuncInfo(fn1)
+	if err != nil {
+		return false
+	}
+	info2, err := GetFuncInfo(fn2)
+	if err != nil {
+		return false
+	}
+	return info1.Type == info2.Type && info1.Value.Pointer() == info2.Value.Pointer()
+}

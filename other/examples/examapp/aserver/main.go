@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
@@ -41,29 +42,29 @@ func runGame() *component.Application {
 		ClusterUrl:   examapp.NatsURL,
 	})
 
-	msgReceiver := game.GetMsgReceiver()
-	gh := &gameHandler{}
-	gh.sendToClient = game.SendToClient
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg2Broadcast)
-
 	if err := gameApp.AddComponent(game); err != nil {
 		kklog.Errorf("add game: %v", err)
 	}
 	if err := gameApp.Start(); err != nil {
 		kklog.Errorf("game start: %v", err)
 	}
+
+	msgReceiver := game.GetMsgReceiver()
+	gh := &gameHandler{transportor: game.GetTransportor()}
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg2Broadcast)
+
 	return gameApp
 }
 
 type gameHandler struct {
-	sendToClient func(sessionID string, msg any) error
+	transportor gametrans.ITransportor
 }
 
 func (h *gameHandler) onMsg1Req(sessionID string, msg *ptoexam.Msg1Req) error {
 	kklog.Infof("onMsg1Req: %v", msg)
-	h.sendToClient(sessionID, &ptoexam.Msg1Resp{ID: msg.ID, Name: "hello"})
+	h.transportor.SendToClient(sessionID, &ptoexam.Msg1Resp{ID: msg.ID, Name: "hello"})
 	return nil
 }
 
