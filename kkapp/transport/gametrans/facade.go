@@ -5,10 +5,10 @@ package gametrans
 type ITransportor interface {
 	Stop() error
 	// ForwardToClient forwards a message to a client.
-	// @param packet is a full stream packet [length,message]
+	//  @param packet is a full stream packet [length,message]
 	ForwardToClient(sessionID string, packet []byte) error
 	// ForwardToClients forwards a message to multiple clients.
-	// @param packet is a full stream packet [length,message]
+	//  @param packet is a full stream packet [length,message]
 	ForwardToClients(sessionIDs []string, packet []byte) error
 	// SendToClient sends a message to a client.
 	SendToClient(sessionID string, msg any) error

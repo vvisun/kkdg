@@ -9,13 +9,13 @@ import (
 type ITransportor interface {
 	Stop() error
 	// ForwardToLogic forwards a client message to logic side.
-	// @param packet is a full stream packet [length,message]
+	//  @param packet is a full stream packet [length,message]
 	ForwardToLogic(sessionID string, packet []byte, logicNodeId string) error
 	// ForwardToClient forwards a logic message to client side.
-	// @param packet is a full stream packet [length,message]
+	//  @param packet is a full stream packet [length,message]
 	ForwardToClient(sessionID string, packet []byte) error
 	// ForwardToClients forwards a logic message to multiple clients side.
-	// @param packet is a full stream packet [length,message]
+	//  @param packet is a full stream packet [length,message]
 	ForwardToClients(sessionIDs []string, packet []byte) error
 	// NotifyClientDisconnect notifies a client disconnect.
 	NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
