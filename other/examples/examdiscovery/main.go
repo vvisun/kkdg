@@ -59,11 +59,6 @@ func main() {
 		fmt.Printf("  - %s @ %s\n", m.GetNodeID(), m.GetAddress())
 	}
 
-	// 随机获取一个
-	if rnd, ok := discovery1.GetMemberMgr().Random("gate"); ok {
-		fmt.Printf("Random(gate): %s\n", rnd.GetNodeID())
-	}
-
 	// 获取指定成员
 	if m, ok := discovery1.GetMemberMgr().GetMember("node2"); ok {
 		fmt.Printf("GetMember(node2): type=%s, addr=%s\n", m.GetNodeType(), m.GetAddress())

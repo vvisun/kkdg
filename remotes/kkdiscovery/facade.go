@@ -11,7 +11,6 @@ type (
 		MemberCount() int                                  // 获取成员数量
 		Range(fn func(nodeID string, member IMember) bool) // 遍历成员, fn 返回 false 时停止遍历
 		ListByType(nodeType string) []IMember              // 根据节点类型获取成员列表
-		Random(nodeType string) (IMember, bool)            // 根据节点类型随机一个成员
 		GetType(nodeID string) (string, error)             // 根据节点id获取成员类型
 		GetMember(nodeID string) (IMember, bool)           // 根据节点id获取成员
 		ObserveAddMember(listener MemberListener)          // 监听添加成员

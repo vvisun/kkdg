@@ -60,9 +60,6 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 	if len(list) != 1 || list[0].GetNodeID() != "node2" {
 		t.Fatalf("ListByType(logic) = %v, want [node2]", list)
 	}
-	if rm, ok := d.GetMemberMgr().Random("logic"); !ok || rm == nil || rm.GetNodeID() != "node2" {
-		t.Fatalf("Random(logic) = (%v,%v), want node2,true", rm, ok)
-	}
 
 	// Stats should reflect 1 member added.
 	snap := d.Stats()

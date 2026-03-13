@@ -78,7 +78,7 @@ func TestMemberMgr_ListByTypeAndRandom(t *testing.T) {
 
 	// Random should only pick from existing type; we can't assert exact distribution, but should return ok.
 	for i := 0; i < 10; i++ {
-		m, ok := mgr.Random("logic")
+		m, ok := mgr.random("logic")
 		if !ok || m == nil {
 			t.Fatalf("Random(logic) returned nil, false")
 		}
@@ -88,7 +88,7 @@ func TestMemberMgr_ListByTypeAndRandom(t *testing.T) {
 	}
 
 	// Random on missing type should indicate not found.
-	if m, ok := mgr.Random("missing"); ok || m != nil {
+	if m, ok := mgr.random("missing"); ok || m != nil {
 		t.Fatalf("Random(missing) = (%v,%v), want (nil,false)", m, ok)
 	}
 }
@@ -237,7 +237,7 @@ func BenchmarkMemberMgr_Random(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		m, ok := mgr.Random("logic")
+		m, ok := mgr.random("logic")
 		if !ok || m == nil {
 			b.Fatalf("Random(logic) returned nil, false")
 		}

@@ -153,7 +153,7 @@ func (m *MemberMgr) ListByType(nodeType string) []IMember {
 }
 
 // 根据节点类型随机一个成员
-func (m *MemberMgr) Random(nodeType string) (IMember, bool) {
+func (m *MemberMgr) random(nodeType string) (IMember, bool) {
 	m.membersMu.RLock()
 	listOfType := m.typeMap[nodeType]
 	m.membersMu.RUnlock()
