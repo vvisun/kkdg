@@ -8,7 +8,7 @@
 //  3. 节点之间通过ActorFramework通信
 //  4. 组件Component之间通过ActorFramework通信
 //
-// 一、、kkactor是透明化通信框架，这是整个架构的核心。
+// 一、kkactor是透明化通信框架，这是整个架构的核心。
 //
 //	基于kkactor，即可以做到透明化部署和通信，也可以很好的实现模块间解耦。
 //
