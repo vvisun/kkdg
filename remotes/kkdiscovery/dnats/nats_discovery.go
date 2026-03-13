@@ -14,6 +14,11 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+const (
+	subjectDiscovery        = "kkdiscovery.discovery"         // 服务发现主题
+	subjectDiscoveryRequest = "kkdiscovery.discovery.request" // 服务发现请求主题
+)
+
 // NatsDiscovery 基于NATS的服务发现实现
 type NatsDiscovery struct {
 	name     string
@@ -54,7 +59,12 @@ type NatsDiscovery struct {
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
-func NewNatsDiscovery(name string, nodeInfo *kkapp.NodeInfo, natsOpts nats.Options, discoveryOpt kkdiscovery.DiscoveryOption) kkdiscovery.IDiscovery {
+func NewNatsDiscovery(
+	name string,
+	nodeInfo *kkapp.NodeInfo,
+	natsOpts nats.Options,
+	discoveryOpt kkdiscovery.DiscoveryOption,
+) kkdiscovery.IDiscovery {
 	d := &NatsDiscovery{
 		name:        name,
 		nodeID:      nodeInfo.GetNodeId(),
@@ -272,16 +282,14 @@ func (d *NatsDiscovery) resubscribe() error {
 	}
 
 	// 订阅服务发现主题
-	subject := d.getDiscoverySubject()
-	sub, err := d.conn.Subscribe(subject, d.handleDiscoveryMessage)
+	sub, err := d.conn.Subscribe(subjectDiscovery, d.handleDiscoveryMessage)
 	if err != nil {
 		return err
 	}
 	d.sub = sub
 
 	// 订阅服务发现请求主题（用于响应其他节点的请求）
-	requestSubject := d.getDiscoveryRequestSubject()
-	requestSub, err := d.conn.Subscribe(requestSubject, d.handleDiscoveryRequest)
+	requestSub, err := d.conn.Subscribe(subjectDiscoveryRequest, d.handleDiscoveryRequest)
 	if err != nil {
 		sub.Unsubscribe()
 		return err
@@ -337,14 +345,15 @@ func (d *NatsDiscovery) publishSelf() error {
 	data, err := d.msgCodec.Marshal(&memberInfo)
 	if err != nil {
 		d.stats.AddError()
-		kklog.Errorf("NatsDiscovery(%s) marshal self failed: nodeType=%s addr=%s err=%v", d.nodeID, d.nodeType, d.address, err)
+		kklog.Errorf("NatsDiscovery(%s) marshal self failed: nodeType=%s addr=%s err=%v",
+			d.nodeID, d.nodeType, d.address, err)
 		return err
 	}
 
-	subject := d.getDiscoverySubject()
-	if err := d.conn.Publish(subject, data); err != nil {
+	if err := d.conn.Publish(subjectDiscovery, data); err != nil {
 		d.stats.AddError()
-		kklog.Errorf("NatsDiscovery(%s) publish self failed: subject=%s bytes=%d err=%v", d.nodeID, subject, len(data), err)
+		kklog.Errorf("NatsDiscovery(%s) publish self failed: subject=%s bytes=%d err=%v",
+			d.nodeID, subjectDiscovery, len(data), err)
 		return err
 	}
 
@@ -390,15 +399,16 @@ func (d *NatsDiscovery) requestAllMembers() {
 	data, err := d.msgCodec.Marshal(&reqMsg)
 	if err != nil {
 		d.stats.AddError()
-		kklog.Errorf("NatsDiscovery(%s) marshal discovery request failed: requesterID=%s err=%v", d.nodeID, reqMsg.RequesterID, err)
+		kklog.Errorf("NatsDiscovery(%s) marshal request failed: requesterID=%s err=%v",
+			d.nodeID, reqMsg.RequesterID, err)
 		return
 	}
 
-	subject := d.getDiscoveryRequestSubject()
 	if d.conn != nil && !d.closed.Load() {
-		if err := d.conn.Publish(subject, data); err != nil {
+		if err := d.conn.Publish(subjectDiscoveryRequest, data); err != nil {
 			d.stats.AddError()
-			kklog.Errorf("NatsDiscovery(%s) publish discovery request failed: subject=%s requesterID=%s bytes=%d err=%v", d.nodeID, subject, reqMsg.RequesterID, len(data), err)
+			kklog.Errorf("NatsDiscovery(%s) publish request failed: subject=%s requesterID=%s bytes=%d err=%v",
+				d.nodeID, subjectDiscoveryRequest, reqMsg.RequesterID, len(data), err)
 		}
 	}
 }
@@ -453,14 +463,4 @@ func (d *NatsDiscovery) checkMemberTimeout() {
 			}
 		}
 	}
-}
-
-// getDiscoverySubject 获取服务发现主题
-func (d *NatsDiscovery) getDiscoverySubject() string {
-	return "kkcluster.discovery"
-}
-
-// getDiscoveryRequestSubject 获取服务发现请求主题
-func (d *NatsDiscovery) getDiscoveryRequestSubject() string {
-	return "kkcluster.discovery.request"
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// IActorFramework 是 Actor 框架的接口，负责管理 Actor 的创建、销毁、消息路由等。
+// IActorFramework 是 Actor 框架门面。
 type IActorFramework interface {
 	GetLocator() *ActorLocator
 	GetActorSystem() *actor.ActorSystem
@@ -42,7 +42,7 @@ func NewSilentActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 
 //-------------------------------------------------------------------------
 
-// ActorFramework 是 Actor 框架的核心组件。
+// ActorFramework 是 Actor 框架门面。
 type ActorFramework struct {
 	locator         *ActorLocator                      // Actor寻址系统
 	actorSys        *actor.ActorSystem                 // Actor系统

@@ -67,7 +67,7 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 
 	trans := &transportorRpc{
 		sessionMgr:   sessionMgr,
-		logicNodeMgr: &logicNodeMgr{},
+		logicNodeMgr: newLogicNodeMgr(),
 		gateNodeId:   gateNodeId,
 		rpcSvr:       rpcSvr,
 		msgHooker:    gatetrans.NewMsgHooker(),
@@ -220,6 +220,10 @@ func (slf *transportorRpc) NotifyClientConnect(sessionID string, logicNodeId str
 		return err
 	}
 	return nil
+}
+
+func (slf *transportorRpc) GetMemberMgr() gatetrans.IMemberMgr {
+	return slf.logicNodeMgr
 }
 
 func (slf *transportorRpc) HookMsg(listener gatetrans.MsgHookListener) {

@@ -37,4 +37,8 @@ type (
 		// 遍历成员, fn返回false时停止遍历
 		Range(fn func(nodeId string, member IMember) bool)
 	}
+	//
+	IMemberMgrGetter interface {
+		GetMemberMgr() IMemberMgr
+	}
 )

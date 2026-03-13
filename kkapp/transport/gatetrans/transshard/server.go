@@ -16,7 +16,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-type TransportorShard struct {
+type transportorShard struct {
 	logicServerMgr *LogicServerMgr
 	logicConnMgr   sync.Map // map[connId]*ShardConn
 	server         kknet.IServer
@@ -26,7 +26,7 @@ type TransportorShard struct {
 	msgHooker      *gatetrans.MsgHooker
 }
 
-var _ gatetrans.ITransportor = (*TransportorShard)(nil)
+var _ gatetrans.ITransportor = (*transportorShard)(nil)
 
 func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, nodeId string) (gatetrans.ITransportor, error) {
 	ptotrans.InitShardMsgs()
@@ -45,7 +45,7 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 		return nil, err
 	}
 
-	trans := &TransportorShard{
+	trans := &transportorShard{
 		logicServerMgr: newLogicServerMgr(),
 		server:         srv,
 		sessionMgr:     sessionMgr,
@@ -56,7 +56,7 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 	return trans, nil
 }
 
-func (slf *TransportorShard) Stop() error {
+func (slf *transportorShard) Stop() error {
 	if slf.stopped {
 		return nil
 	}
@@ -65,12 +65,12 @@ func (slf *TransportorShard) Stop() error {
 }
 
 // 为了保证单个连接的消息顺序性，需要将连接分配到固定的分片索引。
-func (slf *TransportorShard) getShardIdx(connId kknet.CONN_ID) int {
+func (slf *transportorShard) getShardIdx(connId kknet.CONN_ID) int {
 	return int(connId % transport.BackendShardCnt)
 }
 
 // sendToLogicShard 向指定逻辑服的指定 shard 发送已编码包。
-func (slf *TransportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
+func (slf *transportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
 	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
 	if chooseServer == nil {
 		kkbuffer.Put(bb)
@@ -86,7 +86,7 @@ func (slf *TransportorShard) sendToLogicShard(logicNodeId string, shardIdx int, 
 	return sconn.conn.SendBuffer(bb)
 }
 
-func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
+func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
 	if slf.stopped {
 		return kkerrors.ErrAppTransportorStopped
 	}
@@ -114,7 +114,7 @@ func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 }
 
 // @param packet is a full stream packet [length,message]
-func (slf *TransportorShard) ForwardToClient(sessionID string, packet []byte) error {
+func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) error {
 	if slf.stopped {
 		return kkerrors.ErrAppTransportorStopped
 	}
@@ -142,7 +142,7 @@ func (slf *TransportorShard) ForwardToClient(sessionID string, packet []byte) er
 }
 
 // @param packet is a full stream packet [length,message]
-func (slf *TransportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
+func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte) error {
 	if slf.stopped {
 		return kkerrors.ErrAppTransportorStopped
 	}
@@ -177,7 +177,7 @@ func (slf *TransportorShard) ForwardToClients(sessionIDs []string, packet []byte
 	return loopErr
 }
 
-func (slf *TransportorShard) NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+func (slf *transportorShard) NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
 	if slf.stopped {
 		return kkerrors.ErrAppTransportorStopped
 	}
@@ -195,7 +195,7 @@ func (slf *TransportorShard) NotifyClientConnect(sessionID string, logicNodeId s
 	return nil
 }
 
-func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
 	if slf.stopped {
 		return kkerrors.ErrAppTransportorStopped
 	}
@@ -213,18 +213,18 @@ func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 	return nil
 }
 
-func (slf *TransportorShard) GetMemberMgr() gatetrans.IMemberMgr {
+func (slf *transportorShard) GetMemberMgr() gatetrans.IMemberMgr {
 	return slf.logicServerMgr
 }
 
-func (slf *TransportorShard) HookMsg(listener gatetrans.MsgHookListener) {
+func (slf *transportorShard) HookMsg(listener gatetrans.MsgHookListener) {
 	slf.msgHooker.AddListener(listener)
 }
 
 //------------------------------------------------------------
 
 type shardHandler struct {
-	transporter *TransportorShard
+	transporter *transportorShard
 }
 
 func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {

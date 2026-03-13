@@ -3,6 +3,7 @@ package transrpc
 import (
 	"sync"
 
+	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -15,9 +16,35 @@ type logicMemberInfo struct {
 	// status   int //状态（kkdiscovery.NodeStatusOnline或kkdiscovery.NodeStatusOffline）
 }
 
+var _ gatetrans.IMember = (*logicMemberInfo)(nil)
+
+func (lm *logicMemberInfo) GetNodeID() string {
+	return lm.nodeId
+}
+
+func (lm *logicMemberInfo) GetNodeType() string {
+	return lm.nodeType
+}
+
 type logicNodeMgr struct {
 	logicNodeMap sync.Map // map[nodeId]*logicMemberInfo
 	connMap      sync.Map // map[connId]nodeId
+}
+
+var _ gatetrans.IMemberMgr = (*logicNodeMgr)(nil)
+
+func (slf *logicNodeMgr) Range(fn func(nodeId string, member gatetrans.IMember) bool) {
+	slf.logicNodeMap.Range(func(k any, v any) bool {
+		lm := v.(*logicMemberInfo)
+		if lm == nil {
+			return true
+		}
+		return fn(lm.nodeId, lm)
+	})
+}
+
+func newLogicNodeMgr() *logicNodeMgr {
+	return &logicNodeMgr{}
 }
 
 func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, connId kknet.CONN_ID) {

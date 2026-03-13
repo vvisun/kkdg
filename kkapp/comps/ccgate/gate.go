@@ -272,18 +272,15 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 }
 
 func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
-	if slf.opt.TransType == transport.TransTypeShard {
-		if slf.discovery != nil && slf.discovery.IsRunning() {
-			return slf.chooseFromDiscovery(nodeType)
-		}
-		return slf.chooseFromShard(nodeType)
+	if slf.discovery != nil && slf.discovery.IsRunning() {
+		return slf.chooseFromDiscovery(nodeType)
 	}
-	return slf.chooseFromDiscovery(nodeType)
+	return slf.chooseFromShardOrRpc(nodeType)
 }
 
 // 从shard中选择权重最小的逻辑节点. return nodeId, found
-func (slf *gateComponent) chooseFromShard(nodeType string) (string, bool) {
-	trans := slf.transportor.(*transshard.TransportorShard)
+func (slf *gateComponent) chooseFromShardOrRpc(nodeType string) (string, bool) {
+	trans := slf.transportor.(gatetrans.IMemberMgrGetter)
 	if trans == nil {
 		return "", false
 	}
@@ -313,6 +310,9 @@ func (slf *gateComponent) chooseFromShard(nodeType string) (string, bool) {
 
 // 从discovery中选择权重最小的逻辑节点. return nodeId, found
 func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
+	if slf.discovery == nil {
+		return "", false
+	}
 	typeList := slf.discovery.GetMemberMgr().ListByType(nodeType)
 	if len(typeList) == 0 {
 		return "", false

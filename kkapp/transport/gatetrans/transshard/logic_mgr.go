@@ -28,11 +28,10 @@ func (sc *ShardConn) clear() {
 }
 
 type LogicServer struct {
-	nodeId      string
-	nodeType    string
-	conns       [transport.BackendShardCnt]*ShardConn
-	muConns     sync.RWMutex
-	clientCount int64
+	nodeId   string
+	nodeType string
+	conns    [transport.BackendShardCnt]*ShardConn
+	muConns  sync.RWMutex
 }
 
 var _ gatetrans.IMember = (*LogicServer)(nil)
