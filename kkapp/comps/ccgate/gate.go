@@ -11,8 +11,10 @@ import (
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transnat"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transrpc"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transshard"
+	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
@@ -121,6 +123,22 @@ func (slf *gateComponent) OnInit() error {
 	default:
 		return errors.New("invalid trans type: " + slf.opt.TransType)
 	}
+
+	slf.transportor.HookMsg(func(msgId kkpacket.MSGID, data any) {
+		switch msgId {
+		case ptotrans.MsgIDRpcClientLoginLogout:
+			msg, ok := data.(*ptotrans.RpcClientLoginLogout)
+			if !ok {
+				return
+			}
+			if msg.IsLogin {
+				slf.clientMgr.loginToLogicNode(msg.ClientId, msg.NodeType, kknet.USER_ID(msg.UserId))
+			} else {
+				slf.clientMgr.logoutFromLogicNode(msg.ClientId, msg.NodeType)
+				gLogicTotalMgr.onUnbindLogicNode(msg.ClientId, msg.NodeId)
+			}
+		}
+	})
 
 	return nil
 }

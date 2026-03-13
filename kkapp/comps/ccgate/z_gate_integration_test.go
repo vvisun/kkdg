@@ -49,6 +49,7 @@ func (m *mockTransportor) NotifyClientDisconnect(string, string, kknet.CONN_ID) 
 func (m *mockTransportor) NotifyClientConnect(string, string, kknet.CONN_ID) error {
 	return nil
 }
+func (m *mockTransportor) HookMsg(gatetrans.MsgHookListener) {}
 
 // mockDiscovery implements kkdiscovery.IDiscovery with a single member.
 type mockMember struct {

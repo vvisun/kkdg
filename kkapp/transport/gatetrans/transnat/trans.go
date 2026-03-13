@@ -17,6 +17,7 @@ type transportorNats struct {
 	cluster    kkcluster.ICluster // cluster for forwarding messages to logic and client
 	sessionMgr gatetrans.ISessionManager
 	stopped    bool
+	msgHooker  *gatetrans.MsgHooker
 }
 
 var _ gatetrans.ITransportor = (*transportorNats)(nil)
@@ -25,6 +26,7 @@ func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr gatetrans.ISessio
 	trans := &transportorNats{
 		cluster:    cluster,
 		sessionMgr: sessionMgr,
+		msgHooker:  gatetrans.NewMsgHooker(),
 	}
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans, nil
@@ -176,4 +178,8 @@ func (slf *transportorNats) NotifyClientConnect(sessionID string, logicNodeId st
 	pkt.ArgBytes = nil
 	pkt.Sid = sessionID
 	return slf.cluster.PublishRemote(logicNodeId, pkt)
+}
+
+func (slf *transportorNats) HookMsg(listener gatetrans.MsgHookListener) {
+	slf.msgHooker.AddListener(listener)
 }

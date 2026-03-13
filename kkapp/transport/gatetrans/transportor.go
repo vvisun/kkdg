@@ -21,6 +21,8 @@ type ITransportor interface {
 	NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
 	// NotifyClientConnect notifies a client connect.
 	NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
+	// HookMsg hooks a message.
+	HookMsg(listener MsgHookListener)
 }
 
 // 简易版的discovery成员管理器接口。

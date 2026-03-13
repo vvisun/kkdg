@@ -23,6 +23,7 @@ type TransportorShard struct {
 	sessionMgr     gatetrans.ISessionManager
 	gateNodeId     string
 	stopped        bool
+	msgHooker      *gatetrans.MsgHooker
 }
 
 var _ gatetrans.ITransportor = (*TransportorShard)(nil)
@@ -49,6 +50,7 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 		server:         srv,
 		sessionMgr:     sessionMgr,
 		gateNodeId:     nodeId,
+		msgHooker:      gatetrans.NewMsgHooker(),
 	}
 	handler.transporter = trans
 	return trans, nil
@@ -215,6 +217,12 @@ func (slf *TransportorShard) GetMemberMgr() gatetrans.IMemberMgr {
 	return slf.logicServerMgr
 }
 
+func (slf *TransportorShard) HookMsg(listener gatetrans.MsgHookListener) {
+	slf.msgHooker.AddListener(listener)
+}
+
+//------------------------------------------------------------
+
 type shardHandler struct {
 	transporter *TransportorShard
 }
@@ -237,21 +245,25 @@ func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 	switch msgID {
-	case 1: // 注册逻辑服
+	case ptotrans.MsgIDRpcMsgRegister: // 注册逻辑服
 		var msg ptotrans.RpcMsgRegister
 		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.logicServerMgr.addLogicServer(&msg)
 		if sc, ok := h.transporter.logicConnMgr.Load(connID); ok {
 			h.transporter.logicServerMgr.addShardConn(msg.NodeId, msg.ShardIdx, sc.(*ShardConn))
 		}
-	case 2: // 网关转发消息到客户端: 逻辑服->网关->客户端
+	case ptotrans.MsgIDRpcS2Client: // 网关转发消息到客户端: 逻辑服->网关->客户端
 		var msg ptotrans.RpcS2Client
 		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.ForwardToClient(msg.ClientId, msg.Payload)
-	case 3: // 网关转发消息到多个客户端: 逻辑服->网关->多个客户端
+	case ptotrans.MsgIDRpcS2Clients: // 网关转发消息到多个客户端: 逻辑服->网关->多个客户端
 		var msg ptotrans.RpcS2Clients
 		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.ForwardToClients(msg.ClientIds, msg.Payload)
+	case ptotrans.MsgIDRpcClientLoginLogout: // 逻辑服 -> 网关：客户端登入登出事件
+		var msg ptotrans.RpcClientLoginLogout
+		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		h.transporter.msgHooker.Notify(msgID, &msg)
 	default:
 		kklog.Errorf("shard handler on raw unknown message id: %d", msgID)
 	}

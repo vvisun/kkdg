@@ -132,7 +132,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 	trans := h.cli.trans
 
 	switch msgID {
-	case 4: // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
+	case ptotrans.MsgIDRpcC2S: // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
 		var msg ptotrans.RpcC2S
 		err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		if err != nil {
@@ -143,7 +143,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 			trans.sessionMgr.AddSessionWithShard(msg.ClientId, msg.GateNodeId, h.shardIdx)
 		}
 		trans.msgReceiver.OnSession(msg.ClientId, msg.Payload)
-	case 5: // 客户端断开事件
+	case ptotrans.MsgIDRpcClientDisconnect: // 客户端断开事件
 		var msg ptotrans.RpcClientDisconnect
 		err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		if err != nil {

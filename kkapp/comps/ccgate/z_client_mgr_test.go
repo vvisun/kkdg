@@ -156,20 +156,21 @@ func Test_clientManager_allocLogicNode(t *testing.T) {
 func Test_clientManager_loginToLogicNode(t *testing.T) {
 	m := newClientManager()
 	connID := kknet.CONN_ID(400)
-	m.addClient(connID, getSessionId(connID, "gate1"))
+	sessionID := getSessionId(connID, "gate1")
+	m.addClient(connID, sessionID)
 	m.allocLogicNode(connID, "game", "game1")
 
-	if m.loginToLogicNode(connID, "game", kknet.NULL_USER_ID) {
+	if m.loginToLogicNode(sessionID, "game", kknet.NULL_USER_ID) {
 		t.Error("loginToLogicNode with NULL_USER_ID should return false")
 	}
-	if m.loginToLogicNode(999, "game", 100) {
+	if m.loginToLogicNode("non-existent", "game", 100) {
 		t.Error("loginToLogicNode on non-existent conn should return false")
 	}
-	if m.loginToLogicNode(connID, "unknown", 100) {
+	if m.loginToLogicNode(sessionID, "unknown", 100) {
 		t.Error("loginToLogicNode with unallocated nodeType should return false")
 	}
 
-	if !m.loginToLogicNode(connID, "game", 100) {
+	if !m.loginToLogicNode(sessionID, "game", 100) {
 		t.Error("loginToLogicNode(400, game, 100) should return true")
 	}
 	ci := m.getClient(connID)

@@ -22,6 +22,7 @@ type transportorRpc struct {
 	logicNodeMgr *logicNodeMgr
 	gateNodeId   string
 	stopped      bool
+	msgHooker    *gatetrans.MsgHooker
 }
 
 var (
@@ -70,6 +71,7 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 		logicNodeMgr: &logicNodeMgr{},
 		gateNodeId:   gateNodeId,
 		rpcSvr:       rpcSvr,
+		msgHooker:    gatetrans.NewMsgHooker(),
 	}
 	rpcProcessor.trans = trans
 	rpcSvr.SetLifeCycleHandler(trans)
@@ -219,4 +221,8 @@ func (slf *transportorRpc) NotifyClientConnect(sessionID string, logicNodeId str
 		return err
 	}
 	return nil
+}
+
+func (slf *transportorRpc) HookMsg(listener gatetrans.MsgHookListener) {
+	slf.msgHooker.AddListener(listener)
 }

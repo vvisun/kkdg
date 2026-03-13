@@ -262,11 +262,11 @@ func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId kknet.USER_ID) 
 }
 
 // 连接connId的客户端登录到nodeType类型的逻辑节点。
-func (m *clientManager) loginToLogicNode(connId kknet.CONN_ID, nodeType string, userId kknet.USER_ID) bool {
+func (m *clientManager) loginToLogicNode(sessionId string, nodeType string, userId kknet.USER_ID) bool {
 	if userId == kknet.NULL_USER_ID {
 		return false
 	}
-	cliInfo := m.getClient(connId)
+	cliInfo := m.getClientBySessionId(sessionId)
 	if cliInfo == nil {
 		return false
 	}
@@ -275,5 +275,19 @@ func (m *clientManager) loginToLogicNode(connId kknet.CONN_ID, nodeType string, 
 		return false
 	}
 	lgcInfo.userId = userId
+	return true
+}
+
+// 连接connId的客户端登出nodeType类型的逻辑节点。
+func (m *clientManager) logoutFromLogicNode(sessionId string, nodeType string) bool {
+	cliInfo := m.getClientBySessionId(sessionId)
+	if cliInfo == nil {
+		return false
+	}
+	lgcInfo := cliInfo.getLogicNode(nodeType)
+	if lgcInfo == nil {
+		return false
+	}
+	lgcInfo.userId = kknet.NULL_USER_ID
 	return true
 }
