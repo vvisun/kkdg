@@ -264,11 +264,30 @@ func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
 
 // 从shard中选择权重最小的逻辑节点. return nodeId, found
 func (slf *gateComponent) chooseFromShard(nodeType string) (string, bool) {
-	if slf.opt.TransType == transport.TransTypeShard {
-		trans := slf.transportor.(*transshard.TransportorShard)
-		if trans != nil {
-			return trans.ChooseLogicServer(nodeType, gLogicTotalMgr)
+	trans := slf.transportor.(*transshard.TransportorShard)
+	if trans == nil {
+		return "", false
+	}
+	var chooseNode gatetrans.IMember = nil
+	finded := false
+	memberMgr := trans.GetMemberMgr()
+	memberMgr.Range(func(nodeId string, member gatetrans.IMember) bool {
+		if member.GetNodeType() != nodeType {
+			return true
 		}
+		if chooseNode == nil {
+			chooseNode = member
+			finded = true
+			return true
+		}
+		if gLogicTotalMgr.getSessionCount(member.GetNodeID()) < gLogicTotalMgr.getSessionCount(chooseNode.GetNodeID()) {
+			chooseNode = member
+			finded = true
+		}
+		return true
+	})
+	if finded {
+		return chooseNode.GetNodeID(), true
 	}
 	return "", false
 }

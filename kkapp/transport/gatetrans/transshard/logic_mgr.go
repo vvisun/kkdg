@@ -35,9 +35,31 @@ type LogicServer struct {
 	clientCount int64
 }
 
+var _ gatetrans.IMember = (*LogicServer)(nil)
+
+func (ls *LogicServer) GetNodeID() string {
+	return ls.nodeId
+}
+
+func (ls *LogicServer) GetNodeType() string {
+	return ls.nodeType
+}
+
 type LogicServerMgr struct {
 	logicServerMap sync.Map // nodeId -> *LogicServer
 	registerMu     sync.Mutex
+}
+
+var _ gatetrans.IMemberMgr = (*LogicServerMgr)(nil)
+
+func (m *LogicServerMgr) Range(fn func(nodeId string, member gatetrans.IMember) bool) {
+	m.logicServerMap.Range(func(k any, v any) bool {
+		ls := v.(*LogicServer)
+		if ls == nil {
+			return true
+		}
+		return fn(ls.nodeId, ls)
+	})
 }
 
 func newLogicServerMgr() *LogicServerMgr {
@@ -72,39 +94,6 @@ func (m *LogicServerMgr) getLogicServer(nodeId string) *LogicServer {
 	return ls.(*LogicServer)
 }
 
-func (m *LogicServerMgr) chooseLogicServer(nodeType string, totalMgr gatetrans.ILogicTotalManager) (*LogicServer, bool) {
-	var chooseServer *LogicServer = nil
-	finded := false
-	m.logicServerMap.Range(func(k any, v any) bool {
-		ls := v.(*LogicServer)
-		if ls.nodeType != nodeType {
-			return true
-		}
-		if chooseServer == nil {
-			chooseServer = ls
-			finded = true
-			return true
-		}
-		if totalMgr != nil {
-			if totalMgr.GetSessionCount(ls.nodeId) < totalMgr.GetSessionCount(chooseServer.nodeId) {
-				chooseServer = ls
-				finded = true
-			}
-		} else {
-			if ls.clientCount < chooseServer.clientCount {
-				chooseServer = ls
-				finded = true
-			}
-		}
-
-		return true
-	})
-	if chooseServer == nil || !finded {
-		return nil, false
-	}
-	return chooseServer, true
-}
-
 func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardConn) {
 	if shardIdx < 0 || shardIdx >= transport.BackendShardCnt {
 		kklog.Errorf("逻辑服[nodeId=%s]添加连接失败 shardIdx=%d 超出范围", nodeId, shardIdx)
@@ -132,11 +121,12 @@ func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
 		return
 	}
 	ls.muConns.Lock()
-	if ls.conns[shardIdx] != nil {
-		ls.conns[shardIdx].shardIdx = -1
-	}
+	shardConn := ls.conns[shardIdx]
 	ls.conns[shardIdx] = nil
 	ls.muConns.Unlock()
+	if shardConn != nil {
+		shardConn.clear()
+	}
 }
 
 func (m *LogicServerMgr) getShardConn(nodeId string, shardIdx int) *ShardConn {

@@ -1,6 +1,8 @@
 package gatetrans
 
-import "github.com/vvisun/kkdg/kknet"
+import (
+	"github.com/vvisun/kkdg/kknet"
+)
 
 // ITransportor 数据转发器接口。
 // 抽象化接口，方便切换实现逻辑（如：使用Actor、使用Nats、使用RPC等）。
@@ -21,8 +23,16 @@ type ITransportor interface {
 	NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
 }
 
-type ILogicTotalManager interface {
-	GetSessionCount(nodeId string) int
-	//onBindLogicNode(sessionId string, nodeId string, nodeType string)
-	//onUnbindLogicNode(sessionId string, nodeId string)
-}
+// 简易版的discovery成员管理器接口。
+type (
+	// IMember 成员接口。used by gateway to choose logic server.
+	IMember interface {
+		GetNodeID() string
+		GetNodeType() string
+	}
+	// IMemberMgr 成员管理器接口。used by gateway to manage logic servers.
+	IMemberMgr interface {
+		// 遍历成员, fn返回false时停止遍历
+		Range(fn func(nodeId string, member IMember) bool)
+	}
+)

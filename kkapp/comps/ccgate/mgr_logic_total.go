@@ -50,7 +50,7 @@ func (m *logicTotalManager) onUnbindLogicNode(sessionId string, nodeId string) {
 }
 
 // 获取nodeId上的session数量
-func (m *logicTotalManager) GetSessionCount(nodeId string) int {
+func (m *logicTotalManager) getSessionCount(nodeId string) int {
 	m.logicNodeTableMu.RLock()
 	nodeTypeMap, ok := m.logicNodeTable[nodeId]
 	if !ok {

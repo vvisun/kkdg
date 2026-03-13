@@ -14,7 +14,7 @@ func Test_logicTotalManager_basic(t *testing.T) {
 	const nodeTypeB = "chat"
 
 	// 未绑定前，count 应为 0
-	if c := m.GetSessionCount(nodeID); c != 0 {
+	if c := m.getSessionCount(nodeID); c != 0 {
 		t.Fatalf("getSessionCount(%q) before bind = %d, want 0", nodeID, c)
 	}
 
@@ -23,24 +23,24 @@ func Test_logicTotalManager_basic(t *testing.T) {
 	m.onBindLogicNode("s2", nodeID, nodeTypeA)
 	m.onBindLogicNode("s3", nodeID, nodeTypeB)
 
-	if c := m.GetSessionCount(nodeID); c != 3 {
+	if c := m.getSessionCount(nodeID); c != 3 {
 		t.Fatalf("getSessionCount(%q) after bind = %d, want 3", nodeID, c)
 	}
 
 	// 解绑一个 session
 	m.onUnbindLogicNode("s2", nodeID)
-	if c := m.GetSessionCount(nodeID); c != 2 {
+	if c := m.getSessionCount(nodeID); c != 2 {
 		t.Fatalf("getSessionCount(%q) after unbind = %d, want 2", nodeID, c)
 	}
 
 	// 解绑不存在的 session 不应 panic，数量不变
 	m.onUnbindLogicNode("s-not-exist", nodeID)
-	if c := m.GetSessionCount(nodeID); c != 2 {
+	if c := m.getSessionCount(nodeID); c != 2 {
 		t.Fatalf("getSessionCount(%q) after unbind non-exist = %d, want 2", nodeID, c)
 	}
 
 	// 查询不存在的节点，count 应为 0
-	if c := m.GetSessionCount("unknown-node"); c != 0 {
+	if c := m.getSessionCount("unknown-node"); c != 0 {
 		t.Fatalf("getSessionCount(%q) = %d, want 0", "unknown-node", c)
 	}
 }

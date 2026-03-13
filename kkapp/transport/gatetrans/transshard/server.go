@@ -211,12 +211,8 @@ func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 	return nil
 }
 
-func (slf *TransportorShard) ChooseLogicServer(nodeType string, totalMgr gatetrans.ILogicTotalManager) (string, bool) {
-	svr, found := slf.logicServerMgr.chooseLogicServer(nodeType, totalMgr)
-	if !found {
-		return "", false
-	}
-	return svr.nodeId, true
+func (slf *TransportorShard) GetMemberMgr() gatetrans.IMemberMgr {
+	return slf.logicServerMgr
 }
 
 type shardHandler struct {
@@ -280,10 +276,10 @@ func (h *shardHandler) OnClose(conn kknet.IConn, err error) {
 	if !ok {
 		return
 	}
-	h.transporter.logicConnMgr.Delete(conn.ID())
+	connId := conn.ID()
 	shardConn := sc.(*ShardConn)
+	kklog.Infof("逻辑服shard连接关闭: nodeId=%s shardIdx=%d connId=%d err=%v",
+		shardConn.nodeId, shardConn.shardIdx, connId, err)
 	h.transporter.logicServerMgr.removeShardConn(shardConn.nodeId, shardConn.shardIdx)
-	kklog.Infof("shard conn closed: connId=%d nodeId=%s shardIdx=%d err=%v",
-		conn.ID(), shardConn.nodeId, shardConn.shardIdx, err)
-	shardConn.clear()
+	h.transporter.logicConnMgr.Delete(connId)
 }
