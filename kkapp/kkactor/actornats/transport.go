@@ -18,13 +18,14 @@ const (
 
 type Transport struct {
 	nodeID   string
-	options  nats.Options
-	conn     *nats.Conn
-	sendSub  *nats.Subscription
-	reqSub   *nats.Subscription
-	receiver actorremotes.IRemoteActorReceiver
 	registry *actorremotes.MessageRegistry
+	receiver actorremotes.IRemoteActorReceiver
 	mu       sync.RWMutex
+
+	options nats.Options
+	conn    *nats.Conn
+	sendSub *nats.Subscription
+	reqSub  *nats.Subscription
 }
 
 var _ actorremotes.IRemoteActorTransport = (*Transport)(nil)
