@@ -85,7 +85,7 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 	if sessionInfo == nil {
 		return kkerrors.ErrAppSessionNotFound
 	}
-	conn := slf.getConn(sessionInfo.ShardIdx)
+	conn := slf.getConn(sessionInfo.GetShardIdx())
 	if conn == nil {
 		return kkerrors.ErrNetConnNotFound
 	}
@@ -136,7 +136,7 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	if sessionInfo == nil {
 		return kkerrors.ErrAppSessionNotFound
 	}
-	conn := slf.getConn(sessionInfo.ShardIdx)
+	conn := slf.getConn(sessionInfo.GetShardIdx())
 	if conn == nil {
 		return kkerrors.ErrNetConnNotFound
 	}

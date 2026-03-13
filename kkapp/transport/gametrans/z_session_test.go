@@ -27,11 +27,11 @@ func TestSessionManager_AddGetRemove(t *testing.T) {
 	if si == nil {
 		t.Fatal("GetSession(s1) = nil after AddSession")
 	}
-	if si.SessionID != "s1" || si.GateNodeID != "gate1" {
-		t.Errorf("GetSession(s1) = SessionID=%q GateNodeID=%q, want s1, gate1", si.SessionID, si.GateNodeID)
+	if si.sessionID != "s1" || si.gateNodeID != "gate1" {
+		t.Errorf("GetSession(s1) = SessionID=%q GateNodeID=%q, want s1, gate1", si.sessionID, si.gateNodeID)
 	}
-	if si.UserID != kknet.NULL_USER_ID {
-		t.Errorf("GetSession(s1).UserID = %v, want NULL_USER_ID", si.UserID)
+	if si.userID != kknet.NULL_USER_ID {
+		t.Errorf("GetSession(s1).UserID = %v, want NULL_USER_ID", si.userID)
 	}
 
 	if mgr.OnlineCount() != 1 || mgr.UserCount() != 0 {
@@ -57,8 +57,8 @@ func TestSessionManager_AddSession_Idempotent(t *testing.T) {
 	if si == nil {
 		t.Fatal("GetSession(s1) = nil")
 	}
-	if si.GateNodeID != "gate1" {
-		t.Errorf("AddSession idempotent: GateNodeID = %q, want gate1", si.GateNodeID)
+	if si.gateNodeID != "gate1" {
+		t.Errorf("AddSession idempotent: GateNodeID = %q, want gate1", si.gateNodeID)
 	}
 }
 
@@ -70,7 +70,7 @@ func TestSessionManager_GetSessionByUserID_AfterLogin(t *testing.T) {
 		t.Error("GetSessionByUserID before Login should be nil")
 	}
 
-	ok := mgr.Login("s1", 100)
+	ok := mgr.Login("s1", 100, nil)
 	if !ok {
 		t.Fatal("Login(s1, 100) = false")
 	}
@@ -79,8 +79,8 @@ func TestSessionManager_GetSessionByUserID_AfterLogin(t *testing.T) {
 	if si == nil {
 		t.Fatal("GetSessionByUserID(100) = nil after Login")
 	}
-	if si.SessionID != "s1" || si.UserID != 100 {
-		t.Errorf("GetSessionByUserID(100) = SessionID=%q UserID=%v, want s1, 100", si.SessionID, si.UserID)
+	if si.sessionID != "s1" || si.userID != 100 {
+		t.Errorf("GetSessionByUserID(100) = SessionID=%q UserID=%v, want s1, 100", si.sessionID, si.userID)
 	}
 }
 
@@ -88,7 +88,7 @@ func TestSessionManager_Login_NullUserID_ReturnsFalse(t *testing.T) {
 	mgr := NewSessionManager()
 	mgr.AddSession("s1", "gate1")
 
-	if mgr.Login("s1", kknet.NULL_USER_ID) {
+	if mgr.Login("s1", kknet.NULL_USER_ID, nil) {
 		t.Error("Login(s1, NULL_USER_ID) = true, want false")
 	}
 	if mgr.UserCount() != 0 {
@@ -102,7 +102,7 @@ func TestSessionManager_Login_NullUserID_ReturnsFalse(t *testing.T) {
 func TestSessionManager_Login_NoSession_ReturnsFalse(t *testing.T) {
 	mgr := NewSessionManager()
 
-	if mgr.Login("nonexist", 100) {
+	if mgr.Login("nonexist", 100, nil) {
 		t.Error("Login(nonexist, 100) = true, want false")
 	}
 	if mgr.UserCount() != 0 || mgr.OnlineCount() != 0 {
@@ -113,7 +113,7 @@ func TestSessionManager_Login_NoSession_ReturnsFalse(t *testing.T) {
 func TestSessionManager_CheckKickOutUser_SameSessionSameUser_NoKick(t *testing.T) {
 	mgr := NewSessionManager()
 	mgr.AddSession("s1", "gate1")
-	mgr.Login("s1", 100)
+	mgr.Login("s1", 100, nil)
 
 	kick := mgr.CheckKickOutUser("s1", 100)
 	if kick != "" {
@@ -125,7 +125,7 @@ func TestSessionManager_CheckKickOutUser_OtherSessionSameUser_ReturnsOtherSessio
 	mgr := NewSessionManager()
 	mgr.AddSession("s1", "gate1")
 	mgr.AddSession("s2", "gate1")
-	mgr.Login("s1", 100)
+	mgr.Login("s1", 100, nil)
 
 	// 同一用户从 s2 登录，应踢出 s1
 	kick := mgr.CheckKickOutUser("s2", 100)
@@ -138,13 +138,13 @@ func TestSessionManager_Login_KicksOtherSessionWithSameUser(t *testing.T) {
 	mgr := NewSessionManager()
 	mgr.AddSession("s1", "gate1")
 	mgr.AddSession("s2", "gate1")
-	mgr.Login("s1", 100)
+	mgr.Login("s1", 100, nil)
 	if mgr.OnlineCount() != 2 || mgr.UserCount() != 1 {
 		t.Fatalf("after first login: online=%d user=%d, want 2,1", mgr.OnlineCount(), mgr.UserCount())
 	}
 
 	// s2 登录同一用户，应踢掉 s1，然后 s2 绑定 100
-	ok := mgr.Login("s2", 100)
+	ok := mgr.Login("s2", 100, nil)
 	if !ok {
 		t.Fatal("Login(s2, 100) = false")
 	}
@@ -153,7 +153,7 @@ func TestSessionManager_Login_KicksOtherSessionWithSameUser(t *testing.T) {
 		t.Error("session s1 should be removed after kick")
 	}
 	si := mgr.GetSessionByUserID(100)
-	if si == nil || si.SessionID != "s2" {
+	if si == nil || si.sessionID != "s2" {
 		t.Errorf("GetSessionByUserID(100) = %v, want session s2", si)
 	}
 	if mgr.OnlineCount() != 1 || mgr.UserCount() != 1 {
@@ -164,7 +164,7 @@ func TestSessionManager_Login_KicksOtherSessionWithSameUser(t *testing.T) {
 func TestSessionManager_RemoveSession_CleansUserMap(t *testing.T) {
 	mgr := NewSessionManager()
 	mgr.AddSession("s1", "gate1")
-	mgr.Login("s1", 100)
+	mgr.Login("s1", 100, nil)
 	if mgr.OnlineCount() != 1 || mgr.UserCount() != 1 {
 		t.Fatalf("before RemoveSession: online=%d user=%d, want 1,1", mgr.OnlineCount(), mgr.UserCount())
 	}
@@ -182,7 +182,7 @@ func TestSessionManager_RemoveSessionByUserID(t *testing.T) {
 	mgr := NewSessionManager()
 	mgr.AddSession("s1", "gate1")
 	mgr.AddSession("s2", "gate2")
-	if !mgr.Login("s1", 100) || !mgr.Login("s2", 200) {
+	if !mgr.Login("s1", 100, nil) || !mgr.Login("s2", 200, nil) {
 		t.Fatal("Login failed")
 	}
 	if mgr.OnlineCount() != 2 || mgr.UserCount() != 2 {
@@ -210,9 +210,9 @@ func TestSessionManager_RemoveSessionByUserID(t *testing.T) {
 // 测试重复释放SessionInfo到池中
 func TestSessionManager_PutSessionInfo_Duplicate(t *testing.T) {
 	si := newSessionInfo()
-	si.SessionID = "s1"
-	si.GateNodeID = "gate1"
-	si.UserID = 100
+	si.sessionID = "s1"
+	si.gateNodeID = "gate1"
+	si.userID = 100
 	if si.isInPool.Load() {
 		t.Error("SessionInfo should not be in pool")
 	}
@@ -248,7 +248,7 @@ func TestSessionManager_ConcurrentAddLoginRemove_DisjointSessions(t *testing.T) 
 
 				mgr.AddSession(sessionID, gateID)
 
-				ok := mgr.Login(sessionID, userID)
+				ok := mgr.Login(sessionID, userID, nil)
 				if !ok {
 					loginFailCount.Add(1)
 				}

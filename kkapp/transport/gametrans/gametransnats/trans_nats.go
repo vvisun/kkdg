@@ -76,8 +76,8 @@ func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) err
 	resp.FuncName = transport.FuncNameSendToClient
 	resp.ArgBytes = packet //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	resp.Sid = sessionID
-	if err := slf.cluster.PublishRemote(sessionInfo.GateNodeID, resp); err != nil {
-		kklog.Errorf("[ccgame] publish response to %s error: %v", sessionInfo.GateNodeID, err)
+	if err := slf.cluster.PublishRemote(sessionInfo.GetGateNodeID(), resp); err != nil {
+		kklog.Errorf("[ccgame] publish response to %s error: %v", sessionInfo.GetGateNodeID(), err)
 		return err
 	}
 	return nil
@@ -105,7 +105,7 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte)
 		if sessionInfo == nil {
 			continue
 		}
-		sidByGateNodeID[sessionInfo.GateNodeID] += sid + ","
+		sidByGateNodeID[sessionInfo.GetGateNodeID()] += sid + ","
 	}
 
 	for gateNodeID, sids := range sidByGateNodeID {

@@ -6,14 +6,32 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+// SessionInfo 客户端会话信息
 type SessionInfo struct {
-	isInPool   atomic.Bool //标志是否在池中，防止重复入池
-	UserID     kknet.USER_ID
-	SessionID  string
-	GateNodeID string
-	ShardIdx   int
+	isInPool   atomic.Bool   //标志是否在池中，防止重复入池
+	userID     kknet.USER_ID // 用户ID
+	sessionID  string        // 会话ID
+	gateNodeID string        // 网关节点ID
+	shardIdx   int           // 分片索引
+}
+
+func (si *SessionInfo) GetUserID() kknet.USER_ID {
+	return si.userID
+}
+
+func (si *SessionInfo) GetSessionID() string {
+	return si.sessionID
+}
+
+func (si *SessionInfo) GetGateNodeID() string {
+	return si.gateNodeID
+}
+
+func (si *SessionInfo) GetShardIdx() int {
+	return si.shardIdx
 }
 
 var sessionInfoPool = sync.Pool{
@@ -27,6 +45,7 @@ func newSessionInfo() *SessionInfo {
 	si.isInPool.Store(false)
 	return si
 }
+
 func putSessionInfo(si *SessionInfo) {
 	if si == nil {
 		return
@@ -34,9 +53,10 @@ func putSessionInfo(si *SessionInfo) {
 	if !si.isInPool.CompareAndSwap(false, true) {
 		return // 已经在池中，不再放回池中, 避免重复放入池中
 	}
-	si.SessionID = ""
-	si.GateNodeID = ""
-	si.UserID = kknet.NULL_USER_ID
+	si.sessionID = ""
+	si.gateNodeID = ""
+	si.userID = kknet.NULL_USER_ID
+	si.shardIdx = -1
 	sessionInfoPool.Put(si)
 }
 
@@ -44,7 +64,12 @@ func putSessionInfo(si *SessionInfo) {
 
 var autoShardIdx int64 = 0 // 自动分配的shardIdx
 
-// SessionManager 会话管理器
+func getAutoShardIdx() int {
+	return int(atomic.AddInt64(&autoShardIdx, 1) % transport.BackendShardCnt)
+}
+
+// SessionManager 客户端会话管理器。
+// 用于管理客户端会话信息【会话ID、用户ID、网关节点ID、分片索引】
 type SessionManager struct {
 	sessionMap  sync.Map // map[sessionID]*SessionInfo
 	userMap     sync.Map // map[userID]*SessionInfo
@@ -70,12 +95,12 @@ func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID stri
 		return
 	}
 	if shardIdx < 0 || shardIdx >= transport.BackendShardCnt {
-		shardIdx = int(atomic.AddInt64(&autoShardIdx, 1) % transport.BackendShardCnt)
+		shardIdx = getAutoShardIdx()
 	}
 	si := newSessionInfo()
-	si.SessionID = sessionID
-	si.GateNodeID = gateNodeID
-	si.ShardIdx = shardIdx
+	si.sessionID = sessionID
+	si.gateNodeID = gateNodeID
+	si.shardIdx = shardIdx
 	slf.sessionMap.Store(sessionID, si)
 	atomic.AddInt32(&slf.onlineCount, 1)
 }
@@ -86,7 +111,7 @@ func (slf *SessionManager) RemoveSession(sessionID string) {
 		return
 	}
 	atomic.AddInt32(&slf.onlineCount, -1)
-	userID := si.(*SessionInfo).UserID
+	userID := si.(*SessionInfo).userID
 	if userID != kknet.NULL_USER_ID {
 		slf.userMap.Delete(userID)
 		atomic.AddInt32(&slf.userCount, -1)
@@ -97,7 +122,7 @@ func (slf *SessionManager) RemoveSession(sessionID string) {
 func (slf *SessionManager) RemoveSessionByUserID(userID kknet.USER_ID) {
 	si, ok := slf.userMap.Load(userID)
 	if ok {
-		slf.RemoveSession(si.(*SessionInfo).SessionID)
+		slf.RemoveSession(si.(*SessionInfo).sessionID)
 	}
 }
 
@@ -117,23 +142,31 @@ func (slf *SessionManager) GetSessionByUserID(userID kknet.USER_ID) *SessionInfo
 	return si.(*SessionInfo)
 }
 
+// CheckKickOutUser 检查是否需要踢出旧用户。
+//
+//	如果需要踢出，则返回需要踢出的会话ID。
+//	如果不需要踢出，则返回空字符串。
 func (slf *SessionManager) CheckKickOutUser(sessionID string, userID kknet.USER_ID) string {
 	si := slf.GetSession(sessionID)
 	if si != nil {
-		if si.UserID != kknet.NULL_USER_ID && (si.UserID != userID || si.SessionID != sessionID) {
-			return si.SessionID
+		if si.userID != kknet.NULL_USER_ID && (si.userID != userID || si.sessionID != sessionID) {
+			return si.sessionID
 		}
 	}
 	otherSi := slf.GetSessionByUserID(userID)
 	if otherSi != nil {
-		if otherSi.UserID != kknet.NULL_USER_ID && (otherSi.UserID != userID || otherSi.SessionID != sessionID) {
-			return otherSi.SessionID
+		if otherSi.userID != kknet.NULL_USER_ID && (otherSi.userID != userID || otherSi.sessionID != sessionID) {
+			return otherSi.sessionID
 		}
 	}
 	return ""
 }
 
-func (slf *SessionManager) Login(sessionID string, userID kknet.USER_ID) bool {
+// Login 登录客户端。
+//
+//	如果登录成功，则返回 true。
+//	如果登录失败，则返回 false。
+func (slf *SessionManager) Login(sessionID string, userID kknet.USER_ID, kickFunc func(sessionID string)) bool {
 	if userID == kknet.NULL_USER_ID {
 		return false
 	}
@@ -143,9 +176,14 @@ func (slf *SessionManager) Login(sessionID string, userID kknet.USER_ID) bool {
 	}
 	kickOutSessionID := slf.CheckKickOutUser(sessionID, userID)
 	if kickOutSessionID != "" {
+		if kickFunc != nil {
+			kickFunc(kickOutSessionID)
+		} else {
+			kklog.Warnf("kick out user %v from session %v, but kickFunc is nil", userID, kickOutSessionID)
+		}
 		slf.RemoveSession(kickOutSessionID) // 踢出旧用户
 	}
-	si.UserID = userID
+	si.userID = userID
 	slf.userMap.Store(userID, si)
 	atomic.AddInt32(&slf.userCount, 1)
 	return true
