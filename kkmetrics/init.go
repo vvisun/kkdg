@@ -15,6 +15,10 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
+const (
+	meter_name = "github.com/vvisun/kkdg"
+)
+
 // Meter is the global metric.Meter used by kkdg.
 var Meter metric.Meter
 
@@ -77,7 +81,7 @@ func initMeter(ctx context.Context, addr string) error {
 		sdkmetric.WithReader(exp),
 	)
 	otel.SetMeterProvider(mp)
-	Meter = mp.Meter("github.com/vvisun/kkdg")
+	Meter = mp.Meter(meter_name)
 
 	// expose /metrics
 	go func() {
