@@ -346,7 +346,9 @@ func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 			if lgcInfo.nodeId != "" {
 				logicNodeId := lgcInfo.nodeId
 				h.wQueue.Push(func() {
-					h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
+					if h.gate != nil && h.gate.transportor != nil {
+						h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
+					}
 				})
 			}
 			return true
