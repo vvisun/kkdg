@@ -90,7 +90,7 @@ func (slf *gameComponent) OnInit() error {
 	// 初始化 transportor
 	switch slf.opt.TransType {
 	case transport.TransTypeNats:
-		transportor, err := gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager)
+		transportor, err := gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager, slf.GetApplication().GetNodeInfo())
 		if err != nil {
 			return err
 		}
