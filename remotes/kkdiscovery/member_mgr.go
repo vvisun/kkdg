@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xrand"
+	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
 type MemberMgr struct {
@@ -16,6 +17,8 @@ type MemberMgr struct {
 	addListeners    []MemberListener
 	removeListeners []MemberListener
 	listenersMu     sync.RWMutex
+
+	logger kklog.ILogger
 }
 
 var _ IMemberMgr = (*MemberMgr)(nil)
@@ -26,7 +29,12 @@ func NewMemberMgr() *MemberMgr {
 		typeMap:         make(map[string][]IMember),
 		addListeners:    make([]MemberListener, 0),
 		removeListeners: make([]MemberListener, 0),
+		logger:          kklog.Nop(),
 	}
+}
+
+func (m *MemberMgr) SetLogger(logger kklog.ILogger) {
+	m.logger = logger
 }
 
 // 添加或更新成员
@@ -69,9 +77,13 @@ func (m *MemberMgr) AddMember(info *MemberInfo) IMember {
 
 	if !existed {
 		m.notifyAddListeners(member)
-		kklog.Debugf("discovery add member... %v", info)
+		if m.logger != nil {
+			m.logger.Debugf("discovery add member... %v", info)
+		}
 	} else {
-		kklog.Debugf("discovery upd member... %v", info)
+		if m.logger != nil {
+			m.logger.Debugf("discovery upd member... %v", info)
+		}
 	}
 	return member
 }
@@ -96,7 +108,9 @@ func (m *MemberMgr) RemoveMember(nodeID string) {
 
 	if existed {
 		m.notifyRemoveListeners(member)
-		kklog.Debugf("discovery del member... %v", member)
+		if m.logger != nil {
+			m.logger.Debugf("discovery del member... %v", member)
+		}
 	}
 }
 
@@ -162,21 +176,33 @@ func (m *MemberMgr) GetType(nodeID string) (string, error) {
 }
 
 // 监听添加成员
-func (m *MemberMgr) OnAddMember(listener MemberListener) {
+func (m *MemberMgr) ObserveAddMember(listener MemberListener) {
 	if listener == nil {
 		return
 	}
 	m.listenersMu.Lock()
+	for _, l := range m.addListeners {
+		if xreflect.IsSameFunc(l, listener) {
+			m.listenersMu.Unlock()
+			return // already exists
+		}
+	}
 	m.addListeners = append(m.addListeners, listener)
 	m.listenersMu.Unlock()
 }
 
 // 监听移除成员
-func (m *MemberMgr) OnRemoveMember(listener MemberListener) {
+func (m *MemberMgr) ObserveRemoveMember(listener MemberListener) {
 	if listener == nil {
 		return
 	}
 	m.listenersMu.Lock()
+	for _, l := range m.removeListeners {
+		if xreflect.IsSameFunc(l, listener) {
+			m.listenersMu.Unlock()
+			return // already exists
+		}
+	}
 	m.removeListeners = append(m.removeListeners, listener)
 	m.listenersMu.Unlock()
 }

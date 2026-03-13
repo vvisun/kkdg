@@ -25,11 +25,11 @@ func main() {
 	discovery2 := dnats.NewNatsDiscovery("exam2", nodeInfo2, nil, opts, kkdiscovery.ApplyOptions())
 
 	// 监听成员添加
-	discovery1.GetMemberMgr().OnAddMember(func(member kkdiscovery.IMember) {
+	discovery1.GetMemberMgr().ObserveAddMember(func(member kkdiscovery.IMember) {
 		fmt.Printf("[node1] member added: %s (%s) @ %s\n",
 			member.GetNodeID(), member.GetNodeType(), member.GetAddress())
 	})
-	discovery1.GetMemberMgr().OnRemoveMember(func(member kkdiscovery.IMember) {
+	discovery1.GetMemberMgr().ObserveRemoveMember(func(member kkdiscovery.IMember) {
 		fmt.Printf("[node1] member removed: %s\n", member.GetNodeID())
 	})
 

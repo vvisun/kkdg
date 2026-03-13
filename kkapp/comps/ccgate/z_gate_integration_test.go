@@ -90,8 +90,8 @@ func (m *mockMemberMgr) GetType(string) (string, error)            { return m.me
 func (m *mockMemberMgr) GetMember(string) (kkdiscovery.IMember, bool) {
 	return m.member, m.member != nil
 }
-func (m *mockMemberMgr) OnAddMember(kkdiscovery.MemberListener)    {}
-func (m *mockMemberMgr) OnRemoveMember(kkdiscovery.MemberListener) {}
+func (m *mockMemberMgr) ObserveAddMember(kkdiscovery.MemberListener)    {}
+func (m *mockMemberMgr) ObserveRemoveMember(kkdiscovery.MemberListener) {}
 
 type mockDiscovery struct {
 	mgr   *mockMemberMgr

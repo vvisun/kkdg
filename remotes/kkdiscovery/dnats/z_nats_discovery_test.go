@@ -26,10 +26,10 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 	d := newTestDiscovery(t)
 
 	var addCount, removeCount atomic.Int64
-	d.GetMemberMgr().OnAddMember(func(m kkdiscovery.IMember) {
+	d.GetMemberMgr().ObserveAddMember(func(m kkdiscovery.IMember) {
 		addCount.Add(1)
 	})
-	d.GetMemberMgr().OnRemoveMember(func(m kkdiscovery.IMember) {
+	d.GetMemberMgr().ObserveRemoveMember(func(m kkdiscovery.IMember) {
 		removeCount.Add(1)
 	})
 

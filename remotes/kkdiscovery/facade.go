@@ -14,8 +14,8 @@ type (
 		Random(nodeType string) (IMember, bool)            // 根据节点类型随机一个成员
 		GetType(nodeID string) (string, error)             // 根据节点id获取成员类型
 		GetMember(nodeID string) (IMember, bool)           // 根据节点id获取成员
-		OnAddMember(listener MemberListener)               // watcher 监听添加成员
-		OnRemoveMember(listener MemberListener)            // watcher 监听移除成员
+		ObserveAddMember(listener MemberListener)          // 监听添加成员
+		ObserveRemoveMember(listener MemberListener)       // 监听移除成员
 	}
 
 	// IDiscovery 发现服务接口

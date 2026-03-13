@@ -6,7 +6,6 @@ type session2nodeType map[string]string
 
 var gLogicTotalMgr = newLogicTotalManager()
 
-// 逻辑节点统计。
 // 实时统计每个逻辑节点上的会话数量，用于负载均衡。
 //
 // 注意：

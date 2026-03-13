@@ -123,18 +123,18 @@ func TestMemberMgr_ListenersAndPanicSafety(t *testing.T) {
 
 	var addCount, removeCount atomic.Int64
 
-	mgr.OnAddMember(func(m IMember) {
+	mgr.ObserveAddMember(func(m IMember) {
 		addCount.Add(1)
 	})
-	mgr.OnRemoveMember(func(m IMember) {
+	mgr.ObserveRemoveMember(func(m IMember) {
 		removeCount.Add(1)
 	})
 
 	// 注册一个会 panic 的监听器，验证不会影响其他监听器的执行
-	mgr.OnAddMember(func(IMember) {
+	mgr.ObserveAddMember(func(IMember) {
 		panic("add panic")
 	})
-	mgr.OnRemoveMember(func(IMember) {
+	mgr.ObserveRemoveMember(func(IMember) {
 		panic("remove panic")
 	})
 
