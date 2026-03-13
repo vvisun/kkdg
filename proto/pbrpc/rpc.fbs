@@ -10,13 +10,3 @@ table Frame {
   Err: string;
 }
 
-table TransMsg {
-  ClientId: ulong;
-  Data: [ubyte];
-}
-
-table TransBroadMsg {
-  ClientIdList: [ulong];
-  Data: [ubyte];
-}
-

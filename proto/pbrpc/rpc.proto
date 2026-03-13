@@ -12,13 +12,3 @@ message Frame {
 	string Err = 7; // error message 错误信息
 }
 
-message TransMsg {
-	uint64 ClientId = 1; // 客户端id(connID)
-	bytes Data = 2; // 转发数据
-}
-
-message TransBroadMsg {
-	repeated uint64 ClientIdList = 1; // 客户端id列表(connID列表)
-	bytes Data = 2; // 转发数据
-}
-

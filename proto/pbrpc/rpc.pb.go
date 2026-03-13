@@ -115,116 +115,6 @@ func (x *Frame) GetErr() string {
 	return ""
 }
 
-type TransMsg struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ClientId uint64 `protobuf:"varint,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"` // 客户端id(connID)
-	Data     []byte `protobuf:"bytes,2,opt,name=Data,proto3" json:"Data,omitempty"`          // 转发数据
-}
-
-func (x *TransMsg) Reset() {
-	*x = TransMsg{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pbrpc_rpc_proto_msgTypes[1]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *TransMsg) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TransMsg) ProtoMessage() {}
-
-func (x *TransMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_pbrpc_rpc_proto_msgTypes[1]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TransMsg.ProtoReflect.Descriptor instead.
-func (*TransMsg) Descriptor() ([]byte, []int) {
-	return file_pbrpc_rpc_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *TransMsg) GetClientId() uint64 {
-	if x != nil {
-		return x.ClientId
-	}
-	return 0
-}
-
-func (x *TransMsg) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-type TransBroadMsg struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ClientIdList []uint64 `protobuf:"varint,1,rep,packed,name=ClientIdList,proto3" json:"ClientIdList,omitempty"` // 客户端id列表(connID列表)
-	Data         []byte   `protobuf:"bytes,2,opt,name=Data,proto3" json:"Data,omitempty"`                         // 转发数据
-}
-
-func (x *TransBroadMsg) Reset() {
-	*x = TransBroadMsg{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pbrpc_rpc_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *TransBroadMsg) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TransBroadMsg) ProtoMessage() {}
-
-func (x *TransBroadMsg) ProtoReflect() protoreflect.Message {
-	mi := &file_pbrpc_rpc_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TransBroadMsg.ProtoReflect.Descriptor instead.
-func (*TransBroadMsg) Descriptor() ([]byte, []int) {
-	return file_pbrpc_rpc_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *TransBroadMsg) GetClientIdList() []uint64 {
-	if x != nil {
-		return x.ClientIdList
-	}
-	return nil
-}
-
-func (x *TransBroadMsg) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
 var File_pbrpc_rpc_proto protoreflect.FileDescriptor
 
 var file_pbrpc_rpc_proto_rawDesc = []byte{
@@ -237,16 +127,8 @@ var file_pbrpc_rpc_proto_rawDesc = []byte{
 	0x01, 0x50, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x01, 0x50, 0x12, 0x12, 0x0a, 0x04, 0x43,
 	0x6f, 0x64, 0x65, 0x18, 0x06, 0x20, 0x01, 0x28, 0x05, 0x52, 0x04, 0x43, 0x6f, 0x64, 0x65, 0x12,
 	0x10, 0x0a, 0x03, 0x45, 0x72, 0x72, 0x18, 0x07, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x45, 0x72,
-	0x72, 0x22, 0x3a, 0x0a, 0x08, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x4d, 0x73, 0x67, 0x12, 0x1a, 0x0a,
-	0x08, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52,
-	0x08, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x44, 0x61, 0x74,
-	0x61, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x44, 0x61, 0x74, 0x61, 0x22, 0x47, 0x0a,
-	0x0d, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x4d, 0x73, 0x67, 0x12, 0x22,
-	0x0a, 0x0c, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x4c, 0x69, 0x73, 0x74, 0x18, 0x01,
-	0x20, 0x03, 0x28, 0x04, 0x52, 0x0c, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x4c, 0x69,
-	0x73, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x44, 0x61, 0x74, 0x61, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c,
-	0x52, 0x04, 0x44, 0x61, 0x74, 0x61, 0x42, 0x09, 0x5a, 0x07, 0x2e, 0x3b, 0x70, 0x62, 0x72, 0x70,
-	0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x72, 0x42, 0x09, 0x5a, 0x07, 0x2e, 0x3b, 0x70, 0x62, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -261,11 +143,9 @@ func file_pbrpc_rpc_proto_rawDescGZIP() []byte {
 	return file_pbrpc_rpc_proto_rawDescData
 }
 
-var file_pbrpc_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_pbrpc_rpc_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_pbrpc_rpc_proto_goTypes = []interface{}{
-	(*Frame)(nil),         // 0: pbrpc.Frame
-	(*TransMsg)(nil),      // 1: pbrpc.TransMsg
-	(*TransBroadMsg)(nil), // 2: pbrpc.TransBroadMsg
+	(*Frame)(nil), // 0: pbrpc.Frame
 }
 var file_pbrpc_rpc_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -293,30 +173,6 @@ func file_pbrpc_rpc_proto_init() {
 				return nil
 			}
 		}
-		file_pbrpc_rpc_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransMsg); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pbrpc_rpc_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransBroadMsg); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -324,7 +180,7 @@ func file_pbrpc_rpc_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_pbrpc_rpc_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
