@@ -51,6 +51,8 @@ func (codec) Unmarshal(data []byte, v any) error {
 	return proto.Unmarshal(data, msg)
 }
 
+//---------------------------------------------------------------------
+
 var DefaultCodec = &codec{}
 
 // Marshal 编码

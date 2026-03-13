@@ -40,6 +40,8 @@ func (codec) Unmarshal(data []byte, v any) error {
 	return yaml.Unmarshal(data, v)
 }
 
+//---------------------------------------------------------------------
+
 var DefaultCodec = &codec{}
 
 // Marshal 编码

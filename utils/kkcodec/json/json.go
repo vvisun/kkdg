@@ -37,6 +37,8 @@ func (codec) Unmarshal(data []byte, v any) error {
 	return sonic.Unmarshal(data, v)
 }
 
+//---------------------------------------------------------------------
+
 var DefaultCodec = &codec{}
 
 // Marshal 编码

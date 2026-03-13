@@ -38,6 +38,8 @@ func (codec) Unmarshal(data []byte, v any) error {
 	return xml.Unmarshal(data, v)
 }
 
+//---------------------------------------------------------------------
+
 var DefaultCodec = &codec{}
 
 // Marshal 编码
