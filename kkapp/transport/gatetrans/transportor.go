@@ -17,6 +17,8 @@ type ITransportor interface {
 	ForwardToClients(sessionIDs []string, packet []byte) error
 	// NotifyClientDisconnect notifies a client disconnect.
 	NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
+	// NotifyClientConnect notifies a client connect.
+	NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
 }
 
 type ILogicTotalManager interface {

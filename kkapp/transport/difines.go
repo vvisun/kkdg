@@ -22,4 +22,6 @@ const (
 	FuncNameSendToClients = "N"
 	// 网关 -> 业务服：客户端断开事件
 	FuncNameClientDisconnect = "cliMiss"
+	// 网关 -> 业务服：分配客户端到本业务服
+	FuncNameAllocClient = "allocClient"
 )

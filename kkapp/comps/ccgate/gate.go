@@ -378,6 +378,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 
+	// 将客户端消息原样转发给逻辑服
 	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	sessionID := cliInfo.sessionId
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {

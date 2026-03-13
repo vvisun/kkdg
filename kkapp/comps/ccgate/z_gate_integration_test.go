@@ -46,6 +46,9 @@ func (m *mockTransportor) ForwardToClients([]string, []byte) error { return nil 
 func (m *mockTransportor) NotifyClientDisconnect(string, string, kknet.CONN_ID) error {
 	return nil
 }
+func (m *mockTransportor) NotifyClientConnect(string, string, kknet.CONN_ID) error {
+	return nil
+}
 
 // mockDiscovery implements kkdiscovery.IDiscovery with a single member.
 type mockMember struct {

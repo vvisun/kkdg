@@ -67,38 +67,21 @@ func (slf *TransportorShard) getShardIdx(connId kknet.CONN_ID) int {
 	return int(connId % transport.BackendShardCnt)
 }
 
-// sendToLogicShard 向指定逻辑服的指定 shard 发送已编码包。调用方在返回 err 时负责 Put(bb)。
+// sendToLogicShard 向指定逻辑服的指定 shard 发送已编码包。
 func (slf *TransportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
 	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
 	if chooseServer == nil {
+		kkbuffer.Put(bb)
 		return kkerrors.ErrAppLogicNodeNotRegistered
 	}
 	chooseServer.muConns.RLock()
 	sconn := chooseServer.conns[shardIdx%transport.BackendShardCnt]
 	chooseServer.muConns.RUnlock()
 	if sconn == nil {
+		kkbuffer.Put(bb)
 		return kkerrors.ErrAppLogicShardNotConnected
 	}
 	return sconn.conn.SendBuffer(bb)
-}
-
-func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
-	if slf.stopped {
-		return kkerrors.ErrAppTransportorStopped
-	}
-	var msg ptotrans.RpcClientDisconnect
-	msg.ClientId = sessionID
-	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
-	if err != nil {
-		kkbuffer.Put(bb)
-		return err
-	}
-	shardIdx := slf.getShardIdx(connId)
-	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
-		kkbuffer.Put(bb)
-		return err
-	}
-	return nil
 }
 
 func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {
@@ -123,7 +106,6 @@ func (slf *TransportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 	}
 	shardIdx := slf.getShardIdx(cConn.ID())
 	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
-		kkbuffer.Put(bb)
 		return err
 	}
 	return nil
@@ -191,6 +173,42 @@ func (slf *TransportorShard) ForwardToClients(sessionIDs []string, packet []byte
 		}
 	}
 	return loopErr
+}
+
+func (slf *TransportorShard) NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	var msg ptotrans.RpcAllocClient
+	msg.ClientId = sessionID
+	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	if err != nil {
+		kkbuffer.Put(bb)
+		return err
+	}
+	shardIdx := slf.getShardIdx(connId)
+	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (slf *TransportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	var msg ptotrans.RpcClientDisconnect
+	msg.ClientId = sessionID
+	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	if err != nil {
+		kkbuffer.Put(bb)
+		return err
+	}
+	shardIdx := slf.getShardIdx(connId)
+	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (slf *TransportorShard) ChooseLogicServer(nodeType string, totalMgr gatetrans.ILogicTotalManager) (string, bool) {

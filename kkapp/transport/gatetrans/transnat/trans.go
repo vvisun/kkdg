@@ -159,3 +159,21 @@ func (slf *transportorNats) NotifyClientDisconnect(sessionID string, logicNodeId
 	pkt.Sid = sessionID
 	return slf.cluster.PublishRemote(logicNodeId, pkt)
 }
+
+func (slf *transportorNats) NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	if slf.cluster == nil {
+		return kkerrors.ErrAppClusterNotInitialized
+	}
+	if sessionID == "" {
+		return kkerrors.ErrAppEmptySessionID
+	}
+
+	pkt := kkcluster.NewClusterPacket()
+	pkt.FuncName = transport.FuncNameAllocClient
+	pkt.ArgBytes = nil
+	pkt.Sid = sessionID
+	return slf.cluster.PublishRemote(logicNodeId, pkt)
+}

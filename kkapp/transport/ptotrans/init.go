@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	initOnce sync.Once
+	initShardOnce sync.Once
 )
 
 func InitRpcMsgs(methodMgr *kkrpc.MethodManager) {
@@ -17,10 +17,11 @@ func InitRpcMsgs(methodMgr *kkrpc.MethodManager) {
 	kkrpc.RegisterOneWayMethod[RpcS2Clients]("s2cs", methodMgr)
 	kkrpc.RegisterOneWayMethod[RpcC2S]("c2s", methodMgr)
 	kkrpc.RegisterOneWayMethod[RpcClientDisconnect]("clientDisconnect", methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcAllocClient]("allocClient", methodMgr)
 }
 
 func InitShardMsgs() {
-	initOnce.Do(func() {
+	initShardOnce.Do(func() {
 		initShardMsgs()
 	})
 }
@@ -31,4 +32,5 @@ func initShardMsgs() {
 	kkapp.GetTransMsgPacket().GetRouter().Register(3, &RpcS2Clients{}, "logic")
 	kkapp.GetTransMsgPacket().GetRouter().Register(4, &RpcC2S{}, "logic")
 	kkapp.GetTransMsgPacket().GetRouter().Register(5, &RpcClientDisconnect{}, "logic")
+	kkapp.GetTransMsgPacket().GetRouter().Register(6, &RpcAllocClient{}, "logic")
 }

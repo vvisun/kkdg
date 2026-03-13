@@ -30,6 +30,7 @@ var (
 	onewayS2Clients        kkrpc.OneWayInvoker[ptotrans.RpcS2Clients]
 	onewayC2S              kkrpc.OneWayInvoker[ptotrans.RpcC2S]
 	onewayClientDisconnect kkrpc.OneWayInvoker[ptotrans.RpcClientDisconnect]
+	onewayAllocClient      kkrpc.OneWayInvoker[ptotrans.RpcAllocClient]
 )
 
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
@@ -62,6 +63,7 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcSvr, 0)
 	onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcSvr, 0)
 	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr, 0)
+	onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcSvr, 0)
 
 	trans := &transportorRpc{
 		sessionMgr:   sessionMgr,
@@ -194,6 +196,23 @@ func (slf *transportorRpc) NotifyClientDisconnect(sessionID string, logicNodeId 
 		return ErrLogicNodeNotRegistered //逻辑节点未注册
 	}
 	err := onewayClientDisconnect.InvokeNR(context.Background(), &ptotrans.RpcClientDisconnect{
+		ClientId: sessionID,
+	}, kkrpc.CallConfig{ConnId: memberInfo.connId})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (slf *transportorRpc) NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	memberInfo := slf.logicNodeMgr.getLogicNode(logicNodeId)
+	if memberInfo == nil {
+		return ErrLogicNodeNotRegistered //逻辑节点未注册
+	}
+	err := onewayAllocClient.InvokeNR(context.Background(), &ptotrans.RpcAllocClient{
 		ClientId: sessionID,
 	}, kkrpc.CallConfig{ConnId: memberInfo.connId})
 	if err != nil {

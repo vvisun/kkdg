@@ -26,15 +26,21 @@ type (
 	// msgID: 4
 	// 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
 	RpcC2S struct {
-		ClientId   string
-		GateNodeId string
+		ClientId   string //sessionID
+		GateNodeId string //网关节点ID
 		Payload    []byte
 	}
 
 	// msgID: 5
 	// 网关 -> 逻辑服：客户端断开事件
 	RpcClientDisconnect struct {
-		ClientId  string
-		ClientIds []string
+		ClientId  string   //sessionID
+		ClientIds []string //sessionID列表
+	}
+
+	// msgID: 6
+	// 网关 -> 逻辑服：分配客户端到本逻辑服
+	RpcAllocClient struct {
+		ClientId string //sessionID
 	}
 )

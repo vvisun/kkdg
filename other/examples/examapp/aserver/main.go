@@ -52,8 +52,8 @@ func runGame() *component.Application {
 	msgReceiver := game.GetMsgReceiver()
 	gh := &gameHandler{transportor: game.GetTransportor()}
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg2Broadcast)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginReq)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onRegisterReq)
 
 	return gameApp
 }
@@ -68,12 +68,12 @@ func (h *gameHandler) onMsg1Req(sessionID string, msg *ptoexam.Msg1Req) error {
 	return nil
 }
 
-func (h *gameHandler) onMsg1Resp(sessionID string, msg *ptoexam.Msg1Resp) error {
-	kklog.Infof("onMsg1Resp: %v", msg)
+func (h *gameHandler) onLoginReq(sessionID string, msg *ptoexam.LoginReq) error {
+	kklog.Infof("onLoginReq: %v", msg)
 	return nil
 }
 
-func (h *gameHandler) onMsg2Broadcast(sessionID string, msg *ptoexam.Msg2Broadcast) error {
-	kklog.Infof("onMsg2Broadcast: %v", msg)
+func (h *gameHandler) onRegisterReq(sessionID string, msg *ptoexam.RegisterReq) error {
+	kklog.Infof("onRegisterReq: %v", msg)
 	return nil
 }

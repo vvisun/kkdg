@@ -18,7 +18,38 @@ message Msg2Broadcast {
 	repeated string Names = 2;
 }
 
+message ErrorMsg {
+	int32 Code = 1;
+	string Message = 2;
+}
+
 message TipServerBusy {
 	int32 Code = 1;
 	string Message = 2;
+}
+
+message LoginReq {
+	int64 UserID = 1;
+	string SessionID = 2;
+	string Token = 3;
+	string Password = 4;
+}
+
+message LoginResp {
+	int64 UserID = 1;
+	string SessionID = 2;
+	string Token = 3;
+	string UserData = 4; // 用户数据，用于存储用户信息. json格式.
+}
+
+message RegisterReq {
+	string AccountName = 1;
+	string Password = 2;
+	string UserData = 3; // 用户数据，用于存储用户信息. json格式.
+}
+
+message RegisterResp {
+	int64 UserID = 1;
+	string AccountName = 2;
+	string UserData = 3; // 用户数据，用于存储用户信息. json格式.
 }
