@@ -1,8 +1,0 @@
-namespace fbbase;
-
-table RawInputArgs {
-  MsgType: uint;
-  clientIdList: [ulong];
-  RawData: [ubyte];
-}
-
