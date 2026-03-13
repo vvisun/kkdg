@@ -43,4 +43,15 @@ type (
 	RpcAllocClient struct {
 		ClientId string //sessionID
 	}
+
+	// msgID: 7
+	// 逻辑服 -> 网关：客户端登入登出事件
+	RpcClientLoginLogout struct {
+		UserId     int64  //用户ID
+		IsLogin    bool   //是否登录
+		ClientId   string //sessionID
+		NodeType   string //opt: 逻辑节点类型, 用于校验
+		NodeId     string //opt: 逻辑节点ID, 用于校验
+		GateNodeId string //opt: 网关节点ID, 用于校验
+	}
 )

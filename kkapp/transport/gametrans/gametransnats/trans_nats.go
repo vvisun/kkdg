@@ -2,8 +2,8 @@ package gametransnats
 
 import (
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
+	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
@@ -73,7 +73,7 @@ func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) err
 	}
 
 	resp := kkcluster.NewClusterPacket()
-	resp.FuncName = transport.FuncNameSendToClient
+	resp.FuncName = ptotrans.FuncNameSendToClient
 	resp.ArgBytes = packet //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	resp.Sid = sessionID
 	if err := slf.cluster.PublishRemote(sessionInfo.GetGateNodeID(), resp); err != nil {
@@ -110,7 +110,7 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte)
 
 	for gateNodeID, sids := range sidByGateNodeID {
 		resp := kkcluster.NewClusterPacket()
-		resp.FuncName = transport.FuncNameSendToClients
+		resp.FuncName = ptotrans.FuncNameSendToClients
 		resp.ArgBytes = packet //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 		resp.Sid = sids
 		if err := slf.cluster.PublishRemote(gateNodeID, resp); err != nil {
