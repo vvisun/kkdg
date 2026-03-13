@@ -9,7 +9,7 @@ import (
 )
 
 func TestRouter_ReqRsp(t *testing.T) {
-	methodMgr := NewMethodManager()
+	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	RegisterReqRspMethod[testReq, testRsp]("test", methodMgr)
 	router := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
@@ -31,7 +31,7 @@ func TestRouter_ReqRsp(t *testing.T) {
 }
 
 func TestRouter_OneWay(t *testing.T) {
-	methodMgr := NewMethodManager()
+	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	RegisterOneWayMethod[testReq]("test", methodMgr)
 	router := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistOneWayHandler(router, "test", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {

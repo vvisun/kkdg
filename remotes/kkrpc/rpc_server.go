@@ -35,7 +35,7 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *rpcReceiver) *Server 
 	}
 	kkoption.ApplyOptionsTo(&opts,
 		kknet.WithRawHandler(handler),
-		kknet.WithStreamTool(rpcRouter.rpcOpts.StreamTool),
+		kknet.WithStreamTool(rpcRouter.methodMgr.streamTool),
 	)
 	s.tcp = kktcp.NewServer(addr, handler, opts)
 	s.pending = newPendingMap(rpcRouter.rpcOpts.MaxPendingCount)
@@ -55,7 +55,7 @@ func NewServerWithCreator(opts kknet.Options, rpcRouter *rpcReceiver, rpcOpts Rp
 	}
 	kkoption.ApplyOptionsTo(&opts,
 		kknet.WithRawHandler(handler),
-		kknet.WithStreamTool(rpcRouter.rpcOpts.StreamTool),
+		kknet.WithStreamTool(rpcRouter.methodMgr.streamTool),
 	)
 	s.tcp = svrCreator(handler, opts)
 	s.pending = newPendingMap(rpcOpts.MaxPendingCount)

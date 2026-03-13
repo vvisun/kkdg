@@ -16,7 +16,7 @@ import (
 // setupTestRpcManager 测试前清理并注册 testReq/testRsp 相关方法
 func setupTestRpcManager(t *testing.T) *MethodManager {
 	t.Helper()
-	methodMgr := NewMethodManager()
+	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
 	RegisterOneWayMethod[testReq]("testOneway", methodMgr)
 	return methodMgr

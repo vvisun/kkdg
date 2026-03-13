@@ -6,6 +6,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/kkcodec"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type (
@@ -42,8 +43,23 @@ func (rm *MethodManager) getMethod(msg any) string {
 	return ""
 }
 
-func NewMethodManager() *MethodManager {
+func NewMethodManager(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec) *MethodManager {
+	if streamTool == nil {
+		kklog.Errorf("streamTool is nil, use default streamTool")
+		streamTool = kkpacket.DefaultStreamPacket()
+	}
+	if frameCodec == nil {
+		kklog.Errorf("frameCodec is nil, use default frameCodec: %s", "msgpack")
+		frameCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	}
+	if payloadCodec == nil {
+		kklog.Errorf("payloadCodec is nil, use default payloadCodec: %s", "msgpack")
+		payloadCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	}
 	return &MethodManager{
+		streamTool:        streamTool,
+		frameCodec:        frameCodec,
+		payloadCodec:      payloadCodec,
 		type2methodReqRsp: make(map[reflect.Type]string),
 		method2typeReqRsp: make(map[string]methodReqRsp),
 		type2methodOneWay: make(map[reflect.Type]string),

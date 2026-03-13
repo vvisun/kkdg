@@ -41,13 +41,9 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-	methodMgr := kkrpc.NewMethodManager()
+	methodMgr := kkrpc.NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	ptotrans.InitRpcMsgs(methodMgr)
-	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(
-		kkrpc.WithStreamTool(gStreamTool),
-		kkrpc.WithFrameCodec(gFrameCodec),
-		kkrpc.WithPayloadCodec(gPayloadCodec),
-	), methodMgr)
+	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
 	rpcProcessor := &rpcHandler{}
 	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)

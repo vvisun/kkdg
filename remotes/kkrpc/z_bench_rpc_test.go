@@ -12,7 +12,7 @@ import (
 )
 
 func Benchmark_InvokeUnary(b *testing.B) {
-	methodMgr := NewMethodManager()
+	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -63,7 +63,7 @@ func Benchmark_InvokeUnary(b *testing.B) {
 }
 
 func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
-	methodMgr := NewMethodManager()
+	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -116,7 +116,7 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 
 // Benchmark_InvokeUnary_Parallel 单连接并发调用，多个 goroutine 共享同一 client，测试真实并发下的 req/resp 匹配与编解码。
 func Benchmark_InvokeUnary_Parallel(b *testing.B) {
-	methodMgr := NewMethodManager()
+	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

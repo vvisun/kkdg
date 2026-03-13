@@ -44,18 +44,14 @@ type PingReq struct {
 }
 
 func runRpcDemo(addr string) {
-	methodMgr := kkrpc.NewMethodManager()
-	kkrpc.RegisterReqRspMethod[EchoReq, EchoRsp]("Echo", methodMgr)
-	kkrpc.RegisterOneWayMethod[PingReq]("Ping", methodMgr)
-
 	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
-	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(
-		kkrpc.WithStreamTool(gStreamTool),
-		kkrpc.WithFrameCodec(gFrameCodec),
-		kkrpc.WithPayloadCodec(gPayloadCodec),
-	), methodMgr)
+	methodMgr := kkrpc.NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
+	kkrpc.RegisterReqRspMethod[EchoReq, EchoRsp]("Echo", methodMgr)
+	kkrpc.RegisterOneWayMethod[PingReq]("Ping", methodMgr)
+
+	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
 	kkrpc.RegistReqRspHandler(rpcRouter, "Echo", onEcho)
 	kkrpc.RegistOneWayHandler(rpcRouter, "Ping", onPing)
 

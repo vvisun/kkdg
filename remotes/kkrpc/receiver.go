@@ -100,9 +100,6 @@ type rpcReceiver struct {
 
 func NewRpcReceiver(rpcOpts RpcOption, methodMgr *MethodManager) *rpcReceiver {
 	CheckRpcOption(&rpcOpts)
-	methodMgr.streamTool = rpcOpts.StreamTool
-	methodMgr.frameCodec = rpcOpts.FrameCodec
-	methodMgr.payloadCodec = rpcOpts.PayloadCodec
 	return &rpcReceiver{
 		hdMap:     make(map[string]IReqRspHandler),
 		oneWayMap: make(map[string]IOneWayHandler),

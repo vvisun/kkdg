@@ -96,7 +96,8 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	// 可以在这里调整传输层类型
 	// const transType = transport.TransTypeRpc
 	// const transType = transport.TransTypeNats
-	const transType = transport.TransTypeShard
+	// const transType = transport.TransTypeShard
+	const transType = transport.TransTypeRpc
 
 	var streamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
 
