@@ -14,7 +14,7 @@ type (
 		reqType reflect.Type
 		rspType reflect.Type
 	}
-	methonOneWay struct {
+	methodOneWay struct {
 		reqType reflect.Type
 	}
 )
@@ -27,7 +27,7 @@ type MethodManager struct {
 	type2methodReqRsp map[reflect.Type]string
 	method2typeReqRsp map[string]methodReqRsp
 	type2methodOneWay map[reflect.Type]string
-	method2typeOneWay map[string]methonOneWay
+	method2typeOneWay map[string]methodOneWay
 }
 
 func (rm *MethodManager) getMethod(msg any) string {
@@ -63,6 +63,6 @@ func NewMethodManager(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, pa
 		type2methodReqRsp: make(map[reflect.Type]string),
 		method2typeReqRsp: make(map[string]methodReqRsp),
 		type2methodOneWay: make(map[reflect.Type]string),
-		method2typeOneWay: make(map[string]methonOneWay),
+		method2typeOneWay: make(map[string]methodOneWay),
 	}
 }

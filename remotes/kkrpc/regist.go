@@ -98,7 +98,7 @@ func newOneWay[REQ any](method string, methodMgr *MethodManager) bool {
 	}
 
 	methodMgr.type2methodOneWay[typeReq] = method
-	methodMgr.method2typeOneWay[method] = methonOneWay{reqType: typeReq}
+	methodMgr.method2typeOneWay[method] = methodOneWay{reqType: typeReq}
 
 	typeReqValue := reflect.TypeFor[REQ]()
 	methodMgr.type2methodOneWay[typeReqValue] = method
