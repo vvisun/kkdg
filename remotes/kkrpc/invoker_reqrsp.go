@@ -51,12 +51,22 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 	}
 	defer func() {
 		removed := pending.delCh(reqId)
-		if removed == nil && ch != nil {
-			// deliver 已移除，channel 在本地，需归还池；若 timeout 与 response 竞态，可能 channel 内有值，先排空
-			select {
-			case <-ch:
-			default:
+		if removed != nil {
+			// delCh 已移除并归还，无需再处理
+			return
+		}
+		if ch == nil {
+			return
+		}
+		// deliver 或 closeAll 已移除：deliver 时 channel 仍开放需归还；closeAll 时 channel 已关闭不可归还
+		select {
+		case _, ok := <-ch:
+			if ok {
+				pending.putChBack(ch)
 			}
+			// !ok: channel 已关闭（closeAll），不归还池
+		default:
+			// channel 空且开放（deliver 已发送，我们已接收），归还池
 			pending.putChBack(ch)
 		}
 	}()
