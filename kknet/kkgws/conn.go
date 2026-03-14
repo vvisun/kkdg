@@ -200,7 +200,7 @@ func (c *gwsConn) startPingByTimingWheel() {
 
 	tw := kktime.GetNetTimingWheel()
 	t := tw.ScheduleFunc(&gwsPingScheduler{c.opts.PingInterval}, func() {
-		if c.closing.Load() {
+		if c.closing.Load() || c.socket == nil {
 			return
 		}
 		if err := c.socket.WritePing(nil); err != nil {
