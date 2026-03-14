@@ -220,13 +220,16 @@ func (r *rpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	return rspBB
 }
 
-func (r *rpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) error {
+func (r *rpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) {
 	method := fr.M
 	h, ok := r.oneWayMap[method]
 	if !ok || h == nil {
-		return nil
+		return
 	}
 	ctx, cancel := deadlineCtx(fr.DL)
 	defer cancel()
-	return h.OnMsg(ctx, fr.P, fr.T, connId)
+	err := h.OnMsg(ctx, fr.P, fr.T, connId)
+	if err != nil {
+		kklog.Errorf("oneway method %s error: %v", method, err)
+	}
 }
