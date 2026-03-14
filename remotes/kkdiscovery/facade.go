@@ -6,15 +6,26 @@ const (
 )
 
 type (
+	// MemberListener 成员增、删监听函数
+	MemberListener func(member IMember)
+
 	// MemberMgr 成员管理器接口
 	IMemberMgr interface {
-		MemberCount() int                                  // 获取成员数量
-		Range(fn func(nodeID string, member IMember) bool) // 遍历成员, fn 返回 false 时停止遍历
-		ListByType(nodeType string) []IMember              // 根据节点类型获取成员列表
-		GetType(nodeID string) (string, error)             // 根据节点id获取成员类型
-		GetMember(nodeID string) (IMember, bool)           // 根据节点id获取成员
-		ObserveAddMember(listener MemberListener)          // 监听添加成员
-		ObserveRemoveMember(listener MemberListener)       // 监听移除成员
+		// 获取成员数量
+		MemberCount() int
+		// 遍历成员, fn 返回 false 时停止遍历
+		Range(fn func(nodeID string, member IMember) bool)
+		// 根据节点类型获取成员列表。
+		//  注意：返回的是引用，如果外部要修改，需要自行复制一份
+		ListByType(nodeType string) []IMember
+		// 根据节点id获取成员类型
+		GetType(nodeID string) (string, error)
+		// 根据节点id获取成员
+		GetMember(nodeID string) (IMember, bool)
+		// 监听添加成员
+		ObserveAddMember(listener MemberListener)
+		// 监听移除成员
+		ObserveRemoveMember(listener MemberListener)
 	}
 
 	// IDiscovery 发现服务接口
@@ -39,7 +50,4 @@ type (
 		GetStatus() int                     // 获取状态
 		SetStatus(status int)               // 设置状态
 	}
-
-	// MemberListener 成员增、删监听函数
-	MemberListener func(member IMember)
 )

@@ -145,6 +145,8 @@ func (m *MemberMgr) Range(fn func(nodeID string, member IMember) bool) {
 }
 
 // 根据节点类型获取成员列表
+//
+//	注意：返回的是引用，如果外部要修改，自行复制一份
 func (m *MemberMgr) ListByType(nodeType string) []IMember {
 	m.membersMu.RLock()
 	listOfType := m.typeMap[nodeType]
