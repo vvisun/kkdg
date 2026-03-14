@@ -15,13 +15,17 @@ type (
 		MemberCount() int
 		// 遍历成员, fn 返回 false 时停止遍历
 		Range(fn func(nodeID string, member IMember) bool)
-		// 根据节点类型获取成员列表。
-		//  注意：返回的是引用，如果外部要修改，需要自行复制一份
-		ListByType(nodeType string) []IMember
+
+		// 节点类型为nodeType的成员数量
+		CountOfType(nodeType string) int
+		// 遍历节点类型为nodeType的成员, fn 返回 false 时停止遍历
+		RangeType(nodeType string, fn func(nodeID string, member IMember) bool)
+
 		// 根据节点id获取成员类型
 		GetType(nodeID string) (string, error)
 		// 根据节点id获取成员
 		GetMember(nodeID string) (IMember, bool)
+
 		// 监听添加成员
 		ObserveAddMember(listener MemberListener)
 		// 监听移除成员

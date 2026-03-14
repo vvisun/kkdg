@@ -83,8 +83,23 @@ func (m *mockMemberMgr) Range(fn func(nodeID string, member kkdiscovery.IMember)
 	}
 	fn(m.member.GetNodeID(), m.member)
 }
-func (m *mockMemberMgr) ListByType(string) []kkdiscovery.IMember {
-	return []kkdiscovery.IMember{m.member}
+func (m *mockMemberMgr) RangeType(nodeType string, fn func(nodeID string, member kkdiscovery.IMember) bool) {
+	if m.member == nil {
+		return
+	}
+	if m.member.GetNodeType() != nodeType {
+		return
+	}
+	fn(m.member.GetNodeID(), m.member)
+}
+func (m *mockMemberMgr) CountOfType(nodeType string) int {
+	if m.member == nil {
+		return 0
+	}
+	if m.member.GetNodeType() != nodeType {
+		return 0
+	}
+	return 1
 }
 func (m *mockMemberMgr) GetType(string) (string, error) { return m.member.GetNodeType(), nil }
 func (m *mockMemberMgr) GetMember(string) (kkdiscovery.IMember, bool) {

@@ -321,22 +321,28 @@ func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
 	if slf.discovery == nil {
 		return "", false
 	}
-	typeList := slf.discovery.GetMemberMgr().ListByType(nodeType)
-	if len(typeList) == 0 {
+	if slf.discovery.GetMemberMgr().CountOfType(nodeType) == 0 {
 		return "", false
 	}
-	var chooseNode kkdiscovery.IMember = typeList[0]
-	for _, member := range typeList {
+
+	var chooseNode kkdiscovery.IMember = nil
+	finded := false
+	slf.discovery.GetMemberMgr().RangeType(nodeType, func(nodeID string, member kkdiscovery.IMember) bool {
 		if chooseNode == nil {
 			chooseNode = member
-			break
+			finded = true
+			return true
 		}
 		if member.GetWeight() < chooseNode.GetWeight() {
 			chooseNode = member
-			break
+			finded = true
 		}
+		return true
+	})
+	if finded {
+		return chooseNode.GetNodeID(), true
 	}
-	return chooseNode.GetNodeID(), true
+	return "", false
 }
 
 //------------------------------------------------------------

@@ -261,7 +261,7 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	}
 
 	// 检查该类型是否有节点（可选，用于提前验证）
-	if members := c.discovery.GetMemberMgr().ListByType(nodeType); len(members) == 0 {
+	if c.discovery.GetMemberMgr().CountOfType(nodeType) == 0 {
 		return kkerrors.ErrClusterNoMemberOfType
 	}
 

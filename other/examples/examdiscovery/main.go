@@ -53,11 +53,10 @@ func main() {
 	fmt.Println("--- mutual discovery ok ---")
 
 	// 按类型列出成员
-	gates := discovery1.GetMemberMgr().ListByType("gate")
-	fmt.Printf("ListByType(gate): %d members\n", len(gates))
-	for _, m := range gates {
-		fmt.Printf("  - %s @ %s\n", m.GetNodeID(), m.GetAddress())
-	}
+	discovery1.GetMemberMgr().RangeType("gate", func(nodeID string, member kkdiscovery.IMember) bool {
+		fmt.Printf("  - %s @ %s\n", member.GetNodeID(), member.GetAddress())
+		return true
+	})
 
 	// 获取指定成员
 	if m, ok := discovery1.GetMemberMgr().GetMember("node2"); ok {

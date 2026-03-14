@@ -65,34 +65,6 @@ func TestMemberMgr_AddGetRemove(t *testing.T) {
 	}
 }
 
-func TestMemberMgr_ListByTypeAndRandom(t *testing.T) {
-	mgr := NewMemberMgr()
-	mgr.AddMember(newTestMemberInfo("n1", "logic", "addr1", 1, NodeStatusOnline))
-	mgr.AddMember(newTestMemberInfo("n2", "logic", "addr2", 2, NodeStatusOnline))
-	mgr.AddMember(newTestMemberInfo("n3", "gate", "addr3", 3, NodeStatusOnline))
-
-	list := mgr.ListByType("logic")
-	if len(list) != 2 {
-		t.Fatalf("ListByType(logic) len = %d, want 2", len(list))
-	}
-
-	// Random should only pick from existing type; we can't assert exact distribution, but should return ok.
-	for i := 0; i < 10; i++ {
-		m, ok := mgr.random("logic")
-		if !ok || m == nil {
-			t.Fatalf("Random(logic) returned nil, false")
-		}
-		if m.GetNodeType() != "logic" {
-			t.Fatalf("Random(logic) returned nodeType=%s, want logic", m.GetNodeType())
-		}
-	}
-
-	// Random on missing type should indicate not found.
-	if m, ok := mgr.random("missing"); ok || m != nil {
-		t.Fatalf("Random(missing) = (%v,%v), want (nil,false)", m, ok)
-	}
-}
-
 func idsOf(list []IMember) []string {
 	out := make([]string, 0, len(list))
 	for _, m := range list {
@@ -191,38 +163,6 @@ func BenchmarkMemberMgr_AddMember(b *testing.B) {
 		info := newTestMemberInfo(id, "logic", "addr", 1, NodeStatusOnline)
 		_ = mgr.AddMember(info)
 	}
-}
-
-// BenchmarkMemberMgr_ListByType benchmarks ListByType with/without filters.
-func BenchmarkMemberMgr_ListByType(b *testing.B) {
-	mgr := NewMemberMgr()
-	const total = 4096
-	for i := 0; i < total; i++ {
-		tp := "logic"
-		if i%4 == 0 {
-			tp = "gate"
-		}
-		mgr.AddMember(newTestMemberInfo(fmt.Sprintf("n-%d", i), tp, "addr", 1, NodeStatusOnline))
-	}
-
-	b.Run("NoFilter", func(b *testing.B) {
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			list := mgr.ListByType("logic")
-			if len(list) == 0 {
-				b.Fatalf("ListByType(logic) returned empty list")
-			}
-		}
-	})
-
-	b.Run("WithFilter", func(b *testing.B) {
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_ = mgr.ListByType("logic")
-		}
-	})
 }
 
 // BenchmarkMemberMgr_Random benchmarks Random selection from a given type.

@@ -144,14 +144,24 @@ func (m *MemberMgr) Range(fn func(nodeID string, member IMember) bool) {
 	}
 }
 
-// 根据节点类型获取成员列表
-//
-//	注意：返回的是引用，如果外部要修改，自行复制一份
-func (m *MemberMgr) ListByType(nodeType string) []IMember {
+// 遍历节点类型为nodeType的成员, fn返回false时停止遍历
+func (m *MemberMgr) RangeType(nodeType string, fn func(nodeID string, member IMember) bool) {
 	m.membersMu.RLock()
+	defer m.membersMu.RUnlock()
 	listOfType := m.typeMap[nodeType]
+	for _, member := range listOfType {
+		if !fn(member.GetNodeID(), member) {
+			break
+		}
+	}
+}
+
+// 节点类型为nodeType的成员数量
+func (m *MemberMgr) CountOfType(nodeType string) int {
+	m.membersMu.RLock()
+	count := len(m.typeMap[nodeType])
 	m.membersMu.RUnlock()
-	return listOfType
+	return count
 }
 
 // 根据节点类型随机一个成员

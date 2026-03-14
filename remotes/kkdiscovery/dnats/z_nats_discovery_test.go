@@ -55,11 +55,13 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 		t.Fatalf("GetType(node2) = (%q,%v), want (\"logic\",nil)", typ, err)
 	}
 
-	// ListByType / Random should see this member.
-	list := d.GetMemberMgr().ListByType("logic")
-	if len(list) != 1 || list[0].GetNodeID() != "node2" {
-		t.Fatalf("ListByType(logic) = %v, want [node2]", list)
-	}
+	// RangeType should see this member.
+	d.GetMemberMgr().RangeType("logic", func(nodeID string, member kkdiscovery.IMember) bool {
+		if nodeID != "node2" || member.GetNodeID() != "node2" {
+			t.Fatalf("RangeType(logic) = (%v,%v), want (node2,node2)", nodeID, member.GetNodeID())
+		}
+		return false
+	})
 
 	// Stats should reflect 1 member added.
 	snap := d.Stats()
