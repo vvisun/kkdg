@@ -1,7 +1,6 @@
 package kkapp
 
 import (
-	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -11,7 +10,6 @@ type AppOptions struct {
 	StreamTool      kkpacket.IPacket
 	ClientMsgPacket *kkpacket.MessagePacket
 	TransMsgPacket  *kkpacket.MessagePacket
-	TransType       transport.TransType
 }
 
 func DefaultOptions() AppOptions {
@@ -27,7 +25,6 @@ func DefaultOptions() AppOptions {
 			kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
 			kkpacket.NewMsgRouter(),
 		),
-		TransType: transport.TransTypeNats,
 	}
 }
 
@@ -54,10 +51,6 @@ func CheckOptions(opt *AppOptions) {
 			kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
 			kkpacket.NewMsgRouter(),
 		)
-	}
-	if opt.TransType == "" {
-		kklog.Warnf("[kkapp] trans type is empty, use default trans type: %s", transport.TransTypeShard)
-		opt.TransType = transport.TransTypeShard
 	}
 }
 
@@ -96,14 +89,5 @@ func WithTransMsgPacket(transMsgPacket *kkpacket.MessagePacket) func(o *AppOptio
 			return
 		}
 		o.TransMsgPacket = transMsgPacket
-	}
-}
-
-func WithTransType(transType transport.TransType) func(o *AppOptions) {
-	return func(o *AppOptions) {
-		if transType == "" {
-			return
-		}
-		o.TransType = transType
 	}
 }
