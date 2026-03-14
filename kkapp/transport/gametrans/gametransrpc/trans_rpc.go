@@ -18,11 +18,13 @@ import (
 )
 
 type transportorRpc struct {
-	rpcClient   *kkrpc.Client
-	sessionMgr  *gametrans.SessionManager
-	msgReceiver *msgreceiver.MsgReceiver[string]
-	stopped     bool
-	nodeInfo    kkapp.INodeIdentity
+	rpcClient        *kkrpc.Client
+	sessionMgr       *gametrans.SessionManager
+	msgReceiver      *msgreceiver.MsgReceiver[string]
+	stopped          bool
+	nodeInfo         kkapp.INodeIdentity
+	clientMsgPacket  *kkpacket.MessagePacket
+	clientStreamTool kkpacket.IPacket
 }
 
 var (
@@ -35,7 +37,14 @@ var (
 	onewayClientLoginLogout kkrpc.OneWayInvoker[ptotrans.RpcClientLoginLogout]
 )
 
-func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgreceiver.MsgReceiver[string], node kkapp.INodeIdentity, rpcAddr string) (gametrans.ITransportor, error) {
+func NewTransportorRpc(
+	sessionMgr *gametrans.SessionManager,
+	msgReceiver *msgreceiver.MsgReceiver[string],
+	node kkapp.INodeIdentity,
+	rpcAddr string,
+	clientMsgPacket *kkpacket.MessagePacket,
+	clientStreamTool kkpacket.IPacket,
+) (gametrans.ITransportor, error) {
 	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
@@ -62,10 +71,12 @@ func NewTransportorRpc(sessionMgr *gametrans.SessionManager, msgReceiver *msgrec
 	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcClient, 0)
 
 	trans := &transportorRpc{
-		sessionMgr:  sessionMgr,
-		msgReceiver: msgReceiver,
-		rpcClient:   rpcClient,
-		nodeInfo:    node,
+		sessionMgr:       sessionMgr,
+		msgReceiver:      msgReceiver,
+		rpcClient:        rpcClient,
+		nodeInfo:         node,
+		clientMsgPacket:  clientMsgPacket,
+		clientStreamTool: clientStreamTool,
 	}
 	rpcProcessor.trans = trans
 	msgReceiver.SetNeedCopyInOnSession(true)
@@ -158,7 +169,7 @@ func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 		return kkerrors.ErrAppSessionNotFound
 	}
 
-	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetClientMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, slf.clientStreamTool, slf.clientMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -188,7 +199,7 @@ func (slf *transportorRpc) SendToClients(sessionIDs []string, msg any) error {
 		return kkerrors.ErrPktInvalidMessage
 	}
 
-	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetClientMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, slf.clientStreamTool, slf.clientMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err

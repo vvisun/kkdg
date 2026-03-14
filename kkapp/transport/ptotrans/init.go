@@ -3,7 +3,7 @@ package ptotrans
 import (
 	"sync"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
 )
 
@@ -21,20 +21,20 @@ func InitRpcMsgs(methodMgr *kkrpc.MethodManager) {
 	kkrpc.RegisterOneWayMethod[RpcClientLoginLogout]("clientLoginLogout", methodMgr)
 }
 
-func InitShardMsgs() {
+func InitShardMsgs(router *kkpacket.MsgRouter) {
 	initShardOnce.Do(func() {
-		initShardMsgs()
+		initShardMsgs(router)
 	})
 }
 
-func initShardMsgs() {
-	kkapp.GetTransMsgPacket().GetRouter().Register(1, &RpcMsgRegister{}, "logic")
-	kkapp.GetTransMsgPacket().GetRouter().Register(2, &RpcS2Client{}, "logic")
-	kkapp.GetTransMsgPacket().GetRouter().Register(3, &RpcS2Clients{}, "logic")
-	kkapp.GetTransMsgPacket().GetRouter().Register(4, &RpcC2S{}, "logic")
-	kkapp.GetTransMsgPacket().GetRouter().Register(5, &RpcClientDisconnect{}, "logic")
-	kkapp.GetTransMsgPacket().GetRouter().Register(6, &RpcAllocClient{}, "logic")
-	kkapp.GetTransMsgPacket().GetRouter().Register(7, &RpcClientLoginLogout{}, "logic")
+func initShardMsgs(router *kkpacket.MsgRouter) {
+	router.Register(1, &RpcMsgRegister{}, "logic")
+	router.Register(2, &RpcS2Client{}, "logic")
+	router.Register(3, &RpcS2Clients{}, "logic")
+	router.Register(4, &RpcC2S{}, "logic")
+	router.Register(5, &RpcClientDisconnect{}, "logic")
+	router.Register(6, &RpcAllocClient{}, "logic")
+	router.Register(7, &RpcClientLoginLogout{}, "logic")
 }
 
 // 网关与业务服之间的消息转发函数名。nats模式使用

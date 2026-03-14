@@ -100,22 +100,29 @@ func (slf *gateComponent) OnInit() error {
 		kkcluster.ApplyOptions(),
 	)
 
+	appOpts := slf.GetApplication().GetOptions()
+	nodeInfo := slf.GetApplication().GetNodeInfo()
+
 	// 初始化 transportor
 	switch slf.opt.TransType {
 	case transport.TransTypeNats:
-		transportor, err := transnat.NewTransportorNats(slf.cluster, slf.sessionMgr)
+		transportor, err := transnat.NewTransportorNats(
+			slf.cluster, slf.sessionMgr, appOpts.TransMsgPacket, appOpts.StreamTool)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
 	case transport.TransTypeRpc:
-		transportor, err := transrpc.NewTransportorRpc(slf.sessionMgr, slf.GetApplication().GetNodeId(), slf.opt.RpcAddr)
+		transportor, err := transrpc.NewTransportorRpc(
+			slf.sessionMgr, nodeInfo.GetNodeId(), slf.opt.RpcAddr)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
 	case transport.TransTypeShard:
-		transportor, err := transshard.NewTransportorShard(slf.opt.RpcAddr, slf.sessionMgr, slf.GetApplication().GetNodeId())
+		transportor, err := transshard.NewTransportorShard(
+			slf.opt.RpcAddr, slf.sessionMgr, nodeInfo.GetNodeId(),
+			appOpts.TransMsgPacket, appOpts.ClientMsgPacket, appOpts.StreamTool, appOpts.StreamTool)
 		if err != nil {
 			return err
 		}
@@ -204,7 +211,7 @@ func (slf *gateComponent) startTCPServer() error {
 	// 创建 TCP 服务器
 	opts := slf.serverOpt
 	kkoption.ApplyOptionsTo(&opts,
-		kknet.WithStreamTool(kkapp.GetStreamTool()),
+		kknet.WithStreamTool(slf.GetApplication().GetOptions().StreamTool),
 		kknet.WithRawHandler(slf.handler),
 	)
 	server := kktcp.NewServer(slf.opt.TCPAddr, slf.handler, opts)
@@ -222,9 +229,10 @@ func (slf *gateComponent) startTCPServer() error {
 func (slf *gateComponent) startWSServer() error {
 	// 创建 WebSocket 服务器
 	opts := slf.serverOpt
+	appOpts := slf.GetApplication().GetOptions()
 	kkoption.ApplyOptionsTo(&opts,
-		kknet.WithStreamTool(kkapp.GetStreamTool()),
-		kknet.WithMsgPacket(kkapp.GetClientMsgPacket()),
+		kknet.WithStreamTool(appOpts.StreamTool),
+		kknet.WithMsgPacket(appOpts.ClientMsgPacket),
 		kknet.WithRawHandler(slf.handler),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
@@ -391,18 +399,19 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 
+	appOpts := h.gate.GetApplication().GetOptions()
 	// Best-effort: derive route from msgID if it is registered.
-	msgBytes, err := kkapp.GetStreamTool().MessageBytes(data.B)
+	msgBytes, err := appOpts.StreamTool.MessageBytes(data.B)
 	if err != nil {
 		kklog.Warnf("[ccgate] get message bytes error: %v", err)
 		return
 	}
-	msgID, err := kkapp.GetClientMsgPacket().GetMsgID(msgBytes)
+	msgID, err := appOpts.ClientMsgPacket.GetMsgID(msgBytes)
 	if err != nil {
 		kklog.Warnf("[ccgate] get message id error: %v", err)
 		return
 	}
-	route, err := kkapp.GetClientMsgPacket().GetRouter().GetMsgRoute(msgID)
+	route, err := appOpts.ClientMsgPacket.GetRouter().GetMsgRoute(msgID)
 	if err != nil {
 		kklog.Warnf("[ccgate] get message route error: %v", err)
 		return

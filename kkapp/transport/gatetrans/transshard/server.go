@@ -3,7 +3,6 @@ package transshard
 import (
 	"sync"
 
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
@@ -17,19 +16,31 @@ import (
 )
 
 type transportorShard struct {
-	logicServerMgr *LogicServerMgr
-	logicConnMgr   sync.Map // map[connId]*ShardConn
-	server         kknet.IServer
-	sessionMgr     gatetrans.ISessionManager
-	gateNodeId     string
-	stopped        bool
-	msgHooker      *gatetrans.MsgHooker
+	logicServerMgr   *LogicServerMgr
+	logicConnMgr     sync.Map // map[connId]*ShardConn
+	server           kknet.IServer
+	sessionMgr       gatetrans.ISessionManager
+	gateNodeId       string
+	stopped          bool
+	msgHooker        *gatetrans.MsgHooker
+	transMsgPacket   *kkpacket.MessagePacket
+	clientMsgPacket  *kkpacket.MessagePacket
+	transStreamTool  kkpacket.IPacket
+	clientStreamTool kkpacket.IPacket
 }
 
 var _ gatetrans.ITransportor = (*transportorShard)(nil)
 
-func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, nodeId string) (gatetrans.ITransportor, error) {
-	ptotrans.InitShardMsgs()
+func NewTransportorShard(
+	addr string,
+	sessionMgr gatetrans.ISessionManager,
+	nodeId string,
+	transMsgPacket *kkpacket.MessagePacket,
+	clientMsgPacket *kkpacket.MessagePacket,
+	transStreamTool kkpacket.IPacket,
+	clientStreamTool kkpacket.IPacket,
+) (gatetrans.ITransportor, error) {
+	ptotrans.InitShardMsgs(transMsgPacket.GetRouter())
 	handler := &shardHandler{}
 	serOpts := kknet.ApplyOptions(
 		kknet.WithRawHandler(handler),
@@ -46,11 +57,15 @@ func NewTransportorShard(addr string, sessionMgr gatetrans.ISessionManager, node
 	}
 
 	trans := &transportorShard{
-		logicServerMgr: newLogicServerMgr(),
-		server:         srv,
-		sessionMgr:     sessionMgr,
-		gateNodeId:     nodeId,
-		msgHooker:      gatetrans.NewMsgHooker(),
+		logicServerMgr:   newLogicServerMgr(),
+		server:           srv,
+		sessionMgr:       sessionMgr,
+		gateNodeId:       nodeId,
+		msgHooker:        gatetrans.NewMsgHooker(),
+		transMsgPacket:   transMsgPacket,
+		clientMsgPacket:  clientMsgPacket,
+		transStreamTool:  transStreamTool,
+		clientStreamTool: clientStreamTool,
 	}
 	handler.transporter = trans
 	return trans, nil
@@ -101,7 +116,7 @@ func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 	msg.ClientId = sessionID
 	msg.GateNodeId = slf.gateNodeId
 	msg.Payload = msgBytes
-	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -183,7 +198,7 @@ func (slf *transportorShard) NotifyClientConnect(sessionID string, logicNodeId s
 	}
 	var msg ptotrans.RpcAllocClient
 	msg.ClientId = sessionID
-	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -201,7 +216,7 @@ func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 	}
 	var msg ptotrans.RpcClientDisconnect
 	msg.ClientId = sessionID
-	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -229,17 +244,19 @@ type shardHandler struct {
 
 func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	defer kkbuffer.Put(data)
-	messageBytes, err := kkapp.GetStreamTool().MessageBytes(data.B)
+	transStreamTool := h.transporter.transStreamTool
+	messageBytes, err := transStreamTool.MessageBytes(data.B)
 	if err != nil {
 		kklog.Errorf("shard handler on raw get message bytes error: %v", err)
 		return
 	}
-	msgID, err := kkapp.GetTransMsgPacket().GetMsgID(messageBytes)
+	transMsgPacket := h.transporter.transMsgPacket
+	msgID, err := transMsgPacket.GetMsgID(messageBytes)
 	if err != nil {
 		kklog.Errorf("shard handler on raw get message id error: %v", err)
 		return
 	}
-	bodyBytes, err := kkapp.GetTransMsgPacket().BodyBytes(messageBytes)
+	bodyBytes, err := transMsgPacket.BodyBytes(messageBytes)
 	if err != nil {
 		kklog.Errorf("shard handler on raw get body bytes error: %v", err)
 		return
@@ -247,22 +264,22 @@ func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	switch msgID {
 	case ptotrans.MsgIDRpcMsgRegister: // 注册逻辑服
 		var msg ptotrans.RpcMsgRegister
-		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.logicServerMgr.addLogicServer(&msg)
 		if sc, ok := h.transporter.logicConnMgr.Load(connID); ok {
 			h.transporter.logicServerMgr.addShardConn(msg.NodeId, msg.ShardIdx, sc.(*ShardConn))
 		}
 	case ptotrans.MsgIDRpcS2Client: // 网关转发消息到客户端: 逻辑服->网关->客户端
 		var msg ptotrans.RpcS2Client
-		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.ForwardToClient(msg.ClientId, msg.Payload)
 	case ptotrans.MsgIDRpcS2Clients: // 网关转发消息到多个客户端: 逻辑服->网关->多个客户端
 		var msg ptotrans.RpcS2Clients
-		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.ForwardToClients(msg.ClientIds, msg.Payload)
 	case ptotrans.MsgIDRpcClientLoginLogout: // 逻辑服 -> 网关：客户端登入登出事件
 		var msg ptotrans.RpcClientLoginLogout
-		kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.msgHooker.Notify(msgID, &msg)
 	default:
 		kklog.Errorf("shard handler on raw unknown message id: %d", msgID)

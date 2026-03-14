@@ -83,30 +83,52 @@ func (slf *gameComponent) OnInit() error {
 		kkcluster.ApplyOptions(),
 	)
 
-	streamTool := kkapp.GetStreamTool()
-	messageTool := kkapp.GetClientMsgPacket()
-	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
+	appOpts := slf.GetApplication().GetOptions()
+	packetTool := kkpacket.NewFullPacket(appOpts.StreamTool, appOpts.ClientMsgPacket)
 	msgReceiver := msgreceiver.NewMsgReceiver[string](packetTool)
 	slf.msgReceiver = msgReceiver
 
 	// 初始化 transportor
 	switch slf.opt.TransType {
 	case transport.TransTypeNats:
-		transportor, err := gametransnats.NewTransportorNats(slf.cluster, slf.msgReceiver, slf.sessionManager, slf.GetApplication().GetNodeInfo())
+		transportor, err := gametransnats.NewTransportorNats(
+			slf.cluster,
+			slf.msgReceiver,
+			slf.sessionManager,
+			slf.GetApplication().GetNodeInfo(),
+			appOpts.TransMsgPacket,
+			appOpts.ClientMsgPacket,
+			appOpts.StreamTool,
+			appOpts.StreamTool,
+		)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
 	case transport.TransTypeRpc:
-		transportor, err := gametransrpc.NewTransportorRpc(slf.sessionManager, slf.msgReceiver, slf.GetApplication(), slf.opt.RpcAddr)
+		transportor, err := gametransrpc.NewTransportorRpc(
+			slf.sessionManager,
+			slf.msgReceiver,
+			slf.GetApplication().GetNodeInfo(),
+			slf.opt.RpcAddr,
+			appOpts.ClientMsgPacket,
+			appOpts.StreamTool,
+		)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
 	case transport.TransTypeShard:
-		nodeId := slf.GetApplication().GetNodeId()
-		nodeType := slf.GetApplication().GetNodeType()
-		transportor, err := gametransshard.NewTransportorShard(slf.sessionManager, slf.msgReceiver, slf.opt.RpcAddr, nodeId, nodeType)
+		transportor, err := gametransshard.NewTransportorShard(
+			slf.sessionManager,
+			slf.msgReceiver,
+			slf.opt.RpcAddr,
+			slf.GetApplication().GetNodeInfo(),
+			appOpts.TransMsgPacket,
+			appOpts.ClientMsgPacket,
+			appOpts.StreamTool,
+			appOpts.StreamTool,
+		)
 		if err != nil {
 			return err
 		}

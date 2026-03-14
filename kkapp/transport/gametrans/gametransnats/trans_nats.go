@@ -14,21 +14,38 @@ import (
 
 // transportorNats 使用Nats集群转发消息
 type transportorNats struct {
-	cluster     kkcluster.ICluster // cluster for forwarding messages to client
-	sessionMgr  *gametrans.SessionManager
-	msgReceiver *msgreceiver.MsgReceiver[string]
-	stopped     bool
-	nodeInfo    kkapp.INodeIdentity
+	cluster          kkcluster.ICluster // cluster for forwarding messages to client
+	sessionMgr       *gametrans.SessionManager
+	msgReceiver      *msgreceiver.MsgReceiver[string]
+	stopped          bool
+	nodeInfo         kkapp.INodeIdentity
+	transMsgPacket   *kkpacket.MessagePacket
+	transStreamTool  kkpacket.IPacket
+	clientMsgPacket  *kkpacket.MessagePacket
+	clientStreamTool kkpacket.IPacket
 }
 
-func NewTransportorNats(cluster kkcluster.ICluster, msgReceiver *msgreceiver.MsgReceiver[string], sessionManager *gametrans.SessionManager, nodeInfo kkapp.INodeIdentity) (gametrans.ITransportor, error) {
+func NewTransportorNats(
+	cluster kkcluster.ICluster,
+	msgReceiver *msgreceiver.MsgReceiver[string],
+	sessionManager *gametrans.SessionManager,
+	nodeInfo kkapp.INodeIdentity,
+	transMsgPacket *kkpacket.MessagePacket,
+	clientMsgPacket *kkpacket.MessagePacket,
+	transStreamTool kkpacket.IPacket,
+	clientStreamTool kkpacket.IPacket,
+) (gametrans.ITransportor, error) {
 	trans := &transportorNats{
-		cluster:     cluster,
-		sessionMgr:  sessionManager,
-		msgReceiver: msgReceiver,
-		nodeInfo:    nodeInfo,
+		cluster:          cluster,
+		sessionMgr:       sessionManager,
+		msgReceiver:      msgReceiver,
+		nodeInfo:         nodeInfo,
+		transMsgPacket:   transMsgPacket,
+		clientMsgPacket:  clientMsgPacket,
+		transStreamTool:  transStreamTool,
+		clientStreamTool: clientStreamTool,
 	}
-	ptotrans.InitShardMsgs()
+	ptotrans.InitShardMsgs(transMsgPacket.GetRouter())
 	msgReceiver.SetNeedCopyInOnSession(false)
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans, nil
@@ -141,7 +158,7 @@ func (slf *transportorNats) SendToClient(sessionID string, msg any) error {
 		return kkerrors.ErrAppSessionNotFound
 	}
 
-	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetClientMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, slf.clientStreamTool, slf.clientMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -170,7 +187,7 @@ func (slf *transportorNats) SendToClients(sessionIDs []string, msg any) error {
 		return slf.SendToClient(sessionIDs[0], msg)
 	}
 
-	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetClientMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, slf.clientStreamTool, slf.clientMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -202,7 +219,7 @@ func (slf *transportorNats) NotifyClientLoginLogout(sessionID string, userId int
 	msg.NodeType = slf.nodeInfo.GetNodeType()
 	msg.NodeId = slf.nodeInfo.GetNodeId()
 	msg.GateNodeId = sessionInfo.GetGateNodeID()
-	bbTrans, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	bbTrans, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
 	if err != nil {
 		return err
 	}

@@ -17,26 +17,39 @@ type transportorShard struct {
 	conns   [transport.BackendShardCnt]*gatewayClient // 每个shard一个客户端，用于连接网关
 	muConns sync.RWMutex
 
-	sessionMgr  *gametrans.SessionManager
-	msgReceiver *msgreceiver.MsgReceiver[string]
-	gatewayAddr string
-	nodeId      string
-	nodeType    string
-	stopped     bool
+	sessionMgr       *gametrans.SessionManager
+	msgReceiver      *msgreceiver.MsgReceiver[string]
+	gatewayAddr      string
+	nodeId           string
+	nodeType         string
+	stopped          bool
+	transMsgPacket   *kkpacket.MessagePacket
+	clientMsgPacket  *kkpacket.MessagePacket
+	transStreamTool  kkpacket.IPacket
+	clientStreamTool kkpacket.IPacket
 }
 
 func NewTransportorShard(
 	sessionMgr *gametrans.SessionManager,
 	msgReceiver *msgreceiver.MsgReceiver[string],
-	gatewayAddr, nodeID, nodeType string,
+	gatewayAddr string,
+	nodeInfo kkapp.INodeIdentity,
+	transMsgPacket *kkpacket.MessagePacket,
+	clientMsgPacket *kkpacket.MessagePacket,
+	transStreamTool kkpacket.IPacket,
+	clientStreamTool kkpacket.IPacket,
 ) (gametrans.ITransportor, error) {
-	ptotrans.InitShardMsgs()
+	ptotrans.InitShardMsgs(transMsgPacket.GetRouter())
 	trans := &transportorShard{
-		sessionMgr:  sessionMgr,
-		msgReceiver: msgReceiver,
-		gatewayAddr: gatewayAddr,
-		nodeId:      nodeID,
-		nodeType:    nodeType,
+		sessionMgr:       sessionMgr,
+		msgReceiver:      msgReceiver,
+		gatewayAddr:      gatewayAddr,
+		nodeId:           nodeInfo.GetNodeId(),
+		nodeType:         nodeInfo.GetNodeType(),
+		transMsgPacket:   transMsgPacket,
+		clientMsgPacket:  clientMsgPacket,
+		transStreamTool:  transStreamTool,
+		clientStreamTool: clientStreamTool,
 	}
 
 	for i := 0; i < transport.BackendShardCnt; i++ {
@@ -95,7 +108,7 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 	}
 	payload := packet //EncodeStream会进行复制，这里可以直接传引用
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
-	bb, err := kkpacket.EncodeStream(rpcMsg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	bb, err := kkpacket.EncodeStream(rpcMsg, slf.transStreamTool, slf.transMsgPacket)
 	if err != nil {
 		return err
 	}
@@ -144,7 +157,7 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	if conn == nil {
 		return kkerrors.ErrNetConnNotFound
 	}
-	bb, err := kkpacket.EncodeStream(msg, kkapp.GetStreamTool(), kkapp.GetClientMsgPacket())
+	bb, err := kkpacket.EncodeStream(msg, slf.clientStreamTool, slf.clientMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)
 		return err
@@ -152,7 +165,7 @@ func (slf *transportorShard) SendToClient(sessionID string, msg any) error {
 	// 下行必须走转发协议 RpcS2Client，网关按 msgID=2 解析后 ForwardToClient(Payload) 再写 WS
 	payload := bb.B //EncodeStream编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	rpcMsg := &ptotrans.RpcS2Client{ClientId: sessionID, Payload: payload}
-	bbTrans, err := kkpacket.EncodeStream(rpcMsg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	bbTrans, err := kkpacket.EncodeStream(rpcMsg, slf.transStreamTool, slf.transMsgPacket)
 	kkbuffer.Put(bb)
 	if err != nil {
 		return err
@@ -205,7 +218,7 @@ func (slf *transportorShard) NotifyClientLoginLogout(sessionID string, userId in
 	msg.NodeType = slf.nodeType
 	msg.NodeId = slf.nodeId
 	msg.GateNodeId = sessionInfo.GetGateNodeID()
-	bbTrans, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	bbTrans, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
 	if err != nil {
 		return err
 	}

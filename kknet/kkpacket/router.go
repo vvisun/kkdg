@@ -61,8 +61,8 @@ func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 		return kkerrors.ErrPktInvalidMessage
 	}
 
-	if _, ok := r.idToType[id]; ok {
-		kklog.Errorf("message id %v is already registered", id)
+	if _, ok := r.idToType[id]; ok && r.idToType[id] != msgType {
+		kklog.Errorf("message id %v is already registered with different type %v", id, r.idToType[id])
 		return kkerrors.ErrPktMsgIDAlreadyRegistered
 	}
 

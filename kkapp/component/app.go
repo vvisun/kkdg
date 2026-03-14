@@ -28,21 +28,22 @@ func getGlobalActorFramework() *kkactor.ActorFramework {
 //
 //	each application is a node, a actor.
 //	if actorFramework is nil, will use default getGlobalActorFramework()
-func NewApplication(nodeInfo *kkapp.NodeInfo, actorFramework *kkactor.ActorFramework) *Application {
+func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts kkapp.AppOptions) *Application {
 	if nodeInfo == nil {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		kklog.PanicLog("nodeInfo is nil")
 	}
-	if actorFramework == nil {
+	if af == nil {
 		kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application actorFramework is nil, use default", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
-		actorFramework = getGlobalActorFramework()
+		af = getGlobalActorFramework()
 	}
-	actorFramework.GetLocator().AddNode(nodeInfo)
+	af.GetLocator().AddNode(nodeInfo)
 	app := &Application{
 		nodeInfo:       nodeInfo,
-		actorFramework: actorFramework,
+		actorFramework: af,
 		state:          ComponentStateNone,
 		compList:       make([]kkapp.IComponent, 0),
+		opts:           &opts,
 	}
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
@@ -58,6 +59,7 @@ type Application struct {
 	mu             sync.RWMutex
 
 	configDir string // 配置文件所在目录
+	opts      *kkapp.AppOptions
 }
 
 var _ kkapp.IApplication = (*Application)(nil)
@@ -92,6 +94,10 @@ func (slf *Application) GetActorFramework() *kkactor.ActorFramework {
 
 func (slf *Application) GetPID() *actor.PID {
 	return slf.pid
+}
+
+func (slf *Application) GetOptions() *kkapp.AppOptions {
+	return slf.opts
 }
 
 func (slf *Application) GetCompPID(compName string) *actor.PID {

@@ -26,6 +26,7 @@ type IApplication interface {
 
 	SetConfigDir(configDir string)
 	GetConfigDir() string
+	GetOptions() *AppOptions
 }
 
 type IComponentLifecycle interface {

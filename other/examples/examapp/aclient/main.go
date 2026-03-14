@@ -30,7 +30,6 @@ var (
 
 func main() {
 	examapp.ParseFlags(nil)
-	ptoexam.InitMsgs(kkapp.GetClientMsgPacket().GetRouter())
 
 	clientMap = make(map[kknet.IClient]map[string]any)
 
@@ -57,10 +56,13 @@ func main() {
 var autoUserId int64 = 0
 
 func runOneClient() kknet.IClient {
-	streamTool := kkapp.GetStreamTool()
-	messageTool := kkapp.GetClientMsgPacket()
+	appOpts := kkapp.ApplyOptions()
+	streamTool := appOpts.StreamTool
+	messageTool := appOpts.ClientMsgPacket
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	msgReceiver := msgreceiver.NewMsgReceiver[kknet.CONN_ID](packetTool)
+	ptoexam.InitMsgs(appOpts.ClientMsgPacket.GetRouter())
+
 	gh := &gameHandler{}
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginResp)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)

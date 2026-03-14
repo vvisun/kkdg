@@ -3,7 +3,6 @@ package gametransshard
 import (
 	"time"
 
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -95,7 +94,9 @@ func (h *gatewayHandler) sendRpcMsgRegister() error {
 		NodeId:   h.cli.trans.nodeId,
 		NodeType: h.cli.trans.nodeType,
 	}
-	bb, err := kkpacket.EncodeStream(&msg, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+	transStreamTool := h.cli.trans.transStreamTool
+	transMsgPacket := h.cli.trans.transMsgPacket
+	bb, err := kkpacket.EncodeStream(&msg, transStreamTool, transMsgPacket)
 	if err != nil {
 		kklog.Warnf("[分流%d] 编码 RpcMsgRegister: %v", h.shardIdx, err)
 		return err
@@ -114,17 +115,19 @@ func (h *gatewayHandler) OnClose(conn kknet.IConn, err error) {
 
 func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	defer kkbuffer.Put(data)
+	transStreamTool := h.cli.trans.transStreamTool
+	transMsgPacket := h.cli.trans.transMsgPacket
 	pkt := data.B
-	messageBytes, err := kkapp.GetStreamTool().MessageBytes(pkt)
+	messageBytes, err := transStreamTool.MessageBytes(pkt)
 	if err != nil {
 		return
 	}
-	msgID, err := kkapp.GetTransMsgPacket().GetMsgID(messageBytes)
+	msgID, err := transMsgPacket.GetMsgID(messageBytes)
 	if err != nil {
 		kklog.Warnf("[分流%d] GetMsgID: %v", h.shardIdx, err)
 		return
 	}
-	bodyBytes, err := kkapp.GetTransMsgPacket().BodyBytes(messageBytes)
+	bodyBytes, err := transMsgPacket.BodyBytes(messageBytes)
 	if err != nil {
 		return
 	}
@@ -134,7 +137,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 	switch msgID {
 	case ptotrans.MsgIDRpcC2S: // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
 		var msg ptotrans.RpcC2S
-		err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		err = transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		if err != nil {
 			kklog.Warnf("[分流%d] 解析 RpcC2S: %v", h.shardIdx, err)
 			return
@@ -145,7 +148,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 		trans.msgReceiver.OnSession(msg.ClientId, msg.Payload)
 	case ptotrans.MsgIDRpcClientDisconnect: // 客户端断开事件
 		var msg ptotrans.RpcClientDisconnect
-		err = kkapp.GetTransMsgPacket().GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		err = transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		if err != nil {
 			kklog.Warnf("[分流%d] 解析 RpcClientDisconnect: %v", h.shardIdx, err)
 			return

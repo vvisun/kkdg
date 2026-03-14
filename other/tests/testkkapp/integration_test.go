@@ -56,12 +56,7 @@ type (
 	}
 )
 
-func InitMsgs(t *testing.T) {
-	router := kkapp.GetClientMsgPacket().GetRouter()
-	// 避免在单测和 benchmark 混合运行时重复注册相同消息 ID。
-	if router.GetMsgType(1) != nil {
-		return
-	}
+func InitMsgs(router *kkpacket.MsgRouter) {
 	_ = router.Register(1, &MsgTest1{}, "logic")
 	_ = router.Register(2, &MsgTest2{}, "logic")
 	_ = router.Register(3, &MsgTest3{}, "logic")
@@ -97,15 +92,14 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	// const transType = transport.TransTypeRpc
 	// const transType = transport.TransTypeNats
 	// const transType = transport.TransTypeShard
-	const transType = transport.TransTypeRpc
+	const transType = transport.TransTypeNats
 
-	var streamTool kkpacket.IPacket = kkpacket.DefaultStreamPacket()
-
-	InitMsgs(t)
+	appOpts := kkapp.ApplyOptions()
 
 	// gate 节点
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", nil)
-	gateApp := component.NewApplication(gateNode, nil)
+	gateApp := component.NewApplication(gateNode, nil, appOpts)
+	InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
 	gateOpt := ccgate.Option{
 		TCPAddr:       tcpAddr,
 		RpcAddr:       rpcAddr,
@@ -125,7 +119,8 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
-	gameApp := component.NewApplication(gameNode, nil)
+	gameApp := component.NewApplication(gameNode, nil, appOpts)
+	InitMsgs(gameApp.GetOptions().TransMsgPacket.GetRouter())
 	game := ccgame.NewGameComponent(ccgame.Option{
 		TransType:    transType,
 		RpcAddr:      rpcAddr,
@@ -160,9 +155,13 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	var recvData []byte
 	recvCh := make(chan struct{})
 
+	clientAppOpts := kkapp.ApplyOptions()
+	InitMsgs(clientAppOpts.ClientMsgPacket.GetRouter())
+	streamTool := clientAppOpts.StreamTool
+
 	handler := &clientHandler{
 		onRaw: func(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-			msg, e := kkpacket.DecodeStream(data, streamTool, kkapp.GetClientMsgPacket())
+			msg, e := kkpacket.DecodeStream(data, streamTool, clientAppOpts.ClientMsgPacket)
 
 			if e != nil {
 				t.Logf("unpack recv: %v", e)
@@ -197,7 +196,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	bb, err := kkpacket.EncodeStream(
 		&MsgTest1{ID: 1, Data: string(payload)},
 		streamTool,
-		kkapp.GetClientMsgPacket(),
+		clientAppOpts.ClientMsgPacket,
 	)
 	if err != nil {
 		t.Fatalf("pack: %v", err)

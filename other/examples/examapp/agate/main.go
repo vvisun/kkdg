@@ -18,7 +18,6 @@ import (
 
 func main() {
 	examapp.ParseFlags(nil)
-	ptoexam.InitMsgs(kkapp.GetClientMsgPacket().GetRouter())
 
 	// gate 节点
 	gateApp := runGate()
@@ -38,7 +37,8 @@ func main() {
 
 func runGate() *component.Application {
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, examapp.GateTCPAddr, "", nil)
-	gateApp := component.NewApplication(gateNode, nil)
+	gateApp := component.NewApplication(gateNode, nil, kkapp.ApplyOptions())
+	ptoexam.InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
 	gateOpt := ccgate.Option{
 		TCPAddr:       examapp.GateTCPAddr,
 		WSAddr:        examapp.GateWSAddr,

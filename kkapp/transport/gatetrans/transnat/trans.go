@@ -3,7 +3,6 @@ package transnat
 import (
 	"strings"
 
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -16,21 +15,30 @@ import (
 
 // transportorNats 使用Nats集群转发消息
 type transportorNats struct {
-	cluster    kkcluster.ICluster // cluster for forwarding messages to logic and client
-	sessionMgr gatetrans.ISessionManager
-	stopped    bool
-	msgHooker  *gatetrans.MsgHooker
+	cluster         kkcluster.ICluster // cluster for forwarding messages to logic and client
+	sessionMgr      gatetrans.ISessionManager
+	stopped         bool
+	msgHooker       *gatetrans.MsgHooker
+	transMsgPacket  *kkpacket.MessagePacket
+	transStreamTool kkpacket.IPacket
 }
 
 var _ gatetrans.ITransportor = (*transportorNats)(nil)
 
-func NewTransportorNats(cluster kkcluster.ICluster, sessionMgr gatetrans.ISessionManager) (gatetrans.ITransportor, error) {
+func NewTransportorNats(
+	cluster kkcluster.ICluster,
+	sessionMgr gatetrans.ISessionManager,
+	transMsgPacket *kkpacket.MessagePacket,
+	transStreamTool kkpacket.IPacket,
+) (gatetrans.ITransportor, error) {
 	trans := &transportorNats{
-		cluster:    cluster,
-		sessionMgr: sessionMgr,
-		msgHooker:  gatetrans.NewMsgHooker(),
+		cluster:         cluster,
+		sessionMgr:      sessionMgr,
+		msgHooker:       gatetrans.NewMsgHooker(),
+		transMsgPacket:  transMsgPacket,
+		transStreamTool: transStreamTool,
 	}
-	ptotrans.InitShardMsgs()
+	ptotrans.InitShardMsgs(transMsgPacket.GetRouter())
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans, nil
 }
@@ -60,7 +68,7 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 	case ptotrans.FuncNameClientLoginLogout:
 		bb := kkbuffer.GetWithCapacity(len(packet.ArgBytes))
 		bb.WriteBytes(packet.ArgBytes)
-		msg, err := kkpacket.DecodeStream(bb, kkapp.GetStreamTool(), kkapp.GetTransMsgPacket())
+		msg, err := kkpacket.DecodeStream(bb, slf.transStreamTool, slf.transMsgPacket)
 		if err != nil {
 			kklog.Errorf("[ccgate] decode client login logout error: %v", err)
 			return

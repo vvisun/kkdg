@@ -30,7 +30,7 @@ func (c *docTestComp) Receive(ctx actor.Context) {
 // TestDoc_ApplicationIsOneNode 验证：每个应用程序视为 1 个节点。
 func TestDoc_ApplicationIsOneNode(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "", nil)
-	app := NewApplication(nodeInfo, nil)
+	app := NewApplication(nodeInfo, nil, kkapp.ApplyOptions())
 
 	if app.GetNodeId() != "node1" {
 		t.Errorf("GetNodeId() = %s, want node1", app.GetNodeId())
@@ -46,7 +46,7 @@ func TestDoc_ApplicationIsOneNode(t *testing.T) {
 
 // TestDoc_NodeCanHaveMultipleComponents 验证：每个节点可以包含多个组件。
 func TestDoc_NodeCanHaveMultipleComponents(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil)
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
 
 	if err := app.AddComponent(&docTestComp{name: "comp1"}); err != nil {
 		t.Fatalf("add comp1: %v", err)
@@ -79,7 +79,7 @@ func TestDoc_NodeCanHaveMultipleComponents(t *testing.T) {
 
 // TestDoc_ComponentIsActor 验证：每个组件视为 1 个 actor（可寻址、有 PID）。
 func TestDoc_ComponentIsActor(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil)
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
 	comp := &docTestComp{name: "logic"}
 	if err := app.AddComponent(comp); err != nil {
 		t.Fatalf("add component: %v", err)
@@ -106,8 +106,8 @@ func TestDoc_ComponentIsActor(t *testing.T) {
 
 // TestDoc_MultipleNodesInOneProcess 验证：同一进程内可运行多个节点（单机多节点部署）。
 func TestDoc_MultipleNodesInOneProcess(t *testing.T) {
-	node1 := NewApplication(kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "", nil), nil)
-	node2 := NewApplication(kkapp.NewNodeInfo("node2", "game", "127.0.0.1:8081", "", nil), nil)
+	node1 := NewApplication(kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
+	node2 := NewApplication(kkapp.NewNodeInfo("node2", "game", "127.0.0.1:8081", "", nil), nil, kkapp.ApplyOptions())
 
 	_ = node1.AddComponent(&docTestComp{name: "comp1"})
 	_ = node2.AddComponent(&docTestComp{name: "comp2"})
@@ -140,9 +140,9 @@ func TestDoc_MultipleNodesInOneProcess(t *testing.T) {
 func TestDoc_DeploymentLayoutTransparency(t *testing.T) {
 	// 布局 A：3 个节点，每节点 1 个组件
 	nodesA := []*Application{
-		NewApplication(kkapp.NewNodeInfo("n1", "t", "127.0.0.1:9001", "", nil), nil),
-		NewApplication(kkapp.NewNodeInfo("n2", "t", "127.0.0.1:9002", "", nil), nil),
-		NewApplication(kkapp.NewNodeInfo("n3", "t", "127.0.0.1:9003", "", nil), nil),
+		NewApplication(kkapp.NewNodeInfo("n1", "t", "127.0.0.1:9001", "", nil), nil, kkapp.ApplyOptions()),
+		NewApplication(kkapp.NewNodeInfo("n2", "t", "127.0.0.1:9002", "", nil), nil, kkapp.ApplyOptions()),
+		NewApplication(kkapp.NewNodeInfo("n3", "t", "127.0.0.1:9003", "", nil), nil, kkapp.ApplyOptions()),
 	}
 	_ = nodesA[0].AddComponent(&docTestComp{name: "comp1"})
 	_ = nodesA[1].AddComponent(&docTestComp{name: "comp2"})
@@ -175,8 +175,8 @@ func TestDoc_DeploymentLayoutTransparency(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 
 	// 布局 B：2 个节点，node1 挂 comp1+comp2，node2 挂 comp3
-	node1B := NewApplication(kkapp.NewNodeInfo("n1", "t", "127.0.0.1:9001", "", nil), nil)
-	node2B := NewApplication(kkapp.NewNodeInfo("n2", "t", "127.0.0.1:9002", "", nil), nil)
+	node1B := NewApplication(kkapp.NewNodeInfo("n1", "t", "127.0.0.1:9001", "", nil), nil, kkapp.ApplyOptions())
+	node2B := NewApplication(kkapp.NewNodeInfo("n2", "t", "127.0.0.1:9002", "", nil), nil, kkapp.ApplyOptions())
 	_ = node1B.AddComponent(&docTestComp{name: "comp1"})
 	_ = node1B.AddComponent(&docTestComp{name: "comp2"})
 	_ = node2B.AddComponent(&docTestComp{name: "comp3"})
