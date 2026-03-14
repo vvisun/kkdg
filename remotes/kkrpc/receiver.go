@@ -77,10 +77,6 @@ func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameTy
 		return nil, err
 	}
 
-	if frameType == FrameTypeOneway {
-		return nil, nil
-	}
-
 	respBytes, err := h.payloadCodec.Marshal(&resp)
 	if err != nil {
 		return nil, err
