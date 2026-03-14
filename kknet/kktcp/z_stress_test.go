@@ -159,7 +159,6 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		kknet.WithRawHandler(svrHandler),
 		kknet.WithNoneCopyHandler(&clientHandler{}),
 		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
-		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(64),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
@@ -188,7 +187,6 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	clientOpts := kknet.ApplyOptions(
 		kknet.WithLogger(kklog.Nop()),
 		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
-		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRawHandler(&clientHandler{}),
 		kknet.WithNoneCopyHandler(&clientHandler{}),
 		kknet.WithSendQueueNeedFlushOver(true),
@@ -278,7 +276,6 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 		kknet.WithRawHandler(&noopRawHandler{}),
 		kknet.WithNoneCopyHandler(&clientHandler{}),
 		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
-		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(64),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
@@ -299,7 +296,6 @@ func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 				client := NewClient(addr, nil, kknet.ApplyOptions(
 					kknet.WithLogger(kklog.Nop()),
 					kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
-					kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 					kknet.WithRawHandler(&clientHandler{}),
 					kknet.WithNoneCopyHandler(&clientHandler{}),
 					kknet.WithRecvQueueSize(64),

@@ -127,7 +127,6 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	opts := kknet.ApplyOptions(
 		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
 		kknet.WithNoneCopyHandler(svrHandler),
-		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(512),
 		kknet.WithLogger(kklog.Nop()),
 		kknet.WithBufferSizes(2*1024, 2*1024),

@@ -82,7 +82,7 @@ func (c *gnetClientConn) Close() error {
 		go c.rp.Stop()
 	}
 	if c.opts.WpOptions.SendQueueNeedFlushOver {
-		// !enableWP 且需要 flush：等待所有待发送的 AsyncWrite 完成（带超时）
+		// 需要 flush：等待所有待发送的 AsyncWrite 完成（带超时）
 		timeout := c.opts.WpOptions.SendQueueTimeoutFlushOver
 		if timeout <= 0 {
 			timeout = 10 * time.Second
