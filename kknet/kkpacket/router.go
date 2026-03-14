@@ -50,6 +50,7 @@ func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 		kklog.Errorf("message id is 0")
 		return kkerrors.ErrPktInvalidMsgID
 	}
+
 	if !xreflect.IsPointer(msgPtr) {
 		kklog.Errorf("message pointer required, got %T", msgPtr)
 		return kkerrors.ErrPktInvalidMessage
@@ -59,13 +60,16 @@ func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 		kklog.Errorf("message pointer required, got %v", msgType)
 		return kkerrors.ErrPktInvalidMessage
 	}
+
 	if _, ok := r.idToType[id]; ok {
 		kklog.Errorf("message id %v is already registered", id)
 		return kkerrors.ErrPktMsgIDAlreadyRegistered
 	}
+
 	r.typeToId[msgType] = id
 	r.idToType[id] = msgType
 	r.idToRoute[id] = route
+
 	return nil
 }
 

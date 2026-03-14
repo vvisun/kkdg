@@ -86,8 +86,7 @@ func (m *mockMemberMgr) Range(fn func(nodeID string, member kkdiscovery.IMember)
 func (m *mockMemberMgr) ListByType(string) []kkdiscovery.IMember {
 	return []kkdiscovery.IMember{m.member}
 }
-func (m *mockMemberMgr) Random(string) (kkdiscovery.IMember, bool) { return m.member, m.member != nil }
-func (m *mockMemberMgr) GetType(string) (string, error)            { return m.member.GetNodeType(), nil }
+func (m *mockMemberMgr) GetType(string) (string, error) { return m.member.GetNodeType(), nil }
 func (m *mockMemberMgr) GetMember(string) (kkdiscovery.IMember, bool) {
 	return m.member, m.member != nil
 }

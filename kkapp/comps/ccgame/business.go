@@ -26,11 +26,7 @@ func NewGameComponent(opt Option) *gameComponent {
 	if err := validateOption(&opt); err != nil {
 		kklog.PanicErr(err)
 	}
-	streamTool := kkapp.GetStreamTool()
-	messageTool := kkapp.GetClientMsgPacket()
-	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	return &gameComponent{
-		msgReceiver:    msgreceiver.NewMsgReceiver[string](packetTool),
 		sessionManager: gametrans.NewSessionManager(),
 		opt:            opt,
 	}
@@ -86,6 +82,12 @@ func (slf *gameComponent) OnInit() error {
 		clusterOpts,
 		kkcluster.ApplyOptions(),
 	)
+
+	streamTool := kkapp.GetStreamTool()
+	messageTool := kkapp.GetClientMsgPacket()
+	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
+	msgReceiver := msgreceiver.NewMsgReceiver[string](packetTool)
+	slf.msgReceiver = msgReceiver
 
 	// 初始化 transportor
 	switch slf.opt.TransType {
