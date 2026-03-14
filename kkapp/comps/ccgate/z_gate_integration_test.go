@@ -66,6 +66,7 @@ func (m *mockMember) GetWeight() int                   { return m.weight }
 func (m *mockMember) SetWeight(int)                    {}
 func (m *mockMember) GetStatus() int                   { return kkdiscovery.NodeStatusOnline }
 func (m *mockMember) SetStatus(int)                    {}
+func (m *mockMember) GetRpcAddress() string            { return "" }
 
 type mockMemberMgr struct {
 	member kkdiscovery.IMember
