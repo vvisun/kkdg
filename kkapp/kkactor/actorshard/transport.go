@@ -1,6 +1,7 @@
 package actorshard
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -9,6 +10,9 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
+
+// actorshard transport not implemented. 未来有需求再实现。
+var errActorShardTransportNotImplemented = errors.New("actor shard transport not implemented")
 
 type Transport struct {
 	nodeID   string
@@ -40,7 +44,7 @@ func (t *Transport) Start() error {
 	if !kkapp.IsValidActorNodeId(t.nodeID) || t.nodeID == "" {
 		return kkerrors.ErrActorInvalidNodeId
 	}
-	return nil
+	return errActorShardTransportNotImplemented
 }
 
 func (t *Transport) Close() error {
@@ -48,17 +52,17 @@ func (t *Transport) Close() error {
 }
 
 func (t *Transport) Send(target actorremotes.ActorRef, msg any) error {
-	return nil
+	return errActorShardTransportNotImplemented
 }
 
 func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.Duration) (any, error) {
-	return nil, nil
+	return nil, errActorShardTransportNotImplemented
 }
 
 func (t *Transport) RequestAsync(target actorremotes.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
 	if callback == nil {
 		return kkerrors.ErrActorAsyncCallbackNil
 	}
-	callback(nil, nil)
-	return nil
+	callback(nil, errActorShardTransportNotImplemented)
+	return errActorShardTransportNotImplemented
 }
