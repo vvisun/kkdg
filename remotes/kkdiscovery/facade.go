@@ -9,6 +9,14 @@ type (
 	// MemberListener 成员增、删监听函数
 	MemberListener func(member IMember)
 
+	// IInnerMemberMgr 内部成员管理器接口。不对外使用，防止污染成员
+	IInnerMemberMgr interface {
+		// 添加成员，true时为新增，false时为更新
+		AddMember(info *MemberInfo) (IMember, bool)
+		// 删除成员，true时成员存在，false时成员不存在
+		RemoveMember(nodeID string) bool
+	}
+
 	// MemberMgr 成员管理器接口
 	IMemberMgr interface {
 		// 获取成员数量

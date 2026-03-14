@@ -26,7 +26,7 @@ func TestMemberMgr_AddGetRemove(t *testing.T) {
 	}
 
 	info := newTestMemberInfo("n1", "logic", "127.0.0.1:1", 10, NodeStatusOnline)
-	member := mgr.AddMember(info)
+	member, _ := mgr.AddMember(info)
 	if member == nil {
 		t.Fatal("AddMember returned nil")
 	}
@@ -45,7 +45,7 @@ func TestMemberMgr_AddGetRemove(t *testing.T) {
 
 	// update existing member
 	info2 := newTestMemberInfo("n1", "logic2", "127.0.0.1:2", 20, NodeStatusOffline)
-	_ = mgr.AddMember(info2)
+	_, _ = mgr.AddMember(info2)
 	got2, ok := mgr.GetMember("n1")
 	if !ok || got2 == nil {
 		t.Fatal("GetMember(n1) after update = nil, false")
@@ -161,7 +161,7 @@ func BenchmarkMemberMgr_AddMember(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		id := fmt.Sprintf("node-%d", base+i%1024) // 控制总成员数量，模拟热点更新
 		info := newTestMemberInfo(id, "logic", "addr", 1, NodeStatusOnline)
-		_ = mgr.AddMember(info)
+		_, _ = mgr.AddMember(info)
 	}
 }
 

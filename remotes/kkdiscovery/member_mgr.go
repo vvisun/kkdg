@@ -22,6 +22,7 @@ type MemberMgr struct {
 }
 
 var _ IMemberMgr = (*MemberMgr)(nil)
+var _ IInnerMemberMgr = (*MemberMgr)(nil)
 
 func NewMemberMgr() *MemberMgr {
 	return &MemberMgr{
@@ -38,7 +39,7 @@ func (m *MemberMgr) SetLogger(logger kklog.ILogger) {
 }
 
 // 添加或更新成员
-func (m *MemberMgr) AddMember(info *MemberInfo) IMember {
+func (m *MemberMgr) AddMember(info *MemberInfo) (IMember, bool) {
 	m.membersMu.Lock()
 	member, existed := m.members[info.NodeID]
 	if !existed {
@@ -85,11 +86,11 @@ func (m *MemberMgr) AddMember(info *MemberInfo) IMember {
 			m.logger.Debugf("discovery upd member... %v", info)
 		}
 	}
-	return member
+	return member, !existed
 }
 
 // 删除成员
-func (m *MemberMgr) RemoveMember(nodeID string) {
+func (m *MemberMgr) RemoveMember(nodeID string) bool {
 	m.membersMu.Lock()
 	member, existed := m.members[nodeID]
 	if existed {
@@ -112,6 +113,7 @@ func (m *MemberMgr) RemoveMember(nodeID string) {
 			m.logger.Debugf("discovery del member... %v", member)
 		}
 	}
+	return existed
 }
 
 // 获取成员

@@ -115,8 +115,8 @@ func (d *NatsDiscovery) addMemberInfo(info *kkdiscovery.MemberInfo) {
 	if info == nil {
 		return
 	}
-	_, existed := d.memberMgr.GetMember(info.NodeID)
-	d.memberMgr.AddMember(info)
+
+	_, existed := d.memberMgr.AddMember(info)
 
 	d.memberTimesMu.Lock()
 	d.memberTimes[info.NodeID] = time.Now()
@@ -132,12 +132,11 @@ func (d *NatsDiscovery) removeMember(nodeID string) {
 	if nodeID == "" {
 		return
 	}
-	_, existed := d.memberMgr.GetMember(nodeID)
+
+	existed := d.memberMgr.RemoveMember(nodeID)
 	if !existed {
 		return
 	}
-
-	d.memberMgr.RemoveMember(nodeID)
 
 	d.memberTimesMu.Lock()
 	delete(d.memberTimes, nodeID)
