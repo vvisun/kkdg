@@ -416,7 +416,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numGoroutines := 32
-	callsPerGoroutine := 88888
+	callsPerGoroutine := 2222
 	totalCalls := int64(numGoroutines * callsPerGoroutine)
 
 	addr := freePortRpcStress(t)

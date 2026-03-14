@@ -144,16 +144,34 @@ func (p *pendingMap) closeAll() {
 	if p.closed.Swap(true) {
 		return
 	}
+	// 收集所有 callback，在锁外调用，避免 callback 内阻塞导致死锁
+	type cbItem struct {
+		reqId uint64
+		fn    func(Frame)
+	}
+	var callbacks []cbItem
 	for _, s := range p.shards {
 		s.mu.Lock()
 		for _, ch := range s.chMap {
 			close(ch)
 		}
 		s.chMap = make(map[uint64]chan Frame)
+		for reqId, fn := range s.cbMap {
+			if fn != nil {
+				callbacks = append(callbacks, cbItem{reqId: reqId, fn: fn})
+			}
+		}
 		s.cbMap = make(map[uint64]func(Frame))
 		s.mu.Unlock()
 	}
 	atomic.StoreInt64(&p.curPendingCount, 0)
+
+	// 在锁外调用 callback，通知用户连接已关闭；callback 会 close(doneCh) 唤醒 InvokeAsync 的 goroutine
+	closedFrame := Frame{T: FrameTypeResponse, Code: ErrorCodeConnClosed, Err: "connection closed"}
+	for _, item := range callbacks {
+		closedFrame.ID = item.reqId
+		item.fn(closedFrame)
+	}
 }
 
 // deliver 将响应投递给同步等待者（channel）或异步回调，同一 reqId 只会有其一

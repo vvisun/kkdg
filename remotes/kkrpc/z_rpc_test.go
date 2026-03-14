@@ -278,6 +278,46 @@ func Test_InvokeAsync_Error(t *testing.T) {
 	}
 }
 
+func Test_InvokeAsync_ClientClosedDuringCall(t *testing.T) {
+	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
+		time.Sleep(500 * time.Millisecond) // 服务端慢响应，给 Client.Stop 留时间
+		resp.Code = 0
+		resp.Msg = "late"
+		return nil
+	})
+
+	req := testReq{ID: 1, Data: "async-close"}
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	if err != nil {
+		t.Fatalf("create reqrsp invoker: %v", err)
+	}
+
+	done := make(chan struct{})
+	var gotErr error
+
+	err = invoker.InvokeAsync(context.Background(), &req, CallConfig{Timeout: 5 * time.Second}, func(r *testRsp, e error) {
+		gotErr = e
+		close(done)
+	})
+	if err != nil {
+		t.Fatalf("InvokeAsync: %v", err)
+	}
+
+	// 立即关闭 client，触发 closeAll，callback 应被调用并收到 ErrRpcConnClosed
+	time.Sleep(10 * time.Millisecond)
+	_ = cli.Stop()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("InvokeAsync callback not invoked after client closed")
+	}
+
+	if !errors.Is(gotErr, kkerrors.ErrRpcConnClosed) {
+		t.Fatalf("expected ErrRpcConnClosed, got %v", gotErr)
+	}
+}
+
 func Test_InvokeAsync_Timeout(t *testing.T) {
 	_, cli := newTestServerClientWithHandler(t, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		time.Sleep(300 * time.Millisecond)

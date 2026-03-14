@@ -3,6 +3,8 @@ package kkrpc
 import (
 	"errors"
 	"fmt"
+
+	"github.com/vvisun/kkdg/kkerrors"
 )
 
 type ErrorCode = int32
@@ -19,11 +21,15 @@ const (
 	ErrorCodeInvalidFrame                          //无效的帧
 	ErrorCodeInvalidFrameType                      //无效的帧类型
 	ErrorCodeInvalidReqResp                        //无效的请求响应类型
+	ErrorCodeConnClosed                            //连接已关闭（closeAll 时通知 pending callback）
 )
 
 func ErrRpc(code int32, msg string) error {
 	if code == ErrorCodeSuccess {
 		return nil
+	}
+	if code == ErrorCodeConnClosed {
+		return kkerrors.ErrRpcConnClosed
 	}
 	if msg == "" {
 		return fmt.Errorf("rpc error: code=%d", code)
