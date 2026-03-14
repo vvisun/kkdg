@@ -1,7 +1,5 @@
 // Package kkapp 提供应用程序框架。该包主要用于展示如何使用kkdg框架。
 //
-// 注意：在app初始化阶段，调用envconfig.ConfigDefaults()配置默认值。运行期间不要修改。
-//
 // 架构说明:
 //  1. 应用Application = 节点 = 根Actor = 组件容器
 //  2. 组件Component = Application的子Actor

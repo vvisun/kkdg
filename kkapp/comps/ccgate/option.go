@@ -32,7 +32,7 @@ type Option struct {
 
 func DefaultOption() Option {
 	return Option{
-		TransType: transport.TransTypeNats,
+		TransType: transport.TransTypeShard,
 	}
 }
 
