@@ -82,7 +82,8 @@ func EncodeResponseEnvelope(registry *MessageRegistry, result any, callErr error
 	}
 	typeName, payload, err := EncodeMessage(registry, result)
 	if err != nil {
-		return nil, err
+		resp.Error = "encode response envelope failed"
+		return registry.codec.Marshal(&resp)
 	}
 	resp.MessageType = typeName
 	resp.Payload = payload

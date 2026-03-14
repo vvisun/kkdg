@@ -23,7 +23,7 @@ type Server struct {
 var _ IRpcServer = (*Server)(nil)
 var _ ISender = (*Server)(nil)
 
-func NewServer(addr string, opts kknet.Options, rpcRouter *rpcReceiver) *Server {
+func NewServer(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Server {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	s := &Server{
 		rpcOpts:   rpcRouter.rpcOpts,
@@ -43,7 +43,7 @@ func NewServer(addr string, opts kknet.Options, rpcRouter *rpcReceiver) *Server 
 	return s
 }
 
-func NewServerWithCreator(opts kknet.Options, rpcRouter *rpcReceiver, rpcOpts RpcOption, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
+func NewServerWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, rpcOpts RpcOption, svrCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IServer) *Server {
 	CheckRpcOption(&rpcOpts)
 	s := &Server{
 		rpcOpts:   rpcOpts,
@@ -109,7 +109,7 @@ func (s *Server) Stats() RpcStatsSnapshot {
 
 type serverHandler struct {
 	svr       *Server
-	rpcRouter *rpcReceiver
+	rpcRouter *RpcReceiver
 }
 
 func (h *serverHandler) OnConnect(conn kknet.IConn) {

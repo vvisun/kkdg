@@ -36,7 +36,7 @@ func (rp *rpcProcessor) onTestReq(ctx context.Context, msg *testReq, connId kkne
 	return nil
 }
 
-func newTestServerClient(t *testing.T, rpcRouter *rpcReceiver) (*Server, *Client) {
+func newTestServerClient(t *testing.T, rpcRouter *RpcReceiver) (*Server, *Client) {
 	t.Helper()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")

@@ -86,7 +86,7 @@ func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameTy
 
 //---------------------------------------------------------------
 
-type rpcReceiver struct {
+type RpcReceiver struct {
 	stats     *RpcStats //不用创建，从rpcServer/rpcClient中传入
 	hdMap     map[string]IReqRspHandler
 	oneWayMap map[string]IOneWayHandler
@@ -94,9 +94,9 @@ type rpcReceiver struct {
 	methodMgr *MethodManager
 }
 
-func NewRpcReceiver(rpcOpts RpcOption, methodMgr *MethodManager) *rpcReceiver {
+func NewRpcReceiver(rpcOpts RpcOption, methodMgr *MethodManager) *RpcReceiver {
 	CheckRpcOption(&rpcOpts)
-	return &rpcReceiver{
+	return &RpcReceiver{
 		hdMap:     make(map[string]IReqRspHandler),
 		oneWayMap: make(map[string]IOneWayHandler),
 		rpcOpts:   rpcOpts,
@@ -104,7 +104,7 @@ func NewRpcReceiver(rpcOpts RpcOption, methodMgr *MethodManager) *rpcReceiver {
 	}
 }
 
-func (r *rpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
+func (r *RpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pending *pendingMap) *kkbuffer.ByteBuffer {
 	var stats *RpcStats
 	if pending != nil {
 		stats = pending.stats
@@ -163,7 +163,7 @@ func (r *rpcReceiver) OnRaw(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer, pen
 	}
 }
 
-func (r *rpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.ByteBuffer {
+func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.ByteBuffer {
 	// 处理 FrameTypeRequest 类型的请求
 	rspFrame := Frame{
 		T:    FrameTypeResponse,
@@ -216,7 +216,7 @@ func (r *rpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	return rspBB
 }
 
-func (r *rpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) {
+func (r *RpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) {
 	method := fr.M
 	h, ok := r.oneWayMap[method]
 	if !ok || h == nil {

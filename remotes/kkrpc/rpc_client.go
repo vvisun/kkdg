@@ -23,7 +23,7 @@ type Client struct {
 var _ IRpcClient = (*Client)(nil)
 var _ ISender = (*Client)(nil)
 
-func NewClient(addr string, opts kknet.Options, rpcRouter *rpcReceiver) *Client {
+func NewClient(addr string, opts kknet.Options, rpcRouter *RpcReceiver) *Client {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
 		rpcOpts:   rpcRouter.rpcOpts,
@@ -44,7 +44,7 @@ func NewClient(addr string, opts kknet.Options, rpcRouter *rpcReceiver) *Client 
 	return cc
 }
 
-func NewClientWithCreator(opts kknet.Options, rpcRouter *rpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
+func NewClientWithCreator(opts kknet.Options, rpcRouter *RpcReceiver, cliCreator func(handler kknet.IConnLifecycleHandler, opts kknet.Options) kknet.IClient) *Client {
 	CheckRpcOption(&rpcRouter.rpcOpts)
 	cc := &Client{
 		rpcOpts:   rpcRouter.rpcOpts,
@@ -111,7 +111,7 @@ func (c *Client) Stats() RpcStatsSnapshot {
 
 type clientHandler struct {
 	cli       *Client
-	rpcRouter *rpcReceiver
+	rpcRouter *RpcReceiver
 }
 
 func (h *clientHandler) OnConnect(_ kknet.IConn) {
