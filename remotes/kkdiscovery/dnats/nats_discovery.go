@@ -29,6 +29,7 @@ type NatsDiscovery struct {
 	conn       *nats.Conn
 	sub        *nats.Subscription
 	requestSub *nats.Subscription
+	offlineSub *nats.Subscription // 订阅 subjectOffline，收到请求时响应以支持 Stop 提前结束
 
 	memberMgr     *kkdiscovery.MemberMgr
 	memberTimes   map[string]time.Time // 记录成员最后更新时间。key: nodeID, value: last update time
@@ -115,13 +116,13 @@ func (d *NatsDiscovery) addMemberInfo(info *kkdiscovery.MemberInfo) {
 		return
 	}
 
-	_, existed := d.memberMgr.AddMember(info)
+	_, isNew := d.memberMgr.AddMember(info)
 
 	d.memberTimesMu.Lock()
 	d.memberTimes[info.NodeID] = time.Now()
 	d.memberTimesMu.Unlock()
 
-	if !existed {
+	if isNew {
 		d.stats.AddMember()
 	}
 }
@@ -159,11 +160,13 @@ func (d *NatsDiscovery) Stop() error {
 	d.publishSelf() // 将离线通知出去
 
 	//阻塞发一个请求，返回时表示离线通知已发出
-	ctx, cancel := context.WithTimeout(context.Background(), d.discoveryOpt.OfflineTimeout)
-	defer cancel()
-	_, err := d.conn.RequestWithContext(ctx, subjectOffline, []byte(""))
-	if err != nil {
-		kklog.Errorf("NatsDiscovery(%s) send offline notification failed: %v", d.nodeInfo.GetNodeId(), err)
+	if d.conn != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), d.discoveryOpt.OfflineTimeout)
+		defer cancel()
+		_, err := d.conn.RequestWithContext(ctx, subjectOffline, []byte(""))
+		if err != nil {
+			kklog.Errorf("NatsDiscovery(%s) send offline notification failed: %v", d.nodeInfo.GetNodeId(), err)
+		}
 	}
 
 	kkevent.GlobalBus.UnsubscribeAll(kkmetrics.EventDiscoveryMetrics)
@@ -181,6 +184,9 @@ func (d *NatsDiscovery) Stop() error {
 	}
 	if d.requestSub != nil {
 		_ = d.requestSub.Unsubscribe()
+	}
+	if d.offlineSub != nil {
+		_ = d.offlineSub.Unsubscribe()
 	}
 	if d.conn != nil {
 		d.conn.Close()
@@ -287,6 +293,10 @@ func (d *NatsDiscovery) resubscribe() error {
 		_ = d.requestSub.Unsubscribe()
 		d.requestSub = nil
 	}
+	if d.offlineSub != nil {
+		_ = d.offlineSub.Unsubscribe()
+		d.offlineSub = nil
+	}
 
 	// 订阅服务发现主题
 	sub, err := d.conn.Subscribe(subjectDiscovery, d.handleDiscoveryMessage)
@@ -303,7 +313,21 @@ func (d *NatsDiscovery) resubscribe() error {
 	}
 	d.requestSub = requestSub
 
+	// 订阅离线主题，收到请求时响应，使 Stop 中的 Request 可提前返回
+	offlineSub, err := d.conn.Subscribe(subjectOffline, d.handleOfflineRequest)
+	if err != nil {
+		sub.Unsubscribe()
+		requestSub.Unsubscribe()
+		return err
+	}
+	d.offlineSub = offlineSub
+
 	return nil
+}
+
+// handleOfflineRequest 处理 subjectOffline 请求，响应后 Stop 中的 Request 可提前返回
+func (d *NatsDiscovery) handleOfflineRequest(msg *nats.Msg) {
+	_ = msg.Respond([]byte("ok"))
 }
 
 // handleDiscoveryMessage 处理服务发现消息
