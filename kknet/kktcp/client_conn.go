@@ -23,6 +23,8 @@ type gnetClientConn struct {
 	rp kknet.IReadProcessor
 	wp kknet.IWriteProcessor
 
+	writeResultCh chan error // 每连接复用，用于 writeBatch 与事件循环间传递结果（WorkerQueue 串行写，无并发）
+
 	extraData any // 自定义数据
 	extraMu   sync.RWMutex
 }
@@ -32,10 +34,11 @@ var _ kknet.IConn = (*gnetClientConn)(nil)
 func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetClientConn {
 	kknet.CheckOptions(opts)
 	cc := &gnetClientConn{
-		id:    kknet.NextConnID(),
-		conn:  c,
-		opts:  opts,
-		stats: stats,
+		id:            kknet.NextConnID(),
+		conn:          c,
+		opts:          opts,
+		stats:         stats,
+		writeResultCh: make(chan error, 1),
 	}
 	if opts.RpProvider != nil {
 		cc.rp = opts.RpProvider(opts.RpOptions)
@@ -139,8 +142,8 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		return kkerrors.ErrNetConnectionClosed
 	}
 
-	resultCh := make(chan error, 1)
 	el := c.conn.EventLoop()
+	ch := c.writeResultCh
 
 	if n > 1 {
 		bs := make([][]byte, n)
@@ -157,7 +160,7 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 				if c.stats != nil {
 					c.stats.AddError()
 				}
-				resultCh <- writeErr
+				ch <- writeErr
 				return nil
 			}
 			if c.stats != nil {
@@ -167,7 +170,7 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 				kkbuffer.Put(bat[j])
 				bat[j] = nil
 			}
-			resultCh <- nil
+			ch <- nil
 			return nil
 		})); err != nil {
 			if c.stats != nil {
@@ -178,7 +181,7 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			}
 			return err
 		}
-		return <-resultCh
+		return <-ch
 	}
 
 	bb := batch[0]
@@ -192,7 +195,7 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
-			resultCh <- writeErr
+			ch <- writeErr
 			return nil
 		}
 		if c.stats != nil {
@@ -200,7 +203,7 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		}
 		kkbuffer.Put(bb)
 		batch[0] = nil
-		resultCh <- nil
+		ch <- nil
 		return nil
 	})); err != nil {
 		if c.stats != nil {
@@ -209,5 +212,5 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		kkbuffer.Put(bb)
 		return err
 	}
-	return <-resultCh
+	return <-ch
 }
