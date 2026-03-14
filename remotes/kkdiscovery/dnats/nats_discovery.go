@@ -1,6 +1,7 @@
 package dnats
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,6 +18,7 @@ import (
 const (
 	subjectDiscovery        = "kkdiscovery.discovery"         // 服务发现主题
 	subjectDiscoveryRequest = "kkdiscovery.discovery.request" // 服务发现请求主题
+	subjectOffline          = "kkdiscovery.offline"           // 节点离线主题
 )
 
 // NatsDiscovery 基于NATS的服务发现实现
@@ -44,7 +46,8 @@ type NatsDiscovery struct {
 	stopCh chan struct{}
 	doneCh chan struct{}
 
-	options nats.Options
+	options      nats.Options
+	discoveryOpt kkdiscovery.DiscoveryOption
 
 	closing atomic.Bool // 正在关闭标志
 	closed  atomic.Bool // 关闭标志
@@ -63,14 +66,15 @@ func NewNatsDiscovery(
 	discoveryOpt kkdiscovery.DiscoveryOption,
 ) kkdiscovery.IDiscovery {
 	d := &NatsDiscovery{
-		name:        name,
-		nodeInfo:    nodeInfo,
-		memberMgr:   kkdiscovery.NewMemberMgr(),
-		memberTimes: make(map[string]time.Time), // key: nodeID, value: last update time
-		stopCh:      make(chan struct{}),        // 停止通道
-		doneCh:      make(chan struct{}),        // 完成通道
-		options:     natsOpts,                   // NATS配置
-		msgCodec:    discoveryOpt.MsgCodec,      // 消息编码器
+		name:         name,
+		nodeInfo:     nodeInfo,
+		memberMgr:    kkdiscovery.NewMemberMgr(),
+		memberTimes:  make(map[string]time.Time), // key: nodeID, value: last update time
+		stopCh:       make(chan struct{}),        // 停止通道
+		doneCh:       make(chan struct{}),        // 完成通道
+		options:      natsOpts,                   // NATS配置
+		msgCodec:     discoveryOpt.MsgCodec,      // 消息编码器
+		discoveryOpt: discoveryOpt,
 	}
 
 	// 订阅 discovery metrics 事件，通过 Stats 快照填充 MetricsEventData
@@ -152,8 +156,15 @@ func (d *NatsDiscovery) Stop() error {
 	d.closing.Store(true)
 	kklog.Infof("NatsDiscovery(%s) shutdown", d.nodeInfo.GetNodeId())
 
-	d.publishSelf()                    // 将离线通知出去
-	time.Sleep(500 * time.Millisecond) // 等待500毫秒，让离线通知出去
+	d.publishSelf() // 将离线通知出去
+
+	//阻塞发一个请求，返回时表示离线通知已发出
+	ctx, cancel := context.WithTimeout(context.Background(), d.discoveryOpt.OfflineTimeout)
+	defer cancel()
+	_, err := d.conn.RequestWithContext(ctx, subjectOffline, []byte(""))
+	if err != nil {
+		kklog.Errorf("NatsDiscovery(%s) send offline notification failed: %v", d.nodeInfo.GetNodeId(), err)
+	}
 
 	kkevent.GlobalBus.UnsubscribeAll(kkmetrics.EventDiscoveryMetrics)
 

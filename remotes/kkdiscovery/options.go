@@ -1,17 +1,21 @@
 package kkdiscovery
 
 import (
+	"time"
+
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type DiscoveryOption struct {
-	MsgCodec kkcodec.ICodec
+	MsgCodec       kkcodec.ICodec
+	OfflineTimeout time.Duration
 }
 
 func DefaultDiscoveryOption() DiscoveryOption {
 	return DiscoveryOption{
-		MsgCodec: kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		MsgCodec:       kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		OfflineTimeout: 3 * time.Second,
 	}
 }
 
@@ -19,6 +23,9 @@ func CheckDiscoveryOption(opt *DiscoveryOption) {
 	if opt.MsgCodec == nil {
 		kklog.Warnf("[kkdiscovery] msg codec is nil, use default codec: %s", "msgpack")
 		opt.MsgCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	}
+	if opt.OfflineTimeout <= 0 {
+		opt.OfflineTimeout = 3 * time.Second
 	}
 }
 
@@ -40,5 +47,14 @@ func WithMsgCodec(codec kkcodec.ICodec) func(o *DiscoveryOption) {
 			codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 		}
 		o.MsgCodec = codec
+	}
+}
+
+func WithOfflineTimeout(timeout time.Duration) func(o *DiscoveryOption) {
+	return func(o *DiscoveryOption) {
+		if timeout <= 0 {
+			return
+		}
+		o.OfflineTimeout = timeout
 	}
 }
