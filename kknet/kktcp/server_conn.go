@@ -22,7 +22,7 @@ type tcpConn struct {
 
 	rp kknet.IReadProcessor
 
-	// !enableWP 时：跟踪待发送的 AsyncWrite，Close 时等待其完成
+	// 跟踪待发送的 AsyncWrite，Close 时等待其完成
 	pendingWrites atomic.Int32
 	closeMu       sync.Mutex
 	closeCond     *sync.Cond

@@ -26,10 +26,9 @@ type gwsConn struct {
 	closeOnce sync.Once
 	closing   atomic.Bool
 
-	writeMu sync.Mutex
-	rp      kknet.IReadProcessor
+	rp kknet.IReadProcessor
 
-	// !enableWP 时：跟踪待发送的 WriteAsync，Close 时等待其完成
+	// 跟踪待发送的 WriteAsync，Close 时等待其完成
 	pendingWrites atomic.Int32
 	closeMu       sync.Mutex
 	closeCond     *sync.Cond
