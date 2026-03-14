@@ -37,6 +37,7 @@ type WriteProcessor struct {
 
 	writeFn      kknet.WriteFunc
 	onWriteError func(error)
+	stats        *kknet.Stats
 }
 
 var _ kknet.IWriteProcessor = (*WriteProcessor)(nil)
@@ -69,10 +70,12 @@ func (wp *WriteProcessor) Pending() int {
 
 // Start starts the writer goroutine. writeFn must consume the buffers in batch
 // (and clear wp.sendBatchBuffer[0:n] pointers) before returning.
-func (wp *WriteProcessor) Start(conn kknet.IConn, writeFn kknet.WriteFunc, onWriteError func(error)) {
+// onWriteError is called on fatal write errors to close the connection; stats is used for error counting.
+func (wp *WriteProcessor) Start(conn kknet.IConn, writeFn kknet.WriteFunc, onWriteError func(error), stats *kknet.Stats) {
 	wp.conn = conn
 	wp.writeFn = writeFn
 	wp.onWriteError = onWriteError
+	wp.stats = stats
 	go wp.writeLoop()
 }
 
@@ -274,6 +277,9 @@ func (wp *WriteProcessor) writeLoop() {
 			if err := wp.writeFn(wp.sendBatchBuffer[:n], n); err != nil {
 				if !wp.isWriteFnRetryable(err) {
 					wp.drainRelease(n)
+					if wp.stats != nil {
+						wp.stats.AddError()
+					}
 					if wp.onWriteError != nil {
 						wp.onWriteError(err)
 					}
@@ -281,6 +287,9 @@ func (wp *WriteProcessor) writeLoop() {
 				}
 				if !wp.retryWriteFn(n) {
 					wp.drainRelease(n)
+					if wp.stats != nil {
+						wp.stats.AddError()
+					}
 					if wp.onWriteError != nil {
 						wp.onWriteError(err)
 					}

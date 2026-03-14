@@ -20,13 +20,23 @@ type IReadProcessor interface {
 }
 
 type IWriteProcessor interface {
-	Start(conn IConn, writeFn WriteFunc, onWriteError func(error))
+	// @param conn 关联的连接(IConn)
+	// @param writeFn 写数据函数。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
+	// @param onWriteError 写数据错误回调。用于writeProcess发生致命错误时，通知IConn关闭连接。
+	// @param stats 统计信息。用于统计写数据错误次数。目前是IConn里的Stats引用。
+	Start(conn IConn, writeFn WriteFunc, onWriteError func(error), stats *Stats)
+	// @param err 连接关闭的原因。
+	// err为nil时，写处理器停止优雅：flush剩余数据，然后关闭连接。
+	// err不为nil时，写处理器立即停止并关闭连接。
 	Stop(err error)
+
+	// @param buffer 要发送的数据（整包[length,message]）
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
+	// @param msg 要发送的数据（结构体对象）。writeProcessor内部会使用kkpacket编码。
 	SendMsg(msg any) error
 
-	Pending() int          //测试在用
-	Done() <-chan struct{} //测试在用
+	Pending() int          //测试在用。返回当前队列中待发送的数据包数量。即：sendQueue.Len()。
+	Done() <-chan struct{} //测试在用。返回写处理器停止的信号。
 }
 
 type WpProvider func(opts WriteOptions) IWriteProcessor

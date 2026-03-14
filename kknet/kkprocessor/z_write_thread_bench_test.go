@@ -39,7 +39,7 @@ func Benchmark_KKSCSPSendDrain(b *testing.B) {
 		drained.Add(int64(n))
 		return nil
 	}
-	wp.Start(nil, writeFn, func(_ error) {})
+	wp.Start(nil, writeFn, func(_ error) {}, nil)
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {

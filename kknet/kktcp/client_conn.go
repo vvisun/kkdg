@@ -51,11 +51,7 @@ func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gn
 	} else {
 		cc.wp = defaultWpProvider(opts.WpOptions)
 	}
-	cc.wp.Start(cc, cc.writeBatch, func(err error) {
-		if stats != nil {
-			stats.AddError()
-		}
-	})
+	cc.wp.Start(cc, cc.writeBatch, func(_ error) { _ = cc.conn.Close() }, stats)
 
 	return cc
 }
@@ -153,9 +149,6 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		total := totalBytes
 		err := c.conn.AsyncWritev(bs, func(_ gnet.Conn, err error) error {
 			if err != nil {
-				if c.stats != nil {
-					c.stats.AddError()
-				}
 				ch <- err
 				return nil
 			}
@@ -170,9 +163,6 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			return nil
 		})
 		if err != nil {
-			if c.stats != nil {
-				c.stats.AddError()
-			}
 			return err
 		}
 		return <-ch
@@ -184,9 +174,6 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	}
 	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
 		if err != nil {
-			if c.stats != nil {
-				c.stats.AddError()
-			}
 			ch <- err
 			return nil
 		}
@@ -199,9 +186,6 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		return nil
 	})
 	if err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
 		return err
 	}
 	return <-ch

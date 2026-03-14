@@ -54,9 +54,7 @@ func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsC
 		} else {
 			c.wp = defaultWpProvider(opts.WpOptions)
 		}
-		c.wp.Start(c, c.writeBatch, func(_ error) {
-			_ = socket.WriteClose(1011, nil)
-		})
+		c.wp.Start(c, c.writeBatch, func(_ error) { _ = socket.WriteClose(1011, nil) }, c.stats)
 	}
 
 	if opts.RpProvider != nil {
@@ -265,9 +263,6 @@ func (c *gwsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		}
 		err := c.socket.Writev(gws.OpcodeBinary, bs...)
 		if err != nil {
-			if c.stats != nil {
-				c.stats.AddError()
-			}
 			return err
 		}
 		for j := 0; j < n; j++ {
@@ -283,9 +278,6 @@ func (c *gwsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	bb := batch[0]
 	err := c.socket.WriteMessage(gws.OpcodeBinary, bb.B)
 	if err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
 		return err
 	}
 	if c.stats != nil {

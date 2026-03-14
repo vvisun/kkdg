@@ -51,7 +51,7 @@ func TestWriteProcessor_DropMode(t *testing.T) {
 		}
 		return nil
 	}
-	wp.Start(&mockConn{id: 1}, writeFn, nil)
+	wp.Start(&mockConn{id: 1}, writeFn, nil, nil)
 
 	for i := 0; i < 2; i++ {
 		bb := kkbuffer.GetWithCapacity(8)
@@ -107,7 +107,7 @@ func TestWriteProcessor_BlockMode(t *testing.T) {
 		}
 		return nil
 	}
-	wp.Start(&mockConn{id: 1}, writeFn, nil)
+	wp.Start(&mockConn{id: 1}, writeFn, nil, nil)
 
 	for i := 0; i < 2; i++ {
 		bb := kkbuffer.GetWithCapacity(8)
@@ -180,7 +180,7 @@ func TestWriteProcessor_RetryMode(t *testing.T) {
 		}
 		return nil
 	}
-	wp.Start(&mockConn{id: 1}, writeFn, nil)
+	wp.Start(&mockConn{id: 1}, writeFn, nil, nil)
 
 	for i := 0; i < 2; i++ {
 		bb := kkbuffer.GetWithCapacity(8)
@@ -252,7 +252,7 @@ func TestWriteProcessor_WriteFnRetry_Retryable(t *testing.T) {
 		return nil
 	}
 	var onErr error
-	wp.Start(&mockConn{id: 1}, writeFn, func(e error) { onErr = e })
+	wp.Start(&mockConn{id: 1}, writeFn, func(e error) { onErr = e }, nil)
 
 	bb := kkbuffer.GetWithCapacity(8)
 	bb.B = bb.B[:8]
@@ -291,7 +291,7 @@ func TestWriteProcessor_WriteFnRetry_NonRetryable(t *testing.T) {
 	var onErrOnce sync.Once
 	wp.Start(&mockConn{id: 1}, writeFn, func(e error) {
 		onErrOnce.Do(func() { onErr = e })
-	})
+	}, nil)
 
 	bb := kkbuffer.GetWithCapacity(8)
 	bb.B = bb.B[:8]
@@ -337,7 +337,7 @@ func TestWriteProcessor_WriteFnRetry_CustomIsRetryable(t *testing.T) {
 		return nil
 	}
 	var onErr error
-	wp.Start(&mockConn{id: 1}, writeFn, func(e error) { onErr = e })
+	wp.Start(&mockConn{id: 1}, writeFn, func(e error) { onErr = e }, nil)
 
 	bb := kkbuffer.GetWithCapacity(8)
 	bb.B = bb.B[:8]
@@ -374,7 +374,7 @@ func TestWriteProcessor_Pending(t *testing.T) {
 		}
 		return nil
 	}
-	wp.Start(&mockConn{id: 1}, writeFn, nil)
+	wp.Start(&mockConn{id: 1}, writeFn, nil, nil)
 
 	if p := wp.Pending(); p != 0 {
 		t.Errorf("Pending() before send = %d, want 0", p)
@@ -416,7 +416,7 @@ func TestWriteProcessor_SendMsg_UnregisteredType(t *testing.T) {
 		}
 		return nil
 	}
-	wp.Start(&mockConn{id: 1}, writeFn, nil)
+	wp.Start(&mockConn{id: 1}, writeFn, nil, nil)
 	defer wp.Stop(nil)
 
 	err := wp.SendMsg("unregistered-string")
@@ -447,7 +447,7 @@ func TestWriteProcessor_DefaultAction_Unknown(t *testing.T) {
 		}
 		return nil
 	}
-	wp.Start(&mockConn{id: 1}, writeFn, nil)
+	wp.Start(&mockConn{id: 1}, writeFn, nil, nil)
 
 	for i := 0; i < 4; i++ {
 		bb := kkbuffer.GetWithCapacity(8)
@@ -498,7 +498,7 @@ func TestWriteProcessor_FlushTimeout(t *testing.T) {
 		return nil
 	}
 	conn := &mockConn{id: 1}
-	wp.Start(conn, writeFn, nil)
+	wp.Start(conn, writeFn, nil, nil)
 
 	for i := 0; i < 2; i++ {
 		bb := kkbuffer.GetWithCapacity(8)

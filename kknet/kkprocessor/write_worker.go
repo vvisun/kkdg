@@ -40,6 +40,7 @@ type WorkerWriteProcessor struct {
 
 	writeFn      kknet.WriteFunc
 	onWriteError func(error)
+	stats        *kknet.Stats
 }
 
 var _ kknet.IWriteProcessor = (*WorkerWriteProcessor)(nil)
@@ -72,10 +73,12 @@ func (wp *WorkerWriteProcessor) Pending() int {
 // Start starts the write processor. writeFn must consume the buffers in batch
 // (and clear wp.sendBatchBuffer[0:n] pointers) before returning.
 // 使用 workerQueue 调度写任务，不再单独起 writeLoop 协程。
-func (wp *WorkerWriteProcessor) Start(conn kknet.IConn, writeFn kknet.WriteFunc, onWriteError func(error)) {
+// onWriteError is called on fatal write errors to close the connection; stats is used for error counting.
+func (wp *WorkerWriteProcessor) Start(conn kknet.IConn, writeFn kknet.WriteFunc, onWriteError func(error), stats *kknet.Stats) {
 	wp.conn = conn
 	wp.writeFn = writeFn
 	wp.onWriteError = onWriteError
+	wp.stats = stats
 }
 
 func (wp *WorkerWriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
@@ -241,6 +244,9 @@ func (wp *WorkerWriteProcessor) drainJob() {
 	if err := wp.writeFn(wp.sendBatchBuffer[:n], n); err != nil {
 		if !wp.isWriteFnRetryable(err) {
 			wp.drainRelease(n)
+			if wp.stats != nil {
+				wp.stats.AddError()
+			}
 			if wp.onWriteError != nil {
 				wp.onWriteError(err)
 			}
@@ -248,6 +254,9 @@ func (wp *WorkerWriteProcessor) drainJob() {
 		}
 		if !wp.retryWriteFn(n) {
 			wp.drainRelease(n)
+			if wp.stats != nil {
+				wp.stats.AddError()
+			}
 			if wp.onWriteError != nil {
 				wp.onWriteError(err)
 			}
@@ -275,6 +284,9 @@ func (wp *WorkerWriteProcessor) shutdownJob() {
 			if err := wp.writeFn(wp.sendBatchBuffer[:n], n); err != nil {
 				if !wp.isWriteFnRetryable(err) {
 					wp.drainRelease(n)
+					if wp.stats != nil {
+						wp.stats.AddError()
+					}
 					if wp.onWriteError != nil {
 						wp.onWriteError(err)
 					}
@@ -283,6 +295,9 @@ func (wp *WorkerWriteProcessor) shutdownJob() {
 				}
 				if !wp.retryWriteFn(n) {
 					wp.drainRelease(n)
+					if wp.stats != nil {
+						wp.stats.AddError()
+					}
 					if wp.onWriteError != nil {
 						wp.onWriteError(err)
 					}

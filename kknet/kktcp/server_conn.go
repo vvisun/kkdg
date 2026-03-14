@@ -52,11 +52,7 @@ func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
 	} else {
 		tc.wp = defaultWpProvider(opts.WpOptions)
 	}
-	tc.wp.Start(tc, tc.writeBatch, func(err error) {
-		if stats != nil {
-			stats.AddError()
-		}
-	})
+	tc.wp.Start(tc, tc.writeBatch, func(_ error) { _ = tc.conn.Close() }, stats)
 
 	return tc
 }
@@ -154,9 +150,6 @@ func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		total := totalBytes
 		err := c.conn.AsyncWritev(bs, func(_ gnet.Conn, err error) error {
 			if err != nil {
-				if c.stats != nil {
-					c.stats.AddError()
-				}
 				ch <- err
 				return nil
 			}
@@ -171,9 +164,6 @@ func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			return nil
 		})
 		if err != nil {
-			if c.stats != nil {
-				c.stats.AddError()
-			}
 			return err
 		}
 		return <-ch
@@ -185,9 +175,6 @@ func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 	}
 	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
 		if err != nil {
-			if c.stats != nil {
-				c.stats.AddError()
-			}
 			ch <- err
 			return nil
 		}
@@ -200,9 +187,6 @@ func (c *tcpConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		return nil
 	})
 	if err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
 		return err
 	}
 	return <-ch

@@ -45,7 +45,7 @@ func Test_Compare_KKChan_vs_KKSCSPSend_DrainNoLoss(t *testing.T) {
 			drained.Add(int64(n))
 			return nil
 		}
-		wp.Start(nil, writeFn, func(_ error) {})
+		wp.Start(nil, writeFn, func(_ error) {}, nil)
 
 		var pwg sync.WaitGroup
 		var sendErr atomic.Pointer[error]

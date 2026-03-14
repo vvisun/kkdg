@@ -51,14 +51,10 @@ func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *w
 
 	if c.opts.WpProvider != nil {
 		c.wp = c.opts.WpProvider(c.opts.WpOptions)
-		c.wp.Start(c, c.writeBatch, func(_ error) {
-			_ = c.conn.Close()
-		})
+		c.wp.Start(c, c.writeBatch, func(_ error) { _ = c.conn.Close() }, c.stats)
 	} else {
 		c.wp = defaultWpProvider(c.opts.WpOptions)
-		c.wp.Start(c, c.writeBatch, func(_ error) {
-			_ = c.conn.Close()
-		})
+		c.wp.Start(c, c.writeBatch, func(_ error) { _ = c.conn.Close() }, c.stats)
 	}
 
 	return c
@@ -359,9 +355,6 @@ func (c *wsConn) sendBytes(data []byte) error {
 	}
 	err := c.conn.WriteMessage(websocket.BinaryMessage, data)
 	if err != nil {
-		if c.stats != nil {
-			c.stats.AddError()
-		}
 		return err
 	}
 	if c.stats != nil {

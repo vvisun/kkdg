@@ -45,9 +45,7 @@ func newTLSConn(conn net.Conn, opts *kknet.Options, stats *kknet.Stats) *tlsConn
 	} else {
 		c.wp = defaultWpProvider(opts.WpOptions)
 	}
-	c.wp.Start(c, c.writeBatch, func(_ error) {
-		_ = c.conn.Close()
-	})
+	c.wp.Start(c, c.writeBatch, func(_ error) { _ = c.conn.Close() }, c.stats)
 
 	return c
 }
@@ -184,9 +182,6 @@ func (c *tlsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 
 	if c.opts.WriteTimeout > 0 {
 		if err := c.conn.SetWriteDeadline(time.Now().Add(c.opts.WriteTimeout)); err != nil {
-			if c.stats != nil {
-				c.stats.AddError()
-			}
 			return err
 		}
 	}
@@ -264,9 +259,6 @@ func (c *tlsConn) writeAll(data []byte) error {
 			data = data[n:]
 		}
 		if err != nil {
-			if c.stats != nil {
-				c.stats.AddError()
-			}
 			return err
 		}
 	}
