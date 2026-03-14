@@ -29,7 +29,7 @@ kkdg/
 ├── proto/           # 协议（FlatBuffers、Protobuf）
 ├── utils/           # 工具（buffer、codec、queue、timingwheel 等）
 ├── kkmetrics/       # Prometheus/OpenTelemetry
-└── tools/           # 代码生成（fbspb、fbs2struct）
+└── tools/           # 代码生成（fbspb、fbs2struct），消息ID生成(msdid)
 
 ## 架构分层
 
