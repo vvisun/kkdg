@@ -10,7 +10,6 @@ import (
 // [head]最多有几个part
 const maxHeadPathCount = 8
 
-// 默认解包器
 var defaultStreamPacket = NewLengthFieldStreamPacket(4, 4*1024)
 
 func DefaultStreamPacket() IPacket {
@@ -26,11 +25,11 @@ var (
 // @param order 字节序，bigEndian或littleEndian
 func setByteOrder(order binary.ByteOrder) {
 	if order == nil {
-		kklog.Warn("[kknet] setByteOrder order is nil, ignore")
+		kklog.Error("[kknet] setByteOrder order is nil, ignore")
 		return
 	}
 	if !gInitedByteOrder.CompareAndSwap(false, true) {
-		kklog.Warnf("[kknet] byte order already setted, ignore")
+		kklog.Warn("[kknet] byte order already setted, ignore")
 		return
 	}
 	gByteOrder = order
