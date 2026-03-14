@@ -153,7 +153,9 @@ func (c *gwsConn) onRecvMessage(data []byte) {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		_ = c.socket.WriteClose(1011, nil)
+		if c.socket != nil {
+			_ = c.socket.WriteClose(1011, nil)
+		}
 	}
 }
 
