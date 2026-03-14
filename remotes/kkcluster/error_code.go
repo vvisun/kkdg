@@ -25,6 +25,8 @@ const (
 	ClusterErrorCodePublishFailed
 	// 超时
 	ClusterErrorCodeTimeout
+	// 连接已关闭（如 Stop 时）
+	ClusterErrorCodeConnClosed
 )
 
 // ErrFromCode 将 ClusterErrorCode 转为 error，code 为 0 时返回 nil

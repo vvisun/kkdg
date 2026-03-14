@@ -278,8 +278,8 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 		return err
 	}
 
-	// 优化：使用队列组，只需发布一次到类型主题
-	// NATS 会自动将消息分发给订阅了该主题的队列组中的一个节点
+	// 使用普通 Publish，同类型所有订阅节点都会收到
+	// 若需负载均衡（消息只被一个节点接收），应使用 QueueSubscribe 订阅
 	subject := c.getPublishTypeSubject(nodeType)
 	if err := c.conn.Publish(subject, data); err != nil {
 		c.stats.AddError()
@@ -485,9 +485,59 @@ func (c *NatsCluster) Stop() {
 	if c.typePublishSub != nil {
 		_ = c.typePublishSub.Unsubscribe()
 	}
+
+	// 快速释放等待中的请求，避免依赖超时
+	c.closeAllPendingRequests()
+
 	if c.conn != nil {
 		c.conn.Close()
 	}
+}
+
+// closeAllPendingRequests 释放 requestMap 和 reqMap 中的等待请求
+func (c *NatsCluster) closeAllPendingRequests() {
+	// 同步请求：向每个 channel 发送 ConnClosed 响应
+	c.requestMapMu.Lock()
+	for id, ch := range c.requestMap {
+		delete(c.requestMap, id)
+		resp := &kkcluster.ClusterResponse{
+			RequestID: id,
+			Code:      int32(kkcluster.ClusterErrorCodeConnClosed),
+			Data:      nil,
+		}
+		select {
+		case ch <- resp:
+		default:
+			// channel 已满或接收方已放弃，忽略
+		}
+	}
+	c.requestMapMu.Unlock()
+
+	// 异步请求：调用 callback 并 Stop timer
+	c.reqMu.Lock()
+	for id, p := range c.reqMap {
+		delete(c.reqMap, id)
+		if p.timer != nil {
+			p.timer.Stop()
+		}
+		if p.cb != nil {
+			cb := p.cb
+			p.cb, p.timer = nil, nil
+			asyncReqPool.Put(p)
+			xcall.AntsGo(func() {
+				defer func() {
+					if r := recover(); r != nil {
+						kklog.Errorf("NatsCluster(%s) closeAllPendingRequests callback panic: %v", c.nodeID, r)
+					}
+				}()
+				cb(nil, kkcluster.ClusterErrorCodeConnClosed)
+			})
+		} else {
+			p.cb, p.timer = nil, nil
+			asyncReqPool.Put(p)
+		}
+	}
+	c.reqMu.Unlock()
 }
 
 // SetRequestHandler 设置请求处理器
