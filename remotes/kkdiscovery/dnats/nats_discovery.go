@@ -368,12 +368,13 @@ func (d *NatsDiscovery) publishSelf() error {
 	}
 
 	memberInfo := kkdiscovery.MemberInfo{
-		NodeID:   d.nodeInfo.GetNodeId(),
-		NodeType: d.nodeInfo.GetNodeType(),
-		Address:  d.nodeInfo.GetAddress(),
-		Weight:   weight,
-		Status:   status,
-		Settings: d.nodeInfo.GetSettings(),
+		NodeID:     d.nodeInfo.GetNodeId(),
+		NodeType:   d.nodeInfo.GetNodeType(),
+		Address:    d.nodeInfo.GetAddress(),
+		RpcAddress: d.nodeInfo.GetRpcAddress(),
+		Weight:     weight,
+		Status:     status,
+		Settings:   d.nodeInfo.GetSettings(),
 	}
 
 	data, err := d.msgCodec.Marshal(&memberInfo)

@@ -2,12 +2,13 @@ package kkdiscovery
 
 // Member 实现IMember接口的成员结构
 type Member struct {
-	nodeID   string
-	nodeType string
-	address  string //rpc server address
-	weight   int    //权重，用于负载均衡
-	status   int    //状态（NodeStatusOnline或NodeStatusOffline）
-	settings map[string]string
+	nodeID     string
+	nodeType   string
+	address    string // 监听地址
+	rpcAddress string // rpc server address
+	weight     int    //权重，用于负载均衡
+	status     int    //状态（NodeStatusOnline或NodeStatusOffline）
+	settings   map[string]string
 }
 
 var _ IMember = (*Member)(nil)
@@ -25,6 +26,11 @@ func (m *Member) GetNodeType() string {
 // GetAddress 获取地址
 func (m *Member) GetAddress() string {
 	return m.address
+}
+
+// GetRpcAddress 获取rpc地址
+func (m *Member) GetRpcAddress() string {
+	return m.rpcAddress
 }
 
 // GetWeight 获取权重

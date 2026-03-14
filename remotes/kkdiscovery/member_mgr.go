@@ -44,12 +44,13 @@ func (m *MemberMgr) AddMember(info *MemberInfo) (IMember, bool) {
 	member, existed := m.members[info.NodeID]
 	if !existed {
 		member = &Member{
-			nodeID:   info.NodeID,
-			nodeType: info.NodeType,
-			address:  info.Address,
-			weight:   info.Weight,
-			status:   info.Status,
-			settings: info.Settings,
+			nodeID:     info.NodeID,
+			nodeType:   info.NodeType,
+			address:    info.Address,
+			rpcAddress: info.RpcAddress,
+			weight:     info.Weight,
+			status:     info.Status,
+			settings:   info.Settings,
 		}
 		m.members[info.NodeID] = member
 		m.typeMap[info.NodeType] = append(m.typeMap[info.NodeType], member)
@@ -70,6 +71,7 @@ func (m *MemberMgr) AddMember(info *MemberInfo) (IMember, bool) {
 		mb := member.(*Member)
 		mb.nodeType = info.NodeType
 		mb.address = info.Address
+		mb.rpcAddress = info.RpcAddress
 		mb.weight = info.Weight
 		mb.status = info.Status
 		mb.settings = info.Settings
