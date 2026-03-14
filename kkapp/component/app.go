@@ -116,7 +116,7 @@ func (slf *Application) GetCompPID(compName string) *actor.PID {
 
 func (slf *Application) Start() error {
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
-		kklog.Errorf("[kkapp] application %s start failed. already started, state: %s",
+		kklog.Errorf("[kkapp] application %s start fail. already started, state: %s",
 			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppAlreadyStarted
 	}
@@ -127,7 +127,7 @@ func (slf *Application) Start() error {
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
 	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
 	if slf.pid == nil {
-		kklog.Errorf("[kkapp] application %s spawn actor failed", slf.GetNodeId())
+		kklog.Errorf("[kkapp] application %s spawn actor fail", slf.GetNodeId())
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		kklog.PanicErr(kkerrors.ErrAppSpawnActorFailed)
 	}
@@ -148,12 +148,12 @@ func (slf *Application) Start() error {
 
 func (slf *Application) Stop() error {
 	if slf.pid == nil {
-		kklog.Errorf("[kkapp] stop failed. application %s not started, state: %s",
+		kklog.Errorf("[kkapp] stop fail. application %s not started, state: %s",
 			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppNotStarted
 	}
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStopping) {
-		kklog.Errorf("[kkapp] stop failed. application %s not started, state: %s",
+		kklog.Errorf("[kkapp] stop fail. application %s not started, state: %s",
 			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppNotStarted
 	}
@@ -185,7 +185,7 @@ func (slf *Application) AddComponent(comp kkapp.IComponent) error {
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	if atomic.LoadInt64(&slf.state) != ComponentStateNone {
-		kklog.Errorf("[kkapp] application %s add component %s failed. not none state, state: %s",
+		kklog.Errorf("[kkapp] application %s add component %s fail. not none state, state: %s",
 			slf.GetNodeId(), comp.GetCompName(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
 		return kkerrors.ErrAppAddCompMustInNoneState
 	}
@@ -231,7 +231,7 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		props := actor.PropsFromFunc(comp.Receive)
 		pid := ctx.Spawn(props)
 		if pid == nil {
-			kklog.Errorf("[kkapp] application %s spawn component %s failed", slf.GetNodeId(), comp.GetCompName())
+			kklog.Errorf("[kkapp] application %s spawn component %s fail", slf.GetNodeId(), comp.GetCompName())
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 			kklog.PanicErr(kkerrors.ErrAppSpawnActorFailed)
 		}

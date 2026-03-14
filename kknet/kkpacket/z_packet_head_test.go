@@ -52,8 +52,11 @@ func TestPacketHead_NewPacketHead_TooManyParts_Panic(t *testing.T) {
 		}
 	}()
 
-	// maxHeadPathCount 在 defaults.go 中定义为 4
-	_ = NewPacketHead(&PartUint16{}, &PartUint16{}, &PartUint16{}, &PartUint16{}, &PartUint16{})
+	heads := make([]IHeadPart, maxHeadPathCount+1)
+	for i := 0; i < len(heads); i++ {
+		heads[i] = &PartUint16{}
+	}
+	_ = NewPacketHead(heads...)
 }
 
 func TestPacketHead_NewPacketHeadWithNames_Ok(t *testing.T) {
