@@ -22,6 +22,8 @@ type gnetClientConn struct {
 	rp kknet.IReadProcessor
 	wp kknet.IWriteProcessor
 
+	writeDoneCh chan error // 每连接复用，AsyncWrite 回调发送结果（不 close，可复用；WorkerQueue 串行写无并发）
+
 	extraData any // 自定义数据
 	extraMu   sync.RWMutex
 }
@@ -31,10 +33,11 @@ var _ kknet.IConn = (*gnetClientConn)(nil)
 func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetClientConn {
 	kknet.CheckOptions(opts)
 	cc := &gnetClientConn{
-		id:    kknet.NextConnID(),
-		conn:  c,
-		opts:  opts,
-		stats: stats,
+		id:          kknet.NextConnID(),
+		conn:        c,
+		opts:        opts,
+		stats:       stats,
+		writeDoneCh: make(chan error, 1),
 	}
 	if opts.RpProvider != nil {
 		cc.rp = opts.RpProvider(opts.RpOptions)
@@ -137,6 +140,8 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		return kkerrors.ErrNetConnectionClosed
 	}
 
+	ch := c.writeDoneCh
+
 	if n > 1 {
 		bs := make([][]byte, n)
 		totalBytes := 0
@@ -144,24 +149,24 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			bs[i] = batch[i].B
 			totalBytes += len(bs[i])
 		}
-		done := make(chan struct{})
-		var writeErr error
+		bat := batch
+		total := totalBytes
 		err := c.conn.AsyncWritev(bs, func(_ gnet.Conn, err error) error {
 			if err != nil {
 				if c.stats != nil {
 					c.stats.AddError()
 				}
-				writeErr = err
-			} else {
-				if c.stats != nil {
-					c.stats.AddSent(totalBytes)
-				}
-				for j := 0; j < n; j++ {
-					kkbuffer.Put(batch[j])
-					batch[j] = nil
-				}
+				ch <- err
+				return nil
 			}
-			close(done)
+			if c.stats != nil {
+				c.stats.AddSent(total)
+			}
+			for j := 0; j < len(bat); j++ {
+				kkbuffer.Put(bat[j])
+				bat[j] = nil
+			}
+			ch <- nil
 			return nil
 		})
 		if err != nil {
@@ -170,30 +175,27 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			}
 			return err
 		}
-		<-done
-		return writeErr
+		return <-ch
 	}
 
 	bb := batch[0]
 	if bb == nil {
 		return nil
 	}
-	done := make(chan struct{})
-	var writeErr error
 	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
 		if err != nil {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
-			writeErr = err
-		} else {
-			if c.stats != nil {
-				c.stats.AddSent(len(bb.B))
-			}
-			kkbuffer.Put(bb)
-			batch[0] = nil
+			ch <- err
+			return nil
 		}
-		close(done)
+		if c.stats != nil {
+			c.stats.AddSent(len(bb.B))
+		}
+		kkbuffer.Put(bb)
+		batch[0] = nil
+		ch <- nil
 		return nil
 	})
 	if err != nil {
@@ -202,6 +204,5 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		}
 		return err
 	}
-	<-done
-	return writeErr
+	return <-ch
 }
