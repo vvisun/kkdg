@@ -61,6 +61,9 @@ func validateOption(opt *Option) error {
 	if opt.TCPAddr == opt.WSAddr || opt.TCPAddr == opt.RpcAddr || opt.WSAddr == opt.RpcAddr {
 		return errors.New("tcp addr, ws addr and rpc addr cannot be the same")
 	}
+	if opt.LogicNodeType == "" {
+		return errors.New("logic node type is required")
+	}
 	return nil
 }
 

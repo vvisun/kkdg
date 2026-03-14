@@ -70,14 +70,6 @@ func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 }
 
 func (slf *gateComponent) OnInit() error {
-	// defaults
-	if slf.opt.LogicNodeType == "" {
-		slf.opt.LogicNodeType = kkapp.NodeTypeLogic
-	}
-	if slf.opt.TCPAddr == "" && slf.opt.WSAddr == "" {
-		return errors.New("tcp addr or ws addr is required")
-	}
-
 	// 创建 handler
 	slf.handler = newGateHandler(slf)
 
@@ -279,11 +271,12 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	return cliInfo.bindLogicNode(nodeType, chooseNode)
 }
 
+// 选择逻辑节点的唯一入口。
 func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
-	if slf.discovery != nil && slf.discovery.IsRunning() {
-		return slf.chooseFromDiscovery(nodeType)
+	if slf.opt.TransType == transport.TransTypeShard || slf.opt.TransType == transport.TransTypeRpc {
+		return slf.chooseFromShardOrRpc(nodeType)
 	}
-	return slf.chooseFromShardOrRpc(nodeType)
+	return slf.chooseFromDiscovery(nodeType)
 }
 
 // 从shard中选择权重最小的逻辑节点. return nodeId, found
