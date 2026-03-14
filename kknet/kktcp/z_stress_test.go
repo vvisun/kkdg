@@ -267,6 +267,18 @@ func TestStress_ServerToSingleClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
+	runStressServerToClients(t, 1)
+}
+
+// TestStress_ServerToFourClients: 服务器向 4 个客户端发送大量消息（轮询分发）。
+func TestStress_ServerToFourClients(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	runStressServerToClients(t, 4)
+}
+
+func runStressServerToClients(t *testing.T, numClients int) {
 	totalMsgs := 88888
 	payload := make([]byte, 1024)
 	for i := range payload {
@@ -302,42 +314,46 @@ func TestStress_ServerToSingleClient(t *testing.T) {
 		kknet.WithBufferSizes(2*1024, 2*1024),
 		kknet.WithRecvQueueSize(64),
 	)
-	client := NewClient(addr, nil, clientOpts)
-	if err := client.Connect(); err != nil {
-		t.Fatalf("Connect: %v", err)
+	clients := make([]*GnetClient, numClients)
+	for i := 0; i < numClients; i++ {
+		clients[i] = NewClient(addr, nil, clientOpts)
+		if err := clients[i].Connect(); err != nil {
+			t.Fatalf("client[%d] Connect: %v", i, err)
+		}
+		defer clients[i].Close()
 	}
-	defer client.Close()
 
-	// 等待服务端 OnOpen 完成，从 ConnManager 取到连接并在发送前再次校验（避免 gnet 多 loop 下 conn 未就绪或被移除）
+	// 等待服务端 OnOpen 完成，收集 numClients 个连接 ID
 	time.Sleep(100 * time.Millisecond)
-	var connID kknet.CONN_ID
+	connIDs := make([]kknet.CONN_ID, 0, numClients)
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		mgr := srv.GetConnManager()
+		connIDs = connIDs[:0]
 		mgr.RangeAllConns(func(id kknet.CONN_ID, _ kknet.IConn) bool {
-			connID = id
-			return false
+			if mgr.GetConn(id) != nil {
+				connIDs = append(connIDs, id)
+			}
+			return true
 		})
-		if connID != 0 && mgr.GetConn(connID) != nil {
+		if len(connIDs) >= numClients {
+			connIDs = connIDs[:numClients]
 			break
 		}
-		connID = 0
 		time.Sleep(10 * time.Millisecond)
 	}
-	if connID == 0 {
-		t.Fatal("timeout: no connection in server ConnManager")
+	if len(connIDs) < numClients {
+		t.Fatalf("timeout: got %d connections, want %d", len(connIDs), numClients)
 	}
 
-	// 发送循环：每批后 sleep，避免 gnet 报 "too many goroutines blocked on submit"。
-	// 根因：AsyncWrite 时 gnet 先非阻塞投递到 event-loop 的 channel（容量固定 1024），满则通过 ants 池
-	// 提交任务并阻塞在 channel 上；ants 池为 Nonblocking，池满即返回 ErrPoolOverload。gnet 未暴露
-	// event-loop channel 大小或 ants 池大小等参数，无法从配置上扩大缓冲，只能在此限流。
+	// 发送循环：轮询发往各连接；每批后 sleep，避免 gnet 报 "too many goroutines blocked on submit"。
 	start := time.Now()
 	for i := 0; i < totalMsgs; i++ {
 		bb, err := opts.StreamTool.Pack(payload)
 		if err != nil {
 			t.Fatalf("Pack: %v", err)
 		}
+		connID := connIDs[i%numClients]
 		if err := srv.SendBuffer(connID, bb); err != nil {
 			t.Fatalf("SendBuffer: %v", err)
 		}
@@ -351,15 +367,15 @@ func TestStress_ServerToSingleClient(t *testing.T) {
 	case <-clientRecv.ch:
 	case <-time.After(15 * time.Second):
 		got := clientRecv.Count()
-		t.Fatalf("timeout: client received %d/%d", got, totalMsgs)
+		t.Fatalf("timeout: clients received %d/%d", got, totalMsgs)
 	}
 
 	got := clientRecv.Count()
 	elapsed := time.Since(start)
-	kklog.Debugf("tcp server->client: sent %d, client received %d, send done in %v, all in %v, recv/s ≈ %.0f",
-		totalMsgs, got, sendDone, elapsed, float64(got)/elapsed.Seconds())
+	kklog.Debugf("tcp server->%d clients: sent %d, clients received %d, send done in %v, all in %v, recv/s ≈ %.0f",
+		numClients, totalMsgs, got, sendDone, elapsed, float64(got)/elapsed.Seconds())
 	if got != int64(totalMsgs) {
-		t.Errorf("client received %d, want %d", got, totalMsgs)
+		t.Errorf("clients received %d, want %d", got, totalMsgs)
 	}
 }
 
