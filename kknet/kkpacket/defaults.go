@@ -8,7 +8,7 @@ import (
 )
 
 // [head]最多有几个part
-const maxHeadPathCount = 4
+const maxHeadPathCount = 8
 
 // 默认解包器
 var defaultStreamPacket = NewLengthFieldStreamPacket(4, 4*1024)

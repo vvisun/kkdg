@@ -1,7 +1,10 @@
 package kkpacket
 
 import (
+	"encoding/binary"
+
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -86,6 +89,41 @@ type IPacket interface {
 	 *@return error 错误
 	 */
 	SplitSR(r IStreamReader) ([]byte, bool, error)
+}
+
+// [head] 编码解码器。用于编码解码[head]部分。
+type IPacketHead interface {
+	// 将value编码到data中
+	Marshal(data []byte, endian binary.ByteOrder, valueList ...int) error
+	// 从data中解析出value，并返回value
+	Unmarshal(data []byte, endian binary.ByteOrder) ([]int, error)
+	// 从data中解析出value，并写入valueList
+	UnmarshalTo(data []byte, endian binary.ByteOrder, valueList []int) ([]int, error)
+	// 读取指定名称的value，并返回value
+	ReadValueByName(data []byte, endian binary.ByteOrder, name string) (int, error)
+	// 获取[head]的总字节数
+	GetSize() int
+	// 获取[head]的part数量
+	GetPartCount() int
+}
+
+// [message] 编码解码器。用于编码解码[message]部分。
+// [message] = [head, body]
+type IMessagePacket interface {
+	// 获取[head]编码解码器
+	GetHead() IPacketHead
+	// 获取[body]编码解码器
+	GetBodyCodec() kkcodec.ICodec
+	// 获取消息路由
+	GetRouter() *MsgRouter
+	// 获取[head]部分的字节数
+	HeadBytes(messageBytes []byte) ([]byte, error)
+	// 获取[body]部分的字节数
+	BodyBytes(messageBytes []byte) ([]byte, error)
+	// 获取消息ID
+	GetMsgID(messageBytes []byte) (MSGID, error)
+	// 获取[head]部分的值
+	HeadValues(messageBytes []byte, valueList []int) ([]int, error)
 }
 
 // 完整包工具。流拆解器 + 消息编码解码器
