@@ -54,13 +54,19 @@ func (s *MemberInfo) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if s.NodeType != "" { oNodeType = builder.CreateString(s.NodeType) }
 	var oAddress flatbuffers.UOffsetT
 	if s.Address != "" { oAddress = builder.CreateString(s.Address) }
+	pSettings := flatbuffers.UOffsetT(0)
+	if len(s.Settings) > 0 {
+		fb.MemberInfoStartSettingsVector(builder, len(s.Settings))
+		for i := len(s.Settings) - 1; i >= 0; i-- { builder.PrependUOffsetT(s.Settings[i].Pack(builder)) }
+		pSettings = builder.EndVector(len(s.Settings))
+	}
 	fb.MemberInfoStart(builder)
 	fb.MemberInfoAddNodeId(builder, oNodeId)
 	fb.MemberInfoAddNodeType(builder, oNodeType)
 	fb.MemberInfoAddAddress(builder, oAddress)
 	fb.MemberInfoAddWeight(builder, s.Weight)
 	fb.MemberInfoAddStatus(builder, s.Status)
-	// TODO: MapSettingsEntry Settings
+	fb.MemberInfoAddSettings(builder, pSettings)
 	return fb.MemberInfoEnd(builder)
 }
 
@@ -77,7 +83,16 @@ func (s *MemberInfo) unpackFrom(t *fb.MemberInfo) {
 	s.Address = string(t.Address())
 	s.Weight = t.Weight()
 	s.Status = t.Status()
-	// TODO: vector MapSettingsEntry
+	n := t.SettingsLength()
+	s.Settings = make([]*MapSettingsEntry, n)
+	var obj fb.MapSettingsEntry
+	for i := 0; i < n; i++ {
+		if t.Settings(&obj, i) {
+			e := &MapSettingsEntry{}
+			e.unpackFrom(&obj)
+			s.Settings[i] = e
+		}
+	}
 }
 
 // MemberInfoList 对应 table MemberInfoList，用于 flatbuffer 编解码
@@ -87,8 +102,14 @@ type MemberInfoList struct {
 
 // Pack 实现 flatbuffer.FlatBufferPackable
 func (s *MemberInfoList) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	pList := flatbuffers.UOffsetT(0)
+	if len(s.List) > 0 {
+		fb.MemberInfoListStartListVector(builder, len(s.List))
+		for i := len(s.List) - 1; i >= 0; i-- { builder.PrependUOffsetT(s.List[i].Pack(builder)) }
+		pList = builder.EndVector(len(s.List))
+	}
 	fb.MemberInfoListStart(builder)
-	// TODO: MemberInfo List
+	fb.MemberInfoListAddList(builder, pList)
 	return fb.MemberInfoListEnd(builder)
 }
 
@@ -100,7 +121,16 @@ func (s *MemberInfoList) UnmarshalFlatBuffer(data []byte) error {
 }
 
 func (s *MemberInfoList) unpackFrom(t *fb.MemberInfoList) {
-	// TODO: vector MemberInfo
+	n := t.ListLength()
+	s.List = make([]*MemberInfo, n)
+	var obj fb.MemberInfo
+	for i := 0; i < n; i++ {
+		if t.List(&obj, i) {
+			e := &MemberInfo{}
+			e.unpackFrom(&obj)
+			s.List[i] = e
+		}
+	}
 }
 
 // DiscoveryRequest 对应 table DiscoveryRequest，用于 flatbuffer 编解码
@@ -196,10 +226,12 @@ func (s *ClusterRequest) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT
 	if s.RequestID != "" { oRequestId = builder.CreateString(s.RequestID) }
 	var oSourceNodeId flatbuffers.UOffsetT
 	if s.SourceNodeID != "" { oSourceNodeId = builder.CreateString(s.SourceNodeID) }
+	var oPacket flatbuffers.UOffsetT
+	if s.Packet != nil { oPacket = s.Packet.Pack(builder) }
 	fb.ClusterRequestStart(builder)
 	fb.ClusterRequestAddRequestId(builder, oRequestId)
 	fb.ClusterRequestAddSourceNodeId(builder, oSourceNodeId)
-	// TODO: ClusterPacket Packet
+	fb.ClusterRequestAddPacket(builder, oPacket)
 	return fb.ClusterRequestEnd(builder)
 }
 
@@ -213,7 +245,10 @@ func (s *ClusterRequest) UnmarshalFlatBuffer(data []byte) error {
 func (s *ClusterRequest) unpackFrom(t *fb.ClusterRequest) {
 	s.RequestID = string(t.RequestId())
 	s.SourceNodeID = string(t.SourceNodeId())
-	// TODO: ClusterPacket
+	if p := t.Packet(nil); p != nil {
+		s.Packet = &ClusterPacket{}
+		s.Packet.unpackFrom(p)
+	}
 }
 
 // ClusterResponse 对应 table ClusterResponse，用于 flatbuffer 编解码
