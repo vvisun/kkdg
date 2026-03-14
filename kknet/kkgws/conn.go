@@ -117,7 +117,11 @@ func (c *gwsConn) Close() error {
 			}
 		}
 	}
-	_ = c.socket.WriteClose(1000, nil)
+
+	if c.socket != nil {
+		_ = c.socket.WriteClose(1000, nil)
+	}
+
 	return nil
 }
 
