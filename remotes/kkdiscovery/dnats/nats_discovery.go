@@ -22,10 +22,7 @@ const (
 // NatsDiscovery 基于NATS的服务发现实现
 type NatsDiscovery struct {
 	name     string
-	nodeID   string
-	nodeType string
-	address  string
-	settings map[string]string
+	nodeInfo *kkapp.NodeInfo
 
 	conn       *nats.Conn
 	sub        *nats.Subscription
@@ -67,15 +64,13 @@ func NewNatsDiscovery(
 ) kkdiscovery.IDiscovery {
 	d := &NatsDiscovery{
 		name:        name,
-		nodeID:      nodeInfo.GetNodeId(),
-		nodeType:    nodeInfo.GetNodeType(),
-		address:     nodeInfo.GetAddress(),
+		nodeInfo:    nodeInfo,
 		memberMgr:   kkdiscovery.NewMemberMgr(),
 		memberTimes: make(map[string]time.Time), // key: nodeID, value: last update time
-		stopCh:      make(chan struct{}),
-		doneCh:      make(chan struct{}),
-		options:     natsOpts,
-		msgCodec:    discoveryOpt.MsgCodec,
+		stopCh:      make(chan struct{}),        // 停止通道
+		doneCh:      make(chan struct{}),        // 完成通道
+		options:     natsOpts,                   // NATS配置
+		msgCodec:    discoveryOpt.MsgCodec,      // 消息编码器
 	}
 
 	// 订阅 discovery metrics 事件，通过 Stats 快照填充 MetricsEventData
@@ -155,7 +150,7 @@ func (d *NatsDiscovery) Stats() kkdiscovery.DiscoveryStatsSnapshot {
 // Stop 停止服务发现
 func (d *NatsDiscovery) Stop() error {
 	d.closing.Store(true)
-	kklog.Infof("NatsDiscovery(%s) shutdown", d.nodeID)
+	kklog.Infof("NatsDiscovery(%s) shutdown", d.nodeInfo.GetNodeId())
 
 	d.publishSelf()                    // 将离线通知出去
 	time.Sleep(500 * time.Millisecond) // 等待500毫秒，让离线通知出去
@@ -186,7 +181,7 @@ func (d *NatsDiscovery) Stop() error {
 
 // Start 启动服务发现（需要在外部调用）
 func (d *NatsDiscovery) Start() error {
-	kklog.Infof("NatsDiscovery(%s) startup", d.nodeID)
+	kklog.Infof("NatsDiscovery(%s) startup", d.nodeInfo.GetNodeId())
 	return d.connectAndSubscribe()
 }
 
@@ -200,16 +195,16 @@ func (d *NatsDiscovery) connectAndSubscribe() error {
 		if d.closing.Load() {
 			return
 		}
-		kklog.Infof("NatsDiscovery(%s) reconnected to %s", d.nodeID, nc.ConnectedUrl())
+		kklog.Infof("NatsDiscovery(%s) reconnected to %s", d.nodeInfo.GetNodeId(), nc.ConnectedUrl())
 		d.stats.AddReconnect()
 		// 重连后重新订阅
 		if err := d.resubscribe(); err != nil {
-			kklog.Errorf("NatsDiscovery(%s) resubscribe failed: %v", d.nodeID, err)
+			kklog.Errorf("NatsDiscovery(%s) resubscribe failed: %v", d.nodeInfo.GetNodeId(), err)
 			d.stats.AddError()
 		}
 		// 重连后立即发布自己的信息
 		if err := d.publishSelf(); err != nil {
-			kklog.Warnf("NatsDiscovery(%s) publish self after reconnect failed: %v", d.nodeID, err)
+			kklog.Warnf("NatsDiscovery(%s) publish self after reconnect failed: %v", d.nodeInfo.GetNodeId(), err)
 			d.stats.AddError()
 		}
 		// 重连后立即请求所有成员
@@ -219,15 +214,15 @@ func (d *NatsDiscovery) connectAndSubscribe() error {
 	// 设置断开连接处理器
 	opts.DisconnectedErrCB = func(nc *nats.Conn, err error) {
 		if err != nil {
-			kklog.Warnf("NatsDiscovery(%s) disconnected: %s, %v", d.nodeID, nc.Opts.Name, err)
+			kklog.Warnf("NatsDiscovery(%s) disconnected: %s, %v", d.nodeInfo.GetNodeId(), nc.Opts.Name, err)
 		} else {
-			kklog.Warnf("NatsDiscovery(%s) disconnected: %s", d.nodeID, nc.Opts.Name)
+			kklog.Warnf("NatsDiscovery(%s) disconnected: %s", d.nodeInfo.GetNodeId(), nc.Opts.Name)
 		}
 	}
 
 	// 设置关闭处理器
 	opts.ClosedCB = func(nc *nats.Conn) {
-		kklog.Infof("NatsDiscovery(%s) connection closed: %s", d.nodeID, nc.Opts.Name)
+		kklog.Infof("NatsDiscovery(%s) connection closed: %s", d.nodeInfo.GetNodeId(), nc.Opts.Name)
 	}
 
 	// 连接到NATS
@@ -245,7 +240,7 @@ func (d *NatsDiscovery) connectAndSubscribe() error {
 
 	// 发布自己的信息
 	if err := d.publishSelf(); err != nil {
-		kklog.Warnf("NatsDiscovery(%s) publish self failed: %v", d.nodeID, err)
+		kklog.Warnf("NatsDiscovery(%s) publish self failed: %v", d.nodeInfo.GetNodeId(), err)
 	}
 
 	// 启动心跳循环（只启动一次）
@@ -307,13 +302,13 @@ func (d *NatsDiscovery) handleDiscoveryMessage(msg *nats.Msg) {
 
 	var memberInfo kkdiscovery.MemberInfo
 	if err := d.msgCodec.Unmarshal(msg.Data, &memberInfo); err != nil {
-		kklog.Errorf("NatsDiscovery(%s) unmarshal member info failed: %v", d.nodeID, err)
+		kklog.Errorf("NatsDiscovery(%s) unmarshal member info failed: %v", d.nodeInfo.GetNodeId(), err)
 		d.stats.AddError()
 		return
 	}
 
 	// 忽略自己
-	if memberInfo.NodeID == d.nodeID {
+	if memberInfo.NodeID == d.nodeInfo.GetNodeId() {
 		return
 	}
 
@@ -338,26 +333,26 @@ func (d *NatsDiscovery) publishSelf() error {
 	}
 
 	memberInfo := kkdiscovery.MemberInfo{
-		NodeID:   d.nodeID,
-		NodeType: d.nodeType,
-		Address:  d.address,
+		NodeID:   d.nodeInfo.GetNodeId(),
+		NodeType: d.nodeInfo.GetNodeType(),
+		Address:  d.nodeInfo.GetAddress(),
 		Weight:   weight,
 		Status:   status,
-		Settings: d.settings,
+		Settings: d.nodeInfo.GetSettings(),
 	}
 
 	data, err := d.msgCodec.Marshal(&memberInfo)
 	if err != nil {
 		d.stats.AddError()
 		kklog.Errorf("NatsDiscovery(%s) marshal self failed: nodeType=%s addr=%s err=%v",
-			d.nodeID, d.nodeType, d.address, err)
+			d.nodeInfo.GetNodeId(), d.nodeInfo.GetNodeType(), d.nodeInfo.GetAddress(), err)
 		return err
 	}
 
 	if err := d.conn.Publish(subjectDiscovery, data); err != nil {
 		d.stats.AddError()
 		kklog.Errorf("NatsDiscovery(%s) publish self failed: subject=%s bytes=%d err=%v",
-			d.nodeID, subjectDiscovery, len(data), err)
+			d.nodeInfo.GetNodeId(), subjectDiscovery, len(data), err)
 		return err
 	}
 
@@ -381,7 +376,7 @@ func (d *NatsDiscovery) heartbeatLoop() {
 			}
 			if err := d.publishSelf(); err != nil {
 				d.stats.AddError()
-				kklog.Errorf("NatsDiscovery(%s) heartbeat failed: %v", d.nodeID, err)
+				kklog.Errorf("NatsDiscovery(%s) heartbeat failed: %v", d.nodeInfo.GetNodeId(), err)
 			}
 		}
 	}
@@ -397,14 +392,14 @@ func (d *NatsDiscovery) requestAllMembers() {
 
 	// 发送请求消息
 	reqMsg := kkdiscovery.DiscoveryRequest{
-		RequesterID: d.nodeID,
+		RequesterID: d.nodeInfo.GetNodeId(),
 	}
 
 	data, err := d.msgCodec.Marshal(&reqMsg)
 	if err != nil {
 		d.stats.AddError()
 		kklog.Errorf("NatsDiscovery(%s) marshal request failed: requesterID=%s err=%v",
-			d.nodeID, reqMsg.RequesterID, err)
+			d.nodeInfo.GetNodeId(), reqMsg.RequesterID, err)
 		return
 	}
 
@@ -412,7 +407,7 @@ func (d *NatsDiscovery) requestAllMembers() {
 		if err := d.conn.Publish(subjectDiscoveryRequest, data); err != nil {
 			d.stats.AddError()
 			kklog.Errorf("NatsDiscovery(%s) publish request failed: subject=%s requesterID=%s bytes=%d err=%v",
-				d.nodeID, subjectDiscoveryRequest, reqMsg.RequesterID, len(data), err)
+				d.nodeInfo.GetNodeId(), subjectDiscoveryRequest, reqMsg.RequesterID, len(data), err)
 		}
 	}
 }
@@ -421,19 +416,19 @@ func (d *NatsDiscovery) requestAllMembers() {
 func (d *NatsDiscovery) handleDiscoveryRequest(msg *nats.Msg) {
 	var req kkdiscovery.DiscoveryRequest
 	if err := d.msgCodec.Unmarshal(msg.Data, &req); err != nil {
-		kklog.Errorf("NatsDiscovery(%s) unmarshal request failed: %v", d.nodeID, err)
+		kklog.Errorf("NatsDiscovery(%s) unmarshal request failed: %v", d.nodeInfo.GetNodeId(), err)
 		d.stats.AddError()
 		return
 	}
 
 	// 忽略自己的请求
-	if req.RequesterID == d.nodeID {
+	if req.RequesterID == d.nodeInfo.GetNodeId() {
 		return
 	}
 
 	// 响应自己的信息
 	if err := d.publishSelf(); err != nil {
-		kklog.Errorf("NatsDiscovery(%s) respond to request failed: %v", d.nodeID, err)
+		kklog.Errorf("NatsDiscovery(%s) respond to request failed: %v", d.nodeInfo.GetNodeId(), err)
 		// publishSelf内部已经记录了错误统计
 	}
 }
@@ -462,7 +457,7 @@ func (d *NatsDiscovery) checkMemberTimeout() {
 			d.memberTimesMu.RUnlock()
 
 			for _, nodeID := range toRemove {
-				kklog.Warnf("NatsDiscovery(%s) member %s timeout, removing", d.nodeID, nodeID)
+				kklog.Warnf("NatsDiscovery(%s) member %s timeout, removing", d.nodeInfo.GetNodeId(), nodeID)
 				d.removeMember(nodeID)
 			}
 		}

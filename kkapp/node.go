@@ -57,3 +57,9 @@ func (slf *NodeInfo) GetSetting(k string) (string, bool) {
 	value, ok := slf.settings[k]
 	return value, ok
 }
+
+// GetSettings 获取节点配置参数, 可以为空。
+//  注意：由于大部分场景都是只读取数据，故这里返回的是引用。外部如果需要修改，需要自己复制一份。
+func (slf *NodeInfo) GetSettings() map[string]string {
+	return slf.settings
+}
