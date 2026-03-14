@@ -27,11 +27,6 @@ func TestMsgRouter_RegisterAndGetters_Success(t *testing.T) {
 		t.Fatalf("GetMsgID() = %d, want %d", gotID, id)
 	}
 
-	gotID = GetMsgID[routerTestMsg](router)
-	if gotID != id {
-		t.Fatalf("GetMsgID() = %d, want %d", gotID, id)
-	}
-
 	// GetMsgType should return the original type
 	gotType := router.GetMsgType(id)
 	wantType := reflect.TypeOf(&routerTestMsg{})
@@ -73,8 +68,12 @@ func TestMsgRouter_Register_DuplicateID(t *testing.T) {
 	if err := router.Register(id, &routerTestMsg{}, "/dup1"); err != nil {
 		t.Fatalf("first Register() error = %v, want nil", err)
 	}
-	if err := router.Register(id, &routerTestMsg{}, "/dup2"); err != kkerrors.ErrPktMsgIDAlreadyRegistered {
-		t.Fatalf("second Register() error = %v, want ErrMsgIDAlreadyRegistered", err)
+
+	type routerTestMsg2 struct {
+		ID int
+	}
+	if err := router.Register(id, &routerTestMsg2{}, "/dup2"); err != kkerrors.ErrPktMsgIDAlreadyRegistered {
+		t.Fatalf("second Register() error = %v, want ErrPktMsgIDAlreadyRegistered", err)
 	}
 }
 
@@ -83,10 +82,6 @@ func TestMsgRouter_Getters_Unregistered(t *testing.T) {
 
 	// unregistered type should return 0 id
 	if id := router.GetMsgID(&routerTestMsg{}); id != 0 {
-		t.Fatalf("GetMsgID(unregistered) = %d, want 0", id)
-	}
-
-	if id := GetMsgID[routerTestMsg](router); id != 0 {
 		t.Fatalf("GetMsgID(unregistered) = %d, want 0", id)
 	}
 

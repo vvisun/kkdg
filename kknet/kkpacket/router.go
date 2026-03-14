@@ -21,10 +21,16 @@ type MSGID = uint32 // 消息ID
 
 		 *例如:
 
-			  msgID -> msgType -> msgRoute
+		 	type Msg1Req struct {}
+			type Msg1Resp struct {}
+			type MsgBroadcast struct {}
+			type ChatMsgReq struct {}
+			type ChatMsgResp struct {}
+
+			  消息ID -> 消息类型 -> 消息路由
 			  1001 -> *Msg1Req -> "game"
 			  1002 -> *Msg1Resp -> "game"
-			  1003 -> *Msg2Broadcast -> "gate"
+			  1003 -> *MsgBroadcast -> "gate"
 			  1004 -> *ChatMsgReq -> "chat"
 			  1005 -> *ChatMsgResp -> "chat"
 			  ...
@@ -99,14 +105,4 @@ func (r *MsgRouter) GetMsgRoute(id MSGID) (string, error) {
 		return "", kkerrors.ErrPktMsgIDNotRegistered
 	}
 	return route, nil
-}
-
-func GetMsgID[T any](router *MsgRouter) MSGID {
-	msgType := reflect.TypeFor[*T]()
-	id, ok := router.typeToId[msgType]
-	if !ok {
-		kklog.Debugf("message %v is not registered", msgType)
-		return 0
-	}
-	return id
 }
