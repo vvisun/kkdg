@@ -89,17 +89,33 @@ func (c *tcpConn) Close() error {
 			timeout = 10 * time.Second
 		}
 		done := make(chan struct{})
+		cancelCh := make(chan struct{})
 		go func() {
-			c.closeMu.Lock()
-			for c.pendingWrites.Load() > 0 {
+			for {
+				c.closeMu.Lock()
+				if c.pendingWrites.Load() == 0 {
+					c.closeMu.Unlock()
+					close(done)
+					return
+				}
 				c.closeCond.Wait()
+				c.closeMu.Unlock()
+				select {
+				case <-cancelCh:
+					close(done)
+					return
+				default:
+				}
 			}
-			c.closeMu.Unlock()
-			close(done)
 		}()
 		select {
 		case <-done:
 		case <-time.After(timeout):
+			close(cancelCh)
+			c.closeMu.Lock()
+			c.closeCond.Broadcast()
+			c.closeMu.Unlock()
+			<-done
 			if c.opts.WpOptions.SendQueueFlushTimeoutCallback != nil {
 				c.opts.WpOptions.SendQueueFlushTimeoutCallback(c, timeout)
 			}
