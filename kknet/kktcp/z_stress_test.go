@@ -262,6 +262,119 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		sendDone, elapsed, float64(got)/elapsed.Seconds())
 }
 
+// TestStress_ServerToSingleClient: 服务器向单个客户端发送大量消息。
+func TestStress_ServerToSingleClient(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	totalMsgs := 88888
+	payload := make([]byte, 1024)
+	for i := range payload {
+		payload[i] = 0x02
+	}
+
+	addr := freePortStress(t)
+	clientRecv := &stressRecvHandler{target: int64(totalMsgs), ch: make(chan struct{})}
+
+	opts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRawHandler(&clientHandler{}),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
+		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithWorkerQueueMaxConcurrency(1),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithSendQueueNeedFlushOver(true),
+		kknet.WithSendQueueTimeoutFlushOver(5*time.Second),
+	)
+	srv := NewServer(addr, nil, opts)
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer srv.Stop()
+	waitTCPReady(t, addr, 2*time.Second)
+
+	clientOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
+		kknet.WithRawHandler(clientRecv),
+		kknet.WithNoneCopyHandler(clientRecv),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithRecvQueueSize(64),
+	)
+	client := NewClient(addr, nil, clientOpts)
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer client.Close()
+
+	// 等待服务端 OnOpen 完成，从 ConnManager 取到连接并在发送前再次校验（避免 gnet 多 loop 下 conn 未就绪或被移除）
+	time.Sleep(100 * time.Millisecond)
+	var connID kknet.CONN_ID
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		mgr := srv.GetConnManager()
+		mgr.RangeAllConns(func(id kknet.CONN_ID, _ kknet.IConn) bool {
+			connID = id
+			return false
+		})
+		if connID != 0 && mgr.GetConn(connID) != nil {
+			break
+		}
+		connID = 0
+		time.Sleep(10 * time.Millisecond)
+	}
+	if connID == 0 {
+		t.Fatal("timeout: no connection in server ConnManager")
+	}
+
+	// 发送循环：每批后 sleep，避免 gnet 报 "too many goroutines blocked on submit"。
+	// 根因：AsyncWrite 时 gnet 先非阻塞投递到 event-loop 的 channel（容量固定 1024），满则通过 ants 池
+	// 提交任务并阻塞在 channel 上；ants 池为 Nonblocking，池满即返回 ErrPoolOverload。gnet 未暴露
+	// event-loop channel 大小或 ants 池大小等参数，无法从配置上扩大缓冲，只能在此限流。
+	start := time.Now()
+	for i := 0; i < totalMsgs; i++ {
+		bb, err := opts.StreamTool.Pack(payload)
+		if err != nil {
+			t.Fatalf("Pack: %v", err)
+		}
+		if err := srv.SendBuffer(connID, bb); err != nil {
+			t.Fatalf("SendBuffer: %v", err)
+		}
+		if (i+1)%128 == 0 {
+			time.Sleep(1 * time.Millisecond)
+		}
+	}
+	sendDone := time.Since(start)
+
+	select {
+	case <-clientRecv.ch:
+	case <-time.After(15 * time.Second):
+		got := clientRecv.Count()
+		t.Fatalf("timeout: client received %d/%d", got, totalMsgs)
+	}
+
+	got := clientRecv.Count()
+	elapsed := time.Since(start)
+	kklog.Debugf("tcp server->client: sent %d, client received %d, send done in %v, all in %v, recv/s ≈ %.0f",
+		totalMsgs, got, sendDone, elapsed, float64(got)/elapsed.Seconds())
+	if got != int64(totalMsgs) {
+		t.Errorf("client received %d, want %d", got, totalMsgs)
+	}
+}
+
+type serverToClientHandler struct {
+	onConnect func(kknet.IConn)
+}
+
+func (h *serverToClientHandler) OnConnect(c kknet.IConn) {
+	if h.onConnect != nil {
+		h.onConnect(c)
+	}
+}
+
+func (h *serverToClientHandler) OnClose(c kknet.IConn, err error) {}
+
 // TestStress_ManyConns_ConnectDisconnect: 快速建连/断连，压测连接生命周期。
 func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	if testing.Short() {
