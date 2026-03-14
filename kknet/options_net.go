@@ -50,7 +50,7 @@ type Options struct {
 
 	WpOptions  WriteOptions // 写处理器选项
 	RpOptions  ReadOptions  // 读处理器选项
-	WpProvider WpProvider   // 写处理器提供者
+	WpProvider WpProvider   // 写处理器提供者。仅对 kkws/kktcptls 生效
 	RpProvider RpProvider   // 读处理器提供者
 
 	WsOriginChecker OriginCheckFunc // websocket原始检查器
