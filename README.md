@@ -4,16 +4,44 @@ Go 语言实现的游戏/分布式服务端引擎，提供网络层、集群通�
 
 ## 模块结构
 
-| 模块 | 路径 | 说明 |
-| ------ | ------ | ------ |
-| **kkapp** | `kkapp/` | 应用框架：基于 ProtoActor 的组件化节点，支持 Gate、Game 等业务组件 |
-| **kknet** | `kknet/` | 网络层：TCP / TCP TLS / WebSocket 服务端与客户端。未来可考虑加入UDP、KCP |
-| **kkprocessor** | `kknet/kkprocessor/` | 消息处理器：读/写队列、粘包拆包、批量发送 |
-| **kkpacket** | `kknet/kkpacket/` | 封包协议：流式封包、消息路由 |
-| **remotes** | `remotes/` | 远程能力：RPC、集群（NATS）、服务发现 |
-| **storage** | `storage/` | 存储：kkdb（MySQL/GORM 配置与 CRUD）、kkredis（Redis 单机客户端与常用命令封装） |
-| **proto** | `proto/` | 框架用的协议定义：FlatBuffers、Protobuf |
-| **utils** | `utils/` | 工具库：buffer、codec、时间轮、队列、转换等 |
+kkdg/
+├── kkapp/           # 应用框架（ProtoActor + Component）
+│   ├── component/   # Application、Component 生命周期
+│   ├── comps/       # ccgate（网关）、ccgame（业务服）
+│   ├── kkactor/     # Actor 寻址、远程传输（actornats/actorrpc/actorshard）
+│   ├── kkmodule/    # 模块树
+│   └── transport/   # Gate↔Logic 转发（nats/rpc/shard）
+├── kknet/           # 网络层
+│   ├── kktcp/       # TCP（gnet）
+│   ├── kktcptls/    # TCP TLS
+│   ├── kkws/        # WebSocket（gorilla）
+│   ├── kkgws/       # WebSocket（lxzan/gws）
+│   ├── kkprocessor/ # 读/写处理器
+│   ├── kkpacket/    # 封包、MsgRouter
+│   └── msgreceiver/ # 消息分发
+├── remotes/         # 远程能力
+│   ├── kkrpc/       # RPC（请求响应/单向/异步）
+│   ├── kkcluster/   # NATS 集群
+│   └── kkdiscovery/ # 服务发现
+├── storage/         # 存储
+│   ├── kkdb/        # MySQL/GORM
+│   └── kkredis/     # Redis
+├── proto/           # 协议（FlatBuffers、Protobuf）
+├── utils/           # 工具（buffer、codec、queue、timingwheel 等）
+├── kkmetrics/       # Prometheus/OpenTelemetry
+└── tools/           # 代码生成（fbspb、fbs2struct）
+
+## 架构分层
+
+三、架构分层
+层级 | 职责 | 实现
+业务层 | 业务逻辑、消息处理 | ccgate、ccgame、MsgReceiver
+应用层 | 节点、组件、生命周期 | Application、Component
+Actor层 | 透明寻址、远程路由 | ActorFramework、ActorLocator
+传输层 | Gate↔Logic 转发 | gatetrans、gametrans
+远程层 | RPC、集群、发现 | kkrpc、kkcluster、kkdiscovery
+网络层 | 连接、封包、处理 | kknet
+基础设施 | 存储、协议、工具 | storage、proto、utils
 
 ## 其他非框架目录 [other]
 
