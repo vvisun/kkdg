@@ -207,7 +207,14 @@ func (r *rpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	// encode response
 	rspBB, err := EncodeRpcFrameWithPayload(r.methodMgr, FrameTypeResponse, fr.ID, method, respBytes, 0)
 	if err != nil {
-		return nil
+		rspFrame.Code = ErrorCodeInvalidResponse
+		rspFrame.Err = "响应编码失败"
+		rspBB, encErr := EncodeFailedResponse(r.methodMgr, &rspFrame)
+		if encErr != nil {
+			kklog.Errorf("encode failed response (after encode error): %v", encErr)
+			return nil
+		}
+		return rspBB
 	}
 	//喂给上层函数发送回执
 	return rspBB
