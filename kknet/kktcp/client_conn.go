@@ -1,7 +1,6 @@
 package kktcp
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 
@@ -23,8 +22,6 @@ type gnetClientConn struct {
 	rp kknet.IReadProcessor
 	wp kknet.IWriteProcessor
 
-	writeResultCh chan error // 每连接复用，用于 writeBatch 与事件循环间传递结果（WorkerQueue 串行写，无并发）
-
 	extraData any // 自定义数据
 	extraMu   sync.RWMutex
 }
@@ -34,11 +31,10 @@ var _ kknet.IConn = (*gnetClientConn)(nil)
 func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetClientConn {
 	kknet.CheckOptions(opts)
 	cc := &gnetClientConn{
-		id:            kknet.NextConnID(),
-		conn:          c,
-		opts:          opts,
-		stats:         stats,
-		writeResultCh: make(chan error, 1),
+		id:    kknet.NextConnID(),
+		conn:  c,
+		opts:  opts,
+		stats: stats,
 	}
 	if opts.RpProvider != nil {
 		cc.rp = opts.RpProvider(opts.RpOptions)
@@ -129,7 +125,6 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 
 /*
 *批量写入。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
- * 使用 EventLoop.Execute 将写操作调度到 gnet 事件循环内执行，避免 AsyncWrite 回调中阻塞。
  *@param batch 批量缓冲区，数组长度为 WriteOptions.WriteBatchSize
  *@param n 批量数量
  *@return error
@@ -142,9 +137,6 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 		return kkerrors.ErrNetConnectionClosed
 	}
 
-	el := c.conn.EventLoop()
-	ch := c.writeResultCh
-
 	if n > 1 {
 		bs := make([][]byte, n)
 		totalBytes := 0
@@ -152,65 +144,64 @@ func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
 			bs[i] = batch[i].B
 			totalBytes += len(bs[i])
 		}
-		bat := batch
-		total := totalBytes
-		if err := el.Execute(context.Background(), gnet.RunnableFunc(func(ctx context.Context) error {
-			_, writeErr := c.conn.Writev(bs)
-			if writeErr != nil {
+		done := make(chan struct{})
+		var writeErr error
+		err := c.conn.AsyncWritev(bs, func(_ gnet.Conn, err error) error {
+			if err != nil {
 				if c.stats != nil {
 					c.stats.AddError()
 				}
-				ch <- writeErr
-				return nil
+				writeErr = err
+			} else {
+				if c.stats != nil {
+					c.stats.AddSent(totalBytes)
+				}
+				for j := 0; j < n; j++ {
+					kkbuffer.Put(batch[j])
+					batch[j] = nil
+				}
 			}
-			if c.stats != nil {
-				c.stats.AddSent(total)
-			}
-			for j := 0; j < len(bat); j++ {
-				kkbuffer.Put(bat[j])
-				bat[j] = nil
-			}
-			ch <- nil
+			close(done)
 			return nil
-		})); err != nil {
+		})
+		if err != nil {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
-			for j := 0; j < n; j++ {
-				kkbuffer.Put(batch[j])
-			}
 			return err
 		}
-		return <-ch
+		<-done
+		return writeErr
 	}
 
 	bb := batch[0]
 	if bb == nil {
 		return nil
 	}
-	data := bb.B
-	if err := el.Execute(context.Background(), gnet.RunnableFunc(func(ctx context.Context) error {
-		_, writeErr := c.conn.Write(data)
-		if writeErr != nil {
+	done := make(chan struct{})
+	var writeErr error
+	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
+		if err != nil {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
-			ch <- writeErr
-			return nil
+			writeErr = err
+		} else {
+			if c.stats != nil {
+				c.stats.AddSent(len(bb.B))
+			}
+			kkbuffer.Put(bb)
+			batch[0] = nil
 		}
-		if c.stats != nil {
-			c.stats.AddSent(len(data))
-		}
-		kkbuffer.Put(bb)
-		batch[0] = nil
-		ch <- nil
+		close(done)
 		return nil
-	})); err != nil {
+	})
+	if err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
 		}
-		kkbuffer.Put(bb)
 		return err
 	}
-	return <-ch
+	<-done
+	return writeErr
 }
