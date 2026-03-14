@@ -179,8 +179,8 @@ func (slf *Application) AddComponent(comp kkapp.IComponent) error {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
 		return err
 	}
-	if slf.getComponent(comp) != nil {
-		kklog.Errorf("[kkapp] application %s repeat add component %s",
+	if slf.existsComponent(comp) {
+		kklog.Errorf("[kkapp] application %s already has component %s",
 			slf.GetNodeId(), comp.GetCompName())
 		return kkerrors.ErrComponentAlreadyAdded
 	}
@@ -204,15 +204,15 @@ func (slf *Application) AddComponent(comp kkapp.IComponent) error {
 	return nil
 }
 
-func (slf *Application) getComponent(comp kkapp.IComponent) kkapp.IComponent {
+func (slf *Application) existsComponent(comp kkapp.IComponent) bool {
 	slf.mu.RLock()
 	defer slf.mu.RUnlock()
 	for _, c := range slf.compList {
 		if IsEqual(c, comp) {
-			return comp
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
 func (slf *Application) onStarted(ctx actor.Context) {
