@@ -8,6 +8,10 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+const (
+	PartNameMsgID = "msgID"
+)
+
 // 完整包。流拆解器。
 //
 //	包结构：[length,message] = [length,head,body]

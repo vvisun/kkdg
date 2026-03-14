@@ -42,7 +42,7 @@ type gateComponent struct {
 }
 
 func (slf *gateComponent) GetCompName() string {
-	return "gate"
+	return "comp_gate"
 }
 
 var _ kkapp.IComponent = (*gateComponent)(nil)

@@ -46,7 +46,7 @@ type gameComponent struct {
 }
 
 func (slf *gameComponent) GetCompName() string {
-	return "game"
+	return "comp_game"
 }
 
 var _ kkapp.IComponent = (*gameComponent)(nil)

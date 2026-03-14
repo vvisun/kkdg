@@ -1,28 +1,23 @@
 package xnet
 
 import (
+	"errors"
 	"io"
 	"net"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
+var muUrls sync.RWMutex
 var urls = []string{
 	"http://ipinfo.io/ip",
 	"http://ifconfig.me/ip",
 	"https://api.ipquery.io",
 	"https://api.ipify.org",
-}
-
-// ConfigUrls 配置公网IP查询地址列表
-func ConfigUrls(urls []string) {
-	if len(urls) > 0 {
-		urls = make([]string, len(urls))
-		copy(urls, urls)
-	}
 }
 
 type IPResolver func() (string, error)
@@ -31,6 +26,18 @@ var (
 	globalPublicIPResolver  IPResolver = defaultPublicIPResolver
 	globalPrivateIPResolver IPResolver = defaultPrivateIPResolver
 )
+
+// ConfigUrls 配置公网IP查询地址列表
+func ConfigDefaults(urls []string) error {
+	if len(urls) == 0 {
+		return errors.New("configDefaults, urls is empty")
+	}
+	muUrls.Lock()
+	defer muUrls.Unlock()
+	urls = make([]string, len(urls))
+	copy(urls, urls)
+	return nil
+}
 
 // SetPublicIPResolver 设置公网IP解析器
 func SetPublicIPResolver(resolver IPResolver) {
@@ -45,6 +52,8 @@ func SetPrivateIPResolver(resolver IPResolver) {
 		globalPrivateIPResolver = resolver
 	}
 }
+
+//----------------------------------------------------
 
 // 默认私网IP解析器
 func defaultPrivateIPResolver() (string, error) {
@@ -112,7 +121,12 @@ func defaultPublicIPResolver() (string, error) {
 		timeout = 500 * time.Millisecond
 	)
 
-	for _, url := range urls {
+	muUrls.RLock()
+	urlsCopy := make([]string, len(urls))
+	copy(urlsCopy, urls)
+	muUrls.RUnlock()
+
+	for _, url := range urlsCopy {
 		go func() {
 			if ip, err := doQueryPublicIP(url, timeout); err == nil {
 				if state.CompareAndSwap(false, true) {

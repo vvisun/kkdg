@@ -2,9 +2,8 @@ package kkpacket
 
 import (
 	"encoding/binary"
+	"errors"
 	"sync/atomic"
-
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // [head]最多有几个part
@@ -23,16 +22,15 @@ var (
 
 // 设置字节序。启动阶段初始化，运行期间不要修改。
 // @param order 字节序，bigEndian或littleEndian
-func setByteOrder(order binary.ByteOrder) {
+func setByteOrder(order binary.ByteOrder) error {
 	if order == nil {
-		kklog.Error("[kknet] setByteOrder order is nil, ignore")
-		return
+		return errors.New("setByteOrder, order is nil")
 	}
 	if !gInitedByteOrder.CompareAndSwap(false, true) {
-		kklog.Warn("[kknet] byte order already setted, ignore")
-		return
+		return errors.New("setByteOrder, byte order already setted")
 	}
 	gByteOrder = order
+	return nil
 }
 
 func GetByteOrder() binary.ByteOrder {
@@ -40,12 +38,9 @@ func GetByteOrder() binary.ByteOrder {
 }
 
 // 配置默认值。启动阶段初始化，运行期间不要修改。
-// 为了减少多余的心力花在对齐 各端间的流拆解器和字节序，导致编码解码不一致。
 //
 //	@param streamTool 流拆解器
 //	@param byteOrder 字节序
-func ConfigDefaults(byteOrder binary.ByteOrder) {
-	if byteOrder != nil {
-		setByteOrder(byteOrder)
-	}
+func ConfigDefaults(byteOrder binary.ByteOrder) error {
+	return setByteOrder(byteOrder)
 }

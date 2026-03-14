@@ -7,10 +7,6 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-const (
-	PartNameMsgID = "msgID"
-)
-
 // [head] 编码解码器。用于编码解码[head]部分。
 type PacketHead struct {
 	partList []IHeadPart    // [head]的各个部分。长度: 0 ~ maxHeadPathCount
