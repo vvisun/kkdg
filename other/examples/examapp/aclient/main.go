@@ -21,17 +21,23 @@ import (
 
 var autoId int64 = 0
 
+type clientInfo struct {
+	index  int
+	userId int64
+	client kknet.IClient
+}
+
 var (
 	sendedId   int64 = 0
 	receivedId int64 = 0
 
-	clientMap = make(map[kknet.IClient]map[string]any)
+	clientMap []clientInfo
 )
 
 func main() {
 	examapp.ParseFlags(nil)
 
-	clientMap = make(map[kknet.IClient]map[string]any)
+	clientMap = make([]clientInfo, examapp.ClientConnNum+16)
 
 	client := runOneClient()
 
@@ -63,7 +69,9 @@ func runOneClient() kknet.IClient {
 	msgReceiver := msgreceiver.NewMsgReceiver[kknet.CONN_ID](packetTool)
 	ptoexam.InitMsgs(appOpts.ClientMsgPacket.GetRouter())
 
-	gh := &gameHandler{}
+	index := int(atomic.LoadInt64(&autoUserId))
+
+	gh := &gameHandler{index: index}
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginResp)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Resp)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg2Broadcast)
@@ -96,16 +104,18 @@ func runOneClient() kknet.IClient {
 	}
 
 	userId := atomic.AddInt64(&autoUserId, 1)
-	gh.client = client
-	clientMap[client] = make(map[string]any)
-	clientMap[client]["user_id"] = userId
+	clientMap[index] = clientInfo{
+		index:  index,
+		userId: userId,
+		client: client,
+	}
 
 	//定时发送消息
 	go func() {
 		for {
 			time.Sleep(examapp.ClientSendInterval)
 
-			_, ok := clientMap[client]["login_session_id"]
+			ok := clientMap[index].userId != 0
 
 			if ok {
 				curId := atomic.AddInt64(&autoId, 1)
@@ -145,12 +155,15 @@ func (h *clientHandler) OnClose(kknet.IConn, error) {
 }
 
 type gameHandler struct {
-	client kknet.IClient
+	index int
 }
 
 func (h *gameHandler) onLoginResp(sessionID kknet.CONN_ID, msg *ptoexam.LoginResp) error {
 	kklog.Infof("onLoginResp: %v", msg)
-	clientMap[h.client]["login_session_id"] = msg.SessionID
+	if h.index < 0 || h.index >= len(clientMap) {
+		return nil
+	}
+	clientMap[h.index].userId = msg.UserID
 	return nil
 }
 
