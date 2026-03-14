@@ -27,6 +27,8 @@ const (
 	ClusterErrorCodeTimeout
 	// 连接已关闭（如 Stop 时）
 	ClusterErrorCodeConnClosed
+	// 不在连接状态
+	ClusterErrorCodeNotConnected
 )
 
 // ErrFromCode 将 ClusterErrorCode 转为 error，code 为 0 时返回 nil

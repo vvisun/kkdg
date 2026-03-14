@@ -213,10 +213,17 @@ func (c *NatsCluster) resubscribe() error {
 	return nil
 }
 
+func (c *NatsCluster) IsConnected() bool {
+	return c.conn != nil && c.conn.IsConnected()
+}
+
 // PublishRemote 发布消息到指定节点
 func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPacket) error {
 	if packet == nil {
 		return kkerrors.ErrClusterInvalidPacket
+	}
+	if !c.IsConnected() {
+		return kkerrors.ErrClusterNotConnected
 	}
 
 	// 检查目标节点是否存在
@@ -259,6 +266,9 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	if packet == nil {
 		return kkerrors.ErrClusterInvalidPacket
 	}
+	if !c.IsConnected() {
+		return kkerrors.ErrClusterNotConnected
+	}
 
 	// 检查该类型是否有节点（可选，用于提前验证）
 	if c.discovery.GetMemberMgr().CountOfType(nodeType) == 0 {
@@ -299,6 +309,9 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 	}
 	if callback == nil {
 		return kkcluster.ErrFromCode(kkcluster.ClusterErrorCodeInvalidRequest)
+	}
+	if !c.IsConnected() {
+		return kkerrors.ErrClusterNotConnected
 	}
 
 	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
@@ -390,6 +403,9 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPacket, timeout ...time.Duration) ([]byte, kkcluster.ClusterErrorCode) {
 	if packet == nil {
 		return nil, kkcluster.ClusterErrorCodeInvalidRequest
+	}
+	if !c.IsConnected() {
+		return nil, kkcluster.ClusterErrorCodeNotConnected
 	}
 
 	// 检查目标节点是否存在

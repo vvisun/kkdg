@@ -11,4 +11,6 @@ var (
 	ErrClusterNoMemberOfType = errors.New("cluster no member of type")
 	// ErrClusterInvalidCodec 无效的编解码器
 	ErrClusterInvalidCodec = errors.New("cluster invalid codec")
+	// ErrClusterNotConnected 不在连接状态
+	ErrClusterNotConnected = errors.New("cluster not connected")
 )
