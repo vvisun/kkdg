@@ -28,4 +28,6 @@ var (
 	ErrActorRemoteInvalidTarget = errors.New("invalid remote actor target")
 	// actor 远程消息类型未注册
 	ErrActorRemoteMsgTypeNotRegistered = errors.New("remote actor message type not registered")
+	// actor 远程传输未连接
+	ErrActorRemoteTransportNotConnected = errors.New("remote actor transport not connected")
 )

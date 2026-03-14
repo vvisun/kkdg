@@ -9,6 +9,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 const (
@@ -89,7 +90,17 @@ func (t *Transport) Close() error {
 	return nil
 }
 
+func (t *Transport) isConnected() bool {
+	t.mu.RLock()
+	connected := t.conn != nil && t.conn.IsConnected()
+	t.mu.RUnlock()
+	return connected
+}
+
 func (t *Transport) Send(target actorremotes.ActorRef, msg any) error {
+	if !t.isConnected() {
+		return kkerrors.ErrActorRemoteTransportNotConnected
+	}
 	if !target.IsValid() {
 		return kkerrors.ErrActorRemoteInvalidTarget
 	}
@@ -101,6 +112,9 @@ func (t *Transport) Send(target actorremotes.ActorRef, msg any) error {
 }
 
 func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.Duration) (any, error) {
+	if !t.isConnected() {
+		return nil, kkerrors.ErrActorRemoteTransportNotConnected
+	}
 	if !target.IsValid() {
 		return nil, kkerrors.ErrActorRemoteInvalidTarget
 	}
@@ -116,17 +130,23 @@ func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.
 }
 
 func (t *Transport) RequestAsync(target actorremotes.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
+	if !t.isConnected() {
+		return kkerrors.ErrActorRemoteTransportNotConnected
+	}
 	if callback == nil {
 		return kkerrors.ErrActorAsyncCallbackNil
 	}
-	go func() {
+	xcall.AntsGo(func() {
 		result, err := t.Request(target, msg, timeout)
 		callback(result, err)
-	}()
+	})
 	return nil
 }
 
 func (t *Transport) subscribe() error {
+	if t.conn == nil {
+		return kkerrors.ErrActorRemoteTransportNotConnected
+	}
 	sendSub, err := t.conn.Subscribe(subjectSendPrefix+t.nodeID, t.handleSend)
 	if err != nil {
 		return err
