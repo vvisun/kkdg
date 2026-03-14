@@ -56,6 +56,10 @@ type clientHandler struct{}
 
 func (h *clientHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {}
 
+type noopRawHandler struct{}
+
+func (h *noopRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) { kkbuffer.Put(data) }
+
 func freePortStress(t *testing.T) string {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -138,6 +142,128 @@ func connectWithRetryTLS(client *Client, attempts int, baseBackoff time.Duration
 }
 
 //---------------- stress tests ----------------
+
+// TestStress_ServerToSingleClient_TLS: 服务器向单个客户端发送大量消息（TLS）。
+func TestStress_ServerToSingleClient_TLS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	runStressServerToClientsTLS(t, 1, 1024*4, 8888)
+}
+
+// TestStress_ServerToFourClients_TLS: 服务器向多客户端发送大量消息，轮询分发（TLS）。
+func TestStress_ServerToFourClients_TLS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	runStressServerToClientsTLS(t, 8, 1024*8, 8888)
+}
+
+func runStressServerToClientsTLS(t *testing.T, numClients int, batchSize int, totalMsgs int) {
+	payload := make([]byte, 1024)
+	for i := range payload {
+		payload[i] = 0x02
+	}
+	addr := freePortStress(t)
+	tlsCfg := genTestTLSConfig(t)
+	clientRecv := &stressRecvHandler{target: int64(totalMsgs), ch: make(chan struct{})}
+
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithSendQueueNeedFlushOver(true),
+		kknet.WithSendQueueTimeoutFlushOver(5*time.Second),
+		kknet.WithTLSConfig(tlsCfg),
+	)
+	srv := NewServer(addr, nil, srvOpts)
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer srv.Stop()
+	waitTCPReady(t, addr, 2*time.Second)
+
+	clientCfg := tlsCfg.Clone()
+	if clientCfg == nil {
+		t.Fatal("failed to clone TLS config")
+	}
+	clientCfg.InsecureSkipVerify = true
+	cliOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithRawHandler(clientRecv),
+		kknet.WithNoneCopyHandler(clientRecv),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithTLSConfig(clientCfg),
+		kknet.WithIsNeedReconnect(false),
+	)
+	clients := make([]*Client, numClients)
+	for i := 0; i < numClients; i++ {
+		clients[i] = NewClient(addr, nil, cliOpts)
+		if err := connectWithRetryTLS(clients[i], 30, 10*time.Millisecond); err != nil {
+			t.Fatalf("client[%d] Connect: %v", i, err)
+		}
+		defer clients[i].Close()
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	connIDs := make([]kknet.CONN_ID, 0, numClients)
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		mgr := srv.GetConnManager()
+		connIDs = connIDs[:0]
+		mgr.RangeAllConns(func(id kknet.CONN_ID, _ kknet.IConn) bool {
+			if mgr.GetConn(id) != nil {
+				connIDs = append(connIDs, id)
+			}
+			return true
+		})
+		if len(connIDs) >= numClients {
+			connIDs = connIDs[:numClients]
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(connIDs) < numClients {
+		t.Fatalf("timeout: got %d connections, want %d", len(connIDs), numClients)
+	}
+
+	start := time.Now()
+	for i := 0; i < totalMsgs; i++ {
+		bb, err := srvOpts.StreamTool.Pack(payload)
+		if err != nil {
+			t.Fatalf("Pack: %v", err)
+		}
+		connID := connIDs[i%numClients]
+		if err := srv.SendBuffer(connID, bb); err != nil {
+			t.Fatalf("SendBuffer: %v", err)
+		}
+		if (i+1)%batchSize == 0 {
+			time.Sleep(1 * time.Millisecond)
+		}
+	}
+	sendDone := time.Since(start)
+
+	select {
+	case <-clientRecv.ch:
+	case <-time.After(15 * time.Second):
+		got := clientRecv.Count()
+		t.Fatalf("timeout: clients received %d/%d", got, totalMsgs)
+	}
+	got := clientRecv.Count()
+	elapsed := time.Since(start)
+	kklog.Debugf("kktcptls server->%d clients: sent %d, clients received %d, send done in %v, all in %v, recv/s ≈ %.0f",
+		numClients, totalMsgs, got, sendDone, elapsed, float64(got)/elapsed.Seconds())
+	if got != int64(totalMsgs) {
+		t.Errorf("clients received %d, want %d", got, totalMsgs)
+	}
+}
 
 // TestStress_ManyConns_ManyMessages_TLS: 多连接并发，每连接发送多条消息（TLS）。
 func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {

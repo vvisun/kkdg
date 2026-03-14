@@ -222,6 +222,118 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		sendDone, elapsed, float64(got)/elapsed.Seconds())
 }
 
+// TestStress_ServerToSingleClient: 服务器向单个客户端发送大量消息。
+func TestStress_ServerToSingleClient(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	runStressServerToClients(t, 1, 1024*4, 8888)
+}
+
+// TestStress_ServerToFourClients: 服务器向多客户端发送大量消息（轮询分发）。
+func TestStress_ServerToFourClients(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	runStressServerToClients(t, 8, 1024*8, 8888)
+}
+
+func runStressServerToClients(t *testing.T, numClients int, batchSize int, totalMsgs int) {
+	payload := make([]byte, 1024)
+	for i := range payload {
+		payload[i] = 0x02
+	}
+	addr := freePort(t)
+	serverAddr := "ws://" + addr + "/ws"
+	clientRecv := &stressRecvHandler{target: int64(totalMsgs), ch: make(chan struct{})}
+
+	opts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithSendQueueNeedFlushOver(true),
+		kknet.WithSendQueueTimeoutFlushOver(5*time.Second),
+	)
+	srv := NewServer(addr, nil, opts)
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer srv.Stop()
+	waitTCPReady(t, addr, 2*time.Second)
+
+	clientOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithRawHandler(clientRecv),
+		kknet.WithNoneCopyHandler(clientRecv),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithRecvQueueSize(64),
+	)
+	clients := make([]*Client, numClients)
+	for i := 0; i < numClients; i++ {
+		clients[i] = NewClient(serverAddr, nil, clientOpts)
+		if err := clients[i].Connect(); err != nil {
+			t.Fatalf("client[%d] Connect: %v", i, err)
+		}
+		defer clients[i].Close()
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	connIDs := make([]kknet.CONN_ID, 0, numClients)
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		mgr := srv.GetConnManager()
+		connIDs = connIDs[:0]
+		mgr.RangeAllConns(func(id kknet.CONN_ID, _ kknet.IConn) bool {
+			if mgr.GetConn(id) != nil {
+				connIDs = append(connIDs, id)
+			}
+			return true
+		})
+		if len(connIDs) >= numClients {
+			connIDs = connIDs[:numClients]
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(connIDs) < numClients {
+		t.Fatalf("timeout: got %d connections, want %d", len(connIDs), numClients)
+	}
+
+	start := time.Now()
+	for i := 0; i < totalMsgs; i++ {
+		bb, err := opts.StreamTool.Pack(payload)
+		if err != nil {
+			t.Fatalf("Pack: %v", err)
+		}
+		connID := connIDs[i%numClients]
+		if err := srv.SendBuffer(connID, bb); err != nil {
+			t.Fatalf("SendBuffer: %v", err)
+		}
+		if (i+1)%batchSize == 0 {
+			time.Sleep(1 * time.Millisecond)
+		}
+	}
+	sendDone := time.Since(start)
+
+	select {
+	case <-clientRecv.ch:
+	case <-time.After(15 * time.Second):
+		got := clientRecv.Count()
+		t.Fatalf("timeout: clients received %d/%d", got, totalMsgs)
+	}
+	got := clientRecv.Count()
+	elapsed := time.Since(start)
+	kklog.Debugf("kkgws server->%d clients: sent %d, clients received %d, send done in %v, all in %v, recv/s ≈ %.0f",
+		numClients, totalMsgs, got, sendDone, elapsed, float64(got)/elapsed.Seconds())
+	if got != int64(totalMsgs) {
+		t.Errorf("clients received %d, want %d", got, totalMsgs)
+	}
+}
+
 // TestStress_ManyConns_ConnectDisconnect: 快速建连/断连，压测连接生命周期。
 func TestStress_ManyConns_ConnectDisconnect(t *testing.T) {
 	if testing.Short() {
