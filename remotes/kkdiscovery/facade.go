@@ -58,8 +58,6 @@ type (
 		GetAddress() string                 // 节点地址。如：127.0.0.1:8080
 		GetSetting(k string) (string, bool) // 额外数据，可以为空。
 		GetWeight() int                     // 获取权重
-		SetWeight(weight int)               // 设置权重
 		GetStatus() int                     // 获取状态
-		SetStatus(status int)               // 设置状态
 	}
 )

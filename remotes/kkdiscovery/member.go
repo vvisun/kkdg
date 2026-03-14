@@ -32,19 +32,9 @@ func (m *Member) GetWeight() int {
 	return m.weight
 }
 
-// SetWeight 设置权重
-func (m *Member) SetWeight(weight int) {
-	m.weight = weight
-}
-
 // GetStatus 获取状态
 func (m *Member) GetStatus() int {
 	return m.status
-}
-
-// SetStatus 设置状态
-func (m *Member) SetStatus(status int) {
-	m.status = status
 }
 
 // GetSetting 获取设置

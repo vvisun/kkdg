@@ -212,6 +212,8 @@ func (d *NatsDiscovery) connectAndSubscribe() error {
 			kklog.Warnf("NatsDiscovery(%s) publish self after reconnect failed: %v", d.nodeID, err)
 			d.stats.AddError()
 		}
+		// 重连后立即请求所有成员
+		go d.requestAllMembers()
 	}
 
 	// 设置断开连接处理器
@@ -330,6 +332,9 @@ func (d *NatsDiscovery) publishSelf() error {
 	}
 	if d.closing.Load() {
 		status = kkdiscovery.NodeStatusOffline // 正在关闭，设置为离线
+	}
+	if d.conn == nil {
+		return nil // 未连接，静默返回
 	}
 
 	memberInfo := kkdiscovery.MemberInfo{
