@@ -47,12 +47,14 @@ func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
 	}
 	tc.rp.Start(tc)
 
-	if opts.WpProvider != nil {
-		tc.wp = opts.WpProvider(opts.WpOptions)
-	} else {
-		tc.wp = defaultWpProvider(opts.WpOptions)
+	if enableWP {
+		if opts.WpProvider != nil {
+			tc.wp = opts.WpProvider(opts.WpOptions)
+		} else {
+			tc.wp = defaultWpProvider(opts.WpOptions)
+		}
+		tc.wp.Start(tc, tc.writeBatch, func(_ error) { _ = tc.conn.Close() }, stats)
 	}
-	tc.wp.Start(tc, tc.writeBatch, func(_ error) { _ = tc.conn.Close() }, stats)
 
 	return tc
 }
@@ -116,11 +118,27 @@ func (c *tcpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrNetConnectionClosed
 	}
-	if c.wp == nil {
-		kkbuffer.Put(buffer)
-		return kkerrors.ErrNetConnectionClosed
+	if enableWP {
+		if c.wp == nil {
+			kkbuffer.Put(buffer)
+			return kkerrors.ErrNetConnectionClosed
+		}
+		return c.wp.SendBuffer(buffer)
 	}
-	return c.wp.SendBuffer(buffer)
+	return c.conn.AsyncWrite(buffer.B, func(_ gnet.Conn, err error) error {
+		if err != nil {
+			if c.stats != nil {
+				c.stats.AddError()
+			}
+			kkbuffer.Put(buffer)
+		} else {
+			if c.stats != nil {
+				c.stats.AddSent(len(buffer.B))
+			}
+			kkbuffer.Put(buffer)
+		}
+		return nil
+	})
 }
 
 /*
