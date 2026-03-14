@@ -75,6 +75,18 @@ func TestMsgRouter_Register_DuplicateID(t *testing.T) {
 	if err := router.Register(id, &routerTestMsg2{}, "/dup2"); err != kkerrors.ErrPktMsgIDAlreadyRegistered {
 		t.Fatalf("second Register() error = %v, want ErrPktMsgIDAlreadyRegistered", err)
 	}
+
+	obj1 := &routerTestMsg2{ID: 2}
+	obj2 := &routerTestMsg{ID: 2}
+	if reflect.TypeOf(obj1) != reflect.TypeOf(&routerTestMsg2{}) {
+		t.Fatalf("obj1 type = %v, want &routerTestMsg2{}", reflect.TypeOf(obj1))
+	}
+	if reflect.TypeOf(obj2) != reflect.TypeOf(&routerTestMsg{}) {
+		t.Fatalf("obj2 type = %v, want &routerTestMsg{}", reflect.TypeOf(obj2))
+	}
+	if router.GetMsgID(obj2) != id {
+		t.Fatalf("GetMsgID(obj1) = %d, want %d", router.GetMsgID(obj1), id)
+	}
 }
 
 func TestMsgRouter_Getters_Unregistered(t *testing.T) {
