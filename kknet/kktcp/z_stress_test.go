@@ -267,7 +267,7 @@ func TestStress_ServerToSingleClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	runStressServerToClients(t, 1)
+	runStressServerToClients(t, 1, 1024*4, 8888)
 }
 
 // TestStress_ServerToFourClients: 服务器向 4 个客户端发送大量消息（轮询分发）。
@@ -275,11 +275,10 @@ func TestStress_ServerToFourClients(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	runStressServerToClients(t, 4)
+	runStressServerToClients(t, 8, 1024*8, 8888)
 }
 
-func runStressServerToClients(t *testing.T, numClients int) {
-	totalMsgs := 88888
+func runStressServerToClients(t *testing.T, numClients int, batchSize int, totalMsgs int) {
 	payload := make([]byte, 1024)
 	for i := range payload {
 		payload[i] = 0x02
@@ -346,7 +345,8 @@ func runStressServerToClients(t *testing.T, numClients int) {
 		t.Fatalf("timeout: got %d connections, want %d", len(connIDs), numClients)
 	}
 
-	// 发送循环：轮询发往各连接；每批后 sleep，避免 gnet 报 "too many goroutines blocked on submit"。
+	// 发送循环：轮询发往各连接。多连接时每 loop 负载分散，可提高每批条数以提升吞吐。
+	// 单连接每 128 条 sleep；多连接时每 128*numClients 条 sleep（单 loop 仍约 128 条/ms，避免 submit 打满）。
 	start := time.Now()
 	for i := 0; i < totalMsgs; i++ {
 		bb, err := opts.StreamTool.Pack(payload)
@@ -357,7 +357,7 @@ func runStressServerToClients(t *testing.T, numClients int) {
 		if err := srv.SendBuffer(connID, bb); err != nil {
 			t.Fatalf("SendBuffer: %v", err)
 		}
-		if (i+1)%128 == 0 {
+		if (i+1)%batchSize == 0 {
 			time.Sleep(1 * time.Millisecond)
 		}
 	}
