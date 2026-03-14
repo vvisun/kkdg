@@ -31,10 +31,16 @@ type gwsConn struct {
 	wp      kknet.IWriteProcessor
 	rp      kknet.IReadProcessor
 
+	// !enableWP 时：跟踪待发送的 WriteAsync，Close 时等待其完成
+	pendingWrites atomic.Int32
+	closeMu       sync.Mutex
+	closeCond     *sync.Cond
+
 	pingTimer unsafe.Pointer // *timingwheel.Timer
 
+	// 自定义数据
 	extraMu   sync.RWMutex
-	extraData any // 自定义数据
+	extraData any
 }
 
 var _ kknet.IConn = (*gwsConn)(nil)
@@ -47,6 +53,7 @@ func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsC
 		opts:   opts,
 		stats:  stats,
 	}
+	c.closeCond = sync.NewCond(&c.closeMu)
 
 	if enableWP {
 		if opts.WpProvider != nil {
@@ -98,6 +105,33 @@ func (c *gwsConn) GetExtraData() any {
 func (c *gwsConn) Close() error {
 	if c.closing.Swap(true) {
 		return nil
+	}
+	if enableWP {
+		if c.wp != nil {
+			c.wp.Stop(nil)
+		}
+	} else if c.opts.WpOptions.SendQueueNeedFlushOver {
+		// !enableWP 且需要 flush：等待所有待发送的 WriteAsync 完成（带超时）
+		timeout := c.opts.WpOptions.SendQueueTimeoutFlushOver
+		if timeout <= 0 {
+			timeout = 10 * time.Second
+		}
+		done := make(chan struct{})
+		go func() {
+			c.closeMu.Lock()
+			for c.pendingWrites.Load() > 0 {
+				c.closeCond.Wait()
+			}
+			c.closeMu.Unlock()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(timeout):
+			if c.opts.WpOptions.SendQueueFlushTimeoutCallback != nil {
+				c.opts.WpOptions.SendQueueFlushTimeoutCallback(c, timeout)
+			}
+		}
 	}
 	_ = c.socket.WriteClose(1000, nil)
 	return nil
@@ -224,6 +258,7 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		}
 		return c.wp.SendBuffer(buffer)
 	}
+	c.pendingWrites.Add(1)
 	c.socket.WriteAsync(gws.OpcodeBinary, buffer.B, func(err error) {
 		if err != nil {
 			if c.stats != nil {
@@ -235,6 +270,11 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 				c.stats.AddSent(len(buffer.B))
 			}
 			kkbuffer.Put(buffer)
+		}
+		if c.pendingWrites.Add(-1) == 0 {
+			c.closeMu.Lock()
+			c.closeCond.Signal()
+			c.closeMu.Unlock()
 		}
 	})
 	return nil

@@ -3,6 +3,7 @@ package kktcp
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -22,10 +23,17 @@ type gnetClientConn struct {
 	rp kknet.IReadProcessor
 	wp kknet.IWriteProcessor
 
-	writeDoneCh chan error // 每连接复用，AsyncWrite 回调发送结果（不 close，可复用；WorkerQueue 串行写无并发）
+	// enableWP时，每连接复用，AsyncWrite 回调发送结果（不 close，可复用；WorkerQueue 串行写无并发）
+	writeDoneCh chan error
 
-	extraData any // 自定义数据
+	// !enableWP 时：跟踪待发送的 AsyncWrite，Close 时等待其完成
+	pendingWrites atomic.Int32
+	closeMu       sync.Mutex
+	closeCond     *sync.Cond
+
+	// 自定义数据
 	extraMu   sync.RWMutex
+	extraData any
 }
 
 var _ kknet.IConn = (*gnetClientConn)(nil)
@@ -39,6 +47,7 @@ func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gn
 		stats:       stats,
 		writeDoneCh: make(chan error, 1),
 	}
+	cc.closeCond = sync.NewCond(&cc.closeMu)
 	if opts.RpProvider != nil {
 		cc.rp = opts.RpProvider(opts.RpOptions)
 	} else {
@@ -80,12 +89,38 @@ func (c *gnetClientConn) GetExtraData() any {
 }
 
 func (c *gnetClientConn) Close() error {
-	c.closing.Store(true)
+	if c.closing.Swap(true) {
+		return nil
+	}
 	if c.rp != nil {
 		go c.rp.Stop()
 	}
-	if c.wp != nil {
-		c.wp.Stop(nil)
+	if enableWP {
+		if c.wp != nil {
+			c.wp.Stop(nil)
+		}
+	} else if c.opts.WpOptions.SendQueueNeedFlushOver {
+		// !enableWP 且需要 flush：等待所有待发送的 AsyncWrite 完成（带超时）
+		timeout := c.opts.WpOptions.SendQueueTimeoutFlushOver
+		if timeout <= 0 {
+			timeout = 10 * time.Second
+		}
+		done := make(chan struct{})
+		go func() {
+			c.closeMu.Lock()
+			for c.pendingWrites.Load() > 0 {
+				c.closeCond.Wait()
+			}
+			c.closeMu.Unlock()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(timeout):
+			if c.opts.WpOptions.SendQueueFlushTimeoutCallback != nil {
+				c.opts.WpOptions.SendQueueFlushTimeoutCallback(c, timeout)
+			}
+		}
 	}
 	return c.conn.Close()
 }
@@ -124,7 +159,8 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		}
 		return c.wp.SendBuffer(buffer)
 	}
-	return c.conn.AsyncWrite(buffer.B, func(_ gnet.Conn, err error) error {
+	c.pendingWrites.Add(1)
+	err := c.conn.AsyncWrite(buffer.B, func(_ gnet.Conn, err error) error {
 		if err != nil {
 			if c.stats != nil {
 				c.stats.AddError()
@@ -136,8 +172,23 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 			}
 			kkbuffer.Put(buffer)
 		}
+		if c.pendingWrites.Add(-1) == 0 {
+			c.closeMu.Lock()
+			c.closeCond.Signal()
+			c.closeMu.Unlock()
+		}
 		return nil
 	})
+	if err != nil {
+		c.pendingWrites.Add(-1)
+		if c.pendingWrites.Load() == 0 {
+			c.closeMu.Lock()
+			c.closeCond.Signal()
+			c.closeMu.Unlock()
+		}
+		return err
+	}
+	return nil
 }
 
 /*
