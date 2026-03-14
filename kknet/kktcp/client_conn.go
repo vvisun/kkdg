@@ -21,10 +21,6 @@ type gnetClientConn struct {
 	closing atomic.Bool
 
 	rp kknet.IReadProcessor
-	wp kknet.IWriteProcessor
-
-	// enableWP时，每连接复用，AsyncWrite 回调发送结果（不 close，可复用；WorkerQueue 串行写无并发）
-	writeDoneCh chan error
 
 	// !enableWP 时：跟踪待发送的 AsyncWrite，Close 时等待其完成
 	pendingWrites atomic.Int32
@@ -41,11 +37,10 @@ var _ kknet.IConn = (*gnetClientConn)(nil)
 func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetClientConn {
 	kknet.CheckOptions(opts)
 	cc := &gnetClientConn{
-		id:          kknet.NextConnID(),
-		conn:        c,
-		opts:        opts,
-		stats:       stats,
-		writeDoneCh: make(chan error, 1),
+		id:    kknet.NextConnID(),
+		conn:  c,
+		opts:  opts,
+		stats: stats,
 	}
 	cc.closeCond = sync.NewCond(&cc.closeMu)
 	if opts.RpProvider != nil {
@@ -54,15 +49,6 @@ func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gn
 		cc.rp = defaultRpProvider(opts.RpOptions)
 	}
 	cc.rp.Start(cc)
-
-	if enableWP {
-		if opts.WpProvider != nil {
-			cc.wp = opts.WpProvider(opts.WpOptions)
-		} else {
-			cc.wp = defaultWpProvider(opts.WpOptions)
-		}
-		cc.wp.Start(cc, cc.writeBatch, func(_ error) { _ = cc.conn.Close() }, stats)
-	}
 
 	return cc
 }
@@ -95,11 +81,7 @@ func (c *gnetClientConn) Close() error {
 	if c.rp != nil {
 		go c.rp.Stop()
 	}
-	if enableWP {
-		if c.wp != nil {
-			c.wp.Stop(nil)
-		}
-	} else if c.opts.WpOptions.SendQueueNeedFlushOver {
+	if c.opts.WpOptions.SendQueueNeedFlushOver {
 		// !enableWP 且需要 flush：等待所有待发送的 AsyncWrite 完成（带超时）
 		timeout := c.opts.WpOptions.SendQueueTimeoutFlushOver
 		if timeout <= 0 {
@@ -152,13 +134,7 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrNetConnectionClosed
 	}
-	if enableWP {
-		if c.wp == nil {
-			kkbuffer.Put(buffer)
-			return kkerrors.ErrNetConnectionClosed
-		}
-		return c.wp.SendBuffer(buffer)
-	}
+
 	c.pendingWrites.Add(1)
 	err := c.conn.AsyncWrite(buffer.B, func(_ gnet.Conn, err error) error {
 		if err != nil {
@@ -189,73 +165,4 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		return err
 	}
 	return nil
-}
-
-/*
-*批量写入。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
- *@param batch 批量缓冲区，数组长度为 WriteOptions.WriteBatchSize
- *@param n 批量数量
- *@return error
-*/
-func (c *gnetClientConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
-	if n <= 0 {
-		return nil
-	}
-	if c.conn == nil {
-		return kkerrors.ErrNetConnectionClosed
-	}
-
-	ch := c.writeDoneCh
-
-	if n > 1 {
-		bs := make([][]byte, n)
-		totalBytes := 0
-		for i := 0; i < n; i++ {
-			bs[i] = batch[i].B
-			totalBytes += len(bs[i])
-		}
-		bat := batch
-		total := totalBytes
-		err := c.conn.AsyncWritev(bs, func(_ gnet.Conn, err error) error {
-			if err != nil {
-				ch <- err
-				return nil
-			}
-			if c.stats != nil {
-				c.stats.AddSent(total)
-			}
-			for j := 0; j < len(bat); j++ {
-				kkbuffer.Put(bat[j])
-				bat[j] = nil
-			}
-			ch <- nil
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-		return <-ch
-	}
-
-	bb := batch[0]
-	if bb == nil {
-		return nil
-	}
-	err := c.conn.AsyncWrite(bb.B, func(_ gnet.Conn, err error) error {
-		if err != nil {
-			ch <- err
-			return nil
-		}
-		if c.stats != nil {
-			c.stats.AddSent(len(bb.B))
-		}
-		kkbuffer.Put(bb)
-		batch[0] = nil
-		ch <- nil
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return <-ch
 }

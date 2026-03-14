@@ -16,7 +16,6 @@ import (
 )
 
 const sessionKeyConn = "_kkgws"
-const enableWP = false
 
 type gwsConn struct {
 	id     kknet.CONN_ID
@@ -28,7 +27,6 @@ type gwsConn struct {
 	closing   atomic.Bool
 
 	writeMu sync.Mutex
-	wp      kknet.IWriteProcessor
 	rp      kknet.IReadProcessor
 
 	// !enableWP 时：跟踪待发送的 WriteAsync，Close 时等待其完成
@@ -54,15 +52,6 @@ func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsC
 		stats:  stats,
 	}
 	c.closeCond = sync.NewCond(&c.closeMu)
-
-	if enableWP {
-		if opts.WpProvider != nil {
-			c.wp = opts.WpProvider(opts.WpOptions)
-		} else {
-			c.wp = defaultWpProvider(opts.WpOptions)
-		}
-		c.wp.Start(c, c.writeBatch, func(_ error) { _ = socket.WriteClose(1011, nil) }, c.stats)
-	}
 
 	if opts.RpProvider != nil {
 		c.rp = opts.RpProvider(opts.RpOptions)
@@ -106,11 +95,7 @@ func (c *gwsConn) Close() error {
 	if c.closing.Swap(true) {
 		return nil
 	}
-	if enableWP {
-		if c.wp != nil {
-			c.wp.Stop(nil)
-		}
-	} else if c.opts.WpOptions.SendQueueNeedFlushOver {
+	if c.opts.WpOptions.SendQueueNeedFlushOver {
 		// !enableWP 且需要 flush：等待所有待发送的 WriteAsync 完成（带超时）
 		timeout := c.opts.WpOptions.SendQueueTimeoutFlushOver
 		if timeout <= 0 {
@@ -160,9 +145,6 @@ func (c *gwsConn) doClose(handler kknet.IConnLifecycleHandler, err error) {
 		c.stopPingByTimingWheel()
 		if c.rp != nil {
 			c.rp.Stop()
-		}
-		if c.wp != nil {
-			c.wp.Stop(err)
 		}
 
 		if c.stats != nil {
@@ -225,12 +207,6 @@ func (c *gwsConn) SendMsg(msg any) error {
 	if c.closing.Load() {
 		return kkerrors.ErrNetConnectionClosed
 	}
-	if enableWP {
-		if c.wp == nil {
-			return kkerrors.ErrNetConnectionClosed
-		}
-		return c.wp.SendMsg(msg)
-	}
 	buffer, err := kkpacket.EncodeStream(msg, c.opts.StreamTool, c.opts.WpOptions.MsgPacket)
 	if err != nil {
 		kkbuffer.Put(buffer)
@@ -251,13 +227,7 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrNetConnectionClosed
 	}
-	if enableWP {
-		if c.wp == nil {
-			kkbuffer.Put(buffer)
-			return kkerrors.ErrNetConnectionClosed
-		}
-		return c.wp.SendBuffer(buffer)
-	}
+
 	c.pendingWrites.Add(1)
 	c.socket.WriteAsync(gws.OpcodeBinary, buffer.B, func(err error) {
 		if err != nil {
@@ -277,54 +247,6 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 			c.closeMu.Unlock()
 		}
 	})
-	return nil
-}
-
-/**writeBatch is the WriteFunc called by the write processor.
- *批量写入。WriteFunc中，发送失败的数据不释放，供调用方知道哪些数据发送失败。
- *@param batch 批量缓冲区，数组长度为 WriteOptions.WriteBatchSize
- *@param n 批量数量
- *@return error
- */
-func (c *gwsConn) writeBatch(batch []*kkbuffer.ByteBuffer, n int) error {
-	if n <= 0 {
-		return nil
-	}
-
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-
-	if n > 1 {
-		bs := make([][]byte, n)
-		totalBytes := 0
-		for i := 0; i < n; i++ {
-			bs[i] = batch[i].B
-			totalBytes += len(bs[i])
-		}
-		err := c.socket.Writev(gws.OpcodeBinary, bs...)
-		if err != nil {
-			return err
-		}
-		for j := 0; j < n; j++ {
-			kkbuffer.Put(batch[j])
-			batch[j] = nil
-		}
-		if c.stats != nil {
-			c.stats.AddSent(totalBytes)
-		}
-		return nil
-	}
-
-	bb := batch[0]
-	err := c.socket.WriteMessage(gws.OpcodeBinary, bb.B)
-	if err != nil {
-		return err
-	}
-	if c.stats != nil {
-		c.stats.AddSent(len(bb.B))
-	}
-	kkbuffer.Put(bb)
-	batch[0] = nil
 	return nil
 }
 

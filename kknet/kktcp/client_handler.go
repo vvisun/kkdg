@@ -45,10 +45,6 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 		if cc.rp != nil {
 			go cc.rp.Stop()
 		}
-		// Stop write processor asynchronously (release pending buffers).
-		if cc.wp != nil {
-			go cc.wp.Stop(err)
-		}
 		kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnClose", func() {
 			h.client.handler.OnClose(cc, err)
 		})

@@ -5,8 +5,6 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 )
 
-const enableWP = false
-
 func defaultWpProvider(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	return kkprocessor.NewWriteProcessor(opts)
 }
