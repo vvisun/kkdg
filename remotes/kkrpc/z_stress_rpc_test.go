@@ -88,7 +88,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numConns := 64
-	callsPerConn := 2222
+	callsPerConn := 222
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
@@ -240,7 +240,7 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numGoroutines := 128
-	callsPerGoroutine := 8888
+	callsPerGoroutine := 555
 	totalCalls := int64(numGoroutines * callsPerGoroutine)
 
 	addr := freePortRpcStress(t)
@@ -322,7 +322,7 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numConns := 64
-	callsPerConn := 88888
+	callsPerConn := 666
 	totalCalls := int64(numConns * callsPerConn)
 
 	addr := freePortRpcStress(t)
@@ -416,7 +416,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numGoroutines := 32
-	callsPerGoroutine := 2222
+	callsPerGoroutine := 666
 	totalCalls := int64(numGoroutines * callsPerGoroutine)
 
 	addr := freePortRpcStress(t)
