@@ -41,44 +41,57 @@ func freePort(t *testing.T) string {
 	return addr
 }
 
+//---------------消息定义-----------------------------------
+
 type (
-	MsgTest1 struct {
-		ID   int
-		Data string
+	LoginReq struct {
+		UserId   int64
+		Password string
 	}
-	MsgTest2 struct {
-		ID   int
-		Data string
+	LoginResp struct {
+		UserId   int64
+		UserData string
 	}
-	MsgTest3 struct {
-		ID   int
+	MsgCounter struct {
+		Seq  int
 		Data string
 	}
 )
 
 func InitMsgs(router *kkpacket.MsgRouter) {
-	_ = router.Register(1, &MsgTest1{}, "logic")
-	_ = router.Register(2, &MsgTest2{}, "logic")
-	_ = router.Register(3, &MsgTest3{}, "logic")
+	_ = router.Register(1, &LoginReq{}, "logic")
+	_ = router.Register(2, &LoginResp{}, "logic")
+	_ = router.Register(3, &MsgCounter{}, "logic")
 }
+
+//---------------游戏逻辑处理-----------------------------------
 
 type gameHandler struct {
 	transportor gametrans.ITransportor
 }
 
-func (h *gameHandler) onMsgTest1(sessionID string, msg *MsgTest1) error {
-	kklog.Infof("收到rpc消息 onMsgTest1: %v", msg)
-	h.transportor.SendToClient(sessionID, msg)
+func (h *gameHandler) onLoginReq(sessionID string, msg *LoginReq) error {
+	kklog.Infof("逻辑服收到消息: type = %T, data = %v", msg, msg)
+	resp := &LoginResp{
+		UserId:   msg.UserId,
+		UserData: "user data",
+	}
+	h.transportor.SendToClient(sessionID, resp)
 	return nil
 }
 
-func (h *gameHandler) onMsgTest2(sessionID string, msg *MsgTest2) error {
-	kklog.Infof("收到rpc消息 onMsgTest2: %v", msg)
+func (h *gameHandler) onLoginResp(sessionID string, msg *LoginResp) error {
+	kklog.Infof("逻辑服收到消息: type = %T, data = %v", msg, msg)
 	return nil
 }
 
-func (h *gameHandler) onMsgTest3(sessionID string, msg *MsgTest3) error {
-	kklog.Infof("收到rpc消息 onMsgTest3: %v", msg)
+func (h *gameHandler) onMsgCounter(sessionID string, msg *MsgCounter) error {
+	kklog.Infof("逻辑服收到消息: type = %T, data = %v", msg, msg)
+	resp := &MsgCounter{
+		Seq:  msg.Seq + 1,
+		Data: msg.Data,
+	}
+	h.transportor.SendToClient(sessionID, resp)
 	return nil
 }
 
@@ -95,6 +108,8 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	const transType = transport.TransTypeRpc
 
 	appOpts := kkapp.ApplyOptions()
+
+	//----------------------------- gate -----------------------------
 
 	// gate 节点
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", nil)
@@ -117,6 +132,8 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = gateApp.Stop() })
 
+	//----------------------------- game -----------------------------
+
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
 	gameApp := component.NewApplication(gameNode, nil, appOpts)
@@ -137,9 +154,9 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	msgReceiver := game.GetMsgReceiver()
 	gh := &gameHandler{transportor: game.GetTransportor()}
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest1)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest2)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgTest3)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginReq)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginResp)
+	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgCounter)
 
 	t.Cleanup(func() { _ = gameApp.Stop() })
 
@@ -153,37 +170,50 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	var recvMu sync.Mutex
 	var recvData []byte
-	recvCh := make(chan struct{})
+	clientRecvCh := make(chan struct{})
 
 	clientAppOpts := kkapp.ApplyOptions()
 	InitMsgs(clientAppOpts.ClientMsgPacket.GetRouter())
-	streamTool := clientAppOpts.StreamTool
 
 	handler := &clientHandler{
 		onRaw: func(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-			msg, e := kkpacket.DecodeStream(data, streamTool, clientAppOpts.ClientMsgPacket)
+			msg, e := kkpacket.DecodeStream(data, clientAppOpts.StreamTool, clientAppOpts.ClientMsgPacket)
 
 			if e != nil {
 				t.Logf("unpack recv: %v", e)
 				return
 			}
-			msgTest1, ok := msg.(*MsgTest1)
-			if !ok {
-				t.Logf("unpack recv: %v", e)
-				return
-			}
-			recvMu.Lock()
-			recvData = append([]byte(nil), msgTest1.Data...)
-			recvMu.Unlock()
-			select {
-			case recvCh <- struct{}{}:
+
+			kklog.Infof("客户端收到消息: type = %T, data = %v", msg, msg)
+
+			switch info := msg.(type) {
+			case *LoginReq:
+				recvMu.Lock()
+				recvData = append([]byte(nil), info.Password...)
+				recvMu.Unlock()
+			case *LoginResp:
+				recvMu.Lock()
+				recvData = append([]byte(nil), info.UserData...)
+				recvMu.Unlock()
+			case *MsgCounter:
+				recvMu.Lock()
+				recvData = append([]byte(nil), info.Data...)
+				recvMu.Unlock()
+				select {
+				case clientRecvCh <- struct{}{}:
+				default:
+				}
 			default:
+				t.Logf("unknown message type: %T", msg)
 			}
+
 		},
 	}
 
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(handler),
+		kknet.WithStreamTool(clientAppOpts.StreamTool),
+		kknet.WithMsgPacket(clientAppOpts.ClientMsgPacket),
 	)
 	client := kktcp.NewClient(tcpAddr, handler, opts)
 	if err := client.Connect(); err != nil {
@@ -193,38 +223,38 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	bb, err := kkpacket.EncodeStream(
-		&MsgTest1{ID: 1, Data: string(payload)},
-		streamTool,
-		clientAppOpts.ClientMsgPacket,
-	)
-	if err != nil {
-		t.Fatalf("pack: %v", err)
+	if err := client.SendMsg(&LoginReq{UserId: 1, Password: string(payload)}); err != nil {
+		t.Fatalf("send: %v", err)
 	}
-	if err := client.SendBuffer(bb); err != nil {
+	if err := client.SendMsg(&MsgCounter{Seq: 1, Data: string(payload)}); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 
 	select {
-	case <-recvCh:
+	case <-clientRecvCh:
 		recvMu.Lock()
 		got := string(recvData)
 		recvMu.Unlock()
-		kklog.Infof("收到rpc消息 recv = %q, want %q", got, string(payload))
 		if got != string(payload) {
-			t.Errorf("收到rpc消息 recv = %q, want %q", got, string(payload))
+			t.Errorf("客户端收到消息 recv = %q, want %q", got, string(payload))
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("timeout waiting for echo")
 	}
 }
 
+//---------------客户端处理-----------------------------------
+
 type clientHandler struct {
 	onRaw func(kknet.CONN_ID, *kkbuffer.ByteBuffer)
 }
 
-func (h *clientHandler) OnConnect(kknet.IConn)      {}
-func (h *clientHandler) OnClose(kknet.IConn, error) {}
+func (h *clientHandler) OnConnect(kknet.IConn) {
+
+}
+func (h *clientHandler) OnClose(kknet.IConn, error) {
+
+}
 
 func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if h.onRaw != nil {

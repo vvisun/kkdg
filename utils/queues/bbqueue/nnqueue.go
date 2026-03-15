@@ -31,9 +31,9 @@ type NNQueue struct {
 	head     *nnNode
 	tail     *nnNode
 	free     *nnNode // per-queue freelist (LIFO)
-	count    int  // 队列元素个数
-	maxCount int  // 队列最大元素个数
-	isStrict bool // 是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
+	count    int     // 队列元素个数
+	maxCount int     // 队列最大元素个数
+	isStrict bool    // 是否严格容量控制。true时，队列满时返回false，false时，队列满时自动扩容。
 
 	freeCount int // freelist nodes count
 	freeMax   int // freelist cap; overflow returns to global pool
