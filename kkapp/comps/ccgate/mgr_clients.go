@@ -3,7 +3,6 @@ package ccgate
 import (
 	"strconv"
 	"sync"
-	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
@@ -121,21 +120,17 @@ func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {
 //	管理网关侧连接/会话索引，以及用户ID与客户端的映射关系。
 //	辅助消息路由转发到对应的逻辑节点、顶号踢人、记录连接/玩家的逻辑服绑定信息。
 type clientManager struct {
-	muMaps      sync.RWMutex
-	clientMap   map[kknet.CONN_ID]*clientInfo //kknet.CONN_ID -> *clientInfo
-	sessionMap  map[string]*clientInfo        //sessionId -> *clientInfo
-	userMap     map[user.USER_ID]*clientInfo  //user.USER_ID -> *clientInfo
-	clientCount int32
-	userCount   int32
+	muMaps     sync.RWMutex
+	connMap    map[kknet.CONN_ID]*clientInfo //kknet.CONN_ID -> *clientInfo
+	sessionMap map[string]*clientInfo        //sessionId -> *clientInfo
+	userMap    map[user.USER_ID]*clientInfo  //user.USER_ID -> *clientInfo
 }
 
 func newClientManager() *clientManager {
 	return &clientManager{
-		clientMap:   make(map[kknet.CONN_ID]*clientInfo),
-		sessionMap:  make(map[string]*clientInfo),
-		userMap:     make(map[user.USER_ID]*clientInfo),
-		clientCount: 0,
-		userCount:   0,
+		connMap:    make(map[kknet.CONN_ID]*clientInfo),
+		sessionMap: make(map[string]*clientInfo),
+		userMap:    make(map[user.USER_ID]*clientInfo),
 	}
 }
 
@@ -147,10 +142,9 @@ func (m *clientManager) addClient(connId kknet.CONN_ID, sessionId string) *clien
 	}
 	cliInfo := newClientInfo(connId, sessionId)
 	m.muMaps.Lock()
-	m.clientMap[connId] = cliInfo
+	m.connMap[connId] = cliInfo
 	m.sessionMap[sessionId] = cliInfo
 	m.muMaps.Unlock()
-	atomic.AddInt32(&m.clientCount, 1)
 	return cliInfo
 }
 
@@ -168,20 +162,16 @@ func (m *clientManager) removeClient(connId kknet.CONN_ID) {
 	uid := cliInfo.userId
 	sessionId := cliInfo.sessionId
 	m.muMaps.Lock()
-	delete(m.clientMap, connId)
+	delete(m.connMap, connId)
 	delete(m.sessionMap, sessionId)
 	delete(m.userMap, uid)
 	m.muMaps.Unlock()
-	atomic.AddInt32(&m.clientCount, -1)
-	if uid != user.NULL_USER_ID {
-		atomic.AddInt32(&m.userCount, -1)
-	}
 }
 
 // 根据connId获取客户端信息。
 func (m *clientManager) getClient(connId kknet.CONN_ID) *clientInfo {
 	m.muMaps.RLock()
-	cliInfo, ok := m.clientMap[connId]
+	cliInfo, ok := m.connMap[connId]
 	m.muMaps.RUnlock()
 	if ok && cliInfo != nil {
 		return cliInfo
@@ -221,7 +211,7 @@ func (m *clientManager) allocLogicNode(connId kknet.CONN_ID, nodeType string, no
 }
 
 // 检查是否需要踢出旧用户。如果需要踢出，则返回需要踢出的connId。
-func (m *clientManager) checkKickOutUser(connId kknet.CONN_ID, userId user.USER_ID) kknet.CONN_ID {
+func (m *clientManager) checkKickFromGate(connId kknet.CONN_ID, userId user.USER_ID) kknet.CONN_ID {
 	if userId == user.NULL_USER_ID {
 		return kknet.NULL_CONN_ID
 	}
@@ -249,7 +239,7 @@ func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId user.USER_ID) (
 		return false, kknet.NULL_CONN_ID
 	}
 
-	kickConnId := m.checkKickOutUser(connId, userId)
+	kickConnId := m.checkKickFromGate(connId, userId)
 	if kickConnId != kknet.NULL_CONN_ID {
 		m.removeClient(kickConnId)
 	}
@@ -258,8 +248,35 @@ func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId user.USER_ID) (
 	cliInfo.userId = userId
 	m.userMap[userId] = cliInfo
 	m.muMaps.Unlock()
-	atomic.AddInt32(&m.userCount, 1)
 	return true, kickConnId
+}
+
+func (m *clientManager) checkKickFromLogicNode(sessionId string, nodeType string, userId user.USER_ID) *clientLogicItem {
+	if userId == user.NULL_USER_ID {
+		return nil
+	}
+
+	if cliInfo := m.getClientBySessionId(sessionId); cliInfo != nil {
+		lgcInfo := cliInfo.getLogicNode(nodeType)
+		if lgcInfo == nil {
+			return nil
+		}
+		if lgcInfo.userId != user.NULL_USER_ID && lgcInfo.userId != userId {
+			return lgcInfo
+		}
+	}
+
+	if cliInfo := m.getClientByUserId(userId); cliInfo != nil {
+		lgcInfo := cliInfo.getLogicNode(nodeType)
+		if lgcInfo == nil {
+			return nil
+		}
+		if lgcInfo.userId != user.NULL_USER_ID && lgcInfo.userId != userId {
+			return lgcInfo
+		}
+	}
+
+	return nil
 }
 
 // 连接connId的客户端登录到nodeType类型的逻辑节点。
