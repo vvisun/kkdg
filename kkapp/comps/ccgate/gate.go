@@ -2,6 +2,7 @@ package ccgate
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
@@ -27,7 +28,25 @@ import (
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
+//go:inline
+func getSessionId(connID kknet.CONN_ID, gateNodeId string) string {
+	return gateNodeId + "-" + strconv.FormatUint(connID, 10)
+}
+
 // 网关服
+//
+//	连接管理: kknet.IConnManager connId -> kknet.IConn
+//	会话管理: gatetrans.ISessionManager sessionId -> kknet.IConn
+//	用户管理: userManager user.USER_ID -> *clientInfo
+//	客户端管理: clientManager connId,sessionId -> *clientInfo
+//
+// 说明：
+//   - 由于网关与逻辑服之间是多对多的，即多个逻辑服可以连接到同一个网关，客户端也可能选择不同的网关登入到逻辑服
+//     所以同一个逻辑服也可能连接到多个网关，因此需要使用sessionId来区分不同的客户端。
+//   - 因为网关上的connId是本服全局唯一，节点ID是节点的唯一标识
+//     所以sessionId的生成方式为【gateNodeId + "-" + connId】，这样即可保证sessionId的唯一性。
+//   - 原本逻辑服可以直接根据sessionId生成规则来得知消息源自哪个gate，但是未来可能sessionId的生成规则会改变，
+//     所以为了通用性，并没有采取这样的做法，而是通过转发协议来得知，详见[ptotrans.RpcC2S]。
 type gateComponent struct {
 	component.Component
 	opt       Option
@@ -38,8 +57,24 @@ type gateComponent struct {
 	discovery   kkdiscovery.IDiscovery
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
 	transportor gatetrans.ITransportor
-	clientMgr   *clientManager
-	sessionMgr  gatetrans.ISessionManager
+
+	sessionMgr gatetrans.ISessionManager
+	clientMgr  *clientManager
+	userMgr    *userManager
+}
+
+// NewGateComponent creates a new gate component.
+func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
+	if err := validateOption(&gateOpt); err != nil {
+		kklog.PanicErr(err)
+	}
+	return &gateComponent{
+		opt:        gateOpt,
+		serverOpt:  serverOpt,
+		sessionMgr: gatetrans.NewSessionMgr(),
+		clientMgr:  newClientManager(),
+		userMgr:    newUserManager(),
+	}
 }
 
 func (slf *gateComponent) GetCompName() string {
@@ -54,19 +89,6 @@ func (slf *gateComponent) Receive(context actor.Context) {
 	switch context.Message().(type) {
 	case *actor.Stopping:
 		slf.OnStop()
-	}
-}
-
-// NewGateComponent creates a new gate component.
-func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
-	if err := validateOption(&gateOpt); err != nil {
-		kklog.PanicErr(err)
-	}
-	return &gateComponent{
-		opt:        gateOpt,
-		serverOpt:  serverOpt,
-		sessionMgr: gatetrans.NewSessionMgr(),
-		clientMgr:  newClientManager(),
 	}
 }
 
@@ -133,11 +155,27 @@ func (slf *gateComponent) OnInit() error {
 			}
 			if msg.IsLogin {
 				kklog.Infof("[ccgate]客户端登录: %#v", msg)
-				slf.clientMgr.loginToLogicNode(msg.ClientId, msg.NodeType, user.USER_ID(msg.UserId))
+				cliInfo := slf.clientMgr.getClientBySessionId(msg.ClientId)
+				if cliInfo != nil {
+					bindTbl := cliInfo.clientBindTbl
+					if bindTbl != nil {
+						if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
+							lgcInfo.userId = user.USER_ID(msg.UserId)
+						}
+					}
+					slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
+				}
 			} else {
 				kklog.Infof("[ccgate]客户端登出: %#v", msg)
-				slf.clientMgr.logoutFromLogicNode(msg.ClientId, msg.NodeType)
+				bindTbl := slf.userMgr.getUserBindTable(user.USER_ID(msg.UserId))
+				if bindTbl != nil {
+					if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
+						lgcInfo.logout()
+					}
+					bindTbl.unbindLogicItem(msg.NodeType)
+				}
 				gLogicTotalMgr.onUnbindLogicNode(msg.ClientId, msg.NodeId)
+				slf.userMgr.removeUser(user.USER_ID(msg.UserId))
 			}
 		}
 	})
@@ -252,7 +290,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	if nodeType == "" {
 		return nil //无效的nodeType，不分配逻辑节点
 	}
-	cliInfo := slf.clientMgr.getClient(connID)
+	cliInfo := slf.clientMgr.getClientByConnId(connID)
 	if cliInfo == nil {
 		return nil //客户端不存在，不分配逻辑节点
 	}
@@ -370,8 +408,8 @@ func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 	cid := c.ID()
 	sid := getSessionId(cid, h.gateNodeId)
 
-	// 在 removeClient 前取出该客户端已分配的逻辑服 nodeId，用于通知断开
-	if cliInfo := h.gate.clientMgr.getClient(cid); cliInfo != nil {
+	// 通知所有已绑定的逻辑服，网关处该客户端连接已断开
+	if cliInfo := h.gate.clientMgr.getClientByConnId(cid); cliInfo != nil {
 		cliInfo.rangeLogicNodes(func(nodeType string, lgcInfo *clientLogicItem) bool {
 			if lgcInfo.nodeId != "" {
 				logicNodeId := lgcInfo.nodeId
@@ -396,7 +434,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 
-	cliInfo := h.gate.clientMgr.getClient(connID)
+	cliInfo := h.gate.clientMgr.getClientByConnId(connID)
 	if cliInfo == nil {
 		kkbuffer.Put(data)
 		return

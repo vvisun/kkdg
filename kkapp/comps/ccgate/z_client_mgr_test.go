@@ -3,7 +3,6 @@ package ccgate
 import (
 	"testing"
 
-	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -79,53 +78,24 @@ func Test_clientManager_addClient_removeClient_getClient(t *testing.T) {
 		t.Errorf("clientInfo connId=%v sessionId=%v, want %v %v", ci.connId, ci.sessionId, connID, sessionID)
 	}
 
-	got := m.getClient(connID)
+	got := m.getClientByConnId(connID)
 	if got != ci {
 		t.Errorf("getClient(%v) = %v, want %v", connID, got, ci)
 	}
 
 	// get non-existent
-	if m.getClient(999) != nil {
+	if m.getClientByConnId(999) != nil {
 		t.Error("getClient(999) should return nil")
 	}
 
 	// remove
 	m.removeClient(connID)
-	if m.getClient(connID) != nil {
+	if m.getClientByConnId(connID) != nil {
 		t.Error("getClient after removeClient should return nil")
 	}
 
 	// remove non-existent should not panic
 	m.removeClient(999)
-}
-
-func Test_clientManager_getClientByUserId_loginToGate(t *testing.T) {
-	m := newClientManager()
-	connID := kknet.CONN_ID(200)
-	m.addClient(connID, getSessionId(connID, "gate1"))
-
-	if m.getClientByUserId(100) != nil {
-		t.Error("getClientByUserId before login should return nil")
-	}
-
-	// login with NULL_USER_ID should fail
-	if _, kickConnId := m.loginToGate(connID, user.NULL_USER_ID); kickConnId != kknet.NULL_CONN_ID {
-		t.Error("loginToGate with NULL_USER_ID should return false")
-	}
-
-	// login with valid userId
-	if _, kickConnId := m.loginToGate(connID, 100); kickConnId != kknet.NULL_CONN_ID {
-		t.Error("loginToGate(200, 100) should return true")
-	}
-	ci := m.getClientByUserId(100)
-	if ci == nil || ci.userId != 100 {
-		t.Errorf("getClientByUserId(100) = %v, want clientInfo with userId 100", ci)
-	}
-
-	// login on non-existent conn should fail
-	if _, kickConnId := m.loginToGate(999, 101); kickConnId != kknet.NULL_CONN_ID {
-		t.Error("loginToGate on non-existent conn should return false")
-	}
 }
 
 func Test_clientManager_allocLogicNode(t *testing.T) {
@@ -151,44 +121,5 @@ func Test_clientManager_allocLogicNode(t *testing.T) {
 	// alloc on non-existent conn returns nil
 	if m.allocLogicNode(999, "game", "game1") != nil {
 		t.Error("allocLogicNode on non-existent conn should return nil")
-	}
-}
-
-func Test_clientManager_loginToLogicNode(t *testing.T) {
-	m := newClientManager()
-	connID := kknet.CONN_ID(400)
-	sessionID := getSessionId(connID, "gate1")
-	m.addClient(connID, sessionID)
-	m.allocLogicNode(connID, "game", "game1")
-
-	if m.loginToLogicNode(sessionID, "game", user.NULL_USER_ID) {
-		t.Error("loginToLogicNode with NULL_USER_ID should return false")
-	}
-	if m.loginToLogicNode("non-existent", "game", 100) {
-		t.Error("loginToLogicNode on non-existent conn should return false")
-	}
-	if m.loginToLogicNode(sessionID, "unknown", 100) {
-		t.Error("loginToLogicNode with unallocated nodeType should return false")
-	}
-
-	if !m.loginToLogicNode(sessionID, "game", 100) {
-		t.Error("loginToLogicNode(400, game, 100) should return true")
-	}
-	ci := m.getClient(connID)
-	lgc := ci.getLogicNode("game")
-	if lgc == nil || !lgc.isLogin() || lgc.userId != 100 {
-		t.Errorf("logicNode after loginToLogicNode: %+v", lgc)
-	}
-}
-
-func Test_clientManager_removeClient_clearsUserMap(t *testing.T) {
-	m := newClientManager()
-	connID := kknet.CONN_ID(500)
-	m.addClient(connID, getSessionId(connID, "gate1"))
-	m.loginToGate(connID, 200)
-
-	m.removeClient(connID)
-	if m.getClientByUserId(200) != nil {
-		t.Error("getClientByUserId after removeClient should return nil")
 	}
 }

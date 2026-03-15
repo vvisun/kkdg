@@ -1,0 +1,123 @@
+package ccgate
+
+import (
+	"sync"
+
+	"github.com/vvisun/kkdg/kkapp/user"
+	"github.com/vvisun/kkdg/utils/kklog"
+)
+
+type userManager struct {
+	mu sync.Mutex
+
+	uid2sid map[user.USER_ID]string //user.USER_ID -> sessionId
+	sid2uid map[string]user.USER_ID //sessionId -> user.USER_ID
+
+	// 这里为了记住用户已分配的逻辑服，方便后续用户重新登录时，能接入之前的逻辑服。
+	// 如果不记录，用户重新登录时可能分配到新的逻辑服，这时候旧的逻辑服可能还在处理用户逻辑，
+	// 导致用户登入多个同类逻辑服造成状态和数据混乱，除非业务逻辑本身不依赖顺序性。
+	userBindTable map[user.USER_ID]*clientBindTable
+}
+
+func newUserManager() *userManager {
+	return &userManager{
+		uid2sid:       make(map[user.USER_ID]string),
+		sid2uid:       make(map[string]user.USER_ID),
+		userBindTable: make(map[user.USER_ID]*clientBindTable),
+	}
+}
+
+// 用户登录时，记录用户与会话的绑定关系，以及逻辑节点绑定表。
+func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl *clientBindTable) {
+	if bindTbl == nil {
+		kklog.Errorf("addUser: bindTbl is nil, userId: %d", userId)
+		return
+	}
+	if curSessionId == "" {
+		kklog.Errorf("addUser: sessionId is empty, userId: %d", userId)
+		return
+	}
+
+	m.mu.Lock()
+
+	// 如果userId已经登录了其他会话，需踢出旧的会话
+	if oldSid, ok := m.uid2sid[userId]; ok {
+		if oldSid != "" && oldSid != curSessionId {
+			if oldUid, ok := m.sid2uid[oldSid]; ok {
+				delete(m.uid2sid, oldUid)
+			}
+			delete(m.sid2uid, oldSid)
+			kklog.Debugf("kick out old user %d, sessionId: %s", userId, oldSid)
+		}
+	}
+
+	// 如果当前会话已经登录了其他用户，需踢出该其他用户。理论上不可能，但是依旧防御性检查
+	if curUid, ok := m.sid2uid[curSessionId]; ok {
+		if curUid != user.NULL_USER_ID && curUid != userId {
+			if oldSid, ok := m.uid2sid[curUid]; ok {
+				delete(m.sid2uid, oldSid)
+			}
+			delete(m.uid2sid, curUid)
+			kklog.Debugf("kick out old user %d, sessionId: %s", curUid, curSessionId)
+		}
+	}
+
+	m.uid2sid[userId] = curSessionId
+	m.sid2uid[curSessionId] = userId
+	m.userBindTable[userId] = bindTbl
+	m.mu.Unlock()
+}
+
+// 用户登出时，清除所有记录
+func (m *userManager) removeUser(userId user.USER_ID) {
+	m.mu.Lock()
+	if sid, ok := m.uid2sid[userId]; ok {
+		delete(m.sid2uid, sid)
+	}
+	delete(m.uid2sid, userId)
+	delete(m.userBindTable, userId)
+	m.mu.Unlock()
+}
+
+// 会话断开时，移除【userId - sessionId】绑定关系。
+func (m *userManager) onSessionDisconnect(sessionId string) {
+	m.mu.Lock()
+	if userId, ok := m.sid2uid[sessionId]; ok {
+		delete(m.uid2sid, userId)
+	}
+	delete(m.sid2uid, sessionId)
+	m.mu.Unlock()
+}
+
+// 获取用户的逻辑节点绑定表。
+func (m *userManager) getUserBindTable(userId user.USER_ID) *clientBindTable {
+	m.mu.Lock()
+	v, ok := m.userBindTable[userId]
+	m.mu.Unlock()
+	if !ok {
+		return nil
+	}
+	return v
+}
+
+// 获取会话ID对应的用户ID。
+func (m *userManager) getUserIdBySessionId(sessionId string) (user.USER_ID, bool) {
+	m.mu.Lock()
+	v, ok := m.sid2uid[sessionId]
+	m.mu.Unlock()
+	if !ok {
+		return user.NULL_USER_ID, false
+	}
+	return v, true
+}
+
+// 获取用户ID对应的会话ID。
+func (m *userManager) getSessionIdByUserId(userId user.USER_ID) (string, bool) {
+	m.mu.Lock()
+	v, ok := m.uid2sid[userId]
+	m.mu.Unlock()
+	if !ok {
+		return "", false
+	}
+	return v, true
+}

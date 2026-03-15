@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -27,7 +26,7 @@ func Benchmark_clientManager_getClient(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = m.getClient(kknet.CONN_ID(i % n))
+		_ = m.getClientByConnId(kknet.CONN_ID(i % n))
 	}
 }
 
@@ -41,21 +40,6 @@ func Benchmark_clientManager_removeClient(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		m.removeClient(kknet.CONN_ID(i))
-	}
-}
-
-func Benchmark_clientManager_loginToGate_getClientByUserId(b *testing.B) {
-	m := newClientManager()
-	n := 10000
-	for i := 0; i < n; i++ {
-		connID := kknet.CONN_ID(i)
-		m.addClient(connID, getSessionId(connID, "gate1"))
-		m.loginToGate(connID, user.USER_ID(i+1))
-	}
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = m.getClientByUserId(user.USER_ID((i % n) + 1))
 	}
 }
 
@@ -83,7 +67,7 @@ func Benchmark_clientManager_AddGetRemove(b *testing.B) {
 		connID := kknet.CONN_ID(i)
 		sessionID := getSessionId(connID, "gate1")
 		m.addClient(connID, sessionID)
-		_ = m.getClient(connID)
+		_ = m.getClientByConnId(connID)
 		m.removeClient(connID)
 	}
 }
@@ -99,7 +83,7 @@ func Benchmark_clientManager_GetClient_Parallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			_ = m.getClient(kknet.CONN_ID(i % n))
+			_ = m.getClientByConnId(kknet.CONN_ID(i % n))
 			i++
 		}
 	})
@@ -115,7 +99,7 @@ func Benchmark_clientManager_AddGetRemove_Parallel(b *testing.B) {
 			connID := kknet.CONN_ID(i)
 			sessionID := getSessionId(connID, "gate1")
 			m.addClient(connID, sessionID)
-			_ = m.getClient(connID)
+			_ = m.getClientByConnId(connID)
 			m.removeClient(connID)
 			i++
 		}
