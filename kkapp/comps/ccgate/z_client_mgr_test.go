@@ -3,6 +3,7 @@ package ccgate
 import (
 	"testing"
 
+	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -108,7 +109,7 @@ func Test_clientManager_getClientByUserId_loginToGate(t *testing.T) {
 	}
 
 	// login with NULL_USER_ID should fail
-	if _, kickConnId := m.loginToGate(connID, kknet.NULL_USER_ID); kickConnId != kknet.NULL_CONN_ID {
+	if _, kickConnId := m.loginToGate(connID, user.NULL_USER_ID); kickConnId != kknet.NULL_CONN_ID {
 		t.Error("loginToGate with NULL_USER_ID should return false")
 	}
 
@@ -160,7 +161,7 @@ func Test_clientManager_loginToLogicNode(t *testing.T) {
 	m.addClient(connID, sessionID)
 	m.allocLogicNode(connID, "game", "game1")
 
-	if m.loginToLogicNode(sessionID, "game", kknet.NULL_USER_ID) {
+	if m.loginToLogicNode(sessionID, "game", user.NULL_USER_ID) {
 		t.Error("loginToLogicNode with NULL_USER_ID should return false")
 	}
 	if m.loginToLogicNode("non-existent", "game", 100) {

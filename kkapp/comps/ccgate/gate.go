@@ -12,6 +12,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transrpc"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transshard"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
+	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -132,7 +133,7 @@ func (slf *gateComponent) OnInit() error {
 			}
 			if msg.IsLogin {
 				kklog.Infof("[ccgate]客户端登录: %#v", msg)
-				slf.clientMgr.loginToLogicNode(msg.ClientId, msg.NodeType, kknet.USER_ID(msg.UserId))
+				slf.clientMgr.loginToLogicNode(msg.ClientId, msg.NodeType, user.USER_ID(msg.UserId))
 			} else {
 				kklog.Infof("[ccgate]客户端登出: %#v", msg)
 				slf.clientMgr.logoutFromLogicNode(msg.ClientId, msg.NodeType)

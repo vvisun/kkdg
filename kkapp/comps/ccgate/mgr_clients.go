@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -19,19 +20,19 @@ func getSessionId(connID kknet.CONN_ID, gateNodeId string) string {
 //
 //	节点ID，节点类型，用户ID(是否已登录该节点)
 type clientLogicItem struct {
-	userId   kknet.USER_ID // 用户ID。用于标识是否已登录到本逻辑节点
-	nodeId   string        // 逻辑节点ID
-	nodeType string        // 逻辑节点类型
+	userId   user.USER_ID // 用户ID。用于标识是否已登录到本逻辑节点
+	nodeId   string       // 逻辑节点ID
+	nodeType string       // 逻辑节点类型
 }
 
 // 是否已登录到本逻辑节点
 func (l *clientLogicItem) isLogin() bool {
-	return l.userId != kknet.NULL_USER_ID
+	return l.userId != user.NULL_USER_ID
 }
 
 func newClientLogicItem(nodeId string, nodeType string) *clientLogicItem {
 	return &clientLogicItem{
-		userId:   kknet.NULL_USER_ID,
+		userId:   user.NULL_USER_ID,
 		nodeId:   nodeId,
 		nodeType: nodeType,
 	}
@@ -46,7 +47,7 @@ type clientInfo struct {
 	// 客户端连接ID
 	connId kknet.CONN_ID
 	// 用户ID
-	userId kknet.USER_ID
+	userId user.USER_ID
 	// nodeType -> *clientLogicItem。
 	//  本客户端链接的逻辑节点字典。
 	//  同一个客户端可能链接不同类型的逻辑服，比如充值服，大厅服，游戏服，聊天服等。
@@ -123,7 +124,7 @@ type clientManager struct {
 	muMaps      sync.RWMutex
 	clientMap   map[kknet.CONN_ID]*clientInfo //kknet.CONN_ID -> *clientInfo
 	sessionMap  map[string]*clientInfo        //sessionId -> *clientInfo
-	userMap     map[kknet.USER_ID]*clientInfo //kknet.USER_ID -> *clientInfo
+	userMap     map[user.USER_ID]*clientInfo  //user.USER_ID -> *clientInfo
 	clientCount int32
 	userCount   int32
 }
@@ -132,7 +133,7 @@ func newClientManager() *clientManager {
 	return &clientManager{
 		clientMap:   make(map[kknet.CONN_ID]*clientInfo),
 		sessionMap:  make(map[string]*clientInfo),
-		userMap:     make(map[kknet.USER_ID]*clientInfo),
+		userMap:     make(map[user.USER_ID]*clientInfo),
 		clientCount: 0,
 		userCount:   0,
 	}
@@ -172,7 +173,7 @@ func (m *clientManager) removeClient(connId kknet.CONN_ID) {
 	delete(m.userMap, uid)
 	m.muMaps.Unlock()
 	atomic.AddInt32(&m.clientCount, -1)
-	if uid != kknet.NULL_USER_ID {
+	if uid != user.NULL_USER_ID {
 		atomic.AddInt32(&m.userCount, -1)
 	}
 }
@@ -189,7 +190,7 @@ func (m *clientManager) getClient(connId kknet.CONN_ID) *clientInfo {
 }
 
 // 根据userId获取客户端信息。
-func (m *clientManager) getClientByUserId(userId kknet.USER_ID) *clientInfo {
+func (m *clientManager) getClientByUserId(userId user.USER_ID) *clientInfo {
 	m.muMaps.RLock()
 	cliInfo, ok := m.userMap[userId]
 	m.muMaps.RUnlock()
@@ -220,15 +221,15 @@ func (m *clientManager) allocLogicNode(connId kknet.CONN_ID, nodeType string, no
 }
 
 // 检查是否需要踢出旧用户。如果需要踢出，则返回需要踢出的connId。
-func (m *clientManager) checkKickOutUser(connId kknet.CONN_ID, userId kknet.USER_ID) kknet.CONN_ID {
-	if userId == kknet.NULL_USER_ID {
+func (m *clientManager) checkKickOutUser(connId kknet.CONN_ID, userId user.USER_ID) kknet.CONN_ID {
+	if userId == user.NULL_USER_ID {
 		return kknet.NULL_CONN_ID
 	}
 	cliInfo := m.getClient(connId)
 	if cliInfo == nil {
 		return kknet.NULL_CONN_ID
 	}
-	if cliInfo.userId != kknet.NULL_USER_ID && (cliInfo.connId != connId || cliInfo.userId != userId) {
+	if cliInfo.userId != user.NULL_USER_ID && (cliInfo.connId != connId || cliInfo.userId != userId) {
 		return cliInfo.connId
 	}
 	usrCliInfo := m.getClientByUserId(userId)
@@ -239,8 +240,8 @@ func (m *clientManager) checkKickOutUser(connId kknet.CONN_ID, userId kknet.USER
 }
 
 // 连接connId的客户端登录到本网关。如果需要踢出旧用户，则返回需要踢出的用户connId。
-func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId kknet.USER_ID) (bool, kknet.CONN_ID) {
-	if userId == kknet.NULL_USER_ID {
+func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId user.USER_ID) (bool, kknet.CONN_ID) {
+	if userId == user.NULL_USER_ID {
 		return false, kknet.NULL_CONN_ID
 	}
 	cliInfo := m.getClient(connId)
@@ -262,8 +263,8 @@ func (m *clientManager) loginToGate(connId kknet.CONN_ID, userId kknet.USER_ID) 
 }
 
 // 连接connId的客户端登录到nodeType类型的逻辑节点。
-func (m *clientManager) loginToLogicNode(sessionId string, nodeType string, userId kknet.USER_ID) bool {
-	if userId == kknet.NULL_USER_ID {
+func (m *clientManager) loginToLogicNode(sessionId string, nodeType string, userId user.USER_ID) bool {
+	if userId == user.NULL_USER_ID {
 		return false
 	}
 	cliInfo := m.getClientBySessionId(sessionId)
@@ -288,6 +289,6 @@ func (m *clientManager) logoutFromLogicNode(sessionId string, nodeType string) b
 	if lgcInfo == nil {
 		return false
 	}
-	lgcInfo.userId = kknet.NULL_USER_ID
+	lgcInfo.userId = user.NULL_USER_ID
 	return true
 }

@@ -5,21 +5,17 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
-	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // SessionInfo 客户端会话信息
 type SessionInfo struct {
-	isInPool   atomic.Bool   //标志是否在池中，防止重复入池
-	userID     kknet.USER_ID // 用户ID
-	sessionID  string        // 会话ID
-	gateNodeID string        // 网关节点ID
-	shardIdx   int           // 分片索引
-}
-
-func (si *SessionInfo) GetUserID() kknet.USER_ID {
-	return si.userID
+	isInPool   atomic.Bool  //标志是否在池中，防止重复入池
+	sessionID  string       // 会话ID
+	gateNodeID string       // 网关节点ID
+	shardIdx   int          // 分片索引
+	userID     user.USER_ID // 用户ID
 }
 
 func (si *SessionInfo) GetSessionID() string {
@@ -32,6 +28,10 @@ func (si *SessionInfo) GetGateNodeID() string {
 
 func (si *SessionInfo) GetShardIdx() int {
 	return si.shardIdx
+}
+
+func (si *SessionInfo) GetUserID() user.USER_ID {
+	return si.userID
 }
 
 var sessionInfoPool = sync.Pool{
@@ -55,8 +55,8 @@ func putSessionInfo(si *SessionInfo) {
 	}
 	si.sessionID = ""
 	si.gateNodeID = ""
-	si.userID = kknet.NULL_USER_ID
 	si.shardIdx = -1
+	si.userID = user.NULL_USER_ID
 	sessionInfoPool.Put(si)
 }
 
@@ -112,14 +112,14 @@ func (slf *SessionManager) RemoveSession(sessionID string) {
 	}
 	atomic.AddInt32(&slf.onlineCount, -1)
 	userID := si.(*SessionInfo).userID
-	if userID != kknet.NULL_USER_ID {
+	if userID != user.NULL_USER_ID {
 		slf.userMap.Delete(userID)
 		atomic.AddInt32(&slf.userCount, -1)
 	}
 	putSessionInfo(si.(*SessionInfo))
 }
 
-func (slf *SessionManager) RemoveSessionByUserID(userID kknet.USER_ID) {
+func (slf *SessionManager) RemoveSessionByUserID(userID user.USER_ID) {
 	si, ok := slf.userMap.Load(userID)
 	if ok {
 		slf.RemoveSession(si.(*SessionInfo).sessionID)
@@ -134,7 +134,7 @@ func (slf *SessionManager) GetSession(sessionID string) *SessionInfo {
 	return si.(*SessionInfo)
 }
 
-func (slf *SessionManager) GetSessionByUserID(userID kknet.USER_ID) *SessionInfo {
+func (slf *SessionManager) GetSessionByUserID(userID user.USER_ID) *SessionInfo {
 	si, ok := slf.userMap.Load(userID)
 	if !ok {
 		return nil
@@ -146,16 +146,16 @@ func (slf *SessionManager) GetSessionByUserID(userID kknet.USER_ID) *SessionInfo
 //
 //	如果需要踢出，则返回需要踢出的会话ID。
 //	如果不需要踢出，则返回空字符串。
-func (slf *SessionManager) CheckKickOutUser(sessionID string, userID kknet.USER_ID) string {
+func (slf *SessionManager) CheckKickOutUser(sessionID string, userID user.USER_ID) string {
 	si := slf.GetSession(sessionID)
 	if si != nil {
-		if si.userID != kknet.NULL_USER_ID && (si.userID != userID || si.sessionID != sessionID) {
+		if si.userID != user.NULL_USER_ID && (si.userID != userID || si.sessionID != sessionID) {
 			return si.sessionID
 		}
 	}
 	otherSi := slf.GetSessionByUserID(userID)
 	if otherSi != nil {
-		if otherSi.userID != kknet.NULL_USER_ID && (otherSi.userID != userID || otherSi.sessionID != sessionID) {
+		if otherSi.userID != user.NULL_USER_ID && (otherSi.userID != userID || otherSi.sessionID != sessionID) {
 			return otherSi.sessionID
 		}
 	}
@@ -166,8 +166,8 @@ func (slf *SessionManager) CheckKickOutUser(sessionID string, userID kknet.USER_
 //
 //	如果登录成功，则返回 true。
 //	如果登录失败，则返回 false。
-func (slf *SessionManager) Login(sessionID string, userID kknet.USER_ID, kickFunc func(sessionID string)) bool {
-	if userID == kknet.NULL_USER_ID {
+func (slf *SessionManager) Login(sessionID string, userID user.USER_ID, kickFunc func(sessionID string)) bool {
+	if userID == user.NULL_USER_ID {
 		return false
 	}
 	si := slf.GetSession(sessionID)

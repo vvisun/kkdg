@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -49,12 +50,12 @@ func Benchmark_clientManager_loginToGate_getClientByUserId(b *testing.B) {
 	for i := 0; i < n; i++ {
 		connID := kknet.CONN_ID(i)
 		m.addClient(connID, getSessionId(connID, "gate1"))
-		m.loginToGate(connID, kknet.USER_ID(i+1))
+		m.loginToGate(connID, user.USER_ID(i+1))
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = m.getClientByUserId(kknet.USER_ID((i % n) + 1))
+		_ = m.getClientByUserId(user.USER_ID((i % n) + 1))
 	}
 }
 

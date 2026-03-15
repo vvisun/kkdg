@@ -5,10 +5,6 @@ import "sync/atomic"
 // CONN_ID is the type of connection ID.
 type CONN_ID = uint64
 
-// USER_ID is the type of user ID.
-type USER_ID int64
-
-const NULL_USER_ID USER_ID = 0
 const NULL_CONN_ID CONN_ID = 0
 
 // counter for connection ID. unique id for the connection.

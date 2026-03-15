@@ -53,6 +53,10 @@ type (
 		UserId   int64
 		UserData string
 	}
+	KickOutPush struct {
+		UserId int64
+		Reason string
+	}
 	MsgCounter struct {
 		Seq  int
 		Data string
@@ -62,7 +66,8 @@ type (
 func InitMsgs(router *kkpacket.MsgRouter) {
 	_ = router.Register(1, &LoginReq{}, "logic")
 	_ = router.Register(2, &LoginResp{}, "logic")
-	_ = router.Register(3, &MsgCounter{}, "logic")
+	_ = router.Register(3, &KickOutPush{}, "logic")
+	_ = router.Register(4, &MsgCounter{}, "logic")
 }
 
 //---------------游戏逻辑处理-----------------------------------

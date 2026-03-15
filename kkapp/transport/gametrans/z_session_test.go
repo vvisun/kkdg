@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kkapp/user"
 )
 
 func TestSessionManager_AddGetRemove(t *testing.T) {
@@ -30,7 +30,7 @@ func TestSessionManager_AddGetRemove(t *testing.T) {
 	if si.sessionID != "s1" || si.gateNodeID != "gate1" {
 		t.Errorf("GetSession(s1) = SessionID=%q GateNodeID=%q, want s1, gate1", si.sessionID, si.gateNodeID)
 	}
-	if si.userID != kknet.NULL_USER_ID {
+	if si.userID != user.NULL_USER_ID {
 		t.Errorf("GetSession(s1).UserID = %v, want NULL_USER_ID", si.userID)
 	}
 
@@ -88,7 +88,7 @@ func TestSessionManager_Login_NullUserID_ReturnsFalse(t *testing.T) {
 	mgr := NewSessionManager()
 	mgr.AddSession("s1", "gate1")
 
-	if mgr.Login("s1", kknet.NULL_USER_ID, nil) {
+	if mgr.Login("s1", user.NULL_USER_ID, nil) {
 		t.Error("Login(s1, NULL_USER_ID) = true, want false")
 	}
 	if mgr.UserCount() != 0 {
@@ -244,7 +244,7 @@ func TestSessionManager_ConcurrentAddLoginRemove_DisjointSessions(t *testing.T) 
 				id := base + i
 				sessionID := fmt.Sprintf("s-%d", id)
 				gateID := fmt.Sprintf("gate-%d", g)
-				userID := kknet.USER_ID(id + 1)
+				userID := user.USER_ID(id + 1)
 
 				mgr.AddSession(sessionID, gateID)
 
