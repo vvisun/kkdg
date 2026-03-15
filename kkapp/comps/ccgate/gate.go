@@ -162,7 +162,7 @@ func (slf *gateComponent) OnInit() error {
 					bindTbl := cliInfo.clientBindTbl
 					if bindTbl != nil {
 						if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
-							lgcInfo.userId = user.USER_ID(msg.UserId)
+							lgcInfo.login(user.USER_ID(msg.UserId))
 						}
 					}
 					kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
