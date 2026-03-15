@@ -25,14 +25,14 @@ func setupTestRpcManager(t *testing.T) *MethodManager {
 type rpcProcessor struct{}
 
 func (rp *rpcProcessor) onTestReqTestRsp(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
-	kklog.Infof("[server] onTestReqTestRsp from %s, connId=%d", msg.Data, connId)
+	kklog.Infof("===> onTestReqTestRsp from %s, connId=%d", msg.Data, connId)
 	resp.Code = 0
 	resp.Msg = "test success"
 	return nil
 }
 
 func (rp *rpcProcessor) onTestReq(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
-	kklog.Infof("[server] onTestReq from %s, connId=%d", msg.Data, connId)
+	kklog.Infof("===> onTestReq from %s, connId=%d", msg.Data, connId)
 	return nil
 }
 
@@ -61,18 +61,6 @@ func newTestServerClient(t *testing.T, rpcRouter *RpcReceiver) (*Server, *Client
 	time.Sleep(100 * time.Millisecond)
 	return svr, cli
 }
-
-// func Test_InvokeOneWay(t *testing.T) {
-// 	methodMgr := setupTestRpcManager(t)
-// 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-// 	rp := &rpcProcessor{}
-// 	RegistOneWayHandler(rpcRouter, "testOneway", rp.onTestReq)
-// 	_, cli := newTestServerClient(t, rpcRouter)
-// 	err := InvokeOneWay(context.Background(), cli, 0, testReq{ID: 1, Data: "test"}, CallConfig{})
-// 	if err != nil {
-// 		t.Fatalf("invoke oneway: %v", err)
-// 	}
-// }
 
 func Test_RpcProcessor(t *testing.T) {
 	methodMgr := setupTestRpcManager(t)
