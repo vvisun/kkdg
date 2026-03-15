@@ -128,9 +128,10 @@ func newReqResp[REQ any, RSP any](method string, methodMgr *MethodManager) error
 	methodMgr.method2typeReqRsp[fullName3] = methodReqRsp{reqType: typeReq, rspType: typeRspValue}
 	methodMgr.method2typeReqRsp[fullName4] = methodReqRsp{reqType: typeReqValue, rspType: typeRsp}
 
-	if method != "" && (method != fullName1 || method != fullName2 || method != fullName3 || method != fullName4) {
-		methodName := methodMgr.autoMethodName(typeReq, typeRsp)
-		methodMgr.method2typeReqRsp[methodName] = methodReqRsp{reqType: typeReq, rspType: typeRsp}
+	if method != "" {
+		if method != fullName1 && method != fullName2 && method != fullName3 && method != fullName4 {
+			methodMgr.method2typeReqRsp[method] = methodReqRsp{reqType: typeReq, rspType: typeRsp}
+		}
 	}
 
 	return nil
