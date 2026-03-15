@@ -49,6 +49,9 @@ type (
 // Creates a task queue
 // @param maxConcurrency 最大并发数，1表示串行，大于1表示并发
 func NewWorkerQueue(maxConcurrency int32) *WorkerQueue {
+	if maxConcurrency < 1 {
+		maxConcurrency = 1
+	}
 	c := &WorkerQueue{
 		mu:             sync.Mutex{},
 		maxConcurrency: maxConcurrency,

@@ -42,7 +42,6 @@ type WriteProcessor struct {
 
 var _ kknet.IWriteProcessor = (*WriteProcessor)(nil)
 
-// 使用单独的 writeLoop 协程消费发送队列中的数据并发送。
 func NewWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	kknet.CheckWriteOptions(&opts)
 	wp := &WriteProcessor{

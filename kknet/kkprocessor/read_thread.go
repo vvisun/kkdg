@@ -14,11 +14,13 @@ import (
 
 const defaultRecvBufSize int = 1 * 1024 // 接收缓冲区大小，1KB
 
-/**
- * 消息处理器-接收器。每个连接一个接收器。
- * 负责从连接中读取数据，并将其放入接收队列中。
- * 接收队列中的数据可以被其他组件消费。
- */
+// 消息处理器-接收器。每个连接一个接收器。
+//
+//	启用独立携程消费recvQueue中的数据，并分发消息。
+//	保证顺序性，适合RawHandler逻辑较重的场景。
+//	RawHandler必须设置，NoneCopyHandler会忽略。
+//
+// 主动关闭Server或Client后，只消费，不再接受数据入队。
 type ReadProcessor struct {
 	conn   kknet.IConn       //连接
 	connID kknet.CONN_ID     //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
@@ -39,13 +41,6 @@ type ReadProcessor struct {
 
 var _ kknet.IReadProcessor = (*ReadProcessor)(nil)
 
-// 消息处理器-接收器。每个连接一个接收器。
-//
-//	启用独立携程消费recvQueue中的数据，并分发消息。
-//	保证顺序性，适合RawHandler逻辑较重的场景。
-//	RawHandler必须设置，NoneCopyHandler会忽略。
-//
-// 主动关闭Server或Client后，只消费，不再接受数据入队。
 func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	if opts.RawHandler == nil {

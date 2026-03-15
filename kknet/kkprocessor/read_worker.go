@@ -36,16 +36,12 @@ type WorkerReadProcessor struct {
 
 var _ kknet.IReadProcessor = (*WorkerReadProcessor)(nil)
 
-// NewWorkerReadProcessor 创建基于 workerQueue 的 ReadProcessor。RawHandler必须设置，NoneCopyHandler会忽略。
-// maxConcurrency 取自 ReadOptions.WorkerQueueMaxConcurrency（经 CheckReadOptions 归一化后范围在 [1,64]）。
-// 默认 1，表示不并发，保证顺序性。大于1时并发，不保证顺序性。
 func NewWorkerReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	if opts.RawHandler == nil {
 		kklog.PanicLog("RawHandler is required for WorkerReadProcessor")
 	}
 
-	// 不保证RawHandler的顺序性，如果需要保证顺序，可以将RecvBatchSize设置为1。
 	maxConc := opts.WorkerQueueMaxConcurrency
 	if maxConc <= 0 {
 		maxConc = 1

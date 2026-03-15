@@ -15,6 +15,9 @@ import (
 //	保证顺序性，适合NoneCopyHandler逻辑非常轻的场景。
 //
 // 主动关闭Server或Client后，只消费，不再接受数据入队。
+//
+//	此外，也可以让外部自行选择，是否启动携程来消费数据。
+//	注意，外部如果启动携程，需要自己拷贝数据，因为底层会覆盖数据，携程中的数据不再是原始数据。
 type SyncReadProcessor struct {
 	conn   kknet.IConn
 	connID kknet.CONN_ID     //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
@@ -28,8 +31,6 @@ type SyncReadProcessor struct {
 
 var _ kknet.IReadProcessor = (*SyncReadProcessor)(nil)
 
-// 同步消费数据，实现0拷贝优化。NoneCopyHandler必须设置，RawHandler会忽略。
-// 保证顺序性，适合NoneCopyHandler逻辑非常轻的场景。
 func NewSyncReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	kknet.CheckReadOptions(&opts)
 	if opts.NoneCopyHandler == nil {

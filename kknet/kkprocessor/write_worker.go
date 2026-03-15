@@ -45,7 +45,6 @@ type WorkerWriteProcessor struct {
 
 var _ kknet.IWriteProcessor = (*WorkerWriteProcessor)(nil)
 
-// 使用 workerQueue 调度写任务，不再单独起 writeLoop 协程。
 func NewWorkerWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	kknet.CheckWriteOptions(&opts)
 	wp := &WorkerWriteProcessor{
