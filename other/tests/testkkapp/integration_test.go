@@ -14,6 +14,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
+	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -129,6 +130,9 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		ClusterUrl:    natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     transType,
+		UserKickedCallback: func(userId user.USER_ID, kickedSessions []string) {
+			kklog.Infof("用户[%d]被顶号: %v", userId, kickedSessions)
+		},
 	}
 	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())
 	if err := gateApp.AddComponent(gate); err != nil {
@@ -208,7 +212,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		t.Fatalf("send: %v", err)
 	}
 
-	if err := client2.client.SendMsg(&LoginReq{UserId: 2, Password: string(payload)}); err != nil {
+	if err := client2.client.SendMsg(&LoginReq{UserId: 1, Password: string(payload)}); err != nil {
 		t.Fatalf("send: %v", err)
 	}
 	if err := client2.client.SendMsg(&MsgCounter{Seq: 1, Data: string(payload)}); err != nil {
@@ -221,10 +225,10 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		got := string(client1.recvData)
 		recvMu.Unlock()
 		if got != string(payload) {
-			t.Errorf("客户端[%d]收到消息 recv = %q, want %q", client1.userId, got, string(payload))
+			t.Errorf("客户端[%d]收到消息 recv = %q, want %q", client1.clientID, got, string(payload))
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatalf("timeout waiting for echo from client[%d]", client1.userId)
+		t.Fatalf("timeout waiting for echo from client[%d]", client1.clientID)
 	}
 }
 
@@ -232,7 +236,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 
 type testClient struct {
 	client   kknet.IClient
-	userId   int64
+	clientID int64
 	password string
 	hasLogin bool
 	recvCh   chan struct{}
@@ -249,7 +253,7 @@ func newTestClient(
 ) (*testClient, error) {
 
 	cliInfo := &testClient{
-		userId:   userId,
+		clientID: userId,
 		password: password,
 		hasLogin: false,
 		recvCh:   recvCh,
@@ -281,6 +285,9 @@ func newTestClient(
 					default:
 					}
 				}
+			case *KickOutPush:
+				kklog.Infof("客户端[%d]收到顶号消息: %v", userId, info)
+				cliInfo.client.Close()
 			default:
 				t.Logf("unknown message type: %T", msg)
 			}
