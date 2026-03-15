@@ -1,6 +1,7 @@
 package xreflect_test
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -137,19 +138,22 @@ func TestGetStructName(t *testing.T) {
 	// 测试指针
 	ts := &testStruct1{}
 	name := xreflect.GetStructName(ts)
+	fmt.Println("name", name)
 	if name != "testStruct1" {
 		t.Errorf("Expected 'TestStruct', got '%s'", name)
 	}
 
-	// 测试非指针
+	// 测试值
 	ts2 := testStruct1{}
 	name = xreflect.GetStructName(ts2)
+	fmt.Println("name", name)
 	if name != "testStruct1" {
 		t.Errorf("Expected 'TestStruct', got '%s'", name)
 	}
 
 	// 测试 nil
 	name = xreflect.GetStructName(nil)
+	fmt.Println("name", name)
 	if name != "" {
 		t.Errorf("Expected empty string, got '%s'", name)
 	}
@@ -157,6 +161,7 @@ func TestGetStructName(t *testing.T) {
 	// 测试基本类型
 	var i int
 	name = xreflect.GetStructName(i)
+	fmt.Println("name", name)
 	if name != "int" {
 		t.Errorf("Expected 'int', got '%s'", name)
 	}

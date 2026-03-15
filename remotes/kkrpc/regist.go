@@ -29,11 +29,11 @@ func RegisterOneWayMethod[REQ any](method string, methodMgr *MethodManager) erro
 
 // RegistReqRspHandler 注册请求响应方法 handler
 func RegistReqRspHandler[T any, R any](receiver *RpcReceiver, call ReqRspHandlerFunc[T, R]) error {
-	var vT *T
-	var vR *R
-	fullName, selfDefineName := receiver.methodMgr.getMethodReqRsp(vT, vR)
+	var pReq *T
+	var pRsp *R
+	fullName, selfDefineName := receiver.methodMgr.getMethodReqRsp(pReq, pRsp)
 	if fullName == "" {
-		kklog.Errorf("invalid req resp type %s %s", getObjectName(&vT), getObjectName(&vR))
+		kklog.Errorf("invalid req resp type %s %s", getObjectName(pReq), getObjectName(pRsp))
 		return kkerrors.ErrRpcInvalidReqResp
 	}
 	h := &ReqRspHandler[T, R]{
@@ -41,29 +41,29 @@ func RegistReqRspHandler[T any, R any](receiver *RpcReceiver, call ReqRspHandler
 		method:       fullName,
 		payloadCodec: receiver.methodMgr.payloadCodec,
 	}
-	receiver.hdMap[fullName] = h
+	receiver.reqrspMap[fullName] = h
 	if selfDefineName != "" {
-		receiver.hdMap[selfDefineName] = h
+		receiver.reqrspMap[selfDefineName] = h
 	}
 	return nil
 }
 
 // RegistOneWayHandler 注册单向消息方法 handler
 func RegistOneWayHandler[T any](receiver *RpcReceiver, call OneWayHandlerFunc[T]) error {
-	var vT *T
-	fullName, selfDefineName := receiver.methodMgr.getMethodOneway(vT)
+	var pReq *T
+	fullName, selfDefineName := receiver.methodMgr.getMethodOneway(pReq)
 	if fullName == "" {
-		kklog.Errorf("invalid oneway type %s", getObjectName(&vT))
-		return kkerrors.ErrRpcInvalidOneWay
+		kklog.Errorf("invalid oneway type %s", getObjectName(pReq))
+		return kkerrors.ErrRpcInvalidOneway
 	}
 	h := &OneWayHandler[T]{
 		call:         call,
 		method:       fullName,
 		payloadCodec: receiver.methodMgr.payloadCodec,
 	}
-	receiver.oneWayMap[fullName] = h
+	receiver.onewayMap[fullName] = h
 	if selfDefineName != "" {
-		receiver.oneWayMap[selfDefineName] = h
+		receiver.onewayMap[selfDefineName] = h
 	}
 	return nil
 }

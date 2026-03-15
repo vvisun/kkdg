@@ -33,7 +33,6 @@ type MethodManager struct {
 	payloadCodec      kkcodec.ICodec
 	mu                sync.Mutex
 	method2typeReqRsp map[string]methodReqRsp
-	type2methodOneWay map[reflect.Type]string
 	method2typeOneWay map[string]methodOneWay
 }
 
@@ -90,7 +89,6 @@ func NewMethodManager(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, pa
 		frameCodec:        frameCodec,
 		payloadCodec:      payloadCodec,
 		method2typeReqRsp: make(map[string]methodReqRsp),
-		type2methodOneWay: make(map[reflect.Type]string),
 		method2typeOneWay: make(map[string]methodOneWay),
 	}
 }
@@ -134,10 +132,11 @@ func newReqResp[REQ any, RSP any](method string, methodMgr *MethodManager) error
 	typeRsp := reflect.TypeFor[*RSP]()
 	typeReqValue := reflect.TypeFor[REQ]()
 	typeRspValue := reflect.TypeFor[RSP]()
-	methodMgr.method2typeReqRsp[fullName1] = methodReqRsp{reqType: typeReq, rspType: typeRsp, selfDefineName: selfDefineName}
+
 	methodMgr.method2typeReqRsp[fullName2] = methodReqRsp{reqType: typeReqValue, rspType: typeRspValue, selfDefineName: selfDefineName}
 	methodMgr.method2typeReqRsp[fullName3] = methodReqRsp{reqType: typeReq, rspType: typeRspValue, selfDefineName: selfDefineName}
 	methodMgr.method2typeReqRsp[fullName4] = methodReqRsp{reqType: typeReqValue, rspType: typeRsp, selfDefineName: selfDefineName}
+	methodMgr.method2typeReqRsp[fullName1] = methodReqRsp{reqType: typeReq, rspType: typeRsp, selfDefineName: selfDefineName}
 
 	if selfDefineName != "" {
 		methodMgr.method2typeReqRsp[selfDefineName] = methodReqRsp{
@@ -175,8 +174,9 @@ func newOneWay[REQ any](method string, methodMgr *MethodManager) error {
 
 	typeReq := reflect.TypeFor[*REQ]()
 	typeReqValue := reflect.TypeFor[REQ]()
-	methodMgr.method2typeOneWay[fullName1] = methodOneWay{reqType: typeReq, selfDefineName: selfDefineName}
+
 	methodMgr.method2typeOneWay[fullName2] = methodOneWay{reqType: typeReqValue, selfDefineName: selfDefineName}
+	methodMgr.method2typeOneWay[fullName1] = methodOneWay{reqType: typeReq, selfDefineName: selfDefineName}
 
 	if selfDefineName != "" {
 		methodMgr.method2typeOneWay[selfDefineName] = methodOneWay{

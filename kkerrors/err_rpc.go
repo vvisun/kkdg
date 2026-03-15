@@ -30,7 +30,7 @@ var (
 	// 无效的请求响应类型
 	ErrRpcInvalidReqResp = errors.New("kkrpc: invalid req resp type")
 	// 无效的单向类型
-	ErrRpcInvalidOneWay = errors.New("kkrpc: invalid oneway type")
+	ErrRpcInvalidOneway = errors.New("kkrpc: invalid oneway type")
 	// 方法未注册
 	ErrRpcMethodNotRegistered = errors.New("kkrpc: method not registered")
 	// 重复注册

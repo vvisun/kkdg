@@ -88,8 +88,8 @@ func (h *ReqRspHandler[T, R]) OnMsg(ctx context.Context, payload []byte, frameTy
 
 type RpcReceiver struct {
 	stats     *RpcStats //不用创建，从rpcServer/rpcClient中传入
-	hdMap     map[string]IReqRspHandler
-	oneWayMap map[string]IOneWayHandler
+	reqrspMap map[string]IReqRspHandler
+	onewayMap map[string]IOneWayHandler
 	rpcOpts   RpcOption
 	methodMgr *MethodManager
 }
@@ -97,8 +97,8 @@ type RpcReceiver struct {
 func NewRpcReceiver(rpcOpts RpcOption, methodMgr *MethodManager) *RpcReceiver {
 	CheckRpcOption(&rpcOpts)
 	return &RpcReceiver{
-		hdMap:     make(map[string]IReqRspHandler),
-		oneWayMap: make(map[string]IOneWayHandler),
+		reqrspMap: make(map[string]IReqRspHandler),
+		onewayMap: make(map[string]IOneWayHandler),
 		rpcOpts:   rpcOpts,
 		methodMgr: methodMgr,
 	}
@@ -174,9 +174,9 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	}
 
 	method := fr.M
-	h, ok := r.hdMap[method]
+	h, ok := r.reqrspMap[method]
 	if !ok || h == nil {
-		kklog.Errorf("未找到远程方法: %s", method)
+		kklog.Debugf("未找到远程方法: %s", method)
 		ErrorMsg(&rspFrame, ErrorCodeMethodNotFound, "未找到远程方法: "+method)
 		rspBB, err := EncodeFailedResponse(r.methodMgr, &rspFrame)
 		if err != nil {
@@ -216,8 +216,9 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 
 func (r *RpcReceiver) dealOneWay(fr *Frame, connId kknet.CONN_ID) {
 	method := fr.M
-	h, ok := r.oneWayMap[method]
+	h, ok := r.onewayMap[method]
 	if !ok || h == nil {
+		kklog.Debugf("未找到远程方法: %s", method)
 		return
 	}
 	ctx, cancel := deadlineCtx(fr.DL)
