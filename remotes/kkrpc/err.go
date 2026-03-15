@@ -24,7 +24,7 @@ const (
 	ErrorCodeConnClosed                            //连接已关闭（closeAll 时通知 pending callback）
 )
 
-func ErrRpc(code int32, msg string) error {
+func ErrorFromErrorMsg(code int32, msg string) error {
 	if code == ErrorCodeSuccess {
 		return nil
 	}
@@ -35,4 +35,15 @@ func ErrRpc(code int32, msg string) error {
 		return fmt.Errorf("rpc error: code=%d", code)
 	}
 	return errors.New(msg)
+}
+
+func ErrorMsg(fr *Frame, code ErrorCode, msg string) {
+	if code == ErrorCodeSuccess {
+		code = ErrorCodeFailed
+	}
+	if msg == "" {
+		msg = "unknown error"
+	}
+	fr.Code = code
+	fr.Err = msg
 }

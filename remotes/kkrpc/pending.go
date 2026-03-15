@@ -167,7 +167,8 @@ func (p *pendingMap) closeAll() {
 	atomic.StoreInt64(&p.curPendingCount, 0)
 
 	// 在锁外调用 callback，通知用户连接已关闭；callback 会 close(doneCh) 唤醒 InvokeAsync 的 goroutine
-	closedFrame := Frame{T: FrameTypeResponse, Code: ErrorCodeConnClosed, Err: "connection closed"}
+	closedFrame := Frame{T: FrameTypeResponse}
+	ErrorMsg(&closedFrame, ErrorCodeConnClosed, "connection closed")
 	for _, item := range callbacks {
 		closedFrame.ID = item.reqId
 		item.fn(closedFrame)

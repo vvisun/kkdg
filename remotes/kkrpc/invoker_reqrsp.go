@@ -114,7 +114,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 			}
 			return kkerrors.ErrRpcInvalidFrameType
 		}
-		err := ErrRpc(fr.Code, fr.Err)
+		err := ErrorFromErrorMsg(fr.Code, fr.Err)
 		if err != nil {
 			if stats != nil {
 				stats.AddRequestError()
@@ -226,7 +226,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 			close(doneCh)
 		}
 
-		err := ErrRpc(fr.Code, fr.Err)
+		err := ErrorFromErrorMsg(fr.Code, fr.Err)
 		if err != nil {
 			if stats != nil {
 				stats.AddRequestError()

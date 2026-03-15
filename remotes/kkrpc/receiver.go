@@ -176,8 +176,8 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	method := fr.M
 	h, ok := r.hdMap[method]
 	if !ok || h == nil {
-		rspFrame.Code = ErrorCodeMethodNotFound
-		rspFrame.Err = "未找到远程方法" + method
+		kklog.Errorf("未找到远程方法: %s", method)
+		ErrorMsg(&rspFrame, ErrorCodeMethodNotFound, "未找到远程方法: "+method)
 		rspBB, err := EncodeFailedResponse(r.methodMgr, &rspFrame)
 		if err != nil {
 			kklog.Errorf("encode failed response: %v", err)
@@ -190,8 +190,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	defer cancel()
 	respBytes, err := h.OnMsg(ctx, fr.P, fr.T, connId)
 	if err != nil {
-		rspFrame.Code = ErrorCodeMethodRetErr
-		rspFrame.Err = "远程方法执行失败: " + err.Error()
+		ErrorMsg(&rspFrame, ErrorCodeMethodRetErr, "远程方法执行失败: "+err.Error())
 		rspBB, err := EncodeFailedResponse(r.methodMgr, &rspFrame)
 		if err != nil {
 			kklog.Errorf("encode failed response: %v", err)
@@ -203,8 +202,7 @@ func (r *RpcReceiver) dealReqResp(fr *Frame, connId kknet.CONN_ID) *kkbuffer.Byt
 	// encode response
 	rspBB, err := EncodeRpcFrameWithPayload(r.methodMgr, FrameTypeResponse, fr.ID, method, respBytes, 0)
 	if err != nil {
-		rspFrame.Code = ErrorCodeInvalidResponse
-		rspFrame.Err = "响应编码失败"
+		ErrorMsg(&rspFrame, ErrorCodeInvalidResponse, "响应编码失败")
 		rspBB, encErr := EncodeFailedResponse(r.methodMgr, &rspFrame)
 		if encErr != nil {
 			kklog.Errorf("encode failed response (after encode error): %v", encErr)
