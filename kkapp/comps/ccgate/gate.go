@@ -163,7 +163,10 @@ func (slf *gateComponent) OnInit() error {
 							lgcInfo.userId = user.USER_ID(msg.UserId)
 						}
 					}
-					slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
+					kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
+					if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
+						slf.opt.UserKickedCallback(user.USER_ID(msg.UserId), kickList)
+					}
 				}
 			} else {
 				kklog.Infof("[ccgate]客户端登出: %#v", msg)
@@ -433,10 +436,10 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if data == nil || len(data.Bytes()) == 0 {
 		return
 	}
+	defer kkbuffer.Put(data)
 
 	cliInfo := h.gate.clientMgr.getClientByConnId(connID)
 	if cliInfo == nil {
-		kkbuffer.Put(data)
 		return
 	}
 
@@ -462,11 +465,11 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	logicNode := h.gate.allocLogicNode(connID, route)
 	if logicNode == nil {
 		// kklog.Debugf("[ccgate] alloc logic node failed")
-		// tell busy
-		if h.gate.opt.RecvQueueFullCallback != nil {
+		// 通知客户端分配逻辑服失败
+		if h.gate.opt.AllocLogicNodeFailedCallback != nil {
 			conn := h.gate.server.GetConnManager().GetConn(connID)
 			if conn != nil {
-				h.gate.opt.RecvQueueFullCallback(conn)
+				h.gate.opt.AllocLogicNodeFailedCallback(conn)
 			}
 		}
 		return
@@ -478,5 +481,4 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
 		kklog.Warnf("[ccgate] forward to logic error: %v", err)
 	}
-	kkbuffer.Put(data)
 }

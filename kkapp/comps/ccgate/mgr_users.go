@@ -28,15 +28,22 @@ func newUserManager() *userManager {
 }
 
 // 用户登录时，记录用户与会话的绑定关系，以及逻辑节点绑定表。
-func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl *clientBindTable) {
+// 返回需要踢出的会话ID列表。需要投递给业务回调，发送顶号消息给被踢的连接。
+//
+//	踢出逻辑：
+//	1. 如果userId已经登录了其他会话，需踢出旧的会话。
+//	2. 如果当前会话已经登录了其他用户，需踢出该其他用户。
+func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl *clientBindTable) []string {
 	if bindTbl == nil {
 		kklog.Errorf("addUser: bindTbl is nil, userId: %d", userId)
-		return
+		return nil
 	}
 	if curSessionId == "" {
 		kklog.Errorf("addUser: sessionId is empty, userId: %d", userId)
-		return
+		return nil
 	}
+
+	kickList := make([]string, 0)
 
 	m.mu.Lock()
 
@@ -48,6 +55,7 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl 
 			}
 			delete(m.sid2uid, oldSid)
 			kklog.Debugf("kick out old user %d, sessionId: %s", userId, oldSid)
+			kickList = append(kickList, oldSid)
 		}
 	}
 
@@ -56,6 +64,7 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl 
 		if curUid != user.NULL_USER_ID && curUid != userId {
 			if oldSid, ok := m.uid2sid[curUid]; ok {
 				delete(m.sid2uid, oldSid)
+				kickList = append(kickList, oldSid)
 			}
 			delete(m.uid2sid, curUid)
 			kklog.Debugf("kick out old user %d, sessionId: %s", curUid, curSessionId)
@@ -66,6 +75,8 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl 
 	m.sid2uid[curSessionId] = userId
 	m.userBindTable[userId] = bindTbl
 	m.mu.Unlock()
+
+	return kickList
 }
 
 // 用户登出时，清除所有记录

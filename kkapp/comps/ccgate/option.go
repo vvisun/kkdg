@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -26,8 +27,12 @@ type Option struct {
 	TransType transport.TransType
 
 	// RecvQueueFullCallback is the callback function when the recv queue is full.
-	// 可以考虑限流/提示服务器繁忙等。
+	// 可以考虑限流/提示服务器繁忙等。如：限流则通知客户端，提示服务器繁忙则提示客户端稍后再试。
 	RecvQueueFullCallback func(conn kknet.IConn)
+	// 分配逻辑服失败回调。如：分配失败则通知客户端，提示服务器繁忙则提示客户端稍后再试。
+	AllocLogicNodeFailedCallback func(conn kknet.IConn)
+	// 用户被顶号/被踢出会话回调。需要投递给业务回调，发送顶号消息给被踢的连接。
+	UserKickedCallback func(userId user.USER_ID, kickedSessions []string)
 }
 
 func DefaultOption() Option {
@@ -106,5 +111,23 @@ func WithLogicNodeType(logicNodeType string) func(o *Option) {
 func WithRpcAddr(rpcAddr string) func(o *Option) {
 	return func(o *Option) {
 		o.RpcAddr = rpcAddr
+	}
+}
+
+func WithRecvQueueFullCallback(callback func(conn kknet.IConn)) func(o *Option) {
+	return func(o *Option) {
+		o.RecvQueueFullCallback = callback
+	}
+}
+
+func WithAllocLogicNodeFailedCallback(callback func(conn kknet.IConn)) func(o *Option) {
+	return func(o *Option) {
+		o.AllocLogicNodeFailedCallback = callback
+	}
+}
+
+func WithUserKickedCallback(callback func(userId user.USER_ID, kickedSessions []string)) func(o *Option) {
+	return func(o *Option) {
+		o.UserKickedCallback = callback
 	}
 }
