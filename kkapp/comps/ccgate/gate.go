@@ -432,6 +432,7 @@ func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 
 	h.gate.sessionMgr.RemoveConn(sid)
 	h.gate.clientMgr.removeClient(cid)
+	h.gate.userMgr.onSessionDisconnect(sid)
 	kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", cid, c.RemoteAddr(), err)
 }
 
