@@ -88,7 +88,7 @@ func Test_RpcProcessor(t *testing.T) {
 		Data: "test",
 	}
 	var resp testRsp
-	reqRspInvoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	reqRspInvoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -101,7 +101,7 @@ func Test_RpcProcessor(t *testing.T) {
 	}
 
 	// client call server oneway
-	oneWayInvoker, err := NewOneWayInvoker[testReq](cli, 0)
+	oneWayInvoker, err := NewOneWayInvoker[testReq](cli)
 	if err != nil {
 		t.Fatalf("create oneway invoker: %v", err)
 	}
@@ -117,11 +117,11 @@ func Test_RpcProcessor(t *testing.T) {
 		connId = id
 		return false
 	})
-	oneWayInvoker, err = NewOneWayInvoker[testReq](svr, connId)
+	oneWayInvoker, err = NewOneWayInvoker[testReq](svr)
 	if err != nil {
 		t.Fatalf("create oneway invoker: %v", err)
 	}
-	err = oneWayInvoker.InvokeNR(context.Background(), &req, CallConfig{})
+	err = oneWayInvoker.InvokeNR(context.Background(), &req, CallConfig{ConnId: connId})
 	kklog.Infof("[server] onTestOneway from %s, connId=%d", req.Data, connId)
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
@@ -147,7 +147,7 @@ func Test_Invoke_Timeout(t *testing.T) {
 
 	req := testReq{ID: 1, Data: "timeout"}
 	var resp testRsp
-	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -169,7 +169,7 @@ func Test_Invoke_ContextCanceled(t *testing.T) {
 
 	req := testReq{ID: 1, Data: "ctx"}
 	var resp testRsp
-	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -190,7 +190,7 @@ func Test_Invoke_OnClosedClient(t *testing.T) {
 
 	req := testReq{ID: 1, Data: "closed"}
 	var resp testRsp
-	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -208,7 +208,7 @@ func Test_InvokeAsync_Success(t *testing.T) {
 	})
 
 	req := testReq{ID: 1, Data: "async"}
-	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -246,7 +246,7 @@ func Test_InvokeAsync_Error(t *testing.T) {
 	})
 
 	req := testReq{ID: 1, Data: "async-err"}
-	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -287,7 +287,7 @@ func Test_InvokeAsync_ClientClosedDuringCall(t *testing.T) {
 	})
 
 	req := testReq{ID: 1, Data: "async-close"}
-	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -327,7 +327,7 @@ func Test_InvokeAsync_Timeout(t *testing.T) {
 	})
 
 	req := testReq{ID: 1, Data: "async-timeout"}
-	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -374,11 +374,11 @@ func Test_InvokeNR(t *testing.T) {
 	_, cli := newTestServerClient(t, rpcRouter)
 
 	req := testReq{ID: 1, Data: "oneway"}
-	invoker, err := NewOneWayInvoker[testReq](cli, 0)
+	invoker, err := NewOneWayInvoker[testReq](cli)
 	if err != nil {
 		t.Fatalf("create oneway invoker: %v", err)
 	}
-	if err = invoker.InvokeNR(context.Background(), &req, CallConfig{}); err != nil {
+	if err = invoker.InvokeNR(context.Background(), &req, CallConfig{ConnId: 0}); err != nil {
 		t.Fatalf("InvokeNR: %v", err)
 	}
 
@@ -405,11 +405,11 @@ func Test_ServerInvoker(t *testing.T) {
 
 	req := testReq{ID: 2, Data: "test2"}
 	var resp testRsp
-	invoker, err := NewReqRspInvoker[testReq, testRsp](svr, connId)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](svr)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
-	err = invoker.Invoke(context.Background(), &req, CallConfig{}, &resp)
+	err = invoker.Invoke(context.Background(), &req, CallConfig{ConnId: connId}, &resp)
 	if err != nil {
 		t.Fatalf("invoke: %v", err)
 	}

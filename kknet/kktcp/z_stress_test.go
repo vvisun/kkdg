@@ -267,7 +267,7 @@ func TestStress_ServerToSingleClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	runStressServerToClients(t, 1, 1024*4, 8888)
+	runStressServerToClients(t, 1, 1024*4, 33333)
 }
 
 // TestStress_ServerToFourClients: 服务器向 4 个客户端发送大量消息（轮询分发）。
@@ -275,7 +275,7 @@ func TestStress_ServerToFourClients(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	runStressServerToClients(t, 8, 1024*8, 8888)
+	runStressServerToClients(t, 8, 1024*8, 222222)
 }
 
 func runStressServerToClients(t *testing.T, numClients int, batchSize int, totalMsgs int) {

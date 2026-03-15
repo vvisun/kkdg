@@ -57,13 +57,13 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 		return nil, err
 	}
 
-	onewayMsgRegister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcSvr, 0)
-	onewayS2C, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcSvr, 0)
-	onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcSvr, 0)
-	onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcSvr, 0)
-	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr, 0)
-	onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcSvr, 0)
-	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcSvr, 0)
+	onewayMsgRegister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcSvr)
+	onewayS2C, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcSvr)
+	onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcSvr)
+	onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcSvr)
+	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr)
+	onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcSvr)
+	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcSvr)
 
 	trans := &transportorRpc{
 		sessionMgr:   sessionMgr,

@@ -148,7 +148,7 @@ func TestStress_ServerToSingleClient_TLS(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	runStressServerToClientsTLS(t, 1, 1024*4, 8888)
+	runStressServerToClientsTLS(t, 1, 1024*4, 18888)
 }
 
 // TestStress_ServerToFourClients_TLS: 服务器向多客户端发送大量消息，轮询分发（TLS）。
@@ -271,7 +271,7 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 		t.Skip("skipping stress test in short mode")
 	}
 	numConns := 222
-	msgsPerConn := 555
+	msgsPerConn := 1111
 	payload := make([]byte, 1024)
 
 	totalMsgs := int64(numConns * msgsPerConn)

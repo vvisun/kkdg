@@ -74,7 +74,7 @@ func runRpcDemo(addr string) {
 	// 请求-响应
 	req := &EchoReq{Msg: "hello examrpc"}
 	var rsp EchoRsp
-	invoker, err := kkrpc.NewReqRspInvoker[EchoReq, EchoRsp](cli, 0)
+	invoker, err := kkrpc.NewReqRspInvoker[EchoReq, EchoRsp](cli)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +85,7 @@ func runRpcDemo(addr string) {
 
 	// 单向
 	pingReq := &PingReq{From: "examrpc"}
-	oneWayInvoker, err := kkrpc.NewOneWayInvoker[PingReq](cli, 0)
+	oneWayInvoker, err := kkrpc.NewOneWayInvoker[PingReq](cli)
 	if err != nil {
 		panic(err)
 	}

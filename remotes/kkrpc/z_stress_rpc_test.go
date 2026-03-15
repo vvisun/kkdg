@@ -144,7 +144,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 			clients = append(clients, cli)
 			clientsMu.Unlock()
 
-			invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+			invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 			if err != nil {
 				t.Fatalf("create reqrsp invoker: %v", err)
 			}
@@ -274,7 +274,7 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 	}
 	defer cli.Stop()
 
-	invoker, err := NewReqRspInvoker[testReq, testRsp](cli, 0)
+	invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 	if err != nil {
 		t.Fatalf("create reqrsp invoker: %v", err)
 	}
@@ -369,7 +369,7 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 			clients = append(clients, cli)
 			clientsMu.Unlock()
 
-			invoker, err := NewOneWayInvoker[testReq](cli, 0)
+			invoker, err := NewOneWayInvoker[testReq](cli)
 			if err != nil {
 				t.Fatalf("create oneway invoker: %v", err)
 			}
@@ -447,7 +447,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 	}
 	defer cli.Stop()
 
-	invoker, err := NewOneWayInvoker[testReq](cli, 0)
+	invoker, err := NewOneWayInvoker[testReq](cli)
 	if err != nil {
 		t.Fatalf("create oneway invoker: %v", err)
 	}

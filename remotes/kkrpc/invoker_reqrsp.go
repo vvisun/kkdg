@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kktime"
@@ -13,14 +12,13 @@ import (
 
 type ReqRspInvoker[T any, R any] struct {
 	sender ISender
-	connId kknet.CONN_ID
 	method string // 构造时验证并缓存，调用时不再 CheckReqResp
 }
 
 // NewReqRspInvoker 创建请求响应调用器。method 必须在 RegisterReqRspMethod 中已注册。
 //
 //	服务器端调用时 connId 为连接ID；客户端调用时 connId 为 0。
-func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) (ReqRspInvoker[T, R], error) {
+func NewReqRspInvoker[T any, R any](sender ISender) (ReqRspInvoker[T, R], error) {
 	method, ok := verifyReqRespMethod[T, R](sender.getMethodMgr())
 	if !ok {
 		kklog.Errorf("ReqRspInvoker: method %q not registered for types %T, %T", method, (*T)(nil), (*R)(nil))
@@ -28,14 +26,14 @@ func NewReqRspInvoker[T any, R any](sender ISender, connId kknet.CONN_ID) (ReqRs
 	}
 	return ReqRspInvoker[T, R]{
 		sender: sender,
-		connId: connId,
 		method: method,
 	}, nil
 }
 
 // Invoke 同步调用，阻塞直到收到响应或 ctx 取消/超时
 func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig, rsp *R) error {
-	pending := i.sender.getPending()
+	sender := i.sender
+	pending := sender.getPending()
 	if pending.IsClosed() {
 		return kkerrors.ErrRpcConnClosed
 	}
@@ -86,7 +84,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		stats.AddRequestStart()
 	}
 
-	bb, err := EncodeRpcFrame(i.sender.getMethodMgr(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
+	bb, err := EncodeRpcFrame(sender.getMethodMgr(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if stats != nil {
@@ -94,11 +92,8 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 		}
 		return err
 	}
-	connId := i.connId
-	if opts.ConnId != 0 {
-		connId = opts.ConnId
-	}
-	if err = i.sender.SendBuffer(connId, bb); err != nil {
+
+	if err = sender.SendBuffer(opts.ConnId, bb); err != nil {
 		if stats != nil {
 			stats.AddInternalError()
 		}
@@ -126,7 +121,7 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 			}
 			return err
 		}
-		err = i.sender.getMethodMgr().payloadCodec.Unmarshal(fr.P, rsp)
+		err = sender.getMethodMgr().payloadCodec.Unmarshal(fr.P, rsp)
 		byteslice.Put(fr.P)
 		if err != nil {
 			if stats != nil {
@@ -184,7 +179,8 @@ func (i ReqRspInvoker[T, R]) Invoke(ctx context.Context, req *T, opts CallConfig
 //
 //	若 opts 或 ctx 设置了超时，超时未收到响应会调用 callback(nil, ErrTimeout)，且仅回调一次。
 func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallConfig, callback func(rsp *R, err error)) error {
-	pending := i.sender.getPending()
+	sender := i.sender
+	pending := sender.getPending()
 	if pending.IsClosed() {
 		return kkerrors.ErrRpcConnClosed
 	}
@@ -206,7 +202,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 	}
 
 	reqId := genReqId()
-	bb, err := EncodeRpcFrame(i.sender.getMethodMgr(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
+	bb, err := EncodeRpcFrame(sender.getMethodMgr(), FrameTypeRequest, reqId, i.method, req, deadlineMs)
 	if err != nil {
 		kklog.Errorf("encode rpc frame: %v", err)
 		if pending.stats != nil {
@@ -238,7 +234,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 			callback(nil, err)
 			return
 		}
-		err = i.sender.getMethodMgr().payloadCodec.Unmarshal(fr.P, respInfo)
+		err = sender.getMethodMgr().payloadCodec.Unmarshal(fr.P, respInfo)
 		byteslice.Put(fr.P)
 		if err != nil {
 			if stats != nil {
@@ -263,11 +259,7 @@ func (i ReqRspInvoker[T, R]) InvokeAsync(ctx context.Context, req *T, opts CallC
 		callback(nil, err)
 		return err
 	}
-	connId := i.connId
-	if opts.ConnId != 0 {
-		connId = opts.ConnId
-	}
-	err = i.sender.SendBuffer(connId, bb)
+	err = sender.SendBuffer(opts.ConnId, bb)
 	if err != nil {
 		if stats != nil {
 			stats.AddInternalError()
