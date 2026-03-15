@@ -13,13 +13,19 @@ import (
 
 type (
 	methodReqRsp struct {
-		reqType reflect.Type
-		rspType reflect.Type
+		reqType        reflect.Type
+		rspType        reflect.Type
+		selfDefineName string //自定义方法名
 	}
 	methodOneWay struct {
-		reqType reflect.Type
+		reqType        reflect.Type
+		selfDefineName string //自定义方法名
 	}
 )
+
+func getObjectName(obj any) string {
+	return xreflect.GetStructName(obj)
+}
 
 type MethodManager struct {
 	streamTool        kkpacket.IPacket
@@ -31,41 +37,39 @@ type MethodManager struct {
 	method2typeOneWay map[string]methodOneWay
 }
 
-func (rm *MethodManager) getMethodOneway(msg any) string {
-	tp := reflect.TypeOf(msg)
-	method, ok := rm.type2methodOneWay[tp]
-	if ok {
-		return method
-	}
-	return ""
-}
-
 func (rm *MethodManager) autoMethodName(msgs ...any) string {
 	if len(msgs) == 0 {
 		return ""
 	}
 	if len(msgs) == 1 {
-		return xreflect.ObjectTypeName(msgs[0])
+		return getObjectName(msgs[0])
 	}
 	name := ""
 	for i, msg := range msgs {
 		if i != 0 {
 			name += "_"
 		}
-		name += xreflect.ObjectTypeName(msg)
+		name += getObjectName(msg)
 	}
 	return name
 }
 
-func (rm *MethodManager) getMethodReqRsp(req any, rsp any) string {
-	nameReq := xreflect.ObjectTypeName(req)
-	nameRsp := xreflect.ObjectTypeName(rsp)
-	fullName := nameReq + "_" + nameRsp
-	_, ok := rm.method2typeReqRsp[fullName]
+func (rm *MethodManager) getMethodReqRsp(req any, rsp any) (string, string) {
+	fullName := rm.autoMethodName(req, rsp)
+	info, ok := rm.method2typeReqRsp[fullName]
 	if ok {
-		return fullName
+		return fullName, info.selfDefineName
 	}
-	return ""
+	return "", ""
+}
+
+func (rm *MethodManager) getMethodOneway(msg any) (string, string) {
+	fullName := rm.autoMethodName(msg)
+	info, ok := rm.method2typeOneWay[fullName]
+	if ok {
+		return fullName, info.selfDefineName
+	}
+	return "", ""
 }
 
 func NewMethodManager(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, payloadCodec kkcodec.ICodec) *MethodManager {
@@ -119,18 +123,27 @@ func newReqResp[REQ any, RSP any](method string, methodMgr *MethodManager) error
 		return kkerrors.ErrRpcMethodAlreadyRegistered
 	}
 
+	selfDefineName := ""
+	if method != "" {
+		if method != fullName1 && method != fullName2 && method != fullName3 && method != fullName4 {
+			selfDefineName = method
+		}
+	}
+
 	typeReq := reflect.TypeFor[*REQ]()
 	typeRsp := reflect.TypeFor[*RSP]()
 	typeReqValue := reflect.TypeFor[REQ]()
 	typeRspValue := reflect.TypeFor[RSP]()
-	methodMgr.method2typeReqRsp[fullName1] = methodReqRsp{reqType: typeReq, rspType: typeRsp}
-	methodMgr.method2typeReqRsp[fullName2] = methodReqRsp{reqType: typeReqValue, rspType: typeRspValue}
-	methodMgr.method2typeReqRsp[fullName3] = methodReqRsp{reqType: typeReq, rspType: typeRspValue}
-	methodMgr.method2typeReqRsp[fullName4] = methodReqRsp{reqType: typeReqValue, rspType: typeRsp}
+	methodMgr.method2typeReqRsp[fullName1] = methodReqRsp{reqType: typeReq, rspType: typeRsp, selfDefineName: selfDefineName}
+	methodMgr.method2typeReqRsp[fullName2] = methodReqRsp{reqType: typeReqValue, rspType: typeRspValue, selfDefineName: selfDefineName}
+	methodMgr.method2typeReqRsp[fullName3] = methodReqRsp{reqType: typeReq, rspType: typeRspValue, selfDefineName: selfDefineName}
+	methodMgr.method2typeReqRsp[fullName4] = methodReqRsp{reqType: typeReqValue, rspType: typeRsp, selfDefineName: selfDefineName}
 
-	if method != "" {
-		if method != fullName1 && method != fullName2 && method != fullName3 && method != fullName4 {
-			methodMgr.method2typeReqRsp[method] = methodReqRsp{reqType: typeReq, rspType: typeRsp}
+	if selfDefineName != "" {
+		methodMgr.method2typeReqRsp[selfDefineName] = methodReqRsp{
+			reqType:        typeReq,
+			rspType:        typeRsp,
+			selfDefineName: selfDefineName,
 		}
 	}
 
@@ -138,31 +151,39 @@ func newReqResp[REQ any, RSP any](method string, methodMgr *MethodManager) error
 }
 
 func newOneWay[REQ any](method string, methodMgr *MethodManager) error {
-	if method == "" {
-		var v *REQ
-		method = methodMgr.autoMethodName(v)
-	}
-	if method == "" {
-		var v *REQ
-		kklog.Errorf("invalid oneway type %s", xreflect.ObjectTypeName(v))
-		return kkerrors.ErrRpcInvalidOneWay
-	}
-
-	typeReq := reflect.TypeFor[*REQ]()
+	var vReq REQ
+	var pReq *REQ
 
 	methodMgr.mu.Lock()
 	defer methodMgr.mu.Unlock()
 
-	if methodMgr.type2methodOneWay[typeReq] != "" && methodMgr.type2methodOneWay[typeReq] != method {
-		kklog.Errorf("type %s already registered", typeReq)
+	fullName1 := methodMgr.autoMethodName(vReq)
+	if _, ok := methodMgr.method2typeReqRsp[fullName1]; ok {
+		return kkerrors.ErrRpcMethodAlreadyRegistered
+	}
+	fullName2 := methodMgr.autoMethodName(pReq)
+	if _, ok := methodMgr.method2typeReqRsp[fullName2]; ok {
 		return kkerrors.ErrRpcMethodAlreadyRegistered
 	}
 
-	methodMgr.type2methodOneWay[typeReq] = method
-	methodMgr.method2typeOneWay[method] = methodOneWay{reqType: typeReq}
+	selfDefineName := ""
+	if method != "" {
+		if method != fullName1 && method != fullName2 {
+			selfDefineName = method
+		}
+	}
 
+	typeReq := reflect.TypeFor[*REQ]()
 	typeReqValue := reflect.TypeFor[REQ]()
-	methodMgr.type2methodOneWay[typeReqValue] = method
+	methodMgr.method2typeOneWay[fullName1] = methodOneWay{reqType: typeReq, selfDefineName: selfDefineName}
+	methodMgr.method2typeOneWay[fullName2] = methodOneWay{reqType: typeReqValue, selfDefineName: selfDefineName}
+
+	if selfDefineName != "" {
+		methodMgr.method2typeOneWay[selfDefineName] = methodOneWay{
+			reqType:        typeReq,
+			selfDefineName: selfDefineName,
+		}
+	}
 
 	return nil
 }
@@ -173,18 +194,21 @@ func verifyReqRespMethod[REQ any, RSP any](methodMgr *MethodManager) (string, bo
 	defer methodMgr.mu.Unlock()
 	var pReq *REQ
 	var pRsp *RSP
-	method := methodMgr.getMethodReqRsp(pReq, pRsp)
-	if method != "" {
-		return method, true
+	fullName, _ := methodMgr.getMethodReqRsp(pReq, pRsp)
+	if fullName != "" {
+		return fullName, true
 	}
 	return "", false
 }
 
 // verifyOneWayMethod verifies at init that REQ type is registered for method. No runtime reflect on hot path.
 func verifyOneWayMethod[REQ any](methodMgr *MethodManager) (string, bool) {
-	typeReq := reflect.TypeFor[*REQ]()
 	methodMgr.mu.Lock()
 	defer methodMgr.mu.Unlock()
-	m, ok := methodMgr.type2methodOneWay[typeReq]
-	return m, ok
+	var pReq *REQ
+	fullName, _ := methodMgr.getMethodOneway(pReq)
+	if fullName != "" {
+		return fullName, true
+	}
+	return "", false
 }

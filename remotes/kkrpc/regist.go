@@ -3,7 +3,6 @@ package kkrpc
 import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
 // RegisterReqRspMethod 注册请求响应方法。method的参数类型和返回类型必须为REQ和RSP。
@@ -32,34 +31,39 @@ func RegisterOneWayMethod[REQ any](method string, methodMgr *MethodManager) erro
 func RegistReqRspHandler[T any, R any](receiver *RpcReceiver, call ReqRspHandlerFunc[T, R]) error {
 	var vT *T
 	var vR *R
-	method := receiver.methodMgr.getMethodReqRsp(vT, vR)
-	if method == "" {
-		kklog.Errorf("invalid req resp type %s %s", xreflect.ObjectTypeName(&vT), xreflect.ObjectTypeName(&vR))
+	fullName, selfDefineName := receiver.methodMgr.getMethodReqRsp(vT, vR)
+	if fullName == "" {
+		kklog.Errorf("invalid req resp type %s %s", getObjectName(&vT), getObjectName(&vR))
 		return kkerrors.ErrRpcInvalidReqResp
 	}
 	h := &ReqRspHandler[T, R]{
 		call:         call,
-		method:       method,
+		method:       fullName,
 		payloadCodec: receiver.methodMgr.payloadCodec,
 	}
-	receiver.hdMap[method] = h
+	receiver.hdMap[fullName] = h
+	if selfDefineName != "" {
+		receiver.hdMap[selfDefineName] = h
+	}
 	return nil
 }
 
 // RegistOneWayHandler 注册单向消息方法 handler
 func RegistOneWayHandler[T any](receiver *RpcReceiver, call OneWayHandlerFunc[T]) error {
-	var vT T
-	m := receiver.methodMgr.getMethodOneway(&vT)
-	if m == "" {
-		kklog.Errorf("invalid oneway type %s", m)
+	var vT *T
+	fullName, selfDefineName := receiver.methodMgr.getMethodOneway(vT)
+	if fullName == "" {
+		kklog.Errorf("invalid oneway type %s", getObjectName(&vT))
 		return kkerrors.ErrRpcInvalidOneWay
 	}
-	method := m
 	h := &OneWayHandler[T]{
 		call:         call,
-		method:       method,
+		method:       fullName,
 		payloadCodec: receiver.methodMgr.payloadCodec,
 	}
-	receiver.oneWayMap[method] = h
+	receiver.oneWayMap[fullName] = h
+	if selfDefineName != "" {
+		receiver.oneWayMap[selfDefineName] = h
+	}
 	return nil
 }
