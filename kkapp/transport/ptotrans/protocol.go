@@ -24,15 +24,15 @@ type (
 	// MsgID: MsgIDRpcS2Client
 	// 网关转发消息到客户端: 逻辑服->网关->客户端
 	RpcS2Client struct {
-		ClientId string
-		Payload  []byte
+		ClientId string //sessionID
+		Payload  []byte //整包[length,message] 原样转发
 	}
 
 	// MsgID: MsgIDRpcS2Clients
 	// 网关转发消息到多个客户端: 逻辑服->网关->多个客户端
 	RpcS2Clients struct {
-		ClientIds []string
-		Payload   []byte
+		ClientIds []string //sessionID列表
+		Payload   []byte   //整包[length,message] 原样转发
 	}
 
 	// MsgID: MsgIDRpcC2S
@@ -40,7 +40,7 @@ type (
 	RpcC2S struct {
 		ClientId   string //sessionID
 		GateNodeId string //网关节点ID
-		Payload    []byte
+		Payload    []byte //整包[length,message] 原样转发
 	}
 
 	// MsgID: MsgIDRpcClientDisconnect
