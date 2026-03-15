@@ -343,8 +343,9 @@ func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
 //------------------------------------------------------------
 
 type gateHandler struct {
-	gate   *gateComponent
-	wQueue *kkprocessor.WorkerQueue
+	gate       *gateComponent
+	wQueue     *kkprocessor.WorkerQueue
+	gateNodeId string
 }
 
 var _ kknet.IConnLifecycleHandler = (*gateHandler)(nil)
@@ -352,13 +353,14 @@ var _ kknet.IRawHandler = (*gateHandler)(nil)
 
 func newGateHandler(gate *gateComponent) *gateHandler {
 	return &gateHandler{
-		gate:   gate,
-		wQueue: kkprocessor.NewWorkerQueue(2),
+		gate:       gate,
+		wQueue:     kkprocessor.NewWorkerQueue(2),
+		gateNodeId: gate.GetApplication().GetNodeId(),
 	}
 }
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
-	sessionID := getSessionId(c.ID(), h.gate.GetApplication().GetNodeId())
+	sessionID := getSessionId(c.ID(), h.gateNodeId)
 	h.gate.sessionMgr.AddConn(sessionID, c)
 	h.gate.clientMgr.addClient(c.ID(), sessionID)
 	kklog.Debugf("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
@@ -366,7 +368,7 @@ func (h *gateHandler) OnConnect(c kknet.IConn) {
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 	cid := c.ID()
-	sid := getSessionId(cid, h.gate.GetApplication().GetNodeId())
+	sid := getSessionId(cid, h.gateNodeId)
 
 	// 在 removeClient 前取出该客户端已分配的逻辑服 nodeId，用于通知断开
 	if cliInfo := h.gate.clientMgr.getClient(cid); cliInfo != nil {

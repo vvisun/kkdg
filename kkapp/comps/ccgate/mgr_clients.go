@@ -279,7 +279,7 @@ func (m *clientManager) checkKickFromLogicNode(sessionId string, nodeType string
 	return nil
 }
 
-// 连接connId的客户端登录到nodeType类型的逻辑节点。
+// 客户端登录到nodeType类型的逻辑节点。
 func (m *clientManager) loginToLogicNode(sessionId string, nodeType string, userId user.USER_ID) bool {
 	if userId == user.NULL_USER_ID {
 		return false
@@ -296,7 +296,7 @@ func (m *clientManager) loginToLogicNode(sessionId string, nodeType string, user
 	return true
 }
 
-// 连接connId的客户端登出nodeType类型的逻辑节点。
+// 客户端登出nodeType类型的逻辑节点。
 func (m *clientManager) logoutFromLogicNode(sessionId string, nodeType string) bool {
 	cliInfo := m.getClientBySessionId(sessionId)
 	if cliInfo == nil {
