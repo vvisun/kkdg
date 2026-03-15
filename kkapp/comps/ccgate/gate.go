@@ -130,10 +130,11 @@ func (slf *gateComponent) OnInit() error {
 			if !ok {
 				return
 			}
-			kklog.Infof("[ccgate] notify client login logout: %v", msg)
 			if msg.IsLogin {
+				kklog.Infof("[ccgate]客户端登录: %#v", msg)
 				slf.clientMgr.loginToLogicNode(msg.ClientId, msg.NodeType, kknet.USER_ID(msg.UserId))
 			} else {
+				kklog.Infof("[ccgate]客户端登出: %#v", msg)
 				slf.clientMgr.logoutFromLogicNode(msg.ClientId, msg.NodeType)
 				gLogicTotalMgr.onUnbindLogicNode(msg.ClientId, msg.NodeId)
 			}

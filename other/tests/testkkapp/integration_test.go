@@ -20,6 +20,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
 func requireNATS(t *testing.T) string {
@@ -76,6 +77,7 @@ func (h *gameHandler) onLoginReq(sessionID string, msg *LoginReq) error {
 		UserId:   msg.UserId,
 		UserData: "user data",
 	}
+	h.transportor.NotifyClientLoginLogout(sessionID, msg.UserId, true)
 	h.transportor.SendToClient(sessionID, resp)
 	return nil
 }
@@ -169,81 +171,132 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	payload := []byte("hello")
 
 	var recvMu sync.Mutex
-	var recvData []byte
 	clientRecvCh := make(chan struct{})
 
 	clientAppOpts := kkapp.ApplyOptions()
 	InitMsgs(clientAppOpts.ClientMsgPacket.GetRouter())
+	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(clientAppOpts.StreamTool),
+		kknet.WithMsgPacket(clientAppOpts.ClientMsgPacket),
+	)
+
+	client1, err := newTestClient(t, 1, string(payload), clientRecvCh, opts, tcpAddr)
+	if err != nil {
+		t.Fatalf("new test client: %v", err)
+	}
+	client2, err := newTestClient(t, 2, string(payload), nil, opts, tcpAddr)
+	if err != nil {
+		t.Fatalf("new test client: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = client1.client.Close()
+		_ = client2.client.Close()
+	})
+
+	time.Sleep(200 * time.Millisecond)
+
+	if err := client1.client.SendMsg(&LoginReq{UserId: 1, Password: string(payload)}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if err := client1.client.SendMsg(&MsgCounter{Seq: 1, Data: string(payload)}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+
+	if err := client2.client.SendMsg(&LoginReq{UserId: 2, Password: string(payload)}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if err := client2.client.SendMsg(&MsgCounter{Seq: 1, Data: string(payload)}); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+
+	select {
+	case <-client1.recvCh:
+		recvMu.Lock()
+		got := string(client1.recvData)
+		recvMu.Unlock()
+		if got != string(payload) {
+			t.Errorf("客户端[%d]收到消息 recv = %q, want %q", client1.userId, got, string(payload))
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatalf("timeout waiting for echo from client[%d]", client1.userId)
+	}
+}
+
+//---------------客户端处理-----------------------------------
+
+type testClient struct {
+	client   kknet.IClient
+	userId   int64
+	password string
+	hasLogin bool
+	recvCh   chan struct{}
+	recvData []byte
+}
+
+func newTestClient(
+	t *testing.T,
+	userId int64,
+	password string,
+	recvCh chan struct{},
+	opts kknet.Options,
+	tcpAddr string,
+) (*testClient, error) {
+
+	cliInfo := &testClient{
+		userId:   userId,
+		password: password,
+		hasLogin: false,
+		recvCh:   recvCh,
+		recvData: make([]byte, 0),
+	}
 
 	handler := &clientHandler{
 		onRaw: func(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-			msg, e := kkpacket.DecodeStream(data, clientAppOpts.StreamTool, clientAppOpts.ClientMsgPacket)
+			msg, e := kkpacket.DecodeStream(data, opts.StreamTool, opts.WpOptions.MsgPacket)
 
 			if e != nil {
 				t.Logf("unpack recv: %v", e)
 				return
 			}
 
-			kklog.Infof("客户端收到消息: type = %T, data = %v", msg, msg)
+			kklog.Infof("客户端[%d]收到消息: %#v", userId, msg)
 
 			switch info := msg.(type) {
-			case *LoginReq:
-				recvMu.Lock()
-				recvData = append([]byte(nil), info.Password...)
-				recvMu.Unlock()
 			case *LoginResp:
-				recvMu.Lock()
-				recvData = append([]byte(nil), info.UserData...)
-				recvMu.Unlock()
+				if info.UserId != userId {
+					t.Errorf("userId mismatch: got %d, want %d", info.UserId, userId)
+				}
+				cliInfo.hasLogin = true
 			case *MsgCounter:
-				recvMu.Lock()
-				recvData = append([]byte(nil), info.Data...)
-				recvMu.Unlock()
-				select {
-				case clientRecvCh <- struct{}{}:
-				default:
+				cliInfo.recvData = append([]byte(nil), info.Data...)
+				if cliInfo.recvCh != nil {
+					select {
+					case recvCh <- struct{}{}:
+					default:
+					}
 				}
 			default:
 				t.Logf("unknown message type: %T", msg)
 			}
-
 		},
 	}
 
-	opts := kknet.ApplyOptions(
+	kkoption.ApplyOptionsTo(&opts,
 		kknet.WithRawHandler(handler),
-		kknet.WithStreamTool(clientAppOpts.StreamTool),
-		kknet.WithMsgPacket(clientAppOpts.ClientMsgPacket),
+		kknet.WithStreamTool(opts.StreamTool),
+		kknet.WithMsgPacket(opts.WpOptions.MsgPacket),
 	)
 	client := kktcp.NewClient(tcpAddr, handler, opts)
 	if err := client.Connect(); err != nil {
 		t.Fatalf("client connect: %v", err)
-	}
-	t.Cleanup(func() { _ = client.Close() })
-
-	time.Sleep(200 * time.Millisecond)
-
-	if err := client.SendMsg(&LoginReq{UserId: 1, Password: string(payload)}); err != nil {
-		t.Fatalf("send: %v", err)
-	}
-	if err := client.SendMsg(&MsgCounter{Seq: 1, Data: string(payload)}); err != nil {
-		t.Fatalf("send: %v", err)
+		return nil, err
 	}
 
-	select {
-	case <-clientRecvCh:
-		recvMu.Lock()
-		got := string(recvData)
-		recvMu.Unlock()
-		if got != string(payload) {
-			t.Errorf("客户端收到消息 recv = %q, want %q", got, string(payload))
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("timeout waiting for echo")
-	}
+	cliInfo.client = client
+
+	return cliInfo, nil
 }
-
-//---------------客户端处理-----------------------------------
 
 type clientHandler struct {
 	onRaw func(kknet.CONN_ID, *kkbuffer.ByteBuffer)

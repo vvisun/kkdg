@@ -66,9 +66,7 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 			slf.ForwardToClient(sid, packet.ArgBytes)
 		}
 	case ptotrans.FuncNameClientLoginLogout:
-		bb := kkbuffer.GetWithCapacity(len(packet.ArgBytes))
-		bb.WriteBytes(packet.ArgBytes)
-		msg, err := kkpacket.DecodeStream(bb, slf.transStreamTool, slf.transMsgPacket)
+		msg, err := kkpacket.DecodePacket(packet.ArgBytes, slf.transStreamTool, slf.transMsgPacket)
 		if err != nil {
 			kklog.Errorf("[ccgate] decode client login logout error: %v", err)
 			return
