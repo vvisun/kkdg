@@ -58,9 +58,10 @@ type gateComponent struct {
 	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
 	transportor gatetrans.ITransportor
 
-	sessionMgr gatetrans.ISessionManager
-	clientMgr  *clientManager
-	userMgr    *userManager
+	sessionMgr    gatetrans.ISessionManager
+	clientMgr     *clientManager
+	userMgr       *userManager
+	logicTotalMgr *logicTotalManager
 }
 
 // NewGateComponent creates a new gate component.
@@ -69,11 +70,12 @@ func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 		kklog.PanicErr(err)
 	}
 	return &gateComponent{
-		opt:        gateOpt,
-		serverOpt:  serverOpt,
-		sessionMgr: gatetrans.NewSessionMgr(),
-		clientMgr:  newClientManager(),
-		userMgr:    newUserManager(),
+		opt:           gateOpt,
+		serverOpt:     serverOpt,
+		sessionMgr:    gatetrans.NewSessionMgr(),
+		clientMgr:     newClientManager(),
+		userMgr:       newUserManager(),
+		logicTotalMgr: newLogicTotalManager(),
 	}
 }
 
@@ -177,7 +179,7 @@ func (slf *gateComponent) OnInit() error {
 					}
 					bindTbl.unbindLogicItem(msg.NodeType)
 				}
-				gLogicTotalMgr.onUnbindLogicNode(msg.ClientId, msg.NodeId)
+				slf.logicTotalMgr.onUnbindLogicNode(msg.ClientId, msg.NodeId)
 				slf.userMgr.removeUser(user.USER_ID(msg.UserId))
 			}
 		}
@@ -311,6 +313,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	}
 
 	// 分配逻辑节点
+	slf.logicTotalMgr.onBindLogicNode(cliInfo.sessionId, chooseNode, nodeType)
 	return cliInfo.bindLogicNode(nodeType, chooseNode)
 }
 
@@ -331,6 +334,7 @@ func (slf *gateComponent) chooseFromShardOrRpc(nodeType string) (string, bool) {
 	var chooseNode gatetrans.IMember = nil
 	finded := false
 	memberMgr := trans.GetMemberMgr()
+	logicTotalMgr := slf.logicTotalMgr
 	memberMgr.Range(func(nodeId string, member gatetrans.IMember) bool {
 		if member.GetNodeType() != nodeType {
 			return true
@@ -340,7 +344,7 @@ func (slf *gateComponent) chooseFromShardOrRpc(nodeType string) (string, bool) {
 			finded = true
 			return true
 		}
-		if gLogicTotalMgr.getSessionCount(member.GetNodeID()) < gLogicTotalMgr.getSessionCount(chooseNode.GetNodeID()) {
+		if logicTotalMgr.getSessionCount(member.GetNodeID()) < logicTotalMgr.getSessionCount(chooseNode.GetNodeID()) {
 			chooseNode = member
 			finded = true
 		}

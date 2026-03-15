@@ -44,16 +44,7 @@ func (c *clientInfo) bindLogicNode(nodeType string, nodeId string) *clientLogicI
 		return lgcInfo
 	}
 	lgcInfo = c.clientBindTbl.bindLogicItem(nodeType, nodeId)
-	gLogicTotalMgr.onBindLogicNode(c.sessionId, nodeId, nodeType)
 	return lgcInfo
-}
-
-// 解绑逻辑节点。
-func (c *clientInfo) unbindLogicNode(nodeType string) {
-	if lgcInfo := c.getLogicNode(nodeType); lgcInfo != nil {
-		gLogicTotalMgr.onUnbindLogicNode(c.sessionId, lgcInfo.nodeId)
-	}
-	c.clientBindTbl.unbindLogicItem(nodeType)
 }
 
 //------------------------------------------------------------

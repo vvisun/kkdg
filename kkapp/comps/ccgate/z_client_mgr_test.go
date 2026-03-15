@@ -24,32 +24,6 @@ func Test_getSessionId(t *testing.T) {
 	}
 }
 
-func Test_clientInfo_getLogicNode_allocLogicNode_removeLogicNode(t *testing.T) {
-	ci := newClientInfo(1, "s1")
-	if ci.getLogicNode("game") != nil {
-		t.Error("getLogicNode on empty should return nil")
-	}
-
-	lgcNode := ci.bindLogicNode("game", "node1")
-	if lgcNode == nil {
-		t.Error("allocLogicNode should return non-nil")
-	}
-	if lgcNode.nodeId != "node1" || lgcNode.nodeType != "game" {
-		t.Errorf("allocLogicNode result nodeId=%v nodeType=%v", lgcNode.nodeId, lgcNode.nodeType)
-	}
-
-	ci.unbindLogicNode("game")
-	if ci.getLogicNode("game") != nil {
-		t.Error("getLogicNode after removeLogicNode should return nil")
-	}
-
-	ci.bindLogicNode("game", "node2")
-	lgcNode = ci.getLogicNode("game")
-	if lgcNode.nodeId != "node2" || lgcNode.nodeType != "game" {
-		t.Errorf("allocLogicNode result nodeId=%v nodeType=%v", lgcNode.nodeId, lgcNode.nodeType)
-	}
-}
-
 func Test_logicNodeInfo_isLogin_login(t *testing.T) {
 	info := newClientLogicItem("node1", "game")
 	if info.isLogin() {
