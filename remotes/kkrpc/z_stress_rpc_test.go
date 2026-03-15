@@ -97,7 +97,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 
 	successCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
+	RegistReqRspHandler(rpcRouter, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
 		return nil
@@ -197,7 +197,7 @@ func TestStress_Rpc_ConnectDisconnect(t *testing.T) {
 	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
 
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
+	RegistReqRspHandler(rpcRouter, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
 		return nil
@@ -251,7 +251,7 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 	rpcRouter := NewRpcReceiver(ApplyOptions(
 		WithMaxPendingCount(numGoroutines*callsPerGoroutine),
 	), methodMgr)
-	RegistReqRspHandler(rpcRouter, "testReqRsp", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
+	RegistReqRspHandler(rpcRouter, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		resp.Code = 0
 		resp.Msg = "ok"
 		return nil
@@ -331,7 +331,7 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 
 	recvCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
+	RegistOneWayHandler(rpcRouter, func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		recvCount.Add(1)
 		return nil
 	})
@@ -425,7 +425,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 
 	recvCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
+	RegistOneWayHandler(rpcRouter, func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		recvCount.Add(1)
 		return nil
 	})

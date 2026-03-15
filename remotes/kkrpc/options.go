@@ -12,7 +12,7 @@ func DefaultRpcOption() RpcOption {
 
 func CheckRpcOption(opt *RpcOption) {
 	if opt.MaxPendingCount <= 0 {
-		opt.MaxPendingCount = 4096
+		opt.MaxPendingCount = 8192
 	}
 }
 

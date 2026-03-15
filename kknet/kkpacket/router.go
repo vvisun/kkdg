@@ -2,6 +2,7 @@ package kkpacket
 
 import (
 	"reflect"
+	"sync"
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -38,6 +39,7 @@ type MSGID = uint32 // 消息ID
 *
 */
 type MsgRouter struct {
+	mu        sync.RWMutex //一般在初始化阶段就应该完成注册了，所以后面的Get操作都是读操作，不需要加锁
 	typeToId  map[reflect.Type]MSGID
 	idToType  map[MSGID]reflect.Type
 	idToRoute map[MSGID]string
@@ -66,6 +68,9 @@ func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 		kklog.Errorf("message pointer required, got %v", msgType)
 		return kkerrors.ErrPktInvalidMessage
 	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	if _, ok := r.idToType[id]; ok && r.idToType[id] != msgType {
 		kklog.Errorf("message id %v is already registered with different type %v", id, r.idToType[id])

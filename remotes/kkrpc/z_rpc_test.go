@@ -78,8 +78,8 @@ func Test_RpcProcessor(t *testing.T) {
 	methodMgr := setupTestRpcManager(t)
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	rp := &rpcProcessor{}
-	RegistReqRspHandler(rpcRouter, "testReqRsp", rp.onTestReqTestRsp)
-	RegistOneWayHandler(rpcRouter, "testOneway", rp.onTestReq)
+	RegistReqRspHandler(rpcRouter, rp.onTestReqTestRsp)
+	RegistOneWayHandler(rpcRouter, rp.onTestReq)
 
 	svr, cli := newTestServerClient(t, rpcRouter)
 
@@ -133,7 +133,7 @@ func newTestServerClientWithHandler(t *testing.T, handler ReqRspHandlerFunc[test
 	t.Helper()
 	methodMgr := setupTestRpcManager(t)
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-	RegistReqRspHandler(rpcRouter, "testReqRsp", handler)
+	RegistReqRspHandler(rpcRouter, handler)
 	return newTestServerClient(t, rpcRouter)
 }
 
@@ -363,7 +363,7 @@ func Test_InvokeNR(t *testing.T) {
 	methodMgr := setupTestRpcManager(t)
 	called := make(chan struct{}, 1)
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-	RegistOneWayHandler(rpcRouter, "testOneway", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
+	RegistOneWayHandler(rpcRouter, func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		select {
 		case called <- struct{}{}:
 		default:

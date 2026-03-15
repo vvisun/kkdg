@@ -45,11 +45,11 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	ptotrans.InitRpcMsgs(methodMgr)
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
 	rpcProcessor := &rpcHandler{}
-	kkrpc.RegistOneWayHandler(rpcRouter, "register", rpcProcessor.onRegister)
-	kkrpc.RegistOneWayHandler(rpcRouter, "s2c", rpcProcessor.onS2C)
-	kkrpc.RegistOneWayHandler(rpcRouter, "s2cs", rpcProcessor.onS2Clients)
-	kkrpc.RegistOneWayHandler(rpcRouter, "c2s", rpcProcessor.onC2S)
-	kkrpc.RegistOneWayHandler(rpcRouter, "clientLoginLogout", rpcProcessor.onClientLoginLogout)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onRegister)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onS2C)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onS2Clients)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onC2S)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onClientLoginLogout)
 
 	rpcSvr := kkrpc.NewServer(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcSvr.Start(); err != nil {

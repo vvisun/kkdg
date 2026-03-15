@@ -52,8 +52,8 @@ func runRpcDemo(addr string) {
 	kkrpc.RegisterOneWayMethod[PingReq]("Ping", methodMgr)
 
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
-	kkrpc.RegistReqRspHandler(rpcRouter, "Echo", onEcho)
-	kkrpc.RegistOneWayHandler(rpcRouter, "Ping", onPing)
+	kkrpc.RegistReqRspHandler(rpcRouter, onEcho)
+	kkrpc.RegistOneWayHandler(rpcRouter, onPing)
 
 	opts := kknet.ApplyOptions(kknet.WithIsNeedReconnect(false))
 

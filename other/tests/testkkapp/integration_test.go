@@ -92,7 +92,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	// const transType = transport.TransTypeRpc
 	// const transType = transport.TransTypeNats
 	// const transType = transport.TransTypeShard
-	const transType = transport.TransTypeNats
+	const transType = transport.TransTypeRpc
 
 	appOpts := kkapp.ApplyOptions()
 

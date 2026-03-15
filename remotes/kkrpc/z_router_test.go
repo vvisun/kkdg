@@ -12,7 +12,7 @@ func TestRouter_ReqRsp(t *testing.T) {
 	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	RegisterReqRspMethod[testReq, testRsp]("test", methodMgr)
 	router := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-	RegistReqRspHandler(router, "test", func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
+	RegistReqRspHandler(router, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		resp.Code = 0
 		resp.Msg = "success"
@@ -34,7 +34,7 @@ func TestRouter_OneWay(t *testing.T) {
 	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	RegisterOneWayMethod[testReq]("test", methodMgr)
 	router := NewRpcReceiver(DefaultRpcOption(), methodMgr)
-	RegistOneWayHandler(router, "test", func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
+	RegistOneWayHandler(router, func(ctx context.Context, msg *testReq, connId kknet.CONN_ID) error {
 		fmt.Println("remote call testReq", msg)
 		return nil
 	})

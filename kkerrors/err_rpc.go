@@ -26,8 +26,13 @@ var (
 	ErrRpcInvalidRequestID = errors.New("kkrpc: invalid request id")
 	// 无效的帧类型
 	ErrRpcInvalidFrameType = errors.New("kkrpc: invalid frame type")
+
 	// 无效的请求响应类型
 	ErrRpcInvalidReqResp = errors.New("kkrpc: invalid req resp type")
+	// 无效的单向类型
+	ErrRpcInvalidOneWay = errors.New("kkrpc: invalid oneway type")
 	// 方法未注册
 	ErrRpcMethodNotRegistered = errors.New("kkrpc: method not registered")
+	// 重复注册
+	ErrRpcMethodAlreadyRegistered = errors.New("kkrpc: method already registered")
 )

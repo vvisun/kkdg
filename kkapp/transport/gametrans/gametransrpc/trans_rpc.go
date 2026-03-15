@@ -52,8 +52,8 @@ func NewTransportorRpc(
 	ptotrans.InitRpcMsgs(methodMgr)
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
 	rpcProcessor := &rpcHandler{}
-	kkrpc.RegistOneWayHandler(rpcRouter, "c2s", rpcProcessor.onC2S)
-	kkrpc.RegistOneWayHandler(rpcRouter, "clientDisconnect", rpcProcessor.onClientDisconnect)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onC2S)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onClientDisconnect)
 
 	rpcClient := kkrpc.NewClient(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcClient.Start(); err != nil {
