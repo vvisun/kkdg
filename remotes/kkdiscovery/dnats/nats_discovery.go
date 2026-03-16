@@ -78,7 +78,7 @@ func NewNatsDiscovery(
 	}
 
 	// 订阅 discovery metrics 事件，通过 Stats 快照填充 MetricsEventData
-	_ = kkevent.GlobalBus.Subscribe(kkmetrics.EventDiscoveryMetrics, func(e *kkmetrics.MetricsEventData) {
+	kkevent.GlobalBus.Subscribe(kkmetrics.EventDiscoveryMetrics, func(e *kkmetrics.MetricsEventData) {
 		if e == nil {
 			return
 		}

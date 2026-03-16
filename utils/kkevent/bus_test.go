@@ -113,7 +113,7 @@ func TestTransactionalAsync(t *testing.T) {
 	// }
 	// So it locks the specific handler. If we publish twice, the second publish's execution of THIS handler will wait for the first.
 
-	if err := bus.SubscribeAsync(topic, handler, true); err != nil {
+	if _, err := bus.SubscribeAsync(topic, handler, true); err != nil {
 		t.Fatalf("SubscribeAsync: %v", err)
 	}
 	bus.Publish(topic, 1)
@@ -240,7 +240,7 @@ func TestPublishNil(t *testing.T) {
 // TestSubscribeInvalidHandler verifies that subscribing a non-func handler returns error.
 func TestSubscribeInvalidHandler(t *testing.T) {
 	bus := NewEventBus()
-	err := bus.Subscribe("test-invalid", "not-a-func")
+	_, err := bus.Subscribe("test-invalid", "not-a-func")
 	if err == nil {
 		t.Fatalf("expected error when subscribing non-func handler")
 	}
@@ -262,7 +262,7 @@ func TestUnsubscribeErrors(t *testing.T) {
 	}
 
 	// handler not found
-	if err := bus.Subscribe(topic, h1); err != nil {
+	if _, err := bus.Subscribe(topic, h1); err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
 	if err := bus.Unsubscribe(topic, h2); err == nil {
@@ -283,7 +283,7 @@ func TestSubscribeOnceAsync(t *testing.T) {
 		mu.Unlock()
 	}
 
-	if err := bus.SubscribeOnceAsync(topic, handler); err != nil {
+	if _, err := bus.SubscribeOnceAsync(topic, handler); err != nil {
 		t.Fatalf("SubscribeOnceAsync: %v", err)
 	}
 	bus.Publish(topic)
@@ -302,7 +302,7 @@ func TestGlobalBus(t *testing.T) {
 	topic := "test-global-bus"
 	ch := make(chan struct{}, 1)
 
-	if err := GlobalBus.Subscribe(topic, func(v int) {
+	if _, err := GlobalBus.Subscribe(topic, func(v int) {
 		if v == 42 {
 			ch <- struct{}{}
 		}
@@ -347,7 +347,7 @@ func TestConcurrentPublishSubscribe(t *testing.T) {
 		defer wg.Done()
 		handler := func(int) {}
 		for i := 0; i < 1000; i++ {
-			_ = bus.Subscribe(topic, handler)
+			_, _ = bus.Subscribe(topic, handler)
 			_ = bus.Unsubscribe(topic, handler)
 		}
 	}()

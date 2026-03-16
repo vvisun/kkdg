@@ -4,22 +4,32 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"sync/atomic"
 )
+
+var autoEventID atomic.Uint64
 
 // BusSubscriber defines subscription-related bus behavior
 type BusSubscriber interface {
 	// Subscribe subscribes to a topic.
-	Subscribe(topic string, fn interface{}) error
+	// Returns the ID of the subscription.
+	Subscribe(topic string, fn interface{}) (uint64, error)
 	// SubscribeAsync subscribes to a topic with an asynchronous callback.
-	SubscribeAsync(topic string, fn interface{}, transactional bool) error
+	// Returns the ID of the subscription.
+	SubscribeAsync(topic string, fn interface{}, transactional bool) (uint64, error)
 	// SubscribeOnce subscribes to a topic once.
-	SubscribeOnce(topic string, fn interface{}) error
+	// Returns the ID of the subscription.
+	SubscribeOnce(topic string, fn interface{}) (uint64, error)
 	// SubscribeOnceAsync subscribes to a topic once with an asynchronous callback.
-	SubscribeOnceAsync(topic string, fn interface{}) error
+	// Returns the ID of the subscription.
+	SubscribeOnceAsync(topic string, fn interface{}) (uint64, error)
+
 	// Unsubscribe removes a callback defined for a topic.
 	Unsubscribe(topic string, handler interface{}) error
 	// UnsubscribeAll removes all callbacks defined for a topic.
 	UnsubscribeAll(topic string) error
+	// UnsubscribeByID removes a callback defined for a topic by ID.
+	UnsubscribeByID(topic string, id uint64) error
 }
 
 // BusPublisher defines publishing-related bus behavior
@@ -48,6 +58,7 @@ type EventBus struct {
 }
 
 type eventHandler struct {
+	id            uint64
 	callBack      reflect.Value
 	flagOnce      bool
 	async         bool
@@ -64,13 +75,13 @@ func NewEventBus() Bus {
 
 // doSubscribe handles the subscription logic
 func (bus *EventBus) doSubscribe(topic string, fn interface{}, handler *eventHandler) error {
-	bus.lock.Lock()
-	defer bus.lock.Unlock()
-
 	v := reflect.ValueOf(fn)
 	if v.Kind() != reflect.Func {
 		return fmt.Errorf("%s is not of type reflect.Func", v.Kind())
 	}
+
+	bus.lock.Lock()
+	defer bus.lock.Unlock()
 
 	// COW: 拷贝并追加，然后替换原 map 中的切片
 	current := bus.handlers[topic]
@@ -83,15 +94,19 @@ func (bus *EventBus) doSubscribe(topic string, fn interface{}, handler *eventHan
 }
 
 // Subscribe subscribes to a topic.
-func (bus *EventBus) Subscribe(topic string, fn interface{}) error {
-	return bus.doSubscribe(topic, fn, &eventHandler{
+func (bus *EventBus) Subscribe(topic string, fn interface{}) (uint64, error) {
+	id := autoEventID.Add(1)
+	return id, bus.doSubscribe(topic, fn, &eventHandler{
+		id:       id,
 		callBack: reflect.ValueOf(fn),
 	})
 }
 
 // SubscribeAsync subscribes to a topic with an asynchronous callback
-func (bus *EventBus) SubscribeAsync(topic string, fn interface{}, transactional bool) error {
-	return bus.doSubscribe(topic, fn, &eventHandler{
+func (bus *EventBus) SubscribeAsync(topic string, fn interface{}, transactional bool) (uint64, error) {
+	id := autoEventID.Add(1)
+	return id, bus.doSubscribe(topic, fn, &eventHandler{
+		id:            id,
 		callBack:      reflect.ValueOf(fn),
 		async:         true,
 		transactional: transactional,
@@ -99,16 +114,20 @@ func (bus *EventBus) SubscribeAsync(topic string, fn interface{}, transactional 
 }
 
 // SubscribeOnce subscribes to a topic once.
-func (bus *EventBus) SubscribeOnce(topic string, fn interface{}) error {
-	return bus.doSubscribe(topic, fn, &eventHandler{
+func (bus *EventBus) SubscribeOnce(topic string, fn interface{}) (uint64, error) {
+	id := autoEventID.Add(1)
+	return id, bus.doSubscribe(topic, fn, &eventHandler{
+		id:       id,
 		callBack: reflect.ValueOf(fn),
 		flagOnce: true,
 	})
 }
 
 // SubscribeOnceAsync subscribes to a topic once with an asynchronous callback
-func (bus *EventBus) SubscribeOnceAsync(topic string, fn interface{}) error {
-	return bus.doSubscribe(topic, fn, &eventHandler{
+func (bus *EventBus) SubscribeOnceAsync(topic string, fn interface{}) (uint64, error) {
+	id := autoEventID.Add(1)
+	return id, bus.doSubscribe(topic, fn, &eventHandler{
+		id:       id,
 		callBack: reflect.ValueOf(fn),
 		flagOnce: true,
 		async:    true,
@@ -147,10 +166,11 @@ func (bus *EventBus) Unsubscribe(topic string, handler interface{}) error {
 	}
 
 	// COW: 创建新切片
-	newList := make([]*eventHandler, len(handlers)-1)
-	copy(newList, handlers[:idx])
-	copy(newList[idx:], handlers[idx+1:])
-	if len(newList) > 0 {
+	newLen := len(handlers) - 1
+	if newLen > 0 {
+		newList := make([]*eventHandler, newLen)
+		copy(newList, handlers[:idx])
+		copy(newList[idx:], handlers[idx+1:])
 		bus.handlers[topic] = newList
 	} else {
 		delete(bus.handlers, topic)
@@ -167,6 +187,42 @@ func (bus *EventBus) UnsubscribeAll(topic string) error {
 	return nil
 }
 
+// UnsubscribeByID removes a callback defined for a topic by ID.
+func (bus *EventBus) UnsubscribeByID(topic string, id uint64) error {
+	bus.lock.Lock()
+	defer bus.lock.Unlock()
+
+	handlers, ok := bus.handlers[topic]
+	if !ok || len(handlers) == 0 {
+		return fmt.Errorf("topic %s doesn't exist", topic)
+	}
+
+	idx := -1
+	for i, h := range handlers {
+		if h.id == id {
+			idx = i
+			break
+		}
+	}
+
+	if idx == -1 {
+		return fmt.Errorf("handler not found for topic %s, id: %d", topic, id)
+	}
+
+	// COW: 创建新切片
+	newLen := len(handlers) - 1
+	if newLen > 0 {
+		newList := make([]*eventHandler, newLen)
+		copy(newList, handlers[:idx])
+		copy(newList[idx:], handlers[idx+1:])
+		bus.handlers[topic] = newList
+	} else {
+		delete(bus.handlers, topic)
+	}
+
+	return nil
+}
+
 // Publish executes callback defined for a topic.
 func (bus *EventBus) Publish(topic string, args ...interface{}) {
 	bus.lock.RLock()
@@ -175,6 +231,7 @@ func (bus *EventBus) Publish(topic string, args ...interface{}) {
 		bus.lock.RUnlock()
 		return
 	}
+
 	// 在 RLock 保护下持有当前监听器列表引用
 	// 因为是 COW，订阅/取消订阅会替换 map 中的 slice 指针，而我们持有的引用是稳定的
 	currentHandlers := handlers
