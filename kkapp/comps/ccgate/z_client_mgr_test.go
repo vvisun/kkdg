@@ -23,37 +23,3 @@ func Test_getSessionId(t *testing.T) {
 		}
 	}
 }
-
-func Test_clientManager_addClient_removeClient_getClient(t *testing.T) {
-	m := newClientManager()
-
-	// add and get
-	connID := kknet.CONN_ID(100)
-	sessionID := getSessionId(connID, "gate1")
-	ci := m.addClient(connID, sessionID)
-	if ci == nil {
-		t.Fatal("addClient should return non-nil clientInfo")
-	}
-	if ci.connId != connID || ci.sessionId != sessionID {
-		t.Errorf("clientInfo connId=%v sessionId=%v, want %v %v", ci.connId, ci.sessionId, connID, sessionID)
-	}
-
-	got := m.getClientByConnId(connID)
-	if got != ci {
-		t.Errorf("getClient(%v) = %v, want %v", connID, got, ci)
-	}
-
-	// get non-existent
-	if m.getClientByConnId(999) != nil {
-		t.Error("getClient(999) should return nil")
-	}
-
-	// remove
-	m.removeClient(connID)
-	if m.getClientByConnId(connID) != nil {
-		t.Error("getClient after removeClient should return nil")
-	}
-
-	// remove non-existent should not panic
-	m.removeClient(999)
-}

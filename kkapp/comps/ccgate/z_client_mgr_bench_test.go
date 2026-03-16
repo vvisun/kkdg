@@ -25,7 +25,7 @@ func Benchmark_clientManager_getClient(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_ = m.getClientByConnId(kknet.CONN_ID(i % n))
+		_ = m.getSessionByConnId(kknet.CONN_ID(i % n))
 	}
 }
 
@@ -50,7 +50,7 @@ func Benchmark_clientManager_AddGetRemove(b *testing.B) {
 		connID := kknet.CONN_ID(i)
 		sessionID := getSessionId(connID, "gate1")
 		m.addClient(connID, sessionID)
-		_ = m.getClientByConnId(connID)
+		_ = m.getSessionByConnId(connID)
 		m.removeClient(connID)
 	}
 }
@@ -66,7 +66,7 @@ func Benchmark_clientManager_GetClient_Parallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			_ = m.getClientByConnId(kknet.CONN_ID(i % n))
+			_ = m.getSessionByConnId(kknet.CONN_ID(i % n))
 			i++
 		}
 	})
@@ -82,7 +82,7 @@ func Benchmark_clientManager_AddGetRemove_Parallel(b *testing.B) {
 			connID := kknet.CONN_ID(i)
 			sessionID := getSessionId(connID, "gate1")
 			m.addClient(connID, sessionID)
-			_ = m.getClientByConnId(connID)
+			_ = m.getSessionByConnId(connID)
 			m.removeClient(connID)
 			i++
 		}

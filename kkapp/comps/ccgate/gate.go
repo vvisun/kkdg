@@ -344,13 +344,14 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	if nodeType == "" {
 		return nil //无效的nodeType，不分配逻辑节点
 	}
-	cliInfo := slf.clientMgr.getClientByConnId(connID)
-	if cliInfo == nil {
+
+	sessionID := slf.clientMgr.getSessionByConnId(connID)
+	if sessionID == "" {
 		return nil //客户端不存在，不分配逻辑节点
 	}
 
 	// 如果已分配，则返回已分配的逻辑节点信息
-	lgcNode := slf.logicBindMgr.getLogicItemBySessionId(cliInfo.sessionId, nodeType)
+	lgcNode := slf.logicBindMgr.getLogicItemBySessionId(sessionID, nodeType)
 	if lgcNode != nil {
 		return lgcNode
 	}
@@ -362,8 +363,8 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	}
 
 	// 分配逻辑节点
-	logicItem := slf.logicBindMgr.sessionBind(cliInfo.sessionId, nodeType, chooseNodeId)
-	slf.localDis.onBindLogicNode(cliInfo.sessionId, nodeType, chooseNodeId)
+	logicItem := slf.logicBindMgr.sessionBind(sessionID, nodeType, chooseNodeId)
+	slf.localDis.onBindLogicNode(sessionID, nodeType, chooseNodeId)
 	return logicItem
 }
 
@@ -471,8 +472,8 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	}
 	defer kkbuffer.Put(data)
 
-	cliInfo := h.gate.clientMgr.getClientByConnId(connID)
-	if cliInfo == nil {
+	sessionID := h.gate.clientMgr.getSessionByConnId(connID)
+	if sessionID == "" {
 		return
 	}
 
@@ -510,7 +511,6 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 
 	// 将客户端消息原样转发给逻辑服
 	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
-	sessionID := cliInfo.sessionId
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
 		kklog.Debugf("[ccgate] forward to logic error: %v", err)
 	}
