@@ -11,8 +11,8 @@ import (
 type MsgHookListener = func(msgId kkpacket.MSGID, data any)
 
 type MsgHooker struct {
-	listeners   []MsgHookListener
 	muListeners sync.RWMutex
+	listeners   []MsgHookListener
 }
 
 func NewMsgHooker() *MsgHooker {
@@ -24,14 +24,20 @@ func (h *MsgHooker) AddListener(listener MsgHookListener) {
 		return
 	}
 	h.muListeners.Lock()
+	defer h.muListeners.Unlock()
+
 	for _, l := range h.listeners {
 		if xreflect.IsSameFunc(l, listener) {
-			h.muListeners.Unlock()
 			return
 		}
 	}
-	h.listeners = append(h.listeners, listener)
-	h.muListeners.Unlock()
+
+	// COW: 拷贝并追加，然后替换原 map 中的切片
+	current := h.listeners
+	newList := make([]MsgHookListener, len(current)+1)
+	copy(newList, current)
+	newList[len(current)] = listener
+	h.listeners = newList
 }
 
 func (h *MsgHooker) RemoveListener(listener MsgHookListener) {
@@ -39,13 +45,29 @@ func (h *MsgHooker) RemoveListener(listener MsgHookListener) {
 		return
 	}
 	h.muListeners.Lock()
+	defer h.muListeners.Unlock()
+
+	idx := -1
 	for i, l := range h.listeners {
 		if xreflect.IsSameFunc(l, listener) {
-			h.listeners = append(h.listeners[:i], h.listeners[i+1:]...)
+			idx = i
 			break
 		}
 	}
-	h.muListeners.Unlock()
+	if idx == -1 {
+		return
+	}
+
+	// COW: 拷贝并删除，然后替换原 map 中的切片
+	newLen := len(h.listeners) - 1
+	if newLen > 0 {
+		newList := make([]MsgHookListener, newLen)
+		copy(newList, h.listeners[:idx])
+		copy(newList[idx:], h.listeners[idx+1:])
+		h.listeners = newList
+	} else {
+		h.listeners = make([]MsgHookListener, 0)
+	}
 }
 
 func (h *MsgHooker) RemoveAllListeners() {
@@ -56,9 +78,16 @@ func (h *MsgHooker) RemoveAllListeners() {
 
 func (h *MsgHooker) Notify(msgId kkpacket.MSGID, data any) {
 	h.muListeners.RLock()
-	listeners := make([]MsgHookListener, len(h.listeners))
-	copy(listeners, h.listeners)
+	if len(h.listeners) == 0 {
+		h.muListeners.RUnlock()
+		return
+	}
+
+	// 在 RLock 保护下持有当前监听器列表引用
+	// 因为是 COW，订阅/取消订阅会替换 map 中的 slice 指针，而我们持有的引用是稳定的
+	listeners := h.listeners
 	h.muListeners.RUnlock()
+
 	for _, listener := range listeners {
 		func() {
 			defer func() {
