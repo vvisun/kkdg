@@ -170,12 +170,14 @@ func (m *MemberMgr) CountOfType(nodeType string) int {
 func (m *MemberMgr) random(nodeType string) (IMember, bool) {
 	m.membersMu.RLock()
 	listOfType := m.typeMap[nodeType]
-	m.membersMu.RUnlock()
 	if len(listOfType) == 0 {
+		m.membersMu.RUnlock()
 		return nil, false
 	}
 	idx := xrand.Int(0, len(listOfType)-1)
-	return listOfType[idx], true
+	member := listOfType[idx]
+	m.membersMu.RUnlock()
+	return member, true
 }
 
 // 根据节点id获取成员类型
