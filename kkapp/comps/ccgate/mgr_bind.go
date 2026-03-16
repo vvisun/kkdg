@@ -122,28 +122,28 @@ func (t *clientBindTable) rangeLogicItems(fn func(nodeType string, logicItem *cl
 
 type logicBindManager struct {
 	mu                sync.Mutex
-	session2logicItem map[string]*clientLogicItem       // sessionId -> *clientLogicItem
-	userId2logicItem  map[user.USER_ID]*clientLogicItem // userId -> *clientLogicItem
+	session2logicItem map[string]*clientBindTable       // sessionId -> *clientBindTable
+	userId2logicItem  map[user.USER_ID]*clientBindTable // userId -> *clientBindTable
 }
 
 func newLogicBindManager() *logicBindManager {
 	return &logicBindManager{
-		session2logicItem: make(map[string]*clientLogicItem),
-		userId2logicItem:  make(map[user.USER_ID]*clientLogicItem),
+		session2logicItem: make(map[string]*clientBindTable),
+		userId2logicItem:  make(map[user.USER_ID]*clientBindTable),
 	}
 }
 
 func (m *logicBindManager) sessionBind(sessionId string, nodeType string, nodeId string) *clientLogicItem {
 	m.mu.Lock()
-	logicItem, ok := m.session2logicItem[sessionId]
-	if ok {
+	bindTable, ok := m.session2logicItem[sessionId]
+	if !ok {
+		bindTable = newClientBindTable()
+		m.session2logicItem[sessionId] = bindTable
 		m.mu.Unlock()
-		return logicItem
+		return bindTable.bindLogicItem(nodeType, nodeId)
 	}
-	logicItem = newClientLogicItem(nodeId, nodeType)
-	m.session2logicItem[sessionId] = logicItem
 	m.mu.Unlock()
-	return logicItem
+	return bindTable.bindLogicItem(nodeType, nodeId)
 }
 
 func (m *logicBindManager) sessionUnbind(sessionId string) {
@@ -152,41 +152,41 @@ func (m *logicBindManager) sessionUnbind(sessionId string) {
 	m.mu.Unlock()
 }
 
-func (m *logicBindManager) userIdBind(userId user.USER_ID, nodeType string, nodeId string) *clientLogicItem {
+func (m *logicBindManager) userBind(userId user.USER_ID, nodeType string, nodeId string) *clientLogicItem {
 	m.mu.Lock()
-	logicItem, ok := m.userId2logicItem[userId]
-	if ok {
+	bindTable, ok := m.userId2logicItem[userId]
+	if !ok {
+		bindTable = newClientBindTable()
+		m.userId2logicItem[userId] = bindTable
 		m.mu.Unlock()
-		return logicItem
+		return bindTable.bindLogicItem(nodeType, nodeId)
 	}
-	logicItem = newClientLogicItem(nodeId, nodeType)
-	m.userId2logicItem[userId] = logicItem
 	m.mu.Unlock()
-	return logicItem
+	return bindTable.bindLogicItem(nodeType, nodeId)
 }
 
-func (m *logicBindManager) userIdUnbind(userId user.USER_ID) {
+func (m *logicBindManager) userUnbind(userId user.USER_ID) {
 	m.mu.Lock()
 	delete(m.userId2logicItem, userId)
 	m.mu.Unlock()
 }
 
-func (m *logicBindManager) getLogicItemBySessionId(sessionId string) *clientLogicItem {
+func (m *logicBindManager) getLogicItemBySessionId(sessionId string, nodeType string) *clientLogicItem {
 	m.mu.Lock()
-	logicItem, ok := m.session2logicItem[sessionId]
+	bindTbl, ok := m.session2logicItem[sessionId]
 	m.mu.Unlock()
 	if !ok {
 		return nil
 	}
-	return logicItem
+	return bindTbl.getLogicItem(nodeType)
 }
 
-func (m *logicBindManager) getLogicItemByUserId(userId user.USER_ID) *clientLogicItem {
+func (m *logicBindManager) getLogicItemByUserId(userId user.USER_ID, nodeType string) *clientLogicItem {
 	m.mu.Lock()
-	logicItem, ok := m.userId2logicItem[userId]
+	bindTbl, ok := m.userId2logicItem[userId]
 	m.mu.Unlock()
 	if !ok {
 		return nil
 	}
-	return logicItem
+	return bindTbl.getLogicItem(nodeType)
 }

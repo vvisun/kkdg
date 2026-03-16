@@ -161,11 +161,9 @@ func (slf *gateComponent) OnInit() error {
 	slf.transportor.HookMsg(func(msgId kkpacket.MSGID, data any) {
 		switch msgId {
 		case ptotrans.MsgIDRpcClientLoginLogout:
-			msg, ok := data.(*ptotrans.RpcClientLoginLogout)
-			if !ok {
-				return
+			if msg, ok := data.(*ptotrans.RpcClientLoginLogout); ok {
+				slf.loginHook(msg)
 			}
-			slf.loginHook(msg)
 		}
 	})
 
@@ -174,13 +172,13 @@ func (slf *gateComponent) OnInit() error {
 
 func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 	if msg.IsLogin {
-		kklog.Infof("[ccgate]客户端登录: %#v", msg)
+		kklog.Debugf("[ccgate]客户端登录: %#v", msg)
 		cliInfo := slf.clientMgr.getClientBySessionId(msg.ClientId)
 		if cliInfo != nil {
 			bindTbl := cliInfo.clientBindTbl
 			if bindTbl != nil {
-				if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
-					lgcInfo.login(user.USER_ID(msg.UserId))
+				if logicItem := bindTbl.getLogicItem(msg.NodeType); logicItem != nil {
+					logicItem.login(user.USER_ID(msg.UserId))
 				}
 			}
 			kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
@@ -195,11 +193,11 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 			}
 		}
 	} else {
-		kklog.Infof("[ccgate]客户端登出: %#v", msg)
+		kklog.Debugf("[ccgate]客户端登出: %#v", msg)
 		bindTbl := slf.userMgr.getUserBindTable(user.USER_ID(msg.UserId))
 		if bindTbl != nil {
-			if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
-				lgcInfo.logout()
+			if logicItem := bindTbl.getLogicItem(msg.NodeType); logicItem != nil {
+				logicItem.logout()
 			}
 			bindTbl.unbindLogicItem(msg.NodeType)
 		}
@@ -439,11 +437,11 @@ func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 
 	// 通知所有已绑定的逻辑服，网关处该客户端连接已断开
 	if cliInfo := h.gate.clientMgr.getClientByConnId(cid); cliInfo != nil {
-		logicTab := cliInfo.clientBindTbl
-		if logicTab != nil {
-			logicTab.rangeLogicItems(func(nodeType string, lgcInfo *clientLogicItem) bool {
-				if lgcInfo.nodeId != "" {
-					logicNodeId := lgcInfo.nodeId
+		bindTbl := cliInfo.clientBindTbl
+		if bindTbl != nil {
+			bindTbl.rangeLogicItems(func(nodeType string, logicItem *clientLogicItem) bool {
+				if logicItem.nodeId != "" {
+					logicNodeId := logicItem.nodeId
 					h.wQueue.Push(func() {
 						if h.gate != nil && h.gate.transportor != nil {
 							h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
@@ -509,6 +507,6 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	sessionID := cliInfo.sessionId
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
-		kklog.Warnf("[ccgate] forward to logic error: %v", err)
+		kklog.Debugf("[ccgate] forward to logic error: %v", err)
 	}
 }
