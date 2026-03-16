@@ -1,13 +1,18 @@
 package msgreceiver
 
 import (
-	"github.com/vvisun/kkdg/kkapp/transport"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
+
+const workers_count = 4096
 
 /**自定义解析完整包数据[length,message]。
  *@param data []byte 完整包数据[length,message]
@@ -101,17 +106,39 @@ func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte, shardIdx int) {
 	bodyCopy := byteslice.GetWithLenCap(len(bodyBytes), len(bodyBytes))
 	copy(bodyCopy, bodyBytes)
 
-	r.decodeWorkers[shardIdx].Push(func() {
+	var sss any = sessionID
+	threadIdx := sessionIdToThreadIdx(sss.(string), workers_count, shardIdx)
+	r.decodeWorkers[threadIdx].Push(func() {
 		h.OnMessage(sessionID, bodyCopy)
 	})
+}
+
+var sessionId2ThreadIdxCache = sync.Map{}
+
+func sessionIdToThreadIdx(sessionID string, workersCount int, shardIdx int) int {
+	if threadIdx, ok := sessionId2ThreadIdxCache.Load(sessionID); ok {
+		return threadIdx.(int)
+	}
+
+	// 暂时用反解码gate侧生成sessionId的规则来确定分片索引。gateNodeId-connId
+	// 后续需要改掉，不依赖gate侧的生成规则，因为gate侧的生成规则可能随时会改
+	idx := strings.Index(sessionID, "-")
+	if idx == -1 {
+		return shardIdx
+	}
+	connId, err := strconv.ParseUint(sessionID[idx+1:], 10, 64)
+	if err != nil {
+		return shardIdx
+	}
+	return int(connId % uint64(workersCount))
 }
 
 //--------------------------------------------------
 
 // NewMsgReceiver 创建消息接收器
 func NewMsgReceiver[K any](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
-	workers := make([]*kkprocessor.WorkerQueue, transport.BackendShardCnt)
-	for i := 0; i < transport.BackendShardCnt; i++ {
+	workers := make([]*kkprocessor.WorkerQueue, workers_count)
+	for i := 0; i < workers_count; i++ {
 		workers[i] = kkprocessor.NewWorkerQueue(1)
 	}
 	return &MsgReceiver[K]{
@@ -124,8 +151,8 @@ func NewMsgReceiver[K any](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
 
 // NewMsgReceiverWithParser 创建消息接收器，使用自定义的元数据解析器
 func NewMsgReceiverWithParser[K any](packetTool *kkpacket.FullPacket, metaParser MetaParser) *MsgReceiver[K] {
-	workers := make([]*kkprocessor.WorkerQueue, transport.BackendShardCnt)
-	for i := 0; i < transport.BackendShardCnt; i++ {
+	workers := make([]*kkprocessor.WorkerQueue, workers_count)
+	for i := 0; i < workers_count; i++ {
 		workers[i] = kkprocessor.NewWorkerQueue(1)
 	}
 	return &MsgReceiver[K]{

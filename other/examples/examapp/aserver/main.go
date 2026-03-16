@@ -67,13 +67,15 @@ type gameHandler struct {
 }
 
 func (h *gameHandler) onMsg1Req(sessionID string, msg *ptoexam.Msg1Req) error {
-	kklog.Infof("onMsg1Req: %v", msg)
+	if msg.ID%10000 == 0 {
+		kklog.Debugf("onMsg1Req: sessionID=%s, msg=%v", sessionID, msg)
+	}
 	h.transportor.SendToClient(sessionID, &ptoexam.Msg1Resp{ID: msg.ID, Name: "hello"})
 	return nil
 }
 
 func (h *gameHandler) onLoginReq(sessionID string, msg *ptoexam.LoginReq) error {
-	kklog.Infof("onLoginReq: %v", msg)
+	kklog.Debugf("onLoginReq: sessionID=%s, msg=%v", sessionID, msg)
 
 	h.transportor.NotifyClientLoginLogout(sessionID, msg.UserID, true)
 
@@ -89,6 +91,6 @@ func (h *gameHandler) onLoginReq(sessionID string, msg *ptoexam.LoginReq) error 
 }
 
 func (h *gameHandler) onRegisterReq(sessionID string, msg *ptoexam.RegisterReq) error {
-	kklog.Infof("onRegisterReq: %v", msg)
+	kklog.Debugf("onRegisterReq: sessionID=%s, msg=%v", sessionID, msg)
 	return nil
 }
