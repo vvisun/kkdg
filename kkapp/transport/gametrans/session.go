@@ -1,6 +1,7 @@
 package gametrans
 
 import (
+	"hash/fnv"
 	"sync"
 	"sync/atomic"
 
@@ -9,6 +10,16 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+const workers_count = 4096
+
+// 使用稳定哈希将任意 sessionID 均匀映射到 [0, workersCount) 区间。
+func sessionIdToThreadIdx(sessionID string, workersCount int) int {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(sessionID))
+	idx := int(h.Sum32() % uint32(workersCount))
+	return idx
+}
+
 // SessionInfo 客户端会话信息
 type SessionInfo struct {
 	isInPool   atomic.Bool  //标志是否在池中，防止重复入池
@@ -16,6 +27,7 @@ type SessionInfo struct {
 	gateNodeID string       // 网关节点ID
 	shardIdx   int          // 分片索引
 	userID     user.USER_ID // 用户ID
+	threadIdx  int          // 线程索引
 }
 
 func (si *SessionInfo) GetSessionID() string {
@@ -32,6 +44,10 @@ func (si *SessionInfo) GetShardIdx() int {
 
 func (si *SessionInfo) GetUserID() user.USER_ID {
 	return si.userID
+}
+
+func (si *SessionInfo) GetThreadIdx() int {
+	return si.threadIdx
 }
 
 var sessionInfoPool = sync.Pool{
@@ -81,28 +97,31 @@ func NewSessionManager() *SessionManager {
 	return &SessionManager{}
 }
 
-func (slf *SessionManager) AddSession(sessionID string, gateNodeID string) {
-	slf.AddSessionWithShard(sessionID, gateNodeID, -1)
+func (slf *SessionManager) AddSession(sessionID string, gateNodeID string) *SessionInfo {
+	return slf.AddSessionWithShard(sessionID, gateNodeID, -1)
 }
 
 // AddSessionWithShard 与 AddSession 相同，但可指定 shardIdx（用于 shard 模式绑定到收到 C2S 的那条连接）。
 // shardIdx < 0 或 >= BackendShardCnt 时使用轮询分配。
 // 实际上并不需要接收shardIdx和发送shardIdx必须一致，
 // 只需要关心同一个客户端(sessionId)分配到同一个shardIdx即可，因为这样就能保证同一个客户端的接收和发送是顺序性的。
-func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID string, shardIdx int) {
+func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID string, shardIdx int) *SessionInfo {
 	oldInfo := slf.GetSession(sessionID)
 	if oldInfo != nil {
-		return
+		return oldInfo
 	}
 	if shardIdx < 0 || shardIdx >= transport.BackendShardCnt {
 		shardIdx = getAutoShardIdx()
 	}
+	atomic.AddInt32(&slf.onlineCount, 1)
 	si := newSessionInfo()
 	si.sessionID = sessionID
 	si.gateNodeID = gateNodeID
 	si.shardIdx = shardIdx
+	si.threadIdx = sessionIdToThreadIdx(si.sessionID, workers_count)
 	slf.sessionMap.Store(sessionID, si)
-	atomic.AddInt32(&slf.onlineCount, 1)
+	kklog.Debugf("newSessionInfo: sessionID=%s, threadIdx=%d", si.sessionID, si.threadIdx)
+	return si
 }
 
 func (slf *SessionManager) RemoveSession(sessionID string) {

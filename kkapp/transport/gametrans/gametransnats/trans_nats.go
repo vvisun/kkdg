@@ -66,12 +66,13 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 		return
 	}
 
-	if slf.sessionMgr.GetSession(packet.Sid) == nil {
-		slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
+	sessionInfo := slf.sessionMgr.GetSession(packet.Sid)
+	if sessionInfo == nil {
+		sessionInfo = slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
 	}
 
 	// 处理来自客户端的消息
-	slf.msgReceiver.OnSession(packet.Sid, packet.ArgBytes, 0)
+	slf.msgReceiver.OnSession(packet.Sid, packet.ArgBytes, sessionInfo.GetThreadIdx())
 }
 
 // ForwardToClient 转发消息到客户端

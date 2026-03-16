@@ -247,13 +247,14 @@ type rpcHandler struct {
 
 // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
 func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kknet.CONN_ID) error {
-	if rh.trans.sessionMgr.GetSession(msg.ClientId) == nil {
-		rh.trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
+	sessionInfo := rh.trans.sessionMgr.GetSession(msg.ClientId)
+	if sessionInfo == nil {
+		sessionInfo = rh.trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
 	}
 
 	streamBytes := msg.Payload
 
-	rh.trans.msgReceiver.OnSession(msg.ClientId, streamBytes, 0)
+	rh.trans.msgReceiver.OnSession(msg.ClientId, streamBytes, sessionInfo.GetThreadIdx())
 	return nil
 }
 

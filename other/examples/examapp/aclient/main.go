@@ -22,9 +22,10 @@ import (
 var autoId int64 = 0
 
 type clientInfo struct {
-	index  int
-	userId int64
-	client kknet.IClient
+	index    int
+	userId   int64
+	client   kknet.IClient
+	hasLogin bool
 }
 
 var (
@@ -105,17 +106,22 @@ func runOneClient() kknet.IClient {
 
 	userId := atomic.AddInt64(&autoUserId, 1)
 	clientMap[index] = clientInfo{
-		index:  index,
-		userId: userId,
-		client: client,
+		index:    index,
+		userId:   userId,
+		client:   client,
+		hasLogin: true,
 	}
 
 	//定时发送消息
 	go func() {
 		for {
-			time.Sleep(examapp.ClientSendInterval)
+			ok := clientMap[index].hasLogin
 
-			ok := clientMap[index].userId != 0
+			if ok {
+				time.Sleep(examapp.ClientSendInterval)
+			} else {
+				time.Sleep(1500 * time.Millisecond)
+			}
 
 			if ok {
 				curId := atomic.AddInt64(&autoId, 1)
@@ -158,35 +164,38 @@ type gameHandler struct {
 	index int
 }
 
-func (h *gameHandler) onLoginResp(sessionID kknet.CONN_ID, msg *ptoexam.LoginResp) error {
-	kklog.Infof("onLoginResp: %v", msg)
+func (h *gameHandler) onLoginResp(connId kknet.CONN_ID, msg *ptoexam.LoginResp) error {
+	kklog.Infof("LoginResp: connId=%d, %v", connId, msg)
 	if h.index < 0 || h.index >= len(clientMap) {
 		return nil
 	}
 	clientMap[h.index].userId = msg.UserID
+	clientMap[h.index].hasLogin = true
 	return nil
 }
 
-func (h *gameHandler) onMsg1Resp(sessionID kknet.CONN_ID, msg *ptoexam.Msg1Resp) error {
+func (h *gameHandler) onMsg1Resp(connId kknet.CONN_ID, msg *ptoexam.Msg1Resp) error {
 	atomic.StoreInt64(&receivedId, int64(msg.ID))
-	if receivedId%1000 != 0 {
+	if receivedId%20000 != 0 {
 		return nil
 	}
-	kklog.Infof("onMsg1Resp: sendedId=%d, receivedId=%d diff=%d",
+	kklog.Infof("Msg1Resp: connId=%d, sendedId=%d, receivedId=%d diff=%d",
+		connId,
 		atomic.LoadInt64(&sendedId),
 		atomic.LoadInt64(&receivedId),
 		atomic.LoadInt64(&sendedId)-atomic.LoadInt64(&receivedId))
 	return nil
 }
 
-func (h *gameHandler) onMsg2Broadcast(sessionID kknet.CONN_ID, msg *ptoexam.Msg2Broadcast) error {
-	kklog.Infof("onMsg2Broadcast: %v", msg)
+func (h *gameHandler) onMsg2Broadcast(connId kknet.CONN_ID, msg *ptoexam.Msg2Broadcast) error {
+	kklog.Infof("Msg2Broadcast: connId=%d, %v", connId, msg)
 	return nil
 }
 
-func (h *gameHandler) onTipServerBusy(sessionID kknet.CONN_ID, msg *ptoexam.TipServerBusy) error {
+func (h *gameHandler) onTipServerBusy(connId kknet.CONN_ID, msg *ptoexam.TipServerBusy) error {
 	atomic.AddInt64(&receivedId, 1)
-	kklog.Infof("onTipServerBusy: sendedId=%d, receivedId=%d diff=%d",
+	kklog.Infof("TipServerBusy: connId=%d, sendedId=%d, receivedId=%d diff=%d",
+		connId,
 		atomic.LoadInt64(&sendedId),
 		atomic.LoadInt64(&receivedId),
 		atomic.LoadInt64(&sendedId)-atomic.LoadInt64(&receivedId))

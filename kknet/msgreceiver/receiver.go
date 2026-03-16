@@ -1,10 +1,6 @@
 package msgreceiver
 
 import (
-	"strconv"
-	"strings"
-	"sync"
-
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kkprocessor"
@@ -106,31 +102,9 @@ func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte, shardIdx int) {
 	bodyCopy := byteslice.GetWithLenCap(len(bodyBytes), len(bodyBytes))
 	copy(bodyCopy, bodyBytes)
 
-	var sss any = sessionID
-	threadIdx := sessionIdToThreadIdx(sss.(string), workers_count, shardIdx)
-	r.decodeWorkers[threadIdx].Push(func() {
+	r.decodeWorkers[shardIdx].Push(func() {
 		h.OnMessage(sessionID, bodyCopy)
 	})
-}
-
-var sessionId2ThreadIdxCache = sync.Map{}
-
-func sessionIdToThreadIdx(sessionID string, workersCount int, shardIdx int) int {
-	if threadIdx, ok := sessionId2ThreadIdxCache.Load(sessionID); ok {
-		return threadIdx.(int)
-	}
-
-	// 暂时用反解码gate侧生成sessionId的规则来确定分片索引。gateNodeId-connId
-	// 后续需要改掉，不依赖gate侧的生成规则，因为gate侧的生成规则可能随时会改
-	idx := strings.Index(sessionID, "-")
-	if idx == -1 {
-		return shardIdx
-	}
-	connId, err := strconv.ParseUint(sessionID[idx+1:], 10, 64)
-	if err != nil {
-		return shardIdx
-	}
-	return int(connId % uint64(workersCount))
 }
 
 //--------------------------------------------------
