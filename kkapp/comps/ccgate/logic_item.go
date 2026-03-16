@@ -91,17 +91,21 @@ func (t *clientBindTable) getLogicItem(nodeType string) *clientLogicItem {
 
 // 遍历逻辑节点绑定表。fn返回false时停止遍历。
 func (t *clientBindTable) rangeLogicItems(fn func(nodeType string, logicItem *clientLogicItem) bool) {
+	items := make([]*clientLogicItem, 0, len(t.logicItemMap))
 	t.mu.Lock()
 	for nodeType, logicItem := range t.logicItemMap {
 		if logicItem == nil {
 			delete(t.logicItemMap, nodeType)
 			continue
 		}
-		if !fn(nodeType, logicItem) {
+		items = append(items, logicItem)
+	}
+	t.mu.Unlock()
+	for _, logicItem := range items {
+		if !fn(logicItem.nodeType, logicItem) {
 			break
 		}
 	}
-	t.mu.Unlock()
 }
 
 //------------------------------------------------------------

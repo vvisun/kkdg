@@ -28,10 +28,6 @@ func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {
 	}
 }
 
-func (c *clientInfo) rangeLogicNodes(fn func(nodeType string, lgcInfo *clientLogicItem) bool) {
-	c.clientBindTbl.rangeLogicItems(fn)
-}
-
 // 获取本客户端链接的nodeType类型的逻辑节点信息。
 func (c *clientInfo) getLogicNode(nodeType string) *clientLogicItem {
 	return c.clientBindTbl.getLogicItem(nodeType)
