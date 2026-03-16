@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/user"
+	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 // 客户端的逻辑节点绑定信息。
@@ -91,6 +92,10 @@ func (t *clientBindTable) getLogicItem(nodeType string) *clientLogicItem {
 
 // 遍历逻辑节点绑定表。fn返回false时停止遍历。
 func (t *clientBindTable) rangeLogicItems(fn func(nodeType string, logicItem *clientLogicItem) bool) {
+	if fn == nil || len(t.logicItemMap) == 0 {
+		return
+	}
+
 	items := make([]*clientLogicItem, 0, len(t.logicItemMap))
 	t.mu.Lock()
 	for nodeType, logicItem := range t.logicItemMap {
@@ -101,11 +106,16 @@ func (t *clientBindTable) rangeLogicItems(fn func(nodeType string, logicItem *cl
 		items = append(items, logicItem)
 	}
 	t.mu.Unlock()
-	for _, logicItem := range items {
-		if !fn(logicItem.nodeType, logicItem) {
-			break
-		}
-	}
+
+	xcall.SafeCall(
+		func() {
+			for _, logicItem := range items {
+				if !fn(logicItem.nodeType, logicItem) {
+					break
+				}
+			}
+		},
+	)
 }
 
 //------------------------------------------------------------

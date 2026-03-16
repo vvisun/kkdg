@@ -37,7 +37,7 @@ func (g *Goroutines) Run(ctx context.Context, timeout ...time.Duration) {
 
 	for i := range g.fns {
 		fn := g.fns[i]
-		Go(func() {
+		SafeGo(func() {
 			defer wg.Done()
 			fn()
 		})
