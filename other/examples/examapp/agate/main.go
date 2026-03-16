@@ -40,13 +40,13 @@ func runGate() *component.Application {
 	gateApp := component.NewApplication(gateNode, nil, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
 	gateOpt := ccgate.Option{
-		TCPAddr:       examapp.GateTCPAddr,
-		WSAddr:        examapp.GateWSAddr,
-		RpcAddr:       examapp.RpcAddr,
-		DiscoveryUrl:  examapp.NatsURL,
-		ClusterUrl:    examapp.NatsURL,
-		LogicNodeType: kkapp.NodeTypeLogic,
-		TransType:     examapp.UseTransType,
+		TCPAddr:         examapp.GateTCPAddr,
+		WSAddr:          examapp.GateWSAddr,
+		TransServerAddr: examapp.RpcAddr,
+		DiscoveryUrl:    examapp.NatsURL,
+		ClusterUrl:      examapp.NatsURL,
+		LogicNodeType:   kkapp.NodeTypeLogic,
+		TransType:       examapp.UseTransType,
 		RecvQueueFullCallback: func(conn kknet.IConn) {
 			conn.SendMsg(&ptoexam.TipServerBusy{
 				Code:    1,

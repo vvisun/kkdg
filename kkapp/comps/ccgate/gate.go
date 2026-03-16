@@ -145,14 +145,14 @@ func (slf *gateComponent) OnInit() error {
 		slf.transportor = transportor
 	case transport.TransTypeRpc:
 		transportor, err := transrpc.NewTransportorRpc(
-			slf.sessionMgr, nodeInfo.GetNodeId(), slf.opt.RpcAddr)
+			slf.sessionMgr, nodeInfo.GetNodeId(), slf.opt.TransServerAddr)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
 	case transport.TransTypeShard:
 		transportor, err := transshard.NewTransportorShard(
-			slf.opt.RpcAddr, slf.sessionMgr, nodeInfo.GetNodeId(),
+			slf.opt.TransServerAddr, slf.sessionMgr, nodeInfo.GetNodeId(),
 			appOpts.TransMsgPacket, appOpts.ClientMsgPacket, appOpts.StreamTool, appOpts.StreamTool)
 		if err != nil {
 			return err
@@ -457,6 +457,11 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
 	kklog.Debugf("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
+	if h.gate.server.GetConnManager().GetCount() >= h.gate.opt.MaxConnCount {
+		kklog.Warnf("[ccgate] max conn count reached, client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
+		c.Close()
+		return
+	}
 	h.gate.onNewClientConn(c)
 }
 

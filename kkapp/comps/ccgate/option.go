@@ -5,27 +5,30 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // Option configures the gate component.
 type Option struct {
-	TCPAddr string
-	WSAddr  string
-	RpcAddr string
+	TCPAddr string //客户端 tcp 连接地址
+	WSAddr  string //客户端 websocket 连接地址
 
-	// DiscoveryUrl is the discovery server url used by discovery.
-	DiscoveryUrl string
-	// ClusterUrl is the cluster server url used by cluster.
-	ClusterUrl string
+	MaxConnCount int //最大连接数
 
-	// LogicNodeType is the target node type for game logic nodes.
-	// If empty, defaults to "logic".
+	// 网关与逻辑服之间的转发通道类型。
+	TransType transport.TransType
+	// 转发层服务器地址。TransType为TransTypeRpc或TransTypeShard时有效。
+	TransServerAddr string
+
+	// 逻辑服节点类型。默认值为"logic"。
 	LogicNodeType string
 
-	// 网关与逻辑服之间的转发通道类型，默认使用NATS。
-	TransType transport.TransType
+	// 发现服务器URL。
+	DiscoveryUrl string
+	// 集群服务器URL。
+	ClusterUrl string
 
-	// RecvQueueFullCallback is the callback function when the recv queue is full.
+	// 接收队列满回调。
 	// 可以考虑限流/提示服务器繁忙等。如：限流则通知客户端，提示服务器繁忙则提示客户端稍后再试。
 	RecvQueueFullCallback func(conn kknet.IConn)
 	// 分配逻辑服失败回调。如：分配失败则通知客户端，提示服务器繁忙则提示客户端稍后再试。
@@ -36,7 +39,8 @@ type Option struct {
 
 func DefaultOption() Option {
 	return Option{
-		TransType: transport.TransTypeShard,
+		MaxConnCount: 50000,
+		TransType:    transport.TransTypeShard,
 	}
 }
 
@@ -48,11 +52,15 @@ func ApplyOption(opt *Option, opts ...func(o *Option)) *Option {
 }
 
 func validateOption(opt *Option) error {
+	if opt.MaxConnCount <= 0 {
+		opt.MaxConnCount = 50000
+		kklog.Warn("max conn count is required, set to 50000")
+	}
 	if opt.TCPAddr == "" && opt.WSAddr == "" {
 		return errors.New("tcp addr or ws addr is required")
 	}
 	if opt.TransType == transport.TransTypeRpc || opt.TransType == transport.TransTypeShard {
-		if opt.RpcAddr == "" {
+		if opt.TransServerAddr == "" {
 			return errors.New("rpc addr is required")
 		}
 	}
@@ -62,7 +70,7 @@ func validateOption(opt *Option) error {
 	if opt.ClusterUrl == "" {
 		return errors.New("cluster url is required")
 	}
-	if opt.TCPAddr == opt.WSAddr || opt.TCPAddr == opt.RpcAddr || opt.WSAddr == opt.RpcAddr {
+	if opt.TCPAddr == opt.WSAddr || opt.TCPAddr == opt.TransServerAddr || opt.WSAddr == opt.TransServerAddr {
 		return errors.New("tcp addr, ws addr and rpc addr cannot be the same")
 	}
 	if opt.LogicNodeType == "" {
@@ -107,9 +115,15 @@ func WithLogicNodeType(logicNodeType string) func(o *Option) {
 	}
 }
 
-func WithRpcAddr(rpcAddr string) func(o *Option) {
+func WithTransServerAddr(transServerAddr string) func(o *Option) {
 	return func(o *Option) {
-		o.RpcAddr = rpcAddr
+		o.TransServerAddr = transServerAddr
+	}
+}
+
+func WithMaxConnCount(maxConnCount int) func(o *Option) {
+	return func(o *Option) {
+		o.MaxConnCount = maxConnCount
 	}
 }
 

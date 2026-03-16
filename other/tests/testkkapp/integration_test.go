@@ -123,12 +123,12 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	gateApp := component.NewApplication(gateNode, nil, appOpts)
 	InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
 	gateOpt := ccgate.Option{
-		TCPAddr:       tcpAddr,
-		RpcAddr:       rpcAddr,
-		DiscoveryUrl:  natsURL,
-		ClusterUrl:    natsURL,
-		LogicNodeType: kkapp.NodeTypeLogic,
-		TransType:     transType,
+		TCPAddr:         tcpAddr,
+		TransServerAddr: rpcAddr,
+		DiscoveryUrl:    natsURL,
+		ClusterUrl:      natsURL,
+		LogicNodeType:   kkapp.NodeTypeLogic,
+		TransType:       transType,
 		UserKickedCallback: func(kickedConns []kknet.IConn) {
 			for _, conn := range kickedConns {
 				conn.SendMsg(&KickOutPush{UserId: 0, Reason: "被顶号"})
