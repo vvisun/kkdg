@@ -1,6 +1,7 @@
 package gatetrans
 
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -112,5 +113,87 @@ func TestMsgHooker_NotifyPanicSafe(t *testing.T) {
 	if atomic.LoadInt32(&safeCalled) != 1 {
 		t.Fatalf("panic in one listener should not stop others, safeCalled=%d", safeCalled)
 	}
+}
+
+// ----------------- Benchmarks -----------------
+
+// Benchmark single-listener Notify 性能。
+func BenchmarkMsgHooker_Notify_OneListener(b *testing.B) {
+	h := NewMsgHooker()
+
+	var count int32
+	h.AddListener(func(msgId kkpacket.MSGID, data any) {
+		atomic.AddInt32(&count, 1)
+	})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.Notify(simpleMsgID, "payload")
+	}
+}
+
+// Benchmark 多 listener 下的 Notify 性能。
+func BenchmarkMsgHooker_Notify_ManyListeners(b *testing.B) {
+	const listenerCount = 64
+	h := NewMsgHooker()
+
+	var count int32
+	for i := 0; i < listenerCount; i++ {
+		h.AddListener(func(msgId kkpacket.MSGID, data any) {
+			atomic.AddInt32(&count, 1)
+		})
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.Notify(simpleMsgID, "payload")
+	}
+}
+
+// Benchmark 在高并发场景下频繁 Notify 的性能。
+func BenchmarkMsgHooker_Notify_Parallel(b *testing.B) {
+	h := NewMsgHooker()
+
+	var count int64
+	h.AddListener(func(msgId kkpacket.MSGID, data any) {
+		atomic.AddInt64(&count, 1)
+	})
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			h.Notify(simpleMsgID, "payload")
+		}
+	})
+}
+
+// Benchmark AddListener / RemoveListener 的基本性能。
+func BenchmarkMsgHooker_AddRemove(b *testing.B) {
+	h := NewMsgHooker()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		l := func(msgId kkpacket.MSGID, data any) {}
+		h.AddListener(l)
+		h.RemoveListener(l)
+	}
+}
+
+// BenchmarkMsgHooker_AddListener_Parallel 模拟并发注册监听的场景。
+func BenchmarkMsgHooker_AddListener_Parallel(b *testing.B) {
+	h := NewMsgHooker()
+
+	var wg sync.WaitGroup
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			l := func(msgId kkpacket.MSGID, data any) {}
+			h.AddListener(l)
+		}(i)
+	}
+	wg.Wait()
 }
 
