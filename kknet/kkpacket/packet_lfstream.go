@@ -1,6 +1,7 @@
 package kkpacket
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 
@@ -21,8 +22,9 @@ type IStreamReader interface {
 // [length,message] = [length,head,body]
 // [message] = [head,body]
 type LengthFieldStreamPacket struct {
-	lfbCount      int // [length]部分的字节数。该部分用于表示包体[message]的长度。
-	maxPacketSize int // 整包[length,message]最大长度（字节数）
+	lfbCount      int              // [length]部分的字节数。该部分用于表示包体[message]的长度。
+	maxPacketSize int              // 整包[length,message]最大长度（字节数）
+	endian        binary.ByteOrder // 字节序
 }
 
 // NewLengthFieldStreamPacket creates a length-field stream packet.
@@ -44,9 +46,11 @@ func NewLengthFieldStreamPacket(lfb int, maxPacketSize int) IPacket {
 	if lfb == 4 && maxPacketSize > 4294967295 {
 		kklog.PanicLog("max packet size must be less than 4294967295")
 	}
+	gInitedByteOrder.Store(true)
 	return &LengthFieldStreamPacket{
 		lfbCount:      lfb,
 		maxPacketSize: maxPacketSize,
+		endian:        GetByteOrder(),
 	}
 }
 
@@ -84,9 +88,9 @@ func (slf *LengthFieldStreamPacket) ReadMessageSize(packet []byte) (int, error) 
 	}
 	switch slf.lfbCount {
 	case 4:
-		return int(GetByteOrder().Uint32(packet)), nil
+		return int(slf.endian.Uint32(packet)), nil
 	case 2:
-		return int(GetByteOrder().Uint16(packet)), nil
+		return int(slf.endian.Uint16(packet)), nil
 	default:
 		return 0, kkerrors.ErrPktInvalidLengthFieldByteCount
 	}
@@ -99,9 +103,9 @@ func (slf *LengthFieldStreamPacket) ReadMessageSize(packet []byte) (int, error) 
 func (slf *LengthFieldStreamPacket) WriteMessageSize(packet []byte, size int) {
 	switch slf.lfbCount {
 	case 4:
-		GetByteOrder().PutUint32(packet[:4], uint32(size))
+		slf.endian.PutUint32(packet[:4], uint32(size))
 	case 2:
-		GetByteOrder().PutUint16(packet[:2], uint16(size))
+		slf.endian.PutUint16(packet[:2], uint16(size))
 	}
 }
 
