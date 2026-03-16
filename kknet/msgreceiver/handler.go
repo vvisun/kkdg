@@ -2,6 +2,7 @@ package msgreceiver
 
 import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -13,9 +14,9 @@ type MsgHandlerFunc[T any, K any] func(connKey K, msg *T) error
 type IMsgHandler[K any] interface {
 	// 获取消息ID
 	GetMsgID() kkpacket.MSGID
-	// 消息回调。bodyBytes会被底层回收，如需引用，请自行拷贝。
+	// 消息回调。
 	//  @param connKey kknet.CONN_ID或sessionID
-	//  @param bodyBytes 消息体二进制数据。会被底层回收，如需引用，请自行拷贝。
+	//  @param bodyBytes 消息体二进制数据。
 	//  @return error 错误
 	OnMessage(connKey K, bodyBytes []byte) error
 }
@@ -36,13 +37,15 @@ func (h *MsgHandler[T, K]) GetMsgID() kkpacket.MSGID {
 // implements IMsgHandler.OnMessage
 //
 //	@param connKey kknet.CONN_ID或sessionID
-//	@param bodyBytes 消息体二进制数据。会被底层回收，如需引用，请自行拷贝。
+//	@param bodyBytes 消息体二进制数据。
 //	@return error 错误
 func (h *MsgHandler[T, K]) OnMessage(connKey K, bodyBytes []byte) error {
 	var data T
 	if err := h.codec.Unmarshal(bodyBytes, &data); err != nil {
+		byteslice.Put(bodyBytes)
 		return err
 	}
+	byteslice.Put(bodyBytes)
 	// 调用消息回调. 外部注册进来的消息处理函数
 	err := h.call(connKey, &data)
 	if err != nil {

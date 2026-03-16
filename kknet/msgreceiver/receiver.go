@@ -1,8 +1,11 @@
 package msgreceiver
 
 import (
+	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/kknet/kkprocessor"
+	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -20,6 +23,7 @@ type MsgReceiver[K any] struct {
 	hdMap               map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
 	metaParser          MetaParser
 	needCopyInOnSession bool
+	decodeWorkers       []*kkprocessor.WorkerQueue
 }
 
 // 设置是否需要在内部分配新的buffer来处理session消息
@@ -83,7 +87,7 @@ func (r *MsgReceiver[K]) OnRaw(connId K, bbPacket *kkbuffer.ByteBuffer) {
 //
 //	@param sessionID 会话ID
 //	@param packet 整包数据[length,message]。不得保存 packet 引用，如需保存，请自行拷贝。
-func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte) {
+func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte, shardIdx int) {
 	msgID, bodyBytes, err := r.parseMsgInfo(packet)
 	if err != nil {
 		return
@@ -94,25 +98,40 @@ func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte) {
 		return
 	}
 
-	h.OnMessage(sessionID, bodyBytes)
+	bodyCopy := byteslice.GetWithLenCap(len(bodyBytes), len(bodyBytes))
+	copy(bodyCopy, bodyBytes)
+
+	r.decodeWorkers[shardIdx].Push(func() {
+		h.OnMessage(sessionID, bodyCopy)
+	})
 }
 
 //--------------------------------------------------
 
 // NewMsgReceiver 创建消息接收器
 func NewMsgReceiver[K any](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
+	workers := make([]*kkprocessor.WorkerQueue, transport.BackendShardCnt)
+	for i := 0; i < transport.BackendShardCnt; i++ {
+		workers[i] = kkprocessor.NewWorkerQueue(1)
+	}
 	return &MsgReceiver[K]{
-		packetTool: packetTool,
-		hdMap:      make(map[kkpacket.MSGID]IMsgHandler[K]),
-		metaParser: nil,
+		packetTool:    packetTool,
+		hdMap:         make(map[kkpacket.MSGID]IMsgHandler[K]),
+		metaParser:    nil,
+		decodeWorkers: workers,
 	}
 }
 
 // NewMsgReceiverWithParser 创建消息接收器，使用自定义的元数据解析器
 func NewMsgReceiverWithParser[K any](packetTool *kkpacket.FullPacket, metaParser MetaParser) *MsgReceiver[K] {
+	workers := make([]*kkprocessor.WorkerQueue, transport.BackendShardCnt)
+	for i := 0; i < transport.BackendShardCnt; i++ {
+		workers[i] = kkprocessor.NewWorkerQueue(1)
+	}
 	return &MsgReceiver[K]{
-		packetTool: packetTool,
-		hdMap:      make(map[kkpacket.MSGID]IMsgHandler[K]),
-		metaParser: metaParser,
+		packetTool:    packetTool,
+		hdMap:         make(map[kkpacket.MSGID]IMsgHandler[K]),
+		metaParser:    metaParser,
+		decodeWorkers: workers,
 	}
 }

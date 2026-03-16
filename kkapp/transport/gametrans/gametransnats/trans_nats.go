@@ -71,7 +71,7 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 	}
 
 	// 处理来自客户端的消息
-	slf.msgReceiver.OnSession(packet.Sid, packet.ArgBytes)
+	slf.msgReceiver.OnSession(packet.Sid, packet.ArgBytes, 0)
 }
 
 // ForwardToClient 转发消息到客户端

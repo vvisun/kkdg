@@ -145,7 +145,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 		if trans.sessionMgr.GetSession(msg.ClientId) == nil {
 			trans.sessionMgr.AddSessionWithShard(msg.ClientId, msg.GateNodeId, h.shardIdx)
 		}
-		trans.msgReceiver.OnSession(msg.ClientId, msg.Payload)
+		trans.msgReceiver.OnSession(msg.ClientId, msg.Payload, h.shardIdx)
 	case ptotrans.MsgIDRpcClientDisconnect: // 客户端断开事件
 		var msg ptotrans.RpcClientDisconnect
 		err = transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)

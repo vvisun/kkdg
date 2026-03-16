@@ -253,7 +253,7 @@ func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kk
 
 	streamBytes := msg.Payload
 
-	rh.trans.msgReceiver.OnSession(msg.ClientId, streamBytes)
+	rh.trans.msgReceiver.OnSession(msg.ClientId, streamBytes, 0)
 	return nil
 }
 
