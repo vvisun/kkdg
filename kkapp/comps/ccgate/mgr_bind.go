@@ -101,24 +101,24 @@ func (t *clientBindTable) rangeLogicItems(fn func(nodeType string, logicItem *cl
 // 如果不记录，用户重新登录时可能分配到新的逻辑服，这时候旧的逻辑服可能还在处理用户逻辑，
 // 导致用户登入多个同类逻辑服造成状态和数据混乱，除非业务逻辑本身不依赖顺序性。
 type logicBindManager struct {
-	mu                sync.Mutex
-	session2logicItem map[string]*clientBindTable       // sessionId -> *clientBindTable
-	userId2logicItem  map[user.USER_ID]*clientBindTable // userId -> *clientBindTable
+	mu           sync.Mutex
+	sessionTable map[string]*clientBindTable       // sessionId -> *clientBindTable
+	userTable    map[user.USER_ID]*clientBindTable // userId -> *clientBindTable
 }
 
 func newLogicBindManager() *logicBindManager {
 	return &logicBindManager{
-		session2logicItem: make(map[string]*clientBindTable),
-		userId2logicItem:  make(map[user.USER_ID]*clientBindTable),
+		sessionTable: make(map[string]*clientBindTable),
+		userTable:    make(map[user.USER_ID]*clientBindTable),
 	}
 }
 
 func (m *logicBindManager) sessionBind(sessionId string, nodeType string, nodeId string) *clientLogicItem {
 	m.mu.Lock()
-	bindTable, ok := m.session2logicItem[sessionId]
+	bindTable, ok := m.sessionTable[sessionId]
 	if !ok {
 		bindTable = newClientBindTable()
-		m.session2logicItem[sessionId] = bindTable
+		m.sessionTable[sessionId] = bindTable
 		m.mu.Unlock()
 		return bindTable.bindLogicItem(nodeType, nodeId)
 	}
@@ -126,18 +126,26 @@ func (m *logicBindManager) sessionBind(sessionId string, nodeType string, nodeId
 	return bindTable.bindLogicItem(nodeType, nodeId)
 }
 
-func (m *logicBindManager) sessionUnbind(sessionId string) {
+func (m *logicBindManager) sessionUnbind(sessionId string, nodeType string) {
 	m.mu.Lock()
-	delete(m.session2logicItem, sessionId)
+	bindTbl, ok := m.sessionTable[sessionId]
+	if !ok {
+		m.mu.Unlock()
+		return
+	}
+	bindTbl.unbindLogicItem(nodeType)
+	if len(bindTbl.logicItemMap) == 0 {
+		delete(m.sessionTable, sessionId)
+	}
 	m.mu.Unlock()
 }
 
 func (m *logicBindManager) userBind(userId user.USER_ID, nodeType string, nodeId string) *clientLogicItem {
 	m.mu.Lock()
-	bindTable, ok := m.userId2logicItem[userId]
+	bindTable, ok := m.userTable[userId]
 	if !ok {
 		bindTable = newClientBindTable()
-		m.userId2logicItem[userId] = bindTable
+		m.userTable[userId] = bindTable
 		m.mu.Unlock()
 		return bindTable.bindLogicItem(nodeType, nodeId)
 	}
@@ -145,15 +153,23 @@ func (m *logicBindManager) userBind(userId user.USER_ID, nodeType string, nodeId
 	return bindTable.bindLogicItem(nodeType, nodeId)
 }
 
-func (m *logicBindManager) userUnbind(userId user.USER_ID) {
+func (m *logicBindManager) userUnbind(userId user.USER_ID, nodeType string) {
 	m.mu.Lock()
-	delete(m.userId2logicItem, userId)
+	bindTbl, ok := m.userTable[userId]
+	if !ok {
+		m.mu.Unlock()
+		return
+	}
+	bindTbl.unbindLogicItem(nodeType)
+	if len(bindTbl.logicItemMap) == 0 {
+		delete(m.userTable, userId)
+	}
 	m.mu.Unlock()
 }
 
 func (m *logicBindManager) getLogicItemBySessionId(sessionId string, nodeType string) *clientLogicItem {
 	m.mu.Lock()
-	bindTbl, ok := m.session2logicItem[sessionId]
+	bindTbl, ok := m.sessionTable[sessionId]
 	m.mu.Unlock()
 	if !ok {
 		return nil
@@ -163,7 +179,7 @@ func (m *logicBindManager) getLogicItemBySessionId(sessionId string, nodeType st
 
 func (m *logicBindManager) getLogicItemByUserId(userId user.USER_ID, nodeType string) *clientLogicItem {
 	m.mu.Lock()
-	bindTbl, ok := m.userId2logicItem[userId]
+	bindTbl, ok := m.userTable[userId]
 	m.mu.Unlock()
 	if !ok {
 		return nil
@@ -173,7 +189,7 @@ func (m *logicBindManager) getLogicItemByUserId(userId user.USER_ID, nodeType st
 
 func (m *logicBindManager) sessionBindTable(sessionId string) *clientBindTable {
 	m.mu.Lock()
-	bindTbl, ok := m.session2logicItem[sessionId]
+	bindTbl, ok := m.sessionTable[sessionId]
 	m.mu.Unlock()
 	if !ok {
 		return nil
@@ -183,7 +199,7 @@ func (m *logicBindManager) sessionBindTable(sessionId string) *clientBindTable {
 
 func (m *logicBindManager) userBindTable(userId user.USER_ID) *clientBindTable {
 	m.mu.Lock()
-	bindTbl, ok := m.userId2logicItem[userId]
+	bindTbl, ok := m.userTable[userId]
 	m.mu.Unlock()
 	if !ok {
 		return nil

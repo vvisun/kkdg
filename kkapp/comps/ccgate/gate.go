@@ -331,9 +331,9 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 		kklog.Debugf("[ccgate]客户端登出: %#v", msg)
 		sid, ok := slf.userMgr.getSessionIdByUserId(user.USER_ID(msg.UserId))
 		if ok {
-			slf.logicBindMgr.sessionUnbind(sid)
+			slf.logicBindMgr.sessionUnbind(sid, msg.NodeType)
 		}
-		slf.logicBindMgr.userUnbind(user.USER_ID(msg.UserId))
+		slf.logicBindMgr.userUnbind(user.USER_ID(msg.UserId), msg.NodeType)
 		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeId)
 		slf.userMgr.removeUser(user.USER_ID(msg.UserId))
 	}
