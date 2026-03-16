@@ -7,7 +7,7 @@ import (
 
 // Test basic bind / unbind / count behavior.
 func Test_logicTotalManager_basic(t *testing.T) {
-	m := newLogicTotalManager()
+	m := newLocalDiscovery()
 
 	const nodeID = "node-1"
 	const nodeTypeA = "game"
@@ -47,7 +47,7 @@ func Test_logicTotalManager_basic(t *testing.T) {
 
 // Benchmark concurrent bind / unbind on a single node.
 func Benchmark_logicTotalManager_bind_unbind(b *testing.B) {
-	m := newLogicTotalManager()
+	m := newLocalDiscovery()
 	const nodeID = "node-bench"
 
 	b.ResetTimer()

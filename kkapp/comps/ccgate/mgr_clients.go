@@ -14,10 +14,12 @@ type clientInfo struct {
 	//  本客户端链接的逻辑节点字典。
 	//  同一个客户端可能链接不同类型的逻辑服，比如充值服，大厅服，游戏服，聊天服等。
 	clientBindTbl *clientBindTable
-	// 客户端会话ID
-	sessionId string
+
 	// 客户端连接ID
 	connId kknet.CONN_ID
+
+	// 客户端会话ID
+	sessionId string
 }
 
 func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {

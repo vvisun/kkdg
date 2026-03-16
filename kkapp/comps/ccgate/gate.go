@@ -59,14 +59,15 @@ type gateComponent struct {
 	server    kknet.IServer
 	handler   *gateHandler
 
-	discovery   kkdiscovery.IDiscovery
-	cluster     kkcluster.ICluster // cluster for forwarding messages to logic and client
+	localDis  *localDidcovery
+	discovery kkdiscovery.IDiscovery
+	cluster   kkcluster.ICluster // cluster for forwarding messages to logic and client
+
 	transportor gatetrans.ITransportor
 
-	sessionMgr    gatetrans.ISessionManager
-	clientMgr     *clientManager
-	userMgr       *userManager
-	logicTotalMgr *logicTotalManager
+	sessionMgr gatetrans.ISessionManager
+	clientMgr  *clientManager
+	userMgr    *userManager
 }
 
 // NewGateComponent creates a new gate component.
@@ -75,12 +76,12 @@ func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 		kklog.PanicErr(err)
 	}
 	return &gateComponent{
-		opt:           gateOpt,
-		serverOpt:     serverOpt,
-		sessionMgr:    gatetrans.NewSessionMgr(),
-		clientMgr:     newClientManager(),
-		userMgr:       newUserManager(),
-		logicTotalMgr: newLogicTotalManager(),
+		opt:        gateOpt,
+		serverOpt:  serverOpt,
+		sessionMgr: gatetrans.NewSessionMgr(),
+		clientMgr:  newClientManager(),
+		userMgr:    newUserManager(),
+		localDis:   newLocalDiscovery(),
 	}
 }
 
@@ -201,7 +202,7 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 			}
 			bindTbl.unbindLogicItem(msg.NodeType)
 		}
-		slf.logicTotalMgr.onUnbindLogicNode(msg.ClientId, msg.NodeId)
+		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeId)
 		slf.userMgr.removeUser(user.USER_ID(msg.UserId))
 	}
 }
@@ -333,7 +334,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	}
 
 	// 分配逻辑节点
-	slf.logicTotalMgr.onBindLogicNode(cliInfo.sessionId, chooseNode, nodeType)
+	slf.localDis.onBindLogicNode(cliInfo.sessionId, chooseNode, nodeType)
 	return cliInfo.bindLogicNode(nodeType, chooseNode)
 }
 
@@ -354,7 +355,7 @@ func (slf *gateComponent) chooseFromShardOrRpc(nodeType string) (string, bool) {
 	var chooseNode gatetrans.IMember = nil
 	finded := false
 	memberMgr := trans.GetMemberMgr()
-	logicTotalMgr := slf.logicTotalMgr
+	lodalDis := slf.localDis
 	memberMgr.Range(func(nodeId string, member gatetrans.IMember) bool {
 		if member.GetNodeType() != nodeType {
 			return true
@@ -364,7 +365,7 @@ func (slf *gateComponent) chooseFromShardOrRpc(nodeType string) (string, bool) {
 			finded = true
 			return true
 		}
-		if logicTotalMgr.getSessionCount(member.GetNodeID()) < logicTotalMgr.getSessionCount(chooseNode.GetNodeID()) {
+		if lodalDis.getSessionCount(member.GetNodeID()) < lodalDis.getSessionCount(chooseNode.GetNodeID()) {
 			chooseNode = member
 			finded = true
 		}

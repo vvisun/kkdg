@@ -5,25 +5,20 @@ import "sync"
 type session2nodeType map[string]string
 
 // 实时统计每个逻辑节点上的会话数量，用于负载均衡。
-//
-// 注意：
-//   - 这里统计的是“网关视角下，仍绑定在某逻辑节点上的会话”；
-//   - 它不是纯粹的 TCP 在线连接数，也不会因为网关侧连接断开就立刻减少；
-//   - 是否解绑，依赖上层玩家管理确认玩家已从目标逻辑服安全移除后，再通知网关摘除；
-//   - 这样可以避免玩家在原逻辑服尚未清理完成时，被网关重新分配到另一个逻辑服，造成双登和数据混乱。
-type logicTotalManager struct {
+// 相当于本地简易版discovery，用于负载均衡。
+type localDidcovery struct {
 	logicNodeTable map[string]session2nodeType // map[nodeId]session2nodeType
 	mu             sync.RWMutex
 }
 
-func newLogicTotalManager() *logicTotalManager {
-	return &logicTotalManager{
+func newLocalDiscovery() *localDidcovery {
+	return &localDidcovery{
 		logicNodeTable: make(map[string]session2nodeType),
 	}
 }
 
 // 为 sessionId 绑定逻辑节点时更新统计。
-func (m *logicTotalManager) onBindLogicNode(sessionId string, nodeId string, nodeType string) {
+func (m *localDidcovery) onBindLogicNode(sessionId string, nodeId string, nodeType string) {
 	m.mu.Lock()
 	nodeMap, ok := m.logicNodeTable[nodeId]
 	if !ok {
@@ -36,7 +31,7 @@ func (m *logicTotalManager) onBindLogicNode(sessionId string, nodeId string, nod
 
 // 为 sessionId 解绑逻辑节点时更新统计。
 // 调用方应确保上层玩家管理已经确认该玩家可安全从该逻辑服摘除。
-func (m *logicTotalManager) onUnbindLogicNode(sessionId string, nodeId string) {
+func (m *localDidcovery) onUnbindLogicNode(sessionId string, nodeId string) {
 	m.mu.Lock()
 	if nodeMap, ok := m.logicNodeTable[nodeId]; ok {
 		delete(nodeMap, sessionId)
@@ -48,7 +43,7 @@ func (m *logicTotalManager) onUnbindLogicNode(sessionId string, nodeId string) {
 }
 
 // 获取nodeId上的session数量
-func (m *logicTotalManager) getSessionCount(nodeId string) int {
+func (m *localDidcovery) getSessionCount(nodeId string) int {
 	m.mu.RLock()
 	nodeTypeMap, ok := m.logicNodeTable[nodeId]
 	if !ok {
