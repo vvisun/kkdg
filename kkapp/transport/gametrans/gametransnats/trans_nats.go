@@ -237,3 +237,7 @@ func (slf *transportorNats) NotifyClientLoginLogout(sessionID string, userId int
 	}
 	return nil
 }
+
+func (slf *transportorNats) GetSessionManager() *gametrans.SessionManager {
+	return slf.sessionMgr
+}

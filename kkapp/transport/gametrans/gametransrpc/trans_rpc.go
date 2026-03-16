@@ -266,3 +266,7 @@ func (rh *rpcHandler) onClientDisconnect(ctx context.Context, msg *ptotrans.RpcC
 	kklog.Debugf("[gametransrpc] 客户端断开 clientId=%s clientIds=%v", msg.ClientId, msg.ClientIds)
 	return nil
 }
+
+func (slf *transportorRpc) GetSessionManager() *gametrans.SessionManager {
+	return slf.sessionMgr
+}

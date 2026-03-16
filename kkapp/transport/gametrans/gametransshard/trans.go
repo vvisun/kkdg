@@ -224,3 +224,7 @@ func (slf *transportorShard) NotifyClientLoginLogout(sessionID string, userId in
 	}
 	return conn.cli.SendBuffer(bbTrans)
 }
+
+func (slf *transportorShard) GetSessionManager() *gametrans.SessionManager {
+	return slf.sessionMgr
+}
