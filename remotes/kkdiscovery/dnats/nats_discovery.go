@@ -53,8 +53,7 @@ type NatsDiscovery struct {
 	closing atomic.Bool // 正在关闭标志
 	closed  atomic.Bool // 关闭标志
 
-	msgCodec     kkcodec.ICodec
-	infoGetterFn func() (int, int) // return (onlineCount, status)。在线数量，状态
+	msgCodec kkcodec.ICodec
 }
 
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
@@ -93,11 +92,6 @@ func NewNatsDiscovery(
 // Name 返回发现服务名称
 func (d *NatsDiscovery) Name() string {
 	return d.name
-}
-
-// SetInfoGetter 设置信息获取函数
-func (d *NatsDiscovery) SetInfoGetter(fn func() (int, int)) {
-	d.infoGetterFn = fn
 }
 
 // IsRunning 是否已启动
@@ -356,15 +350,18 @@ func (d *NatsDiscovery) publishSelf() error {
 	if d.closed.Load() {
 		return nil // 已关闭，静默返回
 	}
-	weight, status := 0, 0
-	if d.infoGetterFn != nil {
-		weight, status = d.infoGetterFn()
-	}
-	if d.closing.Load() {
-		status = kkdiscovery.NodeStatusOffline // 正在关闭，设置为离线
-	}
 	if d.conn == nil {
 		return nil // 未连接，静默返回
+	}
+
+	evt := &kkdiscovery.DiscoveryStatsEvent{
+		OnlineCount: 0,
+		Status:      kkdiscovery.NodeStatusOnline,
+	}
+	kkevent.GlobalBus.Publish(kkdiscovery.EventDiscoveryStats, evt)
+
+	if d.closing.Load() {
+		evt.Status = kkdiscovery.NodeStatusOffline // 正在关闭，设置为离线
 	}
 
 	memberInfo := kkdiscovery.MemberInfo{
@@ -372,9 +369,8 @@ func (d *NatsDiscovery) publishSelf() error {
 		NodeType:   d.nodeInfo.GetNodeType(),
 		Address:    d.nodeInfo.GetAddress(),
 		RpcAddress: d.nodeInfo.GetRpcAddress(),
-		Weight:     weight,
-		Status:     status,
-		Settings:   d.nodeInfo.GetSettings(),
+		Weight:     evt.OnlineCount,
+		Status:     evt.Status,
 	}
 
 	data, err := d.msgCodec.Marshal(&memberInfo)

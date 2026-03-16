@@ -18,6 +18,7 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
+	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
@@ -69,8 +70,9 @@ func (slf *gameComponent) OnInit() error {
 		discoveryOpts,
 		kkdiscovery.ApplyOptions(),
 	)
-	slf.discovery.SetInfoGetter(func() (int, int) {
-		return slf.sessionManager.OnlineCount(), kkdiscovery.NodeStatusOnline
+	kkevent.GlobalBus.Subscribe(kkdiscovery.EventDiscoveryStats, func(event *kkdiscovery.DiscoveryStatsEvent) {
+		event.OnlineCount = slf.sessionManager.OnlineCount()
+		event.Status = kkdiscovery.NodeStatusOnline
 	})
 
 	// 初始化 cluster
@@ -157,6 +159,7 @@ func (slf *gameComponent) OnStart() error {
 }
 
 func (slf *gameComponent) OnStop() error {
+	kkevent.GlobalBus.UnsubscribeAll(kkdiscovery.EventDiscoveryStats)
 	if slf.cluster != nil {
 		slf.cluster.Stop()
 	}

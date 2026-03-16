@@ -5,6 +5,17 @@ const (
 	NodeStatusOffline = 1 // 离线
 )
 
+const (
+	// 发现服务统计事件, 用于得知成员的 在线数量，状态 等统计信息。
+	// 需要统计时服务发现会发布该事件，对应的模块监听本事件并填充数据即可。
+	EventDiscoveryStats = "kkdiscovery_stats"
+)
+
+type DiscoveryStatsEvent struct {
+	OnlineCount int // 在线玩家数量
+	Status      int // 状态：NodeStatusOnline(0), NodeStatusOffline(1)
+}
+
 type (
 	// MemberListener 成员增、删监听函数
 	MemberListener func(member IMember)
@@ -42,23 +53,21 @@ type (
 
 	// IDiscovery 发现服务接口
 	IDiscovery interface {
-		Name() string                    // 发现服务名称
-		Start() error                    // 启动
-		Stop() error                     // 停止
-		Stats() DiscoveryStatsSnapshot   // 获取统计信息
-		SetInfoGetter(func() (int, int)) // return (onlineCount, status)。在线数量，状态
-		GetMemberMgr() IMemberMgr        // 获取成员管理器
-		IsRunning() bool                 // 是否已启动
+		Name() string                  // 发现服务名称
+		Start() error                  // 启动
+		Stop() error                   // 停止
+		Stats() DiscoveryStatsSnapshot // 获取统计信息
+		GetMemberMgr() IMemberMgr      // 获取成员管理器
+		IsRunning() bool               // 是否已启动
 	}
 
 	// IMember 成员接口
 	IMember interface {
-		GetNodeID() string                  // 节点ID。必须唯一。
-		GetNodeType() string                // 节点类型。如：gate、game、login等
-		GetAddress() string                 // 节点地址。如：127.0.0.1:8080
-		GetRpcAddress() string              // rpc监听地址。如：127.0.0.1:8080
-		GetSetting(k string) (string, bool) // 额外数据，可以为空。
-		GetWeight() int                     // 获取权重
-		GetStatus() int                     // 获取状态
+		GetNodeID() string     // 节点ID。必须唯一。
+		GetNodeType() string   // 节点类型。如：gate、game、login等
+		GetAddress() string    // 节点地址。如：127.0.0.1:8080
+		GetRpcAddress() string // rpc监听地址。如：127.0.0.1:8080
+		GetWeight() int        // 获取权重
+		GetStatus() int        // 获取状态
 	}
 )

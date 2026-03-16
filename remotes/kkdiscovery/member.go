@@ -8,7 +8,6 @@ type Member struct {
 	rpcAddress string // rpc server address
 	weight     int    //权重，用于负载均衡
 	status     int    //状态（NodeStatusOnline或NodeStatusOffline）
-	settings   map[string]string
 }
 
 var _ IMember = (*Member)(nil)
@@ -41,13 +40,4 @@ func (m *Member) GetWeight() int {
 // GetStatus 获取状态
 func (m *Member) GetStatus() int {
 	return m.status
-}
-
-// GetSetting 获取设置
-func (m *Member) GetSetting(k string) (string, bool) {
-	if m.settings == nil {
-		return "", false
-	}
-	value, ok := m.settings[k]
-	return value, ok
 }

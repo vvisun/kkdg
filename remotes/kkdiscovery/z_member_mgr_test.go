@@ -15,7 +15,6 @@ func newTestMemberInfo(id, tpe, addr string, weight, status int) *MemberInfo {
 		Address:  addr,
 		Weight:   weight,
 		Status:   status,
-		Settings: map[string]string{"k": "v"},
 	}
 }
 

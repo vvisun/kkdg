@@ -50,7 +50,6 @@ func (m *MemberMgr) AddMember(info *MemberInfo) (IMember, bool) {
 			rpcAddress: info.RpcAddress,
 			weight:     info.Weight,
 			status:     info.Status,
-			settings:   info.Settings,
 		}
 		m.members[info.NodeID] = member
 		m.typeMap[info.NodeType] = append(m.typeMap[info.NodeType], member)
@@ -74,7 +73,6 @@ func (m *MemberMgr) AddMember(info *MemberInfo) (IMember, bool) {
 		mb.rpcAddress = info.RpcAddress
 		mb.weight = info.Weight
 		mb.status = info.Status
-		mb.settings = info.Settings
 	}
 	m.membersMu.Unlock()
 
