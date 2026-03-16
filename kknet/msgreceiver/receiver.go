@@ -30,18 +30,18 @@ func (r *MsgReceiver[K]) SetNeedCopyInOnSession(isNeedCopy bool) {
 }
 
 /** 解析完整包数据[length,message]。
- *@param data []byte 完整包数据[length,message]
+ *@param packet []byte 完整包数据[length,message]
  *@return kkpacket.MSGID 消息ID
  *@return []byte 消息对象二进制数据
  *@return error 错误
  */
-func (r *MsgReceiver[K]) parseMsgInfo(data []byte) (kkpacket.MSGID, []byte, error) {
+func (r *MsgReceiver[K]) parseMsgInfo(packet []byte) (kkpacket.MSGID, []byte, error) {
 	if r.metaParser != nil {
-		return r.metaParser(data)
+		return r.metaParser(packet)
 	}
 
 	// 默认实现
-	messageBytes, err := r.packetTool.GetStreamTool().Unpack(data)
+	messageBytes, err := r.packetTool.GetStreamTool().Unpack(packet)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -60,29 +60,29 @@ var _ kknet.IRawHandler = (*MsgReceiver[kknet.CONN_ID])(nil)
 
 // OnRaw 接收原始数据并分发到消息处理器。实现kknet.IRawHandler接口。
 // @param connId 连接ID
-// @param data 原始数据 完整包[length,message]
-func (r *MsgReceiver[K]) OnRaw(connId K, data *kkbuffer.ByteBuffer) {
-	msgID, bodyBytes, err := r.parseMsgInfo(data.Bytes())
+// @param bbPacket 原始数据 完整包[length,message]
+func (r *MsgReceiver[K]) OnRaw(connId K, bbPacket *kkbuffer.ByteBuffer) {
+	msgID, bodyBytes, err := r.parseMsgInfo(bbPacket.Bytes())
 	if err != nil {
-		kkbuffer.Put(data)
+		kkbuffer.Put(bbPacket)
 		return
 	}
 
 	h, ok := r.hdMap[msgID]
 	if !ok || h == nil {
-		kkbuffer.Put(data)
+		kkbuffer.Put(bbPacket)
 		return
 	}
 
 	h.OnRaw(connId, bodyBytes)
-	kkbuffer.Put(data)
+	kkbuffer.Put(bbPacket)
 }
 
 // OnSession 接收来自会话的消息并分发到消息处理器。
 // @param sessionID 会话ID
-// @param messageBytes 消息数据 packet的[message]部分
-func (r *MsgReceiver[K]) OnSession(sessionID K, streamBytes []byte) {
-	msgID, bodyBytes, err := r.parseMsgInfo(streamBytes)
+// @param packet 整包数据[length,message]。不得保存 packet 引用，如需保存，请自行拷贝。
+func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte) {
+	msgID, bodyBytes, err := r.parseMsgInfo(packet)
 	if err != nil {
 		return
 	}

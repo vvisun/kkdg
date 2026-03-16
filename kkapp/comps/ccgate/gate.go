@@ -238,6 +238,7 @@ func (slf *gateComponent) startTCPServer() error {
 		kknet.WithStreamTool(appOpts.StreamTool),
 		kknet.WithMsgPacket(appOpts.ClientMsgPacket),
 		kknet.WithRawHandler(slf.handler),
+		kknet.WithRecvQueueFullCallback(slf.opt.RecvQueueFullCallback),
 	)
 	server := kktcp.NewServer(slf.opt.TCPAddr, slf.handler, opts)
 
