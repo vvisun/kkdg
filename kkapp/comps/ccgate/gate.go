@@ -291,7 +291,7 @@ func (slf *gateComponent) onClientConnClose(c kknet.IConn) {
 	sid := getSessionId(cid, slf.GetApplication().GetNodeId())
 
 	// 通知所有已绑定的逻辑服，网关处该客户端连接已断开
-	bindTbl := slf.logicBindMgr.sessionBindTable(sid)
+	bindTbl := slf.logicBindMgr.getSessionBindTable(sid)
 	if bindTbl != nil {
 		bindTbl.rangeLogicItems(func(nodeType string, logicItem *clientLogicItem) bool {
 			if logicItem.nodeId != "" {

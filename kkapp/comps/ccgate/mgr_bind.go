@@ -126,6 +126,19 @@ func (m *logicBindManager) sessionBind(sessionId string, nodeType string, nodeId
 	return bindTable.bindLogicItem(nodeType, nodeId)
 }
 
+func (m *logicBindManager) userBind(userId user.USER_ID, nodeType string, nodeId string) *clientLogicItem {
+	m.mu.Lock()
+	bindTable, ok := m.userTable[userId]
+	if !ok {
+		bindTable = newClientBindTable()
+		m.userTable[userId] = bindTable
+		m.mu.Unlock()
+		return bindTable.bindLogicItem(nodeType, nodeId)
+	}
+	m.mu.Unlock()
+	return bindTable.bindLogicItem(nodeType, nodeId)
+}
+
 func (m *logicBindManager) sessionUnbind(sessionId string, nodeType string) {
 	m.mu.Lock()
 	bindTbl, ok := m.sessionTable[sessionId]
@@ -138,19 +151,6 @@ func (m *logicBindManager) sessionUnbind(sessionId string, nodeType string) {
 		delete(m.sessionTable, sessionId)
 	}
 	m.mu.Unlock()
-}
-
-func (m *logicBindManager) userBind(userId user.USER_ID, nodeType string, nodeId string) *clientLogicItem {
-	m.mu.Lock()
-	bindTable, ok := m.userTable[userId]
-	if !ok {
-		bindTable = newClientBindTable()
-		m.userTable[userId] = bindTable
-		m.mu.Unlock()
-		return bindTable.bindLogicItem(nodeType, nodeId)
-	}
-	m.mu.Unlock()
-	return bindTable.bindLogicItem(nodeType, nodeId)
 }
 
 func (m *logicBindManager) userUnbind(userId user.USER_ID, nodeType string) {
@@ -187,7 +187,7 @@ func (m *logicBindManager) getLogicItemByUserId(userId user.USER_ID, nodeType st
 	return bindTbl.getLogicItem(nodeType)
 }
 
-func (m *logicBindManager) sessionBindTable(sessionId string) *clientBindTable {
+func (m *logicBindManager) getSessionBindTable(sessionId string) *clientBindTable {
 	m.mu.Lock()
 	bindTbl, ok := m.sessionTable[sessionId]
 	m.mu.Unlock()
@@ -197,7 +197,7 @@ func (m *logicBindManager) sessionBindTable(sessionId string) *clientBindTable {
 	return bindTbl
 }
 
-func (m *logicBindManager) userBindTable(userId user.USER_ID) *clientBindTable {
+func (m *logicBindManager) getUserBindTable(userId user.USER_ID) *clientBindTable {
 	m.mu.Lock()
 	bindTbl, ok := m.userTable[userId]
 	m.mu.Unlock()

@@ -79,7 +79,7 @@ func Test_logicBindManager_basic(t *testing.T) {
 	}
 
 	// sessionBindTable should return the same bind table
-	bindTbl := m.sessionBindTable(sessionID)
+	bindTbl := m.getSessionBindTable(sessionID)
 	if bindTbl == nil {
 		t.Fatalf("sessionBindTable(%q) = nil, want non-nil", sessionID)
 	}
@@ -98,7 +98,7 @@ func Test_logicBindManager_basic(t *testing.T) {
 		t.Fatalf("getLogicItemByUserId = %+v, want %+v", got, uitem)
 	}
 
-	if utbl := m.userBindTable(uid); utbl == nil {
+	if utbl := m.getUserBindTable(uid); utbl == nil {
 		t.Fatalf("userBindTable(%d) = nil, want non-nil", uid)
 	}
 
