@@ -114,12 +114,3 @@ func (m *clientManager) getClientBySessionId(sessionId string) *clientInfo {
 	}
 	return nil
 }
-
-// 为连接connId的客户端分配一个nodeType类型的逻辑节点。如果已分配，则返回已分配的逻辑节点信息。
-func (m *clientManager) allocLogicNode(connId kknet.CONN_ID, nodeType string, nodeId string) *clientLogicItem {
-	cliInfo := m.getClientByConnId(connId)
-	if cliInfo == nil {
-		return nil
-	}
-	return cliInfo.bindLogicNode(nodeType, nodeId)
-}

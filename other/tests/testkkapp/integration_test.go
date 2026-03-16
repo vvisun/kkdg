@@ -14,7 +14,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
-	"github.com/vvisun/kkdg/kkapp/user"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -130,8 +129,11 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		ClusterUrl:    natsURL,
 		LogicNodeType: kkapp.NodeTypeLogic,
 		TransType:     transType,
-		UserKickedCallback: func(userId user.USER_ID, kickedSessions []string) {
-			kklog.Infof("用户[%d]被顶号: %v", userId, kickedSessions)
+		UserKickedCallback: func(kickedConns []kknet.IConn) {
+			for _, conn := range kickedConns {
+				conn.SendMsg(&KickOutPush{UserId: 0, Reason: "被顶号"})
+				conn.Close()
+			}
 		},
 	}
 	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())

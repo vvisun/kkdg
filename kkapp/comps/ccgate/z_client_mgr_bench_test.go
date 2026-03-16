@@ -1,7 +1,6 @@
 package ccgate
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet"
@@ -40,22 +39,6 @@ func Benchmark_clientManager_removeClient(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		m.removeClient(kknet.CONN_ID(i))
-	}
-}
-
-func Benchmark_clientManager_allocLogicNode(b *testing.B) {
-	m := newClientManager()
-	n := 1000
-	for i := 0; i < n; i++ {
-		m.addClient(kknet.CONN_ID(i), getSessionId(kknet.CONN_ID(i), "gate1"))
-	}
-	nodeTypes := []string{"game", "lobby", "chat"}
-	b.ResetTimer()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		connID := kknet.CONN_ID(i % n)
-		nt := nodeTypes[i%len(nodeTypes)]
-		_ = m.allocLogicNode(connID, nt, fmt.Sprintf("%s_%d", nt, i))
 	}
 }
 

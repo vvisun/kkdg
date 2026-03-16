@@ -50,24 +50,26 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl 
 	// 如果userId已经登录了其他会话，需踢出旧的会话
 	if oldSid, ok := m.uid2sid[userId]; ok {
 		if oldSid != "" && oldSid != curSessionId {
-			if oldUid, ok := m.sid2uid[oldSid]; ok {
+			oldUid, ok := m.sid2uid[oldSid]
+			if ok {
 				delete(m.uid2sid, oldUid)
 			}
 			delete(m.sid2uid, oldSid)
-			kklog.Debugf("kick out old user %d, sessionId: %s", userId, oldSid)
+			kklog.Debugf("kick out old user %d, sessionId: %s", oldUid, oldSid)
 			kickList = append(kickList, oldSid)
 		}
 	}
 
 	// 如果当前会话已经登录了其他用户，需踢出该其他用户。理论上不可能，但是依旧防御性检查
-	if curUid, ok := m.sid2uid[curSessionId]; ok {
-		if curUid != user.NULL_USER_ID && curUid != userId {
-			if oldSid, ok := m.uid2sid[curUid]; ok {
-				delete(m.sid2uid, oldSid)
-				kickList = append(kickList, oldSid)
+	if otherUid, ok := m.sid2uid[curSessionId]; ok {
+		if otherUid != user.NULL_USER_ID && otherUid != userId {
+			otherSid, ok := m.uid2sid[otherUid]
+			if ok {
+				delete(m.sid2uid, otherSid)
+				kickList = append(kickList, otherSid)
 			}
-			delete(m.uid2sid, curUid)
-			kklog.Debugf("kick out old user %d, sessionId: %s", curUid, curSessionId)
+			delete(m.uid2sid, otherUid)
+			kklog.Debugf("kick out other user %d, sessionId: %s", otherUid, otherSid)
 		}
 	}
 

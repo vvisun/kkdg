@@ -167,7 +167,13 @@ func (slf *gateComponent) OnInit() error {
 					}
 					kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
 					if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
-						slf.opt.UserKickedCallback(user.USER_ID(msg.UserId), kickList)
+						kickConns := make([]kknet.IConn, 0, len(kickList))
+						for _, sid := range kickList {
+							if conn, err := slf.sessionMgr.GetConn(sid); err == nil {
+								kickConns = append(kickConns, conn)
+							}
+						}
+						slf.opt.UserKickedCallback(kickConns)
 					}
 				}
 			} else {
@@ -247,8 +253,10 @@ func (slf *gateComponent) OnStop() error {
 func (slf *gateComponent) startTCPServer() error {
 	// 创建 TCP 服务器
 	opts := slf.serverOpt
+	appOpts := slf.GetApplication().GetOptions()
 	kkoption.ApplyOptionsTo(&opts,
-		kknet.WithStreamTool(slf.GetApplication().GetOptions().StreamTool),
+		kknet.WithStreamTool(appOpts.StreamTool),
+		kknet.WithMsgPacket(appOpts.ClientMsgPacket),
 		kknet.WithRawHandler(slf.handler),
 	)
 	server := kktcp.NewServer(slf.opt.TCPAddr, slf.handler, opts)

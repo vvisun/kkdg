@@ -71,29 +71,3 @@ func Test_clientManager_addClient_removeClient_getClient(t *testing.T) {
 	// remove non-existent should not panic
 	m.removeClient(999)
 }
-
-func Test_clientManager_allocLogicNode(t *testing.T) {
-	m := newClientManager()
-	connID := kknet.CONN_ID(300)
-	m.addClient(connID, getSessionId(connID, "gate1"))
-
-	// alloc on existing client
-	info1 := m.allocLogicNode(connID, "game", "game1")
-	if info1 == nil {
-		t.Fatal("allocLogicNode should return non-nil")
-	}
-	if info1.nodeId != "game1" || info1.nodeType != "game" {
-		t.Errorf("allocLogicNode result nodeId=%v nodeType=%v", info1.nodeId, info1.nodeType)
-	}
-
-	// same nodeType returns same info
-	info2 := m.allocLogicNode(connID, "game", "game2")
-	if info2 != info1 {
-		t.Error("allocLogicNode same nodeType should return existing logicNodeInfo")
-	}
-
-	// alloc on non-existent conn returns nil
-	if m.allocLogicNode(999, "game", "game1") != nil {
-		t.Error("allocLogicNode on non-existent conn should return nil")
-	}
-}
