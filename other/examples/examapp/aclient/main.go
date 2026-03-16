@@ -176,7 +176,7 @@ func (h *gameHandler) onLoginResp(connId kknet.CONN_ID, msg *ptoexam.LoginResp) 
 
 func (h *gameHandler) onMsg1Resp(connId kknet.CONN_ID, msg *ptoexam.Msg1Resp) error {
 	atomic.StoreInt64(&receivedId, int64(msg.ID))
-	if receivedId%20000 != 0 {
+	if receivedId%5000 != 0 {
 		return nil
 	}
 	kklog.Infof("Msg1Resp: connId=%d, sendedId=%d, receivedId=%d diff=%d",

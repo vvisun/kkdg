@@ -120,7 +120,7 @@ func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID stri
 	si.shardIdx = shardIdx
 	si.threadIdx = sessionIdToThreadIdx(si.sessionID, workers_count)
 	slf.sessionMap.Store(sessionID, si)
-	kklog.Debugf("newSessionInfo: sessionID=%s, threadIdx=%d", si.sessionID, si.threadIdx)
+	// kklog.Debugf("newSessionInfo: sessionID=%s, threadIdx=%d", si.sessionID, si.threadIdx)
 	return si
 }
 

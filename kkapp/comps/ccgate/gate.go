@@ -457,7 +457,7 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 }
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
-	kklog.Debugf("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
+	//kklog.Debugf("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 	if h.gate.server.GetConnManager().GetCount() >= h.gate.opt.MaxConnCount {
 		kklog.Warnf("[ccgate] max conn count reached, client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 		c.Close()
@@ -467,7 +467,7 @@ func (h *gateHandler) OnConnect(c kknet.IConn) {
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
+	//kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
 	h.gate.onClientConnClose(c)
 }
 
