@@ -43,6 +43,10 @@ func NewSyncReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	}
 }
 
+func (rp *SyncReadProcessor) Pending() int {
+	return 0
+}
+
 func (rp *SyncReadProcessor) Start(conn kknet.IConn) {
 	rp.conn = conn
 	rp.connID = conn.ID()

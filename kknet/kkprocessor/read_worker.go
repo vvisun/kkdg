@@ -31,7 +31,7 @@ type WorkerReadProcessor struct {
 	mu      sync.Mutex
 	closing atomic.Bool
 
-	workers *WorkerQueue
+	workQueue *WorkerQueue
 }
 
 var _ kknet.IReadProcessor = (*WorkerReadProcessor)(nil)
@@ -47,9 +47,13 @@ func NewWorkerReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 		maxConc = 1
 	}
 	return &WorkerReadProcessor{
-		opts:    opts,
-		workers: NewWorkerQueue(maxConc),
+		opts:      opts,
+		workQueue: NewWorkerQueue(maxConc),
 	}
+}
+
+func (rp *WorkerReadProcessor) Pending() int {
+	return rp.workQueue.Len()
 }
 
 // Start 记录连接信息
@@ -158,7 +162,7 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	connID := rp.connID
 	rawHandler := rp.opts.RawHandler
 
-	rp.workers.Push(func() {
+	rp.workQueue.Push(func() {
 		// 多线程执行 RawHandler，需要防护 panic
 		xcall.SafeCall(func() {
 			// Stop 之后进来的任务在这里二次检查 closing，尽量减少无意义处理。

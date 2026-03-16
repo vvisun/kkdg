@@ -33,7 +33,7 @@ type WorkerWriteProcessor struct {
 	closing   atomic.Bool
 	stopErr   error // Stop(err) 传入，供 shutdownJob 判断是否 flush
 
-	wq *WorkerQueue // 写任务队列，maxConcurrency=1 保证顺序
+	workQueue *WorkerQueue // 写任务队列，maxConcurrency=1 保证顺序
 
 	drainedCh chan struct{}
 	doneCh    chan struct{}
@@ -50,7 +50,7 @@ func NewWorkerWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	wp := &WorkerWriteProcessor{
 		opts:      opts,
 		sendQueue: bbqueue.NewFIFOQueue(opts.SendQueueSize, opts.SendQueueStrict),
-		wq:        NewWorkerQueue(1), // 单 worker 串行写，保证顺序
+		workQueue: NewWorkerQueue(1), // 单 worker 串行写，保证顺序
 		drainedCh: make(chan struct{}),
 		doneCh:    make(chan struct{}),
 	}
@@ -185,7 +185,7 @@ func (wp *WorkerWriteProcessor) SendMsg(msg any) error {
 
 // 唤醒写任务：向 workerQueue 投递一次 drain 任务（队列由空变非空时调用）。
 func (wp *WorkerWriteProcessor) wakeWriter() {
-	wp.wq.Push(func() { wp.drainJob() })
+	wp.workQueue.Push(func() { wp.drainJob() })
 }
 
 func (wp *WorkerWriteProcessor) Stop(err error) {
@@ -196,7 +196,7 @@ func (wp *WorkerWriteProcessor) Stop(err error) {
 		wp.cond.Broadcast()
 		wp.sendMu.Unlock()
 		flush := wp.opts.SendQueueNeedFlushOver && err == nil
-		wp.wq.Push(func() { wp.shutdownJob() })
+		wp.workQueue.Push(func() { wp.shutdownJob() })
 		if flush {
 			timeout := wp.opts.SendQueueTimeoutFlushOver
 			if timeout <= 0 {
@@ -263,7 +263,7 @@ func (wp *WorkerWriteProcessor) drainJob() {
 		}
 	}
 	if remain > 0 && !closing {
-		wp.wq.Push(func() { wp.drainJob() })
+		wp.workQueue.Push(func() { wp.drainJob() })
 	}
 }
 

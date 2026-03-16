@@ -17,6 +17,7 @@ type IReadProcessor interface {
 	Stop()
 	EnqueuePacket(packet []byte)
 	OnRecvBytes(data []byte) error
+	Pending() int //返回当前队列中待接收的数据包数量。即：recvQueue.Len()。
 }
 
 type IWriteProcessor interface {
@@ -35,7 +36,7 @@ type IWriteProcessor interface {
 	// @param msg 要发送的数据（结构体对象）。writeProcessor内部会使用kkpacket编码。
 	SendMsg(msg any) error
 
-	Pending() int          //测试在用。返回当前队列中待发送的数据包数量。即：sendQueue.Len()。
+	Pending() int          //返回当前队列中待发送的数据包数量。即：sendQueue.Len()。
 	Done() <-chan struct{} //测试在用。返回写处理器停止的信号。
 }
 

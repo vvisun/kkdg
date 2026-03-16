@@ -57,6 +57,13 @@ func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	}
 }
 
+func (rp *ReadProcessor) Pending() int {
+	rp.mu.Lock()
+	cnt := rp.recvQueue.Len()
+	rp.mu.Unlock()
+	return cnt
+}
+
 func (rp *ReadProcessor) Done() <-chan struct{} { return rp.doneCh }
 
 // 连接建立时 / 启动消费协程

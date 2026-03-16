@@ -98,6 +98,15 @@ func (c *WorkerQueue) Push(job asyncJob) {
 	}
 }
 
+// 获取当前队列中待执行的任务数量
+// Retrieves the number of jobs in the queue that are waiting to be executed
+func (c *WorkerQueue) Len() int {
+	c.mu.Lock()
+	cnt := c.q.Len()
+	c.mu.Unlock()
+	return cnt
+}
+
 //-------------------------------- channel --------------------------------
 
 type channel chan struct{}
