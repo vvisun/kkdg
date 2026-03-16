@@ -44,6 +44,7 @@ type gameComponent struct {
 	opt                Option
 	transOkListeners   []func(transportor gametrans.ITransportor)
 	transOkListenersMu sync.RWMutex
+	discoverySubID     uint64
 }
 
 func (slf *gameComponent) GetCompName() string {
@@ -70,7 +71,7 @@ func (slf *gameComponent) OnInit() error {
 		discoveryOpts,
 		kkdiscovery.ApplyOptions(),
 	)
-	kkevent.GlobalBus.Subscribe(kkdiscovery.EventDiscoveryStats, func(event *kkdiscovery.DiscoveryStatsEvent) {
+	slf.discoverySubID, _ = kkevent.GlobalBus.Subscribe(kkdiscovery.EventDiscoveryStats, func(event *kkdiscovery.DiscoveryStatsEvent) {
 		event.OnlineCount = slf.sessionManager.OnlineCount()
 		event.Status = kkdiscovery.NodeStatusOnline
 	})
@@ -159,7 +160,7 @@ func (slf *gameComponent) OnStart() error {
 }
 
 func (slf *gameComponent) OnStop() error {
-	kkevent.GlobalBus.UnsubscribeAll(kkdiscovery.EventDiscoveryStats)
+	kkevent.GlobalBus.UnsubscribeByID(kkdiscovery.EventDiscoveryStats, slf.discoverySubID)
 	if slf.cluster != nil {
 		slf.cluster.Stop()
 	}
