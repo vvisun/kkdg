@@ -8,20 +8,26 @@ import (
 // 抽象化接口，方便切换实现逻辑（如：使用Actor、使用Nats、使用RPC等）。
 type ITransportor interface {
 	Stop() error
-	// ForwardToLogic forwards a client message to logic side.
+	// forwards a client message to logic side.
+	// 转发客户端消息到逻辑服。
 	//  @param packet is a full stream packet [length,message]
 	ForwardToLogic(sessionID string, packet []byte, logicNodeId string) error
-	// ForwardToClient forwards a logic message to client side.
+	// forwards a logic message to client side.
+	// 转发逻辑服消息到单个客户端。
 	//  @param packet is a full stream packet [length,message]
 	ForwardToClient(sessionID string, packet []byte) error
-	// ForwardToClients forwards a logic message to multiple clients side.
+	// forwards a logic message to multiple clients side.
+	// 转发逻辑服消息到多个客户端。
 	//  @param packet is a full stream packet [length,message]
 	ForwardToClients(sessionIDs []string, packet []byte) error
-	// NotifyClientDisconnect notifies a client disconnect.
+	// notifies a client disconnect to logic side.
+	// 通知逻辑服，网关处该客户端连接已断开
 	NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
-	// NotifyClientConnect notifies a client connect.
+	// notifies a client connect to logic side. when client is allocated to the logic server.
+	// 通知逻辑服，网关处该客户端连接已建立（分配到该逻辑服时）
 	NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error
-	// HookMsg hooks a message.
+	// hooks a message.
+	// 钩子消息，用于处理网关收到消息后的回调。
 	HookMsg(listener MsgHookListener)
 }
 

@@ -4,16 +4,21 @@ package gametrans
 // 抽象化接口，方便切换实现逻辑（如：使用Actor、使用Nats、使用RPC等）。
 type ITransportor interface {
 	Stop() error
-	// ForwardToClient forwards a message to a client.
+	// forwards a message to a client.
+	// 发消息到单个客户端。
 	//  @param packet is a full stream packet [length,message]
 	ForwardToClient(sessionID string, packet []byte) error
-	// ForwardToClients forwards a message to multiple clients.
+	// forwards a message to multiple clients.
+	// 发消息到多个客户端。
 	//  @param packet is a full stream packet [length,message]
 	ForwardToClients(sessionIDs []string, packet []byte) error
-	// SendToClient sends a message to a client.
+	// sends a message to a client.
+	// 发消息到单个客户端。
 	SendToClient(sessionID string, msg any) error
-	// SendToClients sends a message to multiple clients.
+	// sends a message to multiple clients.
+	// 发消息到多个客户端。
 	SendToClients(sessionIDs []string, msg any) error
-	// NotifyClientLoginLogout notifies a client login or logout.
+	// notifies a client login or logout. tell gateway and feedback login success to client.
+	// 客户端登录或登出通知。一是为了告知网关，二是为了反馈登录成功给客户端
 	NotifyClientLoginLogout(sessionID string, userId int64, isLogin bool) error
 }

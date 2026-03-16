@@ -429,17 +429,20 @@ func (h *gateHandler) OnClose(c kknet.IConn, err error) {
 
 	// 通知所有已绑定的逻辑服，网关处该客户端连接已断开
 	if cliInfo := h.gate.clientMgr.getClientByConnId(cid); cliInfo != nil {
-		cliInfo.rangeLogicNodes(func(nodeType string, lgcInfo *clientLogicItem) bool {
-			if lgcInfo.nodeId != "" {
-				logicNodeId := lgcInfo.nodeId
-				h.wQueue.Push(func() {
-					if h.gate != nil && h.gate.transportor != nil {
-						h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
-					}
-				})
-			}
-			return true
-		})
+		logicTab := cliInfo.clientBindTbl
+		if logicTab != nil {
+			logicTab.rangeLogicItems(func(nodeType string, lgcInfo *clientLogicItem) bool {
+				if lgcInfo.nodeId != "" {
+					logicNodeId := lgcInfo.nodeId
+					h.wQueue.Push(func() {
+						if h.gate != nil && h.gate.transportor != nil {
+							h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
+						}
+					})
+				}
+				return true
+			})
+		}
 	}
 
 	h.gate.sessionMgr.RemoveConn(sid)
