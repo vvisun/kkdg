@@ -74,7 +74,7 @@ func (r *MsgReceiver[K]) OnRaw(connId K, bbPacket *kkbuffer.ByteBuffer) {
 		return
 	}
 
-	h.OnRaw(connId, bodyBytes)
+	h.OnMessage(connId, bodyBytes)
 	kkbuffer.Put(bbPacket)
 }
 
@@ -92,7 +92,7 @@ func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte) {
 		return
 	}
 
-	h.OnRaw(sessionID, bodyBytes)
+	h.OnMessage(sessionID, bodyBytes)
 }
 
 //--------------------------------------------------

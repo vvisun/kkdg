@@ -11,8 +11,13 @@ type MsgHandlerFunc[T any, K any] func(connKey K, msg *T) error
 
 // 消息接收器
 type IMsgHandler[K any] interface {
-	GetMsgID() kkpacket.MSGID                // 获取消息ID
-	OnRaw(connKey K, bodyBytes []byte) error // 消息回调
+	// 获取消息ID
+	GetMsgID() kkpacket.MSGID
+	// 消息回调。bodyBytes会被底层回收，如需引用，请自行拷贝。
+	//  @param connKey kknet.CONN_ID或sessionID
+	//  @param bodyBytes 消息体二进制数据。会被底层回收，如需引用，请自行拷贝。
+	//  @return error 错误
+	OnMessage(connKey K, bodyBytes []byte) error
 }
 
 type MsgHandler[T any, K any] struct {
@@ -28,8 +33,12 @@ func (h *MsgHandler[T, K]) GetMsgID() kkpacket.MSGID {
 	return h.msgID
 }
 
-// implements IMsgHandler.OnRaw
-func (h *MsgHandler[T, K]) OnRaw(connKey K, bodyBytes []byte) error {
+// implements IMsgHandler.OnMessage
+//
+//	@param connKey kknet.CONN_ID或sessionID
+//	@param bodyBytes 消息体二进制数据。会被底层回收，如需引用，请自行拷贝。
+//	@return error 错误
+func (h *MsgHandler[T, K]) OnMessage(connKey K, bodyBytes []byte) error {
 	var data T
 	if err := h.codec.Unmarshal(bodyBytes, &data); err != nil {
 		return err

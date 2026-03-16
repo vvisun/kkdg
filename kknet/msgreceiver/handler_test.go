@@ -29,7 +29,7 @@ func TestMsgHandler_OnRaw(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	err = handler.OnRaw(1, bodyBytes)
+	err = handler.OnMessage(1, bodyBytes)
 	if err != nil {
 		t.Fatalf("on raw: %v", err)
 	}
