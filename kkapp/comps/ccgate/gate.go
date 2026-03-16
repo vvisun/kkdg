@@ -17,7 +17,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
-	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
@@ -441,7 +440,6 @@ func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
 
 type gateHandler struct {
 	gate       *gateComponent
-	wQueue     *kkprocessor.WorkerQueue
 	gateNodeId string
 }
 
@@ -451,7 +449,6 @@ var _ kknet.IRawHandler = (*gateHandler)(nil)
 func newGateHandler(gate *gateComponent) *gateHandler {
 	return &gateHandler{
 		gate:       gate,
-		wQueue:     kkprocessor.NewWorkerQueue(2),
 		gateNodeId: gate.GetApplication().GetNodeId(),
 	}
 }

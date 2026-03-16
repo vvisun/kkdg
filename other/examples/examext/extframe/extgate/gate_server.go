@@ -8,10 +8,10 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/other/examples/examext/extframe/extmsg"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/queues/taskqueue"
 	"github.com/vvisun/kkdg/utils/xnet"
 )
 
@@ -80,7 +80,7 @@ func logicReadLoop(shardConn *ShardConn) {
 
 var (
 	// 每个逻辑服连接一个写携程。
-	logicWriteThread = kkprocessor.NewWorkerQueue(1)
+	logicWriteThread = taskqueue.NewWorkerQueue(1)
 )
 
 // 将客户端消息转发到逻辑服。

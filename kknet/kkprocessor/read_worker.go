@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/queues/taskqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
@@ -31,7 +32,7 @@ type WorkerReadProcessor struct {
 	mu      sync.Mutex
 	closing atomic.Bool
 
-	workQueue *WorkerQueue
+	workQueue *taskqueue.WorkerQueue
 }
 
 var _ kknet.IReadProcessor = (*WorkerReadProcessor)(nil)
@@ -48,7 +49,7 @@ func NewWorkerReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	}
 	return &WorkerReadProcessor{
 		opts:      opts,
-		workQueue: NewWorkerQueue(maxConc),
+		workQueue: taskqueue.NewWorkerQueue(maxConc),
 	}
 }
 

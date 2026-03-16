@@ -8,13 +8,13 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kkmetrics"
-	"github.com/vvisun/kkdg/kknet/kkprocessor"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kktime"
+	"github.com/vvisun/kkdg/utils/queues/taskqueue"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
@@ -54,7 +54,7 @@ type NatsCluster struct {
 	// NATS配置
 	options nats.Options
 
-	workerQueue *kkprocessor.WorkerQueue
+	workerQueue *taskqueue.WorkerQueue
 
 	msgCodec kkcodec.ICodec
 }
@@ -82,7 +82,7 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 		reqMap:      make(map[string]*asyncReq),
 		stopCh:      make(chan struct{}),
 		options:     natsOpts,
-		workerQueue: kkprocessor.NewWorkerQueue(1),
+		workerQueue: taskqueue.NewWorkerQueue(1),
 		msgCodec:    clusterOpt.MsgCodec,
 	}
 }

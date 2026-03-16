@@ -10,6 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
+	"github.com/vvisun/kkdg/utils/queues/taskqueue"
 )
 
 // 消息处理器-发送器。
@@ -33,7 +34,7 @@ type WorkerWriteProcessor struct {
 	closing   atomic.Bool
 	stopErr   error // Stop(err) 传入，供 shutdownJob 判断是否 flush
 
-	workQueue *WorkerQueue // 写任务队列，maxConcurrency=1 保证顺序
+	workQueue *taskqueue.WorkerQueue // 写任务队列，maxConcurrency=1 保证顺序
 
 	drainedCh chan struct{}
 	doneCh    chan struct{}
@@ -50,7 +51,7 @@ func NewWorkerWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 	wp := &WorkerWriteProcessor{
 		opts:      opts,
 		sendQueue: bbqueue.NewFIFOQueue(opts.SendQueueSize, opts.SendQueueStrict),
-		workQueue: NewWorkerQueue(1), // 单 worker 串行写，保证顺序
+		workQueue: taskqueue.NewWorkerQueue(1), // 单 worker 串行写，保证顺序
 		drainedCh: make(chan struct{}),
 		doneCh:    make(chan struct{}),
 	}
