@@ -18,7 +18,7 @@ func newLocalDiscovery() *localDidcovery {
 }
 
 // 为 sessionId 绑定逻辑节点时更新统计。
-func (m *localDidcovery) onBindLogicNode(sessionId string, nodeId string, nodeType string) {
+func (m *localDidcovery) onBindLogicNode(sessionId string, nodeType string, nodeId string) {
 	m.mu.Lock()
 	nodeMap, ok := m.logicNodeTable[nodeId]
 	if !ok {

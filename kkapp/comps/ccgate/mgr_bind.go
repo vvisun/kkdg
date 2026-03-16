@@ -11,35 +11,12 @@ import (
 //
 //	节点ID，节点类型，用户ID(是否已登录该节点)
 type clientLogicItem struct {
-	mu       sync.Mutex
-	userId   user.USER_ID // 用户ID。用于标识是否已登录到本逻辑节点
-	nodeId   string       // 逻辑节点ID
-	nodeType string       // 逻辑节点类型
-}
-
-func (l *clientLogicItem) login(userId user.USER_ID) {
-	l.mu.Lock()
-	l.userId = userId
-	l.mu.Unlock()
-}
-
-func (l *clientLogicItem) logout() {
-	l.mu.Lock()
-	l.userId = user.NULL_USER_ID
-	l.mu.Unlock()
-}
-
-// 是否已登录到本逻辑节点
-func (l *clientLogicItem) isLogin() bool {
-	l.mu.Lock()
-	ok := l.userId != user.NULL_USER_ID
-	l.mu.Unlock()
-	return ok
+	nodeId   string // 逻辑节点ID
+	nodeType string // 逻辑节点类型
 }
 
 func newClientLogicItem(nodeId string, nodeType string) *clientLogicItem {
 	return &clientLogicItem{
-		userId:   user.NULL_USER_ID,
 		nodeId:   nodeId,
 		nodeType: nodeType,
 	}
@@ -120,6 +97,9 @@ func (t *clientBindTable) rangeLogicItems(fn func(nodeType string, logicItem *cl
 
 //------------------------------------------------------------
 
+// 这里为了记住用户已分配的逻辑服，方便后续用户重新登录时，能接入之前的逻辑服。
+// 如果不记录，用户重新登录时可能分配到新的逻辑服，这时候旧的逻辑服可能还在处理用户逻辑，
+// 导致用户登入多个同类逻辑服造成状态和数据混乱，除非业务逻辑本身不依赖顺序性。
 type logicBindManager struct {
 	mu                sync.Mutex
 	session2logicItem map[string]*clientBindTable       // sessionId -> *clientBindTable
@@ -189,4 +169,24 @@ func (m *logicBindManager) getLogicItemByUserId(userId user.USER_ID, nodeType st
 		return nil
 	}
 	return bindTbl.getLogicItem(nodeType)
+}
+
+func (m *logicBindManager) sessionBindTable(sessionId string) *clientBindTable {
+	m.mu.Lock()
+	bindTbl, ok := m.session2logicItem[sessionId]
+	m.mu.Unlock()
+	if !ok {
+		return nil
+	}
+	return bindTbl
+}
+
+func (m *logicBindManager) userBindTable(userId user.USER_ID) *clientBindTable {
+	m.mu.Lock()
+	bindTbl, ok := m.userId2logicItem[userId]
+	m.mu.Unlock()
+	if !ok {
+		return nil
+	}
+	return bindTbl
 }

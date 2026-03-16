@@ -19,9 +19,9 @@ func Test_logicTotalManager_basic(t *testing.T) {
 	}
 
 	// 绑定多个 session
-	m.onBindLogicNode("s1", nodeID, nodeTypeA)
-	m.onBindLogicNode("s2", nodeID, nodeTypeA)
-	m.onBindLogicNode("s3", nodeID, nodeTypeB)
+	m.onBindLogicNode("s1", nodeTypeA, nodeID)
+	m.onBindLogicNode("s2", nodeTypeA, nodeID)
+	m.onBindLogicNode("s3", nodeTypeB, nodeID)
 
 	if c := m.getSessionCount(nodeID); c != 3 {
 		t.Fatalf("getSessionCount(%q) after bind = %d, want 3", nodeID, c)
@@ -55,7 +55,7 @@ func Benchmark_logicTotalManager_bind_unbind(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			sessionID := "s-" + strconv.Itoa(i)
-			m.onBindLogicNode(sessionID, nodeID, "bench")
+			m.onBindLogicNode(sessionID, "bench", nodeID)
 			m.onUnbindLogicNode(sessionID, nodeID)
 			i++
 		}

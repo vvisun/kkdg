@@ -10,39 +10,17 @@ import (
 //
 //	连接ID，会话ID，逻辑节点【节点ID、节点类型、用户ID(是否已登录该节点)】绑定表
 type clientInfo struct {
-	// nodeType -> *clientLogicItem。
-	//  本客户端链接的逻辑节点字典。
-	//  同一个客户端可能链接不同类型的逻辑服，比如充值服，大厅服，游戏服，聊天服等。
-	clientBindTbl *clientBindTable
-
 	// 客户端连接ID
 	connId kknet.CONN_ID
-
 	// 客户端会话ID
 	sessionId string
 }
 
 func newClientInfo(connId kknet.CONN_ID, sessionId string) *clientInfo {
 	return &clientInfo{
-		connId:        connId,
-		sessionId:     sessionId,
-		clientBindTbl: newClientBindTable(),
+		connId:    connId,
+		sessionId: sessionId,
 	}
-}
-
-// 获取本客户端链接的nodeType类型的逻辑节点信息。
-func (c *clientInfo) getLogicNode(nodeType string) *clientLogicItem {
-	return c.clientBindTbl.getLogicItem(nodeType)
-}
-
-// 为本客户端分配nodeType类型的逻辑节点。
-func (c *clientInfo) bindLogicNode(nodeType string, nodeId string) *clientLogicItem {
-	lgcInfo := c.getLogicNode(nodeType)
-	if lgcInfo != nil {
-		return lgcInfo
-	}
-	lgcInfo = c.clientBindTbl.bindLogicItem(nodeType, nodeId)
-	return lgcInfo
 }
 
 //------------------------------------------------------------

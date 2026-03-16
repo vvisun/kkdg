@@ -24,20 +24,6 @@ func Test_getSessionId(t *testing.T) {
 	}
 }
 
-func Test_logicNodeInfo_isLogin_login(t *testing.T) {
-	info := newClientLogicItem("node1", "game")
-	if info.isLogin() {
-		t.Error("new logicNodeInfo should not be login")
-	}
-	info.userId = 100
-	if !info.isLogin() {
-		t.Error("after login should be login")
-	}
-	if info.userId != 100 {
-		t.Errorf("userId = %v, want 100", info.userId)
-	}
-}
-
 func Test_clientManager_addClient_removeClient_getClient(t *testing.T) {
 	m := newClientManager()
 

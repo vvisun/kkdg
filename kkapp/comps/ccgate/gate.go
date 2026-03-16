@@ -26,6 +26,7 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
+	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 //go:inline
@@ -65,9 +66,10 @@ type gateComponent struct {
 
 	transportor gatetrans.ITransportor
 
-	sessionMgr gatetrans.ISessionManager
-	clientMgr  *clientManager
-	userMgr    *userManager
+	sessionMgr   gatetrans.ISessionManager
+	clientMgr    *clientManager
+	userMgr      *userManager
+	logicBindMgr *logicBindManager
 }
 
 // NewGateComponent creates a new gate component.
@@ -76,12 +78,13 @@ func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 		kklog.PanicErr(err)
 	}
 	return &gateComponent{
-		opt:        gateOpt,
-		serverOpt:  serverOpt,
-		sessionMgr: gatetrans.NewSessionMgr(),
-		clientMgr:  newClientManager(),
-		userMgr:    newUserManager(),
-		localDis:   newLocalDiscovery(),
+		opt:          gateOpt,
+		serverOpt:    serverOpt,
+		localDis:     newLocalDiscovery(),
+		sessionMgr:   gatetrans.NewSessionMgr(),
+		clientMgr:    newClientManager(),
+		userMgr:      newUserManager(),
+		logicBindMgr: newLogicBindManager(),
 	}
 }
 
@@ -169,42 +172,6 @@ func (slf *gateComponent) OnInit() error {
 	})
 
 	return nil
-}
-
-func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
-	if msg.IsLogin {
-		kklog.Debugf("[ccgate]客户端登录: %#v", msg)
-		cliInfo := slf.clientMgr.getClientBySessionId(msg.ClientId)
-		if cliInfo != nil {
-			bindTbl := cliInfo.clientBindTbl
-			if bindTbl != nil {
-				if logicItem := bindTbl.getLogicItem(msg.NodeType); logicItem != nil {
-					logicItem.login(user.USER_ID(msg.UserId))
-				}
-			}
-			kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
-			if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
-				kickConns := make([]kknet.IConn, 0, len(kickList))
-				for _, kick := range kickList {
-					if conn, err := slf.sessionMgr.GetConn(kick.sessionId); err == nil {
-						kickConns = append(kickConns, conn)
-					}
-				}
-				slf.opt.UserKickedCallback(kickConns)
-			}
-		}
-	} else {
-		kklog.Debugf("[ccgate]客户端登出: %#v", msg)
-		bindTbl := slf.userMgr.getUserBindTable(user.USER_ID(msg.UserId))
-		if bindTbl != nil {
-			if logicItem := bindTbl.getLogicItem(msg.NodeType); logicItem != nil {
-				logicItem.logout()
-			}
-			bindTbl.unbindLogicItem(msg.NodeType)
-		}
-		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeId)
-		slf.userMgr.removeUser(user.USER_ID(msg.UserId))
-	}
 }
 
 func (slf *gateComponent) OnStart() error {
@@ -311,6 +278,67 @@ func (slf *gateComponent) startWSServer() error {
 	return nil
 }
 
+//------------------------------------------------------------
+
+func (slf *gateComponent) onNewClientConn(c kknet.IConn) {
+	sessionID := getSessionId(c.ID(), slf.GetApplication().GetNodeId())
+	slf.sessionMgr.AddConn(sessionID, c)
+	slf.clientMgr.addClient(c.ID(), sessionID)
+}
+
+func (slf *gateComponent) onClientConnClose(c kknet.IConn) {
+	cid := c.ID()
+	sid := getSessionId(cid, slf.GetApplication().GetNodeId())
+
+	// 通知所有已绑定的逻辑服，网关处该客户端连接已断开
+	bindTbl := slf.logicBindMgr.sessionBindTable(sid)
+	if bindTbl != nil {
+		bindTbl.rangeLogicItems(func(nodeType string, logicItem *clientLogicItem) bool {
+			if logicItem.nodeId != "" {
+				logicNodeId := logicItem.nodeId
+				xcall.AntsSafeGo(func() {
+					if slf.transportor != nil {
+						slf.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
+					}
+				})
+			}
+			return true
+		})
+	}
+
+	slf.sessionMgr.RemoveConn(sid)
+	slf.clientMgr.removeClient(cid)
+	slf.userMgr.onSessionDisconnect(sid)
+}
+
+func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
+	if msg.IsLogin {
+		kklog.Debugf("[ccgate]客户端登录: %#v", msg)
+
+		slf.logicBindMgr.userBind(user.USER_ID(msg.UserId), msg.NodeType, msg.NodeId)
+
+		kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId)
+		if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
+			kickConns := make([]kknet.IConn, 0, len(kickList))
+			for _, kick := range kickList {
+				if conn, err := slf.sessionMgr.GetConn(kick.sessionId); err == nil {
+					kickConns = append(kickConns, conn)
+				}
+			}
+			slf.opt.UserKickedCallback(kickConns)
+		}
+	} else {
+		kklog.Debugf("[ccgate]客户端登出: %#v", msg)
+		sid, ok := slf.userMgr.getSessionIdByUserId(user.USER_ID(msg.UserId))
+		if ok {
+			slf.logicBindMgr.sessionUnbind(sid)
+		}
+		slf.logicBindMgr.userUnbind(user.USER_ID(msg.UserId))
+		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeId)
+		slf.userMgr.removeUser(user.USER_ID(msg.UserId))
+	}
+}
+
 // 为客户端(connID)分配一个nodeType类型的逻辑节点
 func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) *clientLogicItem {
 	if nodeType == "" {
@@ -322,20 +350,21 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	}
 
 	// 如果已分配，则返回已分配的逻辑节点信息
-	lgcNode := cliInfo.getLogicNode(nodeType)
+	lgcNode := slf.logicBindMgr.getLogicItemBySessionId(cliInfo.sessionId, nodeType)
 	if lgcNode != nil {
 		return lgcNode
 	}
 
 	// 选择逻辑节点
-	chooseNode, found := slf.chooseLogicNode(nodeType)
+	chooseNodeId, found := slf.chooseLogicNode(nodeType)
 	if !found {
 		return nil //没有找到合适的逻辑节点
 	}
 
 	// 分配逻辑节点
-	slf.localDis.onBindLogicNode(cliInfo.sessionId, chooseNode, nodeType)
-	return cliInfo.bindLogicNode(nodeType, chooseNode)
+	logicItem := slf.logicBindMgr.sessionBind(cliInfo.sessionId, nodeType, chooseNodeId)
+	slf.localDis.onBindLogicNode(cliInfo.sessionId, nodeType, chooseNodeId)
+	return logicItem
 }
 
 // 选择逻辑节点的唯一入口。
@@ -426,38 +455,13 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 }
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
-	sessionID := getSessionId(c.ID(), h.gateNodeId)
-	h.gate.sessionMgr.AddConn(sessionID, c)
-	h.gate.clientMgr.addClient(c.ID(), sessionID)
 	kklog.Debugf("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
+	h.gate.onNewClientConn(c)
 }
 
 func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	cid := c.ID()
-	sid := getSessionId(cid, h.gateNodeId)
-
-	// 通知所有已绑定的逻辑服，网关处该客户端连接已断开
-	if cliInfo := h.gate.clientMgr.getClientByConnId(cid); cliInfo != nil {
-		bindTbl := cliInfo.clientBindTbl
-		if bindTbl != nil {
-			bindTbl.rangeLogicItems(func(nodeType string, logicItem *clientLogicItem) bool {
-				if logicItem.nodeId != "" {
-					logicNodeId := logicItem.nodeId
-					h.wQueue.Push(func() {
-						if h.gate != nil && h.gate.transportor != nil {
-							h.gate.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
-						}
-					})
-				}
-				return true
-			})
-		}
-	}
-
-	h.gate.sessionMgr.RemoveConn(sid)
-	h.gate.clientMgr.removeClient(cid)
-	h.gate.userMgr.onSessionDisconnect(sid)
-	kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", cid, c.RemoteAddr(), err)
+	kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
+	h.gate.onClientConnClose(c)
 }
 
 // OnRaw 收到客户端消息，转发给逻辑节点

@@ -13,36 +13,25 @@ type kickInfo struct {
 }
 
 type userManager struct {
-	mu sync.Mutex
-
+	mu      sync.Mutex
 	uid2sid map[user.USER_ID]string //user.USER_ID -> sessionId
 	sid2uid map[string]user.USER_ID //sessionId -> user.USER_ID
-
-	// 这里为了记住用户已分配的逻辑服，方便后续用户重新登录时，能接入之前的逻辑服。
-	// 如果不记录，用户重新登录时可能分配到新的逻辑服，这时候旧的逻辑服可能还在处理用户逻辑，
-	// 导致用户登入多个同类逻辑服造成状态和数据混乱，除非业务逻辑本身不依赖顺序性。
-	userBindTable map[user.USER_ID]*clientBindTable
 }
 
 func newUserManager() *userManager {
 	return &userManager{
-		uid2sid:       make(map[user.USER_ID]string),
-		sid2uid:       make(map[string]user.USER_ID),
-		userBindTable: make(map[user.USER_ID]*clientBindTable),
+		uid2sid: make(map[user.USER_ID]string),
+		sid2uid: make(map[string]user.USER_ID),
 	}
 }
 
-// 用户登录时，记录用户与会话的绑定关系，以及逻辑节点绑定表。
+// 用户登录时，记录用户与会话的绑定关系
 // 返回需要踢出的会话ID列表。需要投递给业务回调，发送顶号消息给被踢的连接。
 //
 //	踢出逻辑：
 //	1. 如果userId已经登录了其他会话，需踢出旧的会话。
 //	2. 如果当前会话已经登录了其他用户，需踢出该其他用户。
-func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl *clientBindTable) []kickInfo {
-	if bindTbl == nil {
-		kklog.Errorf("addUser: bindTbl is nil, userId: %d", userId)
-		return nil
-	}
+func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickInfo {
 	if curSessionId == "" {
 		kklog.Errorf("addUser: sessionId is empty, userId: %d", userId)
 		return nil
@@ -80,7 +69,6 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl 
 
 	m.uid2sid[userId] = curSessionId
 	m.sid2uid[curSessionId] = userId
-	m.userBindTable[userId] = bindTbl
 	m.mu.Unlock()
 
 	return kickList
@@ -93,7 +81,6 @@ func (m *userManager) removeUser(userId user.USER_ID) {
 		delete(m.sid2uid, sid)
 	}
 	delete(m.uid2sid, userId)
-	delete(m.userBindTable, userId)
 	m.mu.Unlock()
 }
 
@@ -105,17 +92,6 @@ func (m *userManager) onSessionDisconnect(sessionId string) {
 	}
 	delete(m.sid2uid, sessionId)
 	m.mu.Unlock()
-}
-
-// 获取用户的逻辑节点绑定表。
-func (m *userManager) getUserBindTable(userId user.USER_ID) *clientBindTable {
-	m.mu.Lock()
-	v, ok := m.userBindTable[userId]
-	m.mu.Unlock()
-	if !ok {
-		return nil
-	}
-	return v
 }
 
 // 获取会话ID对应的用户ID。
