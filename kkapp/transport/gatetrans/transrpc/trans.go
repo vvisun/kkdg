@@ -146,7 +146,7 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 	streamBytes.WriteBytes(packet)
 
 	if err := conn.SendBuffer(streamBytes); err != nil {
-		kklog.Errorf("[transrpc] 发送响应失败: %v", err)
+		kklog.Debugf("[transrpc] 发送响应失败: %v", err)
 		return err
 	}
 	return nil
@@ -181,7 +181,7 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 		streamBytes.WriteBytes(packet)
 
 		if err := conn.SendBuffer(streamBytes); err != nil {
-			kklog.Errorf("[transrpc] 发送响应失败: %v", err)
+			kklog.Debugf("[transrpc] 发送响应失败: %v", err)
 			loopErr = err
 		}
 	}

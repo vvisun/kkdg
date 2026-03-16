@@ -150,7 +150,7 @@ func (slf *transportorShard) ForwardToClient(sessionID string, packet []byte) er
 	streamBytes.WriteBytes(packet)
 
 	if err := conn.SendBuffer(streamBytes); err != nil {
-		kklog.Errorf("[ccgate] send response error: %v", err)
+		kklog.Debugf("[ccgate] send response error: %v", err)
 		return err
 	}
 	return nil
@@ -185,7 +185,7 @@ func (slf *transportorShard) ForwardToClients(sessionIDs []string, packet []byte
 		streamBytes.WriteBytes(packet)
 
 		if err := conn.SendBuffer(streamBytes); err != nil {
-			kklog.Errorf("[ccgate] send response error: %v", err)
+			kklog.Debugf("[ccgate] send response error: %v", err)
 			loopErr = err
 		}
 	}
