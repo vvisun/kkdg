@@ -33,6 +33,11 @@ func getSessionId(connID kknet.CONN_ID, gateNodeId string) string {
 	return gateNodeId + "-" + strconv.FormatUint(connID, 10)
 }
 
+type ISessionMgr interface {
+	GetConn(sessionId string) (kknet.IConn, error)
+	RemoveConn(sessionId string)
+}
+
 // 网关服
 //
 //	连接管理: kknet.IConnManager connId -> kknet.IConn
@@ -77,6 +82,11 @@ func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 		userMgr:       newUserManager(),
 		logicTotalMgr: newLogicTotalManager(),
 	}
+}
+
+// 暴露会话管理器给业务层使用，方便业务层直接操作会话。
+func (slf *gateComponent) GetSessionMgr() ISessionMgr {
+	return slf.sessionMgr
 }
 
 func (slf *gateComponent) GetCompName() string {
