@@ -37,7 +37,9 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickIn
 		return nil
 	}
 
-	kickList := make([]kickInfo, 0)
+	// kickList := make([]kickInfo, 0)
+	var kickList []kickInfo
+	hasKick := false
 
 	m.mu.Lock()
 
@@ -50,6 +52,10 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickIn
 			}
 			delete(m.sid2uid, oldSid)
 			kklog.Debugf("kick out old user %d, sessionId: %s", oldUid, oldSid)
+			if !hasKick {
+				kickList = make([]kickInfo, 0)
+				hasKick = true
+			}
 			kickList = append(kickList, kickInfo{userId: oldUid, sessionId: oldSid})
 		}
 	}
@@ -60,6 +66,10 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickIn
 			otherSid, ok := m.uid2sid[otherUid]
 			if ok {
 				delete(m.sid2uid, otherSid)
+				if !hasKick {
+					kickList = make([]kickInfo, 0)
+					hasKick = true
+				}
 				kickList = append(kickList, kickInfo{userId: otherUid, sessionId: otherSid})
 			}
 			delete(m.uid2sid, otherUid)
