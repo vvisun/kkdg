@@ -12,13 +12,13 @@ var (
 )
 
 func InitRpcMsgs(methodMgr *kkrpc.MethodManager) {
-	kkrpc.RegisterOneWayMethod[RpcMsgRegister]("register", methodMgr)
-	kkrpc.RegisterOneWayMethod[RpcS2Client]("s2c", methodMgr)
-	kkrpc.RegisterOneWayMethod[RpcS2Clients]("s2cs", methodMgr)
-	kkrpc.RegisterOneWayMethod[RpcC2S]("c2s", methodMgr)
-	kkrpc.RegisterOneWayMethod[RpcClientDisconnect]("clientDisconnect", methodMgr)
-	kkrpc.RegisterOneWayMethod[RpcAllocClient]("allocClient", methodMgr)
-	kkrpc.RegisterOneWayMethod[RpcClientLoginLogout]("clientLoginLogout", methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcMsgRegister](methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcS2Client](methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcS2Clients](methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcC2S](methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcClientDisconnect](methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcAllocClient](methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcClientLoginLogout](methodMgr)
 }
 
 func InitShardMsgs(router *kkpacket.MsgRouter) {

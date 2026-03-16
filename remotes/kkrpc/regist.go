@@ -7,10 +7,10 @@ import (
 
 // RegisterReqRspMethod 注册请求响应方法。method的参数类型和返回类型必须为REQ和RSP。
 // 相当于函数签名: func method(REQ) RSP
-func RegisterReqRspMethod[REQ any, RSP any](method string, methodMgr *MethodManager) error {
-	if err := newReqResp[REQ, RSP](method, methodMgr); err != nil {
+func RegisterReqRspMethod[REQ any, RSP any](methodMgr *MethodManager) error {
+	if err := newReqResp[REQ, RSP](methodMgr, ""); err != nil {
 		// 错误直接蹦就行，避免将影响延迟到运行期带来不可预知的错误
-		kklog.Errorf("register reqrsp method %s error: %v", method, err)
+		kklog.Errorf("register reqrsp method error: %v", err)
 		return err
 	}
 	return nil
@@ -18,10 +18,10 @@ func RegisterReqRspMethod[REQ any, RSP any](method string, methodMgr *MethodMana
 
 // RegisterOneWayMethod 注册单向方法。method的参数类型必须为REQ。
 // 相当于函数签名: func method(REQ)
-func RegisterOneWayMethod[REQ any](method string, methodMgr *MethodManager) error {
-	if err := newOneWay[REQ](method, methodMgr); err != nil {
+func RegisterOneWayMethod[REQ any](methodMgr *MethodManager) error {
+	if err := newOneWay[REQ](methodMgr, ""); err != nil {
 		// 错误直接蹦就行，避免将影响延迟到运行期带来不可预知的错误
-		kklog.Errorf("register oneway method %s error: %v", method, err)
+		kklog.Errorf("register oneway method error: %v", err)
 		return err
 	}
 	return nil

@@ -48,8 +48,8 @@ func runRpcDemo(addr string) {
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
 	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 	methodMgr := kkrpc.NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
-	kkrpc.RegisterReqRspMethod[EchoReq, EchoRsp]("Echo", methodMgr)
-	kkrpc.RegisterOneWayMethod[PingReq]("Ping", methodMgr)
+	kkrpc.RegisterReqRspMethod[EchoReq, EchoRsp](methodMgr)
+	kkrpc.RegisterOneWayMethod[PingReq](methodMgr)
 
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
 	kkrpc.RegistReqRspHandler(rpcRouter, onEcho)

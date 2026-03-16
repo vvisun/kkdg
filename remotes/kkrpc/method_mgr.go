@@ -95,7 +95,7 @@ func NewMethodManager(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, pa
 
 //----------------------------------------------------------------
 
-func newReqResp[REQ any, RSP any](method string, methodMgr *MethodManager) error {
+func newReqResp[REQ any, RSP any](methodMgr *MethodManager, method string) error {
 	var vReq REQ
 	var vRsp RSP
 	var pReq *REQ
@@ -149,7 +149,7 @@ func newReqResp[REQ any, RSP any](method string, methodMgr *MethodManager) error
 	return nil
 }
 
-func newOneWay[REQ any](method string, methodMgr *MethodManager) error {
+func newOneWay[REQ any](methodMgr *MethodManager, method string) error {
 	var vReq REQ
 	var pReq *REQ
 

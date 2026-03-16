@@ -93,7 +93,7 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 
 	addr := freePortRpcStress(t)
 	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
+	RegisterReqRspMethod[testReq, testRsp](methodMgr)
 
 	successCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
@@ -194,7 +194,7 @@ func TestStress_Rpc_ConnectDisconnect(t *testing.T) {
 
 	addr := freePortRpcStress(t)
 	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
+	RegisterReqRspMethod[testReq, testRsp](methodMgr)
 
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
 	RegistReqRspHandler(rpcRouter, func(ctx context.Context, msg *testReq, resp *testRsp, connId kknet.CONN_ID) error {
@@ -245,7 +245,7 @@ func TestStress_Rpc_ConcurrentSingleConn(t *testing.T) {
 
 	addr := freePortRpcStress(t)
 	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
+	RegisterReqRspMethod[testReq, testRsp](methodMgr)
 
 	successCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver(ApplyOptions(
@@ -327,7 +327,7 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 
 	addr := freePortRpcStress(t)
 	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
-	RegisterOneWayMethod[testReq]("testOneway", methodMgr)
+	RegisterOneWayMethod[testReq](methodMgr)
 
 	recvCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)
@@ -421,7 +421,7 @@ func TestStress_Rpc_InvokeNR_ConcurrentSingleConn(t *testing.T) {
 
 	addr := freePortRpcStress(t)
 	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
-	RegisterOneWayMethod[testReq]("testOneway", methodMgr)
+	RegisterOneWayMethod[testReq](methodMgr)
 
 	recvCount := atomic.Int64{}
 	rpcRouter := NewRpcReceiver(DefaultRpcOption(), methodMgr)

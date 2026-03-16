@@ -17,8 +17,8 @@ import (
 func setupTestRpcManager(t *testing.T) *MethodManager {
 	t.Helper()
 	methodMgr := NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
-	RegisterReqRspMethod[testReq, testRsp]("testReqRsp", methodMgr)
-	RegisterOneWayMethod[testReq]("testOneway", methodMgr)
+	RegisterReqRspMethod[testReq, testRsp](methodMgr)
+	RegisterOneWayMethod[testReq](methodMgr)
 	return methodMgr
 }
 
