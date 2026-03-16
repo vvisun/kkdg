@@ -28,13 +28,13 @@ func Test_localDidcovery_basic(t *testing.T) {
 	}
 
 	// 解绑一个 session
-	m.onUnbindLogicNode("s2", nodeID)
+	m.onUnbindLogicNode("s2", nodeTypeA, nodeID)
 	if c := m.getSessionCount(nodeID); c != 2 {
 		t.Fatalf("getSessionCount(%q) after unbind = %d, want 2", nodeID, c)
 	}
 
 	// 解绑不存在的 session 不应 panic，数量不变
-	m.onUnbindLogicNode("s-not-exist", nodeID)
+	m.onUnbindLogicNode("s-not-exist", nodeTypeA, nodeID)
 	if c := m.getSessionCount(nodeID); c != 2 {
 		t.Fatalf("getSessionCount(%q) after unbind non-exist = %d, want 2", nodeID, c)
 	}
@@ -56,7 +56,7 @@ func Benchmark_localDidcovery_bind_unbind(b *testing.B) {
 		for pb.Next() {
 			sessionID := "s-" + strconv.Itoa(i)
 			m.onBindLogicNode(sessionID, "bench", nodeID)
-			m.onUnbindLogicNode(sessionID, nodeID)
+			m.onUnbindLogicNode(sessionID, "bench", nodeID)
 			i++
 		}
 	})

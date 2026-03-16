@@ -60,7 +60,7 @@ type gateComponent struct {
 	server    kknet.IServer
 	handler   *gateHandler
 
-	localDis  *localDidcovery
+	localDis  *localDiscovery
 	discovery kkdiscovery.IDiscovery
 	cluster   kkcluster.ICluster // cluster for forwarding messages to logic and client
 
@@ -334,7 +334,7 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 			slf.logicBindMgr.sessionUnbind(sid, msg.NodeType)
 		}
 		slf.logicBindMgr.userUnbind(user.USER_ID(msg.UserId), msg.NodeType)
-		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeId)
+		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeType, msg.NodeId)
 		slf.userMgr.removeUser(user.USER_ID(msg.UserId))
 	}
 }

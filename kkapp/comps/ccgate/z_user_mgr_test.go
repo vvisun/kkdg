@@ -15,7 +15,7 @@ func Test_userManager_basic(t *testing.T) {
 	sid := "s1"
 
 	// first login should not kick anyone
-	if kicks := m.addUser(uid, sid); kicks != nil && len(kicks) != 0 {
+	if kicks := m.addUser(uid, sid); kicks != nil {
 		t.Fatalf("addUser first login kicks = %#v, want none", kicks)
 	}
 
