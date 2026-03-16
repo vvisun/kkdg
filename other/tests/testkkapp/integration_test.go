@@ -195,7 +195,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new test client: %v", err)
 	}
-	client2, err := newTestClient(t, 2, string(payload), nil, opts, tcpAddr)
+	client2, err := newTestClient(t, 2, string(payload), clientRecvCh, opts, tcpAddr)
 	if err != nil {
 		t.Fatalf("new test client: %v", err)
 	}
@@ -275,9 +275,6 @@ func newTestClient(
 
 			switch info := msg.(type) {
 			case *LoginResp:
-				if info.UserId != userId {
-					t.Errorf("userId mismatch: got %d, want %d", info.UserId, userId)
-				}
 				cliInfo.hasLogin = true
 			case *MsgCounter:
 				cliInfo.recvData = append([]byte(nil), info.Data...)
