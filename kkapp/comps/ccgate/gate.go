@@ -155,43 +155,47 @@ func (slf *gateComponent) OnInit() error {
 			if !ok {
 				return
 			}
-			if msg.IsLogin {
-				kklog.Infof("[ccgate]客户端登录: %#v", msg)
-				cliInfo := slf.clientMgr.getClientBySessionId(msg.ClientId)
-				if cliInfo != nil {
-					bindTbl := cliInfo.clientBindTbl
-					if bindTbl != nil {
-						if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
-							lgcInfo.login(user.USER_ID(msg.UserId))
-						}
-					}
-					kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
-					if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
-						kickConns := make([]kknet.IConn, 0, len(kickList))
-						for _, sid := range kickList {
-							if conn, err := slf.sessionMgr.GetConn(sid); err == nil {
-								kickConns = append(kickConns, conn)
-							}
-						}
-						slf.opt.UserKickedCallback(kickConns)
-					}
-				}
-			} else {
-				kklog.Infof("[ccgate]客户端登出: %#v", msg)
-				bindTbl := slf.userMgr.getUserBindTable(user.USER_ID(msg.UserId))
-				if bindTbl != nil {
-					if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
-						lgcInfo.logout()
-					}
-					bindTbl.unbindLogicItem(msg.NodeType)
-				}
-				slf.logicTotalMgr.onUnbindLogicNode(msg.ClientId, msg.NodeId)
-				slf.userMgr.removeUser(user.USER_ID(msg.UserId))
-			}
+			slf.loginHook(msg)
 		}
 	})
 
 	return nil
+}
+
+func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
+	if msg.IsLogin {
+		kklog.Infof("[ccgate]客户端登录: %#v", msg)
+		cliInfo := slf.clientMgr.getClientBySessionId(msg.ClientId)
+		if cliInfo != nil {
+			bindTbl := cliInfo.clientBindTbl
+			if bindTbl != nil {
+				if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
+					lgcInfo.login(user.USER_ID(msg.UserId))
+				}
+			}
+			kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId, bindTbl)
+			if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
+				kickConns := make([]kknet.IConn, 0, len(kickList))
+				for _, kick := range kickList {
+					if conn, err := slf.sessionMgr.GetConn(kick.sessionId); err == nil {
+						kickConns = append(kickConns, conn)
+					}
+				}
+				slf.opt.UserKickedCallback(kickConns)
+			}
+		}
+	} else {
+		kklog.Infof("[ccgate]客户端登出: %#v", msg)
+		bindTbl := slf.userMgr.getUserBindTable(user.USER_ID(msg.UserId))
+		if bindTbl != nil {
+			if lgcInfo := bindTbl.getLogicItem(msg.NodeType); lgcInfo != nil {
+				lgcInfo.logout()
+			}
+			bindTbl.unbindLogicItem(msg.NodeType)
+		}
+		slf.logicTotalMgr.onUnbindLogicNode(msg.ClientId, msg.NodeId)
+		slf.userMgr.removeUser(user.USER_ID(msg.UserId))
+	}
 }
 
 func (slf *gateComponent) OnStart() error {

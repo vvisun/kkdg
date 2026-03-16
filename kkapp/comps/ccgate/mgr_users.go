@@ -7,6 +7,11 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+type kickInfo struct {
+	userId    user.USER_ID
+	sessionId string
+}
+
 type userManager struct {
 	mu sync.Mutex
 
@@ -33,7 +38,7 @@ func newUserManager() *userManager {
 //	踢出逻辑：
 //	1. 如果userId已经登录了其他会话，需踢出旧的会话。
 //	2. 如果当前会话已经登录了其他用户，需踢出该其他用户。
-func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl *clientBindTable) []string {
+func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl *clientBindTable) []kickInfo {
 	if bindTbl == nil {
 		kklog.Errorf("addUser: bindTbl is nil, userId: %d", userId)
 		return nil
@@ -43,7 +48,7 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl 
 		return nil
 	}
 
-	kickList := make([]string, 0)
+	kickList := make([]kickInfo, 0)
 
 	m.mu.Lock()
 
@@ -56,7 +61,7 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl 
 			}
 			delete(m.sid2uid, oldSid)
 			kklog.Debugf("kick out old user %d, sessionId: %s", oldUid, oldSid)
-			kickList = append(kickList, oldSid)
+			kickList = append(kickList, kickInfo{userId: oldUid, sessionId: oldSid})
 		}
 	}
 
@@ -66,7 +71,7 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string, bindTbl 
 			otherSid, ok := m.uid2sid[otherUid]
 			if ok {
 				delete(m.sid2uid, otherSid)
-				kickList = append(kickList, otherSid)
+				kickList = append(kickList, kickInfo{userId: otherUid, sessionId: otherSid})
 			}
 			delete(m.uid2sid, otherUid)
 			kklog.Debugf("kick out other user %d, sessionId: %s", otherUid, otherSid)
