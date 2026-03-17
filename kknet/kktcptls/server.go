@@ -126,14 +126,14 @@ func (s *Server) acceptLoop() {
 				s.handler.OnConnect(c)
 			})
 		}
-		s.opts.Logger.Debugf("kktcptls server OnConnect: connId=%d, count=%d", c.id, s.connMgr.GetCount())
+		// s.opts.Logger.Debugf("kktcptls server OnConnect: connId=%d, count=%d", c.id, s.connMgr.GetCount())
 
 		go func() {
 			defer s.connWg.Done()
 			err := c.readLoop()
 			c.closeWithError(s.handler, err)
 			s.connMgr.RemoveConn(c.id)
-			s.opts.Logger.Debugf("kktcptls server OnClose: connId=%d, count=%d", c.id, s.connMgr.GetCount())
+			// s.opts.Logger.Debugf("kktcptls server OnClose: connId=%d, count=%d", c.id, s.connMgr.GetCount())
 		}()
 	}
 }

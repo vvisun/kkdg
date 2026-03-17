@@ -104,14 +104,14 @@ func (s *Server) Start() error {
 				s.handler.OnConnect(wsConn)
 			})
 		}
-		s.opts.Logger.Debugf("kkws server OnConnect: connId=%d, count=%d", wsConn.id, s.connMgr.GetCount())
+		// s.opts.Logger.Debugf("kkws server OnConnect: connId=%d, count=%d", wsConn.id, s.connMgr.GetCount())
 
 		go func() {
 			defer s.connWg.Done()
 			err := wsConn.readLoop()
 			wsConn.closeWithError(s.handler, err)
 			s.connMgr.RemoveConn(wsConn.id)
-			s.opts.Logger.Debugf("kkws server OnClose: connId=%d, count=%d", wsConn.id, s.connMgr.GetCount())
+			// s.opts.Logger.Debugf("kkws server OnClose: connId=%d, count=%d", wsConn.id, s.connMgr.GetCount())
 		}()
 	})
 

@@ -260,7 +260,7 @@ func (h *gwsEventHandler) OnOpen(socket *gws.Conn) {
 			s.handler.OnConnect(c)
 		})
 	}
-	s.opts.Logger.Debugf("kkgws OnConnect: connId=%d, count=%d", c.id, s.connMgr.GetCount())
+	// s.opts.Logger.Debugf("kkgws OnConnect: connId=%d, count=%d", c.id, s.connMgr.GetCount())
 
 	c.startPingByTimingWheel()
 
@@ -277,7 +277,7 @@ func (h *gwsEventHandler) OnClose(socket *gws.Conn, err error) {
 	s := h.server
 	c.doClose(s.handler, err)
 	s.connMgr.RemoveConn(c.id)
-	s.opts.Logger.Debugf("kkgws OnClose: connId=%d, count=%d", c.id, s.connMgr.GetCount())
+	// s.opts.Logger.Debugf("kkgws OnClose: connId=%d, count=%d", c.id, s.connMgr.GetCount())
 }
 
 func (h *gwsEventHandler) OnPing(socket *gws.Conn, payload []byte) {
