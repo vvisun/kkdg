@@ -36,6 +36,7 @@ var (
 )
 
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
+var _ gatetrans.IMemberMgrGetter = (*transportorRpc)(nil)
 
 func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, rpcAddr string) (gatetrans.ITransportor, error) {
 	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)

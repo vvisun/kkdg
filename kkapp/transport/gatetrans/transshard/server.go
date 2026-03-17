@@ -17,7 +17,7 @@ import (
 
 type transportorShard struct {
 	logicServerMgr   *LogicServerMgr
-	logicConnMgr     sync.Map // map[connId]*ShardConn
+	shardConnMap     sync.Map // map[connId]*ShardConn, cache all ShardConn instances.
 	server           kknet.IServer
 	sessionMgr       gatetrans.ISessionManager
 	gateNodeId       string
@@ -30,6 +30,7 @@ type transportorShard struct {
 }
 
 var _ gatetrans.ITransportor = (*transportorShard)(nil)
+var _ gatetrans.IMemberMgrGetter = (*transportorShard)(nil)
 
 func NewTransportorShard(
 	addr string,
@@ -226,6 +227,38 @@ type shardHandler struct {
 	transporter *transportorShard
 }
 
+func (h *shardHandler) OnConnect(conn kknet.IConn) {
+	// 先记录到shardConnMap中，正式成为逻辑分片还需要逻辑服主动发送 RpcMsgRegister 消息进行注册。
+	shardConn := &ShardConn{
+		conn:     conn,
+		connId:   conn.ID(),
+		shardIdx: -1,
+		nodeId:   "",
+	}
+	h.transporter.shardConnMap.LoadOrStore(shardConn.connId, shardConn)
+}
+
+func (h *shardHandler) OnClose(conn kknet.IConn, err error) {
+	sc, ok := h.transporter.shardConnMap.Load(conn.ID())
+	if !ok {
+		return
+	}
+	connId := conn.ID()
+	shardConn := sc.(*ShardConn)
+	kklog.Infof("逻辑服shard连接关闭: nodeId=%s shardIdx=%d connId=%d err=%v",
+		shardConn.nodeId,
+		shardConn.shardIdx,
+		connId,
+		err,
+	)
+	// 移除分片
+	h.transporter.logicServerMgr.removeShardConn(shardConn.nodeId, shardConn.shardIdx)
+	// 移除shardConnMap中的记录
+	h.transporter.shardConnMap.Delete(connId)
+	// 清空shardConn
+	shardConn.clear()
+}
+
 func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	defer kkbuffer.Put(data)
 	transStreamTool := h.transporter.transStreamTool
@@ -250,7 +283,7 @@ func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		var msg ptotrans.RpcMsgRegister
 		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.logicServerMgr.addLogicServer(&msg)
-		if sc, ok := h.transporter.logicConnMgr.Load(connID); ok {
+		if sc, ok := h.transporter.shardConnMap.Load(connID); ok {
 			h.transporter.logicServerMgr.addShardConn(msg.NodeId, msg.ShardIdx, sc.(*ShardConn))
 		}
 	case ptotrans.MsgIDRpcS2Client: // 网关转发消息到客户端: 逻辑服->网关->客户端
@@ -272,27 +305,4 @@ func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 
 func (h *shardHandler) OnNoneCopy(connID kknet.CONN_ID, data []byte) {
 
-}
-
-func (h *shardHandler) OnConnect(conn kknet.IConn) {
-	shardConn := &ShardConn{
-		conn:     conn,
-		connId:   conn.ID(),
-		shardIdx: -1,
-		nodeId:   "",
-	}
-	h.transporter.logicConnMgr.LoadOrStore(shardConn.connId, shardConn)
-}
-
-func (h *shardHandler) OnClose(conn kknet.IConn, err error) {
-	sc, ok := h.transporter.logicConnMgr.Load(conn.ID())
-	if !ok {
-		return
-	}
-	connId := conn.ID()
-	shardConn := sc.(*ShardConn)
-	kklog.Infof("逻辑服shard连接关闭: nodeId=%s shardIdx=%d connId=%d err=%v",
-		shardConn.nodeId, shardConn.shardIdx, connId, err)
-	h.transporter.logicServerMgr.removeShardConn(shardConn.nodeId, shardConn.shardIdx)
-	h.transporter.logicConnMgr.Delete(connId)
 }

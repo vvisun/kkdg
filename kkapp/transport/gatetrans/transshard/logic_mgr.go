@@ -25,6 +25,8 @@ func (sc *ShardConn) clear() {
 	sc.connId = 0
 }
 
+//--------------------------------------------------
+
 type LogicServer struct {
 	nodeId   string
 	nodeType string
@@ -42,6 +44,21 @@ func (ls *LogicServer) GetNodeType() string {
 	return ls.nodeType
 }
 
+// activeShardConnCount 获取当前逻辑服的活跃分片数量。
+func (ls *LogicServer) activeShardConnCount() int {
+	ls.muConns.RLock()
+	count := 0
+	for _, sc := range ls.conns {
+		if sc != nil && sc.conn != nil {
+			count++
+		}
+	}
+	ls.muConns.RUnlock()
+	return count
+}
+
+//--------------------------------------------------
+
 type LogicServerMgr struct {
 	logicServerMap sync.Map // nodeId -> *LogicServer
 	registerMu     sync.Mutex
@@ -54,6 +71,9 @@ func (m *LogicServerMgr) Range(fn func(nodeId string, member gatetrans.IMember) 
 		ls := v.(*LogicServer)
 		if ls == nil {
 			return true
+		}
+		if ls.activeShardConnCount() == 0 {
+			return true // 如果逻辑服没有活跃分片，则不返回该逻辑服。
 		}
 		return fn(ls.nodeId, ls)
 	})
@@ -118,12 +138,8 @@ func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
 		return
 	}
 	ls.muConns.Lock()
-	shardConn := ls.conns[shardIdx]
 	ls.conns[shardIdx] = nil
 	ls.muConns.Unlock()
-	if shardConn != nil {
-		shardConn.clear()
-	}
 }
 
 func (m *LogicServerMgr) getShardConn(nodeId string, shardIdx int) (*ShardConn, error) {
