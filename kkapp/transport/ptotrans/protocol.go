@@ -10,6 +10,7 @@ const (
 	MsgIDRpcClientDisconnect  kkpacket.MSGID = 5
 	MsgIDRpcAllocClient       kkpacket.MSGID = 6
 	MsgIDRpcClientLoginLogout kkpacket.MSGID = 7
+	MsgIDRpcUnregister        kkpacket.MSGID = 8
 )
 
 type (
@@ -67,5 +68,11 @@ type (
 		NodeType   string //opt: 逻辑节点类型, 用于校验
 		NodeId     string //opt: 逻辑节点ID, 用于校验
 		GateNodeId string //opt: 网关节点ID, 用于校验
+	}
+
+	// MsgID: MsgIDRpcUnregister
+	// 逻辑服 -> 网关：逻辑服注销事件
+	RpcUnregister struct {
+		NodeId string //逻辑节点ID
 	}
 )

@@ -19,6 +19,7 @@ func InitRpcMsgs(methodMgr *kkrpc.MethodManager) {
 	kkrpc.RegisterOneWayMethod[RpcClientDisconnect](methodMgr)
 	kkrpc.RegisterOneWayMethod[RpcAllocClient](methodMgr)
 	kkrpc.RegisterOneWayMethod[RpcClientLoginLogout](methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcUnregister](methodMgr)
 }
 
 func InitShardMsgs(router *kkpacket.MsgRouter) {
@@ -28,17 +29,20 @@ func InitShardMsgs(router *kkpacket.MsgRouter) {
 }
 
 func initShardMsgs(router *kkpacket.MsgRouter) {
-	router.Register(1, &RpcMsgRegister{}, "logic")
-	router.Register(2, &RpcS2Client{}, "logic")
-	router.Register(3, &RpcS2Clients{}, "logic")
-	router.Register(4, &RpcC2S{}, "logic")
-	router.Register(5, &RpcClientDisconnect{}, "logic")
-	router.Register(6, &RpcAllocClient{}, "logic")
-	router.Register(7, &RpcClientLoginLogout{}, "logic")
+	router.Register(MsgIDRpcMsgRegister, &RpcMsgRegister{}, "logic")
+	router.Register(MsgIDRpcS2Client, &RpcS2Client{}, "logic")
+	router.Register(MsgIDRpcS2Clients, &RpcS2Clients{}, "logic")
+	router.Register(MsgIDRpcC2S, &RpcC2S{}, "logic")
+	router.Register(MsgIDRpcClientDisconnect, &RpcClientDisconnect{}, "logic")
+	router.Register(MsgIDRpcAllocClient, &RpcAllocClient{}, "logic")
+	router.Register(MsgIDRpcClientLoginLogout, &RpcClientLoginLogout{}, "logic")
+	router.Register(MsgIDRpcUnregister, &RpcUnregister{}, "logic")
 }
 
 // 网关与业务服之间的消息转发函数名。nats模式使用
 const (
+	// 逻辑服 -> 网关：逻辑服注册事件
+	FuncNameRegister = "register"
 	// 客户端->网关->业务服的消息转发函数名
 	FuncNameC2S = "c2s"
 	// 业务服->网关->客户端的消息转发函数名
@@ -51,4 +55,6 @@ const (
 	FuncNameAllocClient = "allocClient"
 	// 逻辑服 -> 网关：客户端登入登出事件
 	FuncNameClientLoginLogout = "clientLoginLogout"
+	// 逻辑服 -> 网关：逻辑服注销事件
+	FuncNameUnregister = "unregister"
 )

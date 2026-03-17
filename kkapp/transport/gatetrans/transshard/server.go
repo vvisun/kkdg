@@ -298,6 +298,10 @@ func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		var msg ptotrans.RpcClientLoginLogout
 		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.msgHooker.Notify(msgID, &msg)
+	case ptotrans.MsgIDRpcUnregister: // 逻辑服 -> 网关：逻辑服注销事件
+		var msg ptotrans.RpcUnregister
+		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		h.transporter.logicServerMgr.removeLogicServer(msg.NodeId)
 	default:
 		kklog.Errorf("shard handler on raw unknown message id: %d", msgID)
 	}

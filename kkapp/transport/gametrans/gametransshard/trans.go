@@ -11,6 +11,7 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/msgreceiver"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type transportorShard struct {
@@ -68,12 +69,35 @@ func (slf *transportorShard) Stop() error {
 	conns := make([]*gatewayClient, 0, transport.BackendShardCnt)
 	copy(conns, slf.conns[:])
 	slf.muConns.Unlock()
+
+	kklog.Infof("[分流] 停止分流，发送 RpcUnregister 到网关")
+
+	sended := false
 	for _, conn := range conns {
 		if conn != nil {
+			if !sended {
+				if err := slf.sendRpcUnregister(conn); err == nil {
+					sended = true
+				} else {
+					kklog.Warnf("[分流 %d] 发送 RpcUnregister 失败: %v", conn.shardIdx, err)
+				}
+			}
 			_ = conn.cli.Close()
 		}
 	}
 	return nil
+}
+
+func (slf *transportorShard) sendRpcUnregister(conn *gatewayClient) error {
+	msg := ptotrans.RpcUnregister{
+		NodeId: slf.nodeId,
+	}
+	bb, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
+	if err != nil {
+		kkbuffer.Put(bb)
+		return err
+	}
+	return conn.cli.SendBuffer(bb)
 }
 
 func (slf *transportorShard) getConn(shardIdx int) *gatewayClient {

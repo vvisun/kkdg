@@ -33,6 +33,7 @@ var (
 	onewayClientDisconnect  kkrpc.OneWayInvoker[ptotrans.RpcClientDisconnect]
 	onewayAllocClient       kkrpc.OneWayInvoker[ptotrans.RpcAllocClient]
 	onewayClientLoginLogout kkrpc.OneWayInvoker[ptotrans.RpcClientLoginLogout]
+	onewayUnregister        kkrpc.OneWayInvoker[ptotrans.RpcUnregister]
 )
 
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
@@ -51,6 +52,7 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onS2Clients)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onC2S)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onClientLoginLogout)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onUnregister)
 
 	rpcSvr := kkrpc.NewServer(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcSvr.Start(); err != nil {
@@ -65,6 +67,7 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr)
 	onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcSvr)
 	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcSvr)
+	onewayUnregister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcSvr)
 
 	trans := &transportorRpc{
 		sessionMgr:   sessionMgr,

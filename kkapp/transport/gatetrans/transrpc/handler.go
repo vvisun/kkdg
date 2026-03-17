@@ -41,3 +41,8 @@ func (rh *rpcHandler) onClientLoginLogout(ctx context.Context, msg *ptotrans.Rpc
 	rh.trans.msgHooker.Notify(ptotrans.MsgIDRpcClientLoginLogout, msg)
 	return nil
 }
+
+func (rh *rpcHandler) onUnregister(ctx context.Context, msg *ptotrans.RpcUnregister, connId kknet.CONN_ID) error {
+	rh.trans.logicNodeMgr.unregisterLogicNode(msg.NodeId)
+	return nil
+}

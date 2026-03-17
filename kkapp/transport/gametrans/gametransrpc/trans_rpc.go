@@ -35,6 +35,7 @@ var (
 	onewayAllocClient       kkrpc.OneWayInvoker[ptotrans.RpcAllocClient]
 	onewayClientDisconnect  kkrpc.OneWayInvoker[ptotrans.RpcClientDisconnect]
 	onewayClientLoginLogout kkrpc.OneWayInvoker[ptotrans.RpcClientLoginLogout]
+	onewayUnregister        kkrpc.OneWayInvoker[ptotrans.RpcUnregister]
 )
 
 func NewTransportorRpc(
@@ -69,6 +70,7 @@ func NewTransportorRpc(
 	onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcClient)
 	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcClient)
 	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcClient)
+	onewayUnregister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcClient)
 
 	trans := &transportorRpc{
 		sessionMgr:       sessionMgr,
@@ -90,6 +92,11 @@ func (slf *transportorRpc) Stop() error {
 	if slf.stopped {
 		return nil
 	}
+
+	onewayUnregister.InvokeNR(context.Background(), &ptotrans.RpcUnregister{
+		NodeId: slf.nodeInfo.GetNodeId(),
+	}, kkrpc.CallConfig{})
+
 	slf.stopped = true
 	return slf.rpcClient.Stop()
 }
@@ -238,6 +245,10 @@ func (slf *transportorRpc) NotifyClientLoginLogout(sessionID string, userId int6
 	return onewayClientLoginLogout.InvokeNR(context.Background(), &msg, kkrpc.CallConfig{})
 }
 
+func (slf *transportorRpc) GetSessionManager() *gametrans.SessionManager {
+	return slf.sessionMgr
+}
+
 //----------------------------------------------------------------
 
 type rpcHandler struct {
@@ -265,8 +276,4 @@ func (rh *rpcHandler) onClientDisconnect(ctx context.Context, msg *ptotrans.RpcC
 	}
 	kklog.Debugf("[gametransrpc] 客户端断开 clientId=%s clientIds=%v", msg.ClientId, msg.ClientIds)
 	return nil
-}
-
-func (slf *transportorRpc) GetSessionManager() *gametrans.SessionManager {
-	return slf.sessionMgr
 }
