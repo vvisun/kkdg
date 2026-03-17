@@ -47,12 +47,6 @@ func runGate() *component.Application {
 		ClusterUrl:      examapp.NatsURL,
 		LogicNodeType:   kkapp.NodeTypeLogic,
 		TransType:       examapp.UseTransType,
-		RecvQueueFullCallback: func(conn kknet.IConn) {
-			conn.SendMsg(&ptoexam.TipServerBusy{
-				Code:    1,
-				Message: "server busy",
-			})
-		},
 	}
 	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())
 	if err := gateApp.AddComponent(gate); err != nil {
@@ -61,5 +55,26 @@ func runGate() *component.Application {
 	if err := gateApp.Start(); err != nil {
 		kklog.Errorf("gate start: %v", err)
 	}
+	gate.SetErrCallback(func(conn kknet.IConn, errCode ccgate.GateErrorCode) {
+		switch errCode {
+		case ccgate.ERR_RECV_QUEUE_FULL, ccgate.ERR_ALLOC_LOGIC_NODE_FAILED:
+			conn.SendMsg(&ptoexam.TipServerBusy{
+				Code:    1,
+				Message: "服务器繁忙，请稍后再试",
+			})
+		case ccgate.ERR_CLIENT_INVALID_PACKET:
+			conn.SendMsg(&ptoexam.ErrorMsg{
+				Code:    1,
+				Message: "协议版本不匹配，请更新客户端",
+			})
+			conn.Close()
+		case ccgate.ERR_USER_KICKED:
+			conn.SendMsg(&ptoexam.TipServerBusy{
+				Code:    1,
+				Message: "账号已在其他地方登录，请确认是否是本人操作",
+			})
+			conn.Close()
+		}
+	})
 	return gateApp
 }

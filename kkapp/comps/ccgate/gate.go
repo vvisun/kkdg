@@ -70,6 +70,8 @@ type gateComponent struct {
 	clientMgr    *clientManager
 	userMgr      *userManager
 	logicBindMgr *logicBindManager
+
+	errCallback ErrCallback
 }
 
 // NewGateComponent creates a new gate component.
@@ -242,7 +244,9 @@ func (slf *gateComponent) startTCPServer() error {
 		kknet.WithStreamTool(appOpts.StreamTool),
 		kknet.WithMsgPacket(appOpts.ClientMsgPacket),
 		kknet.WithRawHandler(slf.handler),
-		kknet.WithRecvQueueFullCallback(slf.opt.RecvQueueFullCallback),
+		kknet.WithRecvQueueFullCallback(func(conn kknet.IConn) {
+			slf.feedCallback(conn.ID(), ERR_RECV_QUEUE_FULL)
+		}),
 	)
 	server := kktcp.NewServer(slf.opt.TCPAddr, slf.handler, opts)
 
@@ -269,7 +273,9 @@ func (slf *gateComponent) startWSServer() error {
 		kknet.WithRecvQueueSize(128),
 		kknet.WithRecvQueueStrict(true),
 		kknet.WithRecvBufShrinkCap(2*1024),
-		kknet.WithRecvQueueFullCallback(slf.opt.RecvQueueFullCallback),
+		kknet.WithRecvQueueFullCallback(func(conn kknet.IConn) {
+			slf.feedCallback(conn.ID(), ERR_RECV_QUEUE_FULL)
+		}),
 	)
 	server := kkgws.NewServer(slf.opt.WSAddr, slf.handler, opts)
 
@@ -324,13 +330,13 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 		slf.logicBindMgr.userBind(user.USER_ID(msg.UserId), msg.NodeType, msg.NodeId)
 
 		kickList := slf.userMgr.onUserLogin(user.USER_ID(msg.UserId), msg.ClientId)
-		if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
+		if slf.errCallback != nil && len(kickList) > 0 {
 			for _, kick := range kickList {
 				if conn, err := slf.sessionMgr.GetConn(kick.sessionId); err == nil {
 					// 从客户端管理器中移除，不再接收被踢连接的消息。
 					slf.clientMgr.removeClient(conn.ID())
 					// 通知业务层，用户被顶号/被踢出会话。
-					slf.feedCallback(conn.ID(), slf.opt.UserKickedCallback)
+					slf.feedCallback(conn.ID(), ERR_USER_KICKED)
 				}
 			}
 		}
@@ -438,14 +444,20 @@ func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
 	return "", false
 }
 
-func (slf *gateComponent) feedCallback(connId kknet.CONN_ID, fn func(conn kknet.IConn)) {
-	if fn == nil {
+// 设置错误回调。非线程安全，一般在初始化时设置即可。
+func (slf *gateComponent) SetErrCallback(fn ErrCallback) {
+	slf.errCallback = fn
+}
+
+func (slf *gateComponent) feedCallback(connId kknet.CONN_ID, errCode GateErrorCode) {
+	if slf.errCallback == nil || slf.server.GetConnManager().GetConn(connId) == nil {
 		return
 	}
-	conn := slf.server.GetConnManager().GetConn(connId)
-	if conn != nil {
-		fn(conn)
-	}
+	xcall.AntsSafeGo(func() {
+		if conn := slf.server.GetConnManager().GetConn(connId); conn != nil {
+			slf.errCallback(conn, errCode)
+		}
+	})
 }
 
 //------------------------------------------------------------
@@ -496,17 +508,17 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	appOpts := h.gate.GetApplication().GetOptions()
 	msgBytes, err := appOpts.StreamTool.MessageBytes(data.B)
 	if err != nil {
-		h.gate.feedCallback(connID, h.gate.opt.ClientInvalidPacketCallback)
+		h.gate.feedCallback(connID, ERR_CLIENT_INVALID_PACKET)
 		return
 	}
 	msgID, err := appOpts.ClientMsgPacket.GetMsgID(msgBytes)
 	if err != nil {
-		h.gate.feedCallback(connID, h.gate.opt.ClientInvalidPacketCallback)
+		h.gate.feedCallback(connID, ERR_CLIENT_INVALID_PACKET)
 		return
 	}
 	route, err := appOpts.ClientMsgPacket.GetRouter().GetMsgRoute(msgID)
 	if err != nil {
-		h.gate.feedCallback(connID, h.gate.opt.ClientInvalidPacketCallback)
+		h.gate.feedCallback(connID, ERR_CLIENT_INVALID_PACKET)
 		return
 	}
 
@@ -514,7 +526,7 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	logicNode := h.gate.allocLogicNode(connID, route)
 	if logicNode == nil {
 		// 通知客户端分配逻辑服失败
-		h.gate.feedCallback(connID, h.gate.opt.AllocLogicNodeFailedCallback)
+		h.gate.feedCallback(connID, ERR_ALLOC_LOGIC_NODE_FAILED)
 		return
 	}
 
@@ -522,6 +534,6 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
 		// 通知业务层，转发逻辑服失败。一般是逻辑服已断线或网络异常，直接当成服务器繁忙反馈。
-		h.gate.feedCallback(connID, h.gate.opt.RecvQueueFullCallback)
+		h.gate.feedCallback(connID, ERR_RECV_QUEUE_FULL)
 	}
 }
