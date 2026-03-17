@@ -146,6 +146,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 		if sessionInfo == nil {
 			sessionInfo = trans.sessionMgr.AddSessionWithShard(msg.ClientId, msg.GateNodeId, h.shardIdx)
 		}
+		// 注意：这里的trans.msgReceiver是外部传进来的一个指针，所以存在多个分流客户端共用一个msgReceiver的情况。
 		trans.msgReceiver.OnSession(msg.ClientId, msg.Payload, sessionInfo.GetThreadIdx())
 	case ptotrans.MsgIDRpcClientDisconnect: // 客户端断开事件
 		var msg ptotrans.RpcClientDisconnect
