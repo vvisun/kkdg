@@ -496,17 +496,17 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	appOpts := h.gate.GetApplication().GetOptions()
 	msgBytes, err := appOpts.StreamTool.MessageBytes(data.B)
 	if err != nil {
-		kklog.Warnf("[ccgate] get message bytes error: %v", err)
+		h.gate.feedCallback(connID, h.gate.opt.ClientInvalidPacketCallback)
 		return
 	}
 	msgID, err := appOpts.ClientMsgPacket.GetMsgID(msgBytes)
 	if err != nil {
-		kklog.Warnf("[ccgate] get message id error: %v", err)
+		h.gate.feedCallback(connID, h.gate.opt.ClientInvalidPacketCallback)
 		return
 	}
 	route, err := appOpts.ClientMsgPacket.GetRouter().GetMsgRoute(msgID)
 	if err != nil {
-		kklog.Warnf("[ccgate] get message route error: %v", err)
+		h.gate.feedCallback(connID, h.gate.opt.ClientInvalidPacketCallback)
 		return
 	}
 
@@ -521,7 +521,6 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	// 将客户端消息原样转发给逻辑服
 	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
-		// kklog.Debugf("[ccgate] forward to logic error: %v", err)
 		// 通知业务层，转发逻辑服失败。一般是逻辑服已断线或网络异常，直接当成服务器繁忙反馈。
 		h.gate.feedCallback(connID, h.gate.opt.RecvQueueFullCallback)
 	}

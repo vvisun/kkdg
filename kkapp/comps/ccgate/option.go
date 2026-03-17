@@ -35,6 +35,9 @@ type Option struct {
 	AllocLogicNodeFailedCallback func(conn kknet.IConn)
 	// 用户被顶号/被踢出会话回调。需要投递给业务回调，发送顶号消息给被踢的连接。
 	UserKickedCallback func(conn kknet.IConn)
+	// 收到来自客户端的异常数据包时回调。一般可能是客户端版本不匹配，也可能是异常流量攻击。
+	// 建议反馈一个错误码给客户端，提示客户端稍后再试。然后掐断连接，既能通知正常客户端，又能防御攻击。
+	ClientInvalidPacketCallback func(conn kknet.IConn)
 }
 
 func DefaultOption() Option {
@@ -142,5 +145,11 @@ func WithAllocLogicNodeFailedCallback(callback func(conn kknet.IConn)) func(o *O
 func WithUserKickedCallback(callback func(conn kknet.IConn)) func(o *Option) {
 	return func(o *Option) {
 		o.UserKickedCallback = callback
+	}
+}
+
+func WithClientInvalidPacketCallback(callback func(conn kknet.IConn)) func(o *Option) {
+	return func(o *Option) {
+		o.ClientInvalidPacketCallback = callback
 	}
 }
