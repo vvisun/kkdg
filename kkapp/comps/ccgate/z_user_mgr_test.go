@@ -121,7 +121,7 @@ func Benchmark_userManager_addUser(b *testing.B) {
 	m := newUserManager()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		uid := user.USER_ID(i)
+		uid := user.USER_ID(i + 1)
 		sid := "s-" + strconv.Itoa(i)
 		_ = m.addUser(uid, sid)
 	}
@@ -131,13 +131,13 @@ func Benchmark_userManager_addUser(b *testing.B) {
 func Benchmark_userManager_get_remove(b *testing.B) {
 	m := newUserManager()
 	for i := 0; i < b.N; i++ {
-		uid := user.USER_ID(i)
+		uid := user.USER_ID(i + 1)
 		sid := "s-" + strconv.Itoa(i)
 		_ = m.addUser(uid, sid)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		uid := user.USER_ID(i)
+		uid := user.USER_ID(i + 1)
 		_, _ = m.getSessionIdByUserId(uid)
 		m.removeUser(uid)
 	}
@@ -150,7 +150,7 @@ func Benchmark_userManager_add_get_remove_parallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			uid := user.USER_ID(i)
+			uid := user.USER_ID(i + 1)
 			sid := "s-" + strconv.Itoa(i)
 			_ = m.addUser(uid, sid)
 			_, _ = m.getSessionIdByUserId(uid)

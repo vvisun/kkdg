@@ -16,7 +16,7 @@ type kickInfo struct {
 //  1. 用户登入时加入，登出时移除。
 //  2. 管理用户ID与sessionId的映射关系。
 type userManager struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	uid2sid map[user.USER_ID]string //user.USER_ID -> sessionId
 	sid2uid map[string]user.USER_ID //sessionId -> user.USER_ID
 }
@@ -35,8 +35,7 @@ func newUserManager() *userManager {
 //	1. 如果userId已经登录了其他会话，需踢出旧的会话。
 //	2. 如果当前会话已经登录了其他用户，需踢出该其他用户。
 func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kickInfo {
-	var kickList []kickInfo
-	hasKick := false
+	var kickList []kickInfo = nil
 
 	// 如果userId已经登录了其他会话，需踢出旧的会话
 	if oldSid, ok := m.uid2sid[userId]; ok {
@@ -47,10 +46,6 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 			}
 			delete(m.sid2uid, oldSid)
 			kklog.Debugf("kick out old user %d, sessionId: %s", oldUid, oldSid)
-			if !hasKick {
-				kickList = make([]kickInfo, 0)
-				hasKick = true
-			}
 			kickList = append(kickList, kickInfo{userId: oldUid, sessionId: oldSid})
 		}
 	}
@@ -61,10 +56,6 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 			otherSid, ok := m.uid2sid[otherUid]
 			if ok {
 				delete(m.sid2uid, otherSid)
-				if !hasKick {
-					kickList = make([]kickInfo, 0)
-					hasKick = true
-				}
 				kickList = append(kickList, kickInfo{userId: otherUid, sessionId: otherSid})
 			}
 			delete(m.uid2sid, otherUid)
@@ -120,9 +111,9 @@ func (m *userManager) onSessionDisconnect(sessionId string) {
 
 // 获取会话ID对应的用户ID。
 func (m *userManager) getUserIdBySessionId(sessionId string) (user.USER_ID, bool) {
-	m.mu.Lock()
+	m.mu.RLock()
 	v, ok := m.sid2uid[sessionId]
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	if !ok {
 		return user.NULL_USER_ID, false
 	}
@@ -131,9 +122,9 @@ func (m *userManager) getUserIdBySessionId(sessionId string) (user.USER_ID, bool
 
 // 获取用户ID对应的会话ID。
 func (m *userManager) getSessionIdByUserId(userId user.USER_ID) (string, bool) {
-	m.mu.Lock()
+	m.mu.RLock()
 	v, ok := m.uid2sid[userId]
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	if !ok {
 		return "", false
 	}
