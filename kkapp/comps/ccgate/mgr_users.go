@@ -42,6 +42,12 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 		if oldSid != "" && oldSid != curSessionId {
 			oldUid, ok := m.sid2uid[oldSid]
 			if ok {
+				if oldUid != userId && oldUid != user.NULL_USER_ID {
+					// 旧的uid和sid的绑定关系不一致，说明出bug了。
+					kklog.Errorf("checkKick: userId: %d, curSessionId: %s, oldUid: %d, oldSid: %s",
+						userId, curSessionId, oldUid, oldSid,
+					)
+				}
 				delete(m.uid2sid, oldUid)
 			}
 			delete(m.sid2uid, oldSid)
@@ -50,11 +56,17 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 		}
 	}
 
-	// 如果当前会话已经登录了其他用户，需踢出该其他用户。理论上不可能，但是依旧防御性检查
+	// 如果当前会话已经登录了其他用户，需踢出该其他用户。
 	if otherUid, ok := m.sid2uid[curSessionId]; ok {
 		if otherUid != user.NULL_USER_ID && otherUid != userId {
 			otherSid, ok := m.uid2sid[otherUid]
 			if ok {
+				if m.sid2uid[otherSid] != otherUid && m.sid2uid[otherSid] != user.NULL_USER_ID {
+					// 其他用户的uid和sid的绑定关系不一致，说明出bug了。
+					kklog.Errorf("checkKick: userId: %d, curSessionId: %s, otherUid: %d, otherSid: %s",
+						userId, curSessionId, otherUid, otherSid,
+					)
+				}
 				delete(m.sid2uid, otherSid)
 				kickList = append(kickList, kickInfo{userId: otherUid, sessionId: otherSid})
 			}
