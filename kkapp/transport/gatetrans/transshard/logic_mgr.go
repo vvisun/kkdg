@@ -2,6 +2,7 @@ package transshard
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
@@ -28,10 +29,11 @@ func (sc *ShardConn) clear() {
 //--------------------------------------------------
 
 type LogicServer struct {
-	nodeId   string
-	nodeType string
-	conns    [transport.BackendShardCnt]*ShardConn
-	muConns  sync.RWMutex
+	nodeId               string
+	nodeType             string
+	conns                [transport.BackendShardCnt]*ShardConn
+	muConns              sync.RWMutex
+	activeShardConnCount int32
 }
 
 var _ gatetrans.IMember = (*LogicServer)(nil)
@@ -44,17 +46,14 @@ func (ls *LogicServer) GetNodeType() string {
 	return ls.nodeType
 }
 
-// activeShardConnCount 获取当前逻辑服的活跃分片数量。
-func (ls *LogicServer) activeShardConnCount() int {
-	ls.muConns.RLock()
+func (ls *LogicServer) updateActiveShardConnCount() {
 	count := 0
 	for _, sc := range ls.conns {
 		if sc != nil && sc.conn != nil {
 			count++
 		}
 	}
-	ls.muConns.RUnlock()
-	return count
+	atomic.StoreInt32(&ls.activeShardConnCount, int32(count))
 }
 
 //--------------------------------------------------
@@ -72,7 +71,7 @@ func (m *LogicServerMgr) Range(fn func(nodeId string, member gatetrans.IMember) 
 		if ls == nil {
 			return true
 		}
-		if ls.activeShardConnCount() == 0 {
+		if atomic.LoadInt32(&ls.activeShardConnCount) == 0 {
 			return true // 如果逻辑服没有活跃分片，则不返回该逻辑服。
 		}
 		return fn(ls.nodeId, ls)
@@ -125,6 +124,7 @@ func (m *LogicServerMgr) addShardConn(nodeId string, shardIdx int, conn *ShardCo
 	conn.nodeId = nodeId
 	conn.shardIdx = shardIdx
 	ls.conns[shardIdx] = conn
+	ls.updateActiveShardConnCount()
 	ls.muConns.Unlock()
 	kklog.Infof("逻辑服 shard 已挂接: nodeId=%s shardIdx=%d", nodeId, shardIdx)
 }
@@ -139,6 +139,7 @@ func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
 	}
 	ls.muConns.Lock()
 	ls.conns[shardIdx] = nil
+	ls.updateActiveShardConnCount()
 	ls.muConns.Unlock()
 }
 
