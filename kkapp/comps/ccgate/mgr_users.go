@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/user"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type kickInfo struct {
@@ -39,15 +38,10 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 
 	// 如果userId已经登录了其他会话，需踢出旧的会话
 	if oldSid, ok := m.uid2sid[userId]; ok {
-		if oldSid != "" && oldSid != curSessionId {
+		if oldSid != "" && oldSid != curSessionId { // 表明用户是从新的连接登录
+			// 踢出旧的会话
 			oldUid, ok := m.sid2uid[oldSid]
 			if ok {
-				if m.uid2sid[oldUid] != "" && m.uid2sid[oldUid] != oldSid {
-					// 旧的uid和sid的绑定关系不一致，说明出bug了。
-					kklog.Errorf("checkKick: userId: %d, curSessionId: %s, oldUid: %d, oldSid: %s",
-						userId, curSessionId, oldUid, oldSid,
-					)
-				}
 				delete(m.uid2sid, oldUid)
 			}
 			delete(m.sid2uid, oldSid)
@@ -59,14 +53,13 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 	if otherUid, ok := m.sid2uid[curSessionId]; ok {
 		if otherUid != user.NULL_USER_ID && otherUid != userId {
 			if otherSid, ok := m.uid2sid[otherUid]; ok {
-				if otherSid != "" && m.sid2uid[otherSid] != user.NULL_USER_ID && m.sid2uid[otherSid] != otherUid {
-					// 其他用户的uid和sid的绑定关系不一致，说明出bug了。
-					kklog.Errorf("checkKick: userId: %d, curSessionId: %s, otherUid: %d, otherSid: %s",
-						userId, curSessionId, otherUid, otherSid,
-					)
+				// 因为是同一个sessionId上新user顶号旧user，理论上otherSid应该等于curSessionId。
+				// 如果otherSid不等于curSessionId，说明出bug了。
+				if otherSid != "" && otherSid != curSessionId {
+					// 将有bug的sid和uid的绑定关系删除。
+					delete(m.sid2uid, otherSid)
+					kickList = append(kickList, kickInfo{userId: otherUid, sessionId: otherSid})
 				}
-				delete(m.sid2uid, otherSid)
-				kickList = append(kickList, kickInfo{userId: otherUid, sessionId: otherSid})
 			}
 			delete(m.uid2sid, otherUid)
 		}
