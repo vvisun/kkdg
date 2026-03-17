@@ -140,11 +140,17 @@ func (slf *gateComponent) OnInit() error {
 	appOpts := slf.GetApplication().GetOptions()
 	nodeInfo := slf.GetApplication().GetNodeInfo()
 
+	transMsgPacket := kkpacket.NewMessagePacket(
+		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+		appOpts.TransportorCodec,
+		kkpacket.NewMsgRouter(),
+	)
+
 	// 初始化 transportor
 	switch slf.opt.TransType {
 	case transport.TransTypeNats:
 		transportor, err := transnat.NewTransportorNats(
-			slf.cluster, slf.sessionMgr, appOpts.TransMsgPacket, appOpts.StreamTool)
+			slf.cluster, slf.sessionMgr, transMsgPacket, appOpts.StreamTool)
 		if err != nil {
 			return err
 		}
@@ -159,7 +165,7 @@ func (slf *gateComponent) OnInit() error {
 	case transport.TransTypeShard:
 		transportor, err := transshard.NewTransportorShard(
 			slf.opt.TransServerAddr, slf.sessionMgr, nodeInfo.GetNodeId(),
-			appOpts.TransMsgPacket, appOpts.ClientMsgPacket, appOpts.StreamTool, appOpts.StreamTool)
+			transMsgPacket, appOpts.ClientMsgPacket, appOpts.StreamTool, appOpts.StreamTool)
 		if err != nil {
 			return err
 		}

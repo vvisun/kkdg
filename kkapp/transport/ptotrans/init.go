@@ -23,12 +23,6 @@ func InitRpcMsgs(methodMgr *kkrpc.MethodManager) {
 }
 
 func InitShardMsgs(router *kkpacket.MsgRouter) {
-	initShardOnce.Do(func() {
-		initShardMsgs(router)
-	})
-}
-
-func initShardMsgs(router *kkpacket.MsgRouter) {
 	router.Register(MsgIDRpcMsgRegister, &RpcMsgRegister{}, "logic")
 	router.Register(MsgIDRpcS2Client, &RpcS2Client{}, "logic")
 	router.Register(MsgIDRpcS2Clients, &RpcS2Clients{}, "logic")

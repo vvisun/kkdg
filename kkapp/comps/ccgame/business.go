@@ -91,6 +91,12 @@ func (slf *gameComponent) OnInit() error {
 	msgReceiver := msgreceiver.NewMsgReceiver[string](packetTool)
 	slf.msgReceiver = msgReceiver
 
+	transMsgPacket := kkpacket.NewMessagePacket(
+		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
+		appOpts.TransportorCodec,
+		kkpacket.NewMsgRouter(),
+	)
+
 	// 初始化 transportor
 	switch slf.opt.TransType {
 	case transport.TransTypeNats:
@@ -99,7 +105,7 @@ func (slf *gameComponent) OnInit() error {
 			slf.msgReceiver,
 			slf.sessionManager,
 			slf.GetApplication().GetNodeInfo(),
-			appOpts.TransMsgPacket,
+			transMsgPacket,
 			appOpts.ClientMsgPacket,
 			appOpts.StreamTool,
 			appOpts.StreamTool,
@@ -127,7 +133,7 @@ func (slf *gameComponent) OnInit() error {
 			slf.msgReceiver,
 			slf.opt.RpcAddr,
 			slf.GetApplication().GetNodeInfo(),
-			appOpts.TransMsgPacket,
+			transMsgPacket,
 			appOpts.ClientMsgPacket,
 			appOpts.StreamTool,
 			appOpts.StreamTool,

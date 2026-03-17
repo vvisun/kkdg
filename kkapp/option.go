@@ -7,9 +7,14 @@ import (
 )
 
 type AppOptions struct {
-	StreamTool      kkpacket.IPacket
+	// 理论上可以分别设置transport和client的stream工具。
+	// 但为了简化配置，直接都使用同一个了，影响不大，就是一个[length]字段用2字节还是4字节的问题而已。
+	StreamTool kkpacket.IPacket
+	// 客户端与服务器之间的协议约定。
+	// ClientMsgPacket.router外部应该为他注册消息。否则客户端发来消息时，找不到对应的编解码器。
 	ClientMsgPacket *kkpacket.MessagePacket
-	TransMsgPacket  *kkpacket.MessagePacket
+	// 转发层的消息编解码器。
+	TransportorCodec kkcodec.ICodec
 }
 
 func DefaultOptions() AppOptions {
@@ -20,11 +25,7 @@ func DefaultOptions() AppOptions {
 			kkcodec.GetCodec(kkcodec.CodecTypeJson),
 			kkpacket.NewMsgRouter(),
 		),
-		TransMsgPacket: kkpacket.NewMessagePacket(
-			kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-			kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
-			kkpacket.NewMsgRouter(),
-		),
+		TransportorCodec: kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
 	}
 }
 
@@ -44,13 +45,9 @@ func CheckOptions(opt *AppOptions) {
 			kkpacket.NewMsgRouter(),
 		)
 	}
-	if opt.TransMsgPacket == nil {
+	if opt.TransportorCodec == nil {
 		kklog.Warnf("[kkapp] trans msg packet is nil, use default trans msg packet")
-		opt.TransMsgPacket = kkpacket.NewMessagePacket(
-			kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
-			kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
-			kkpacket.NewMsgRouter(),
-		)
+		opt.TransportorCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 	}
 }
 
@@ -83,11 +80,8 @@ func WithClientMsgPacket(clientMsgPacket *kkpacket.MessagePacket) func(o *AppOpt
 	}
 }
 
-func WithTransMsgPacket(transMsgPacket *kkpacket.MessagePacket) func(o *AppOptions) {
+func WithTransportorCodec(codec kkcodec.ICodec) func(o *AppOptions) {
 	return func(o *AppOptions) {
-		if transMsgPacket == nil {
-			return
-		}
-		o.TransMsgPacket = transMsgPacket
+		o.TransportorCodec = codec
 	}
 }
