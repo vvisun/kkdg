@@ -318,7 +318,7 @@ func (slf *gateComponent) onClientConnClose(c kknet.IConn) {
 
 func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 	if msg.IsLogin {
-		kklog.Debugf("[ccgate]客户端登录: %#v", msg)
+		kklog.Debugf("[ccgate]客户端登录逻辑服成功: %#v", msg)
 
 		slf.logicBindMgr.userBind(user.USER_ID(msg.UserId), msg.NodeType, msg.NodeId)
 
@@ -334,11 +334,7 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 			}
 		}
 	} else {
-		kklog.Debugf("[ccgate]客户端登出: %#v", msg)
-		sid, ok := slf.userMgr.getSessionIdByUserId(user.USER_ID(msg.UserId))
-		if ok {
-			slf.logicBindMgr.sessionUnbind(sid, msg.NodeType)
-		}
+		kklog.Debugf("[ccgate]客户端登出逻辑服成功: %#v", msg)
 		slf.logicBindMgr.userUnbind(user.USER_ID(msg.UserId), msg.NodeType)
 		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeType, msg.NodeId)
 		slf.userMgr.onUserLogout(user.USER_ID(msg.UserId))
