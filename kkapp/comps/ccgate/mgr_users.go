@@ -66,7 +66,7 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 	return kickList
 }
 
-// 用户登录时，记录用户与会话的绑定关系
+// 用户登录某逻辑服时
 //
 //	返回需要踢出的会话ID列表。需要投递给业务回调，发送顶号消息给被踢的连接。
 //	踢出逻辑详见checkKick
@@ -89,7 +89,7 @@ func (m *userManager) onUserLogin(userId user.USER_ID, curSessionId string) []ki
 	return kickList
 }
 
-// 用户登出时，清除所有记录
+// 用户登出某逻辑服时
 func (m *userManager) onUserLogout(userId user.USER_ID) {
 	m.mu.Lock()
 	if sid, ok := m.uid2sid[userId]; ok {
