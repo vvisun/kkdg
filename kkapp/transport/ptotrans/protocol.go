@@ -44,14 +44,16 @@ type (
 	}
 
 	// MsgID: MsgIDRpcClientDisconnect
-	// 网关 -> 逻辑服：客户端断开事件
+	// 网关 -> 逻辑服：客户端断开事件。
+	// 逻辑服的视角相当于连接到本逻辑服的某个客户端断开连接。
 	RpcClientDisconnect struct {
 		ClientId  string   //sessionID
 		ClientIds []string //sessionID列表
 	}
 
 	// MsgID: MsgIDRpcAllocClient
-	// 网关 -> 逻辑服：分配客户端到本逻辑服
+	// 网关 -> 逻辑服：分配客户端到本逻辑服。
+	// 逻辑服的视角相当于某个客户端连接到本逻辑服。
 	RpcAllocClient struct {
 		ClientId string //sessionID
 	}
