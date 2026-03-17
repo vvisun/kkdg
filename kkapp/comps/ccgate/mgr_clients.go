@@ -8,7 +8,9 @@ import (
 
 // 客户端连接管理器。
 //  1. 生命周期为连接级。新建连接时添加，连接断开时移除。
-//  2. 主要用于管理网关侧connId和sessionId的映射关系，以及索引所有连接（按connId和sessionId）
+//  2. 管理所有有效的客户端。
+//  3. 某客户端被踢出会话时，从管理器中移除，便能做到不再接收被踢连接的消息。
+//     后续可以根据connId或sessionId查找kknet.IConnManager或gate.sessionMgr，进行关闭。
 type clientManager struct {
 	muMaps     sync.RWMutex
 	connMap    map[kknet.CONN_ID]string //kknet.CONN_ID -> sessionId
