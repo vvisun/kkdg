@@ -34,7 +34,7 @@ type Option struct {
 	// 分配逻辑服失败回调。如：分配失败则通知客户端，提示服务器繁忙则提示客户端稍后再试。
 	AllocLogicNodeFailedCallback func(conn kknet.IConn)
 	// 用户被顶号/被踢出会话回调。需要投递给业务回调，发送顶号消息给被踢的连接。
-	UserKickedCallback func(kickedConns []kknet.IConn)
+	UserKickedCallback func(conn kknet.IConn)
 }
 
 func DefaultOption() Option {
@@ -139,7 +139,7 @@ func WithAllocLogicNodeFailedCallback(callback func(conn kknet.IConn)) func(o *O
 	}
 }
 
-func WithUserKickedCallback(callback func(kickedConns []kknet.IConn)) func(o *Option) {
+func WithUserKickedCallback(callback func(conn kknet.IConn)) func(o *Option) {
 	return func(o *Option) {
 		o.UserKickedCallback = callback
 	}

@@ -319,13 +319,11 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 
 		kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId)
 		if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
-			kickConns := make([]kknet.IConn, 0, len(kickList))
 			for _, kick := range kickList {
 				if conn, err := slf.sessionMgr.GetConn(kick.sessionId); err == nil {
-					kickConns = append(kickConns, conn)
+					slf.opt.UserKickedCallback(conn)
 				}
 			}
-			slf.opt.UserKickedCallback(kickConns)
 		}
 	} else {
 		kklog.Debugf("[ccgate]客户端登出: %#v", msg)
@@ -515,6 +513,13 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	// 将客户端消息原样转发给逻辑服
 	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
-		kklog.Debugf("[ccgate] forward to logic error: %v", err)
+		// kklog.Debugf("[ccgate] forward to logic error: %v", err)
+		// 通知业务层，转发逻辑服失败。一般是逻辑服已断线或网络异常，直接当成服务器繁忙反馈。
+		if h.gate.opt.RecvQueueFullCallback != nil {
+			conn := h.gate.server.GetConnManager().GetConn(connID)
+			if conn != nil {
+				h.gate.opt.RecvQueueFullCallback(conn)
+			}
+		}
 	}
 }

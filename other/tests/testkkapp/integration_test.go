@@ -129,11 +129,9 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 		ClusterUrl:      natsURL,
 		LogicNodeType:   kkapp.NodeTypeLogic,
 		TransType:       transType,
-		UserKickedCallback: func(kickedConns []kknet.IConn) {
-			for _, conn := range kickedConns {
-				conn.SendMsg(&KickOutPush{UserId: 0, Reason: "被顶号"})
-				conn.Close()
-			}
+		UserKickedCallback: func(conn kknet.IConn) {
+			conn.SendMsg(&KickOutPush{UserId: 0, Reason: "被顶号"})
+			conn.Close()
 		},
 	}
 	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())
