@@ -350,7 +350,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 
 	sessionID := slf.clientMgr.getSessionByConnId(connID)
 	if sessionID == "" {
-		return nil //客户端不存在，不分配逻辑节点
+		return nil //客户端不存在|已被踢出会话，不分配逻辑节点
 	}
 
 	// 如果已分配，则返回已分配的逻辑节点信息

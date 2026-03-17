@@ -42,7 +42,7 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 		if oldSid != "" && oldSid != curSessionId {
 			oldUid, ok := m.sid2uid[oldSid]
 			if ok {
-				if oldUid != userId && oldUid != user.NULL_USER_ID {
+				if m.uid2sid[oldUid] != "" && m.uid2sid[oldUid] != oldSid {
 					// 旧的uid和sid的绑定关系不一致，说明出bug了。
 					kklog.Errorf("checkKick: userId: %d, curSessionId: %s, oldUid: %d, oldSid: %s",
 						userId, curSessionId, oldUid, oldSid,
@@ -61,7 +61,7 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 		if otherUid != user.NULL_USER_ID && otherUid != userId {
 			otherSid, ok := m.uid2sid[otherUid]
 			if ok {
-				if m.sid2uid[otherSid] != otherUid && m.sid2uid[otherSid] != user.NULL_USER_ID {
+				if m.sid2uid[otherSid] != user.NULL_USER_ID && m.sid2uid[otherSid] != otherUid {
 					// 其他用户的uid和sid的绑定关系不一致，说明出bug了。
 					kklog.Errorf("checkKick: userId: %d, curSessionId: %s, otherUid: %d, otherSid: %s",
 						userId, curSessionId, otherUid, otherSid,
