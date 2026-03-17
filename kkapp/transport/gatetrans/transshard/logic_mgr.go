@@ -94,8 +94,10 @@ func (m *LogicServerMgr) addLogicServer(info *ptotrans.RpcMsgRegister) {
 	if !loaded {
 		kklog.Infof("逻辑服注册: nodeId=%s nodeType=%s（首条连接）", info.NodeId, info.NodeType)
 	}
+	if ls := actual.(*LogicServer); ls != nil {
+		ls.nodeType = info.NodeType
+	}
 	m.registerMu.Unlock()
-	_ = actual // 已存在或新建的 *LogicServer，addShardConn 会通过 getLogicServer 取到
 }
 
 func (m *LogicServerMgr) removeLogicServer(nodeId string) {
