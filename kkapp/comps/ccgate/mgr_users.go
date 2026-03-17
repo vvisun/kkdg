@@ -93,7 +93,8 @@ func (m *userManager) onUserLogin(userId user.USER_ID, curSessionId string) []ki
 func (m *userManager) onUserLogout(userId user.USER_ID) {
 	m.mu.Lock()
 	if sid, ok := m.uid2sid[userId]; ok {
-		delete(m.sid2uid, sid)
+		// 这里不删sessionId, 因为只是登出，不是断线。单纯将值置为空值，表示该连接处已无用户登录。
+		m.sid2uid[sid] = user.NULL_USER_ID
 	}
 	delete(m.uid2sid, userId)
 	m.mu.Unlock()
@@ -103,7 +104,7 @@ func (m *userManager) onUserLogout(userId user.USER_ID) {
 func (m *userManager) onSessionDisconnect(sessionId string) {
 	m.mu.Lock()
 	if userId, ok := m.sid2uid[sessionId]; ok {
-		// 这里不删userId, 因为只是断线，不是退出登录。单纯将值置为空字符串，表示离线。
+		// 这里不删userId, 因为只是断线，不是退出登录。单纯将值置为空值，表示离线。
 		m.uid2sid[userId] = ""
 	}
 	delete(m.sid2uid, sessionId)

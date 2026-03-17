@@ -44,6 +44,7 @@ type ISessionMgr interface {
 //	会话管理: gatetrans.ISessionManager sessionId -> kknet.IConn
 //	用户管理: userManager user.USER_ID -> *clientInfo
 //	客户端管理: clientManager connId,sessionId -> *clientInfo
+//	逻辑节点绑定: logicBindManager sessionId|userId -> nodeType, nodeId
 //
 // 说明：
 //   - 由于网关与逻辑服之间是多对多的，即多个逻辑服可以连接到同一个网关，客户端也可能选择不同的网关登入到逻辑服
