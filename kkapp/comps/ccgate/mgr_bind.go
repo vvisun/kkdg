@@ -26,7 +26,7 @@ func newClientLogicItem(nodeId string, nodeType string) *clientLogicItem {
 
 // 客户端的逻辑节点绑定表。nodeType -> *clientLogicItem
 type clientBindTable struct {
-	mu           sync.Mutex
+	mu           sync.RWMutex
 	logicItemMap map[string]*clientLogicItem // nodeType -> *clientLogicItem
 }
 
@@ -58,9 +58,9 @@ func (t *clientBindTable) unbindLogicItem(nodeType string) {
 
 // 获取逻辑节点信息。
 func (t *clientBindTable) getLogicItem(nodeType string) *clientLogicItem {
-	t.mu.Lock()
+	t.mu.RLock()
 	logicItem, ok := t.logicItemMap[nodeType]
-	t.mu.Unlock()
+	t.mu.RUnlock()
 	if !ok {
 		return nil
 	}
