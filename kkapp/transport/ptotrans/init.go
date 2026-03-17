@@ -1,14 +1,8 @@
 package ptotrans
 
 import (
-	"sync"
-
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkrpc"
-)
-
-var (
-	initShardOnce sync.Once
 )
 
 func InitRpcMsgs(methodMgr *kkrpc.MethodManager) {

@@ -157,13 +157,12 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 			if c.stats != nil {
 				c.stats.AddError()
 			}
-			kkbuffer.Put(buffer)
 		} else {
 			if c.stats != nil {
 				c.stats.AddSent(len(buffer.B))
 			}
-			kkbuffer.Put(buffer)
 		}
+		kkbuffer.Put(buffer)
 		if c.pendingWrites.Add(-1) == 0 {
 			c.closeMu.Lock()
 			c.closeCond.Signal()

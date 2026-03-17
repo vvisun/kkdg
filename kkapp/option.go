@@ -46,8 +46,8 @@ func CheckOptions(opt *AppOptions) {
 		)
 	}
 	if opt.TransportorCodec == nil {
-		kklog.Warnf("[kkapp] trans msg packet is nil, use default trans msg packet")
-		opt.TransportorCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+		kklog.Warnf("[kkapp] transportor codec is nil, use default codec: %s", "json")
+		opt.TransportorCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 }
 
