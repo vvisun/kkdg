@@ -2,11 +2,11 @@ package transshard
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -16,11 +16,9 @@ type ShardConn struct {
 	connId   uint64
 	shardIdx int
 	nodeId   string
-	closed   atomic.Bool
 }
 
 func (sc *ShardConn) clear() {
-	sc.closed.Store(true)
 	sc.conn = nil
 	sc.shardIdx = -1
 	sc.nodeId = ""
@@ -128,13 +126,16 @@ func (m *LogicServerMgr) removeShardConn(nodeId string, shardIdx int) {
 	}
 }
 
-func (m *LogicServerMgr) getShardConn(nodeId string, shardIdx int) *ShardConn {
+func (m *LogicServerMgr) getShardConn(nodeId string, shardIdx int) (*ShardConn, error) {
 	ls := m.getLogicServer(nodeId)
 	if ls == nil {
-		return nil
+		return nil, kkerrors.ErrAppLogicNodeNotRegistered
 	}
 	ls.muConns.RLock()
 	conn := ls.conns[shardIdx]
 	ls.muConns.RUnlock()
-	return conn
+	if conn == nil {
+		return nil, kkerrors.ErrAppLogicShardNotConnected
+	}
+	return conn, nil
 }

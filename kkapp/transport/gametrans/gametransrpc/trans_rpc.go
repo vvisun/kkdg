@@ -79,7 +79,6 @@ func NewTransportorRpc(
 		clientStreamTool: clientStreamTool,
 	}
 	rpcProcessor.trans = trans
-	msgReceiver.SetNeedCopyInOnSession(true)
 
 	// 注册到网关
 	trans.registerToGateway(node)

@@ -46,7 +46,6 @@ func NewTransportorNats(
 		clientStreamTool: clientStreamTool,
 	}
 	ptotrans.InitShardMsgs(transMsgPacket.GetRouter())
-	msgReceiver.SetNeedCopyInOnSession(false)
 	cluster.SetPublishHandler(trans.onPublish)
 	return trans, nil
 }

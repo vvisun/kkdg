@@ -20,18 +20,10 @@ type MetaParser func(data []byte) (kkpacket.MSGID, []byte, error)
 
 // MsgReceiver 消息接收器
 type MsgReceiver[K any] struct {
-	packetTool          *kkpacket.FullPacket
-	hdMap               map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
-	metaParser          MetaParser
-	needCopyInOnSession bool
-	decodeWorkers       []*taskqueue.WorkerQueue
-}
-
-// 设置是否需要在内部分配新的buffer来处理session消息
-// @note if use transportor rpc. need copy streamBytes to a new buffer.
-// @note if use transportor nats. not need copy.
-func (r *MsgReceiver[K]) SetNeedCopyInOnSession(isNeedCopy bool) {
-	r.needCopyInOnSession = isNeedCopy
+	packetTool    *kkpacket.FullPacket
+	hdMap         map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
+	metaParser    MetaParser
+	decodeWorkers []*taskqueue.WorkerQueue
 }
 
 /** 解析完整包数据[length,message]。

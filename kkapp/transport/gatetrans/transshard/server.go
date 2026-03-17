@@ -86,17 +86,10 @@ func (slf *transportorShard) getShardIdx(connId kknet.CONN_ID) int {
 
 // sendToLogicShard 向指定逻辑服的指定 shard 发送已编码包。
 func (slf *transportorShard) sendToLogicShard(logicNodeId string, shardIdx int, bb *kkbuffer.ByteBuffer) error {
-	chooseServer := slf.logicServerMgr.getLogicServer(logicNodeId)
-	if chooseServer == nil {
+	sconn, err := slf.logicServerMgr.getShardConn(logicNodeId, shardIdx%transport.BackendShardCnt)
+	if err != nil {
 		kkbuffer.Put(bb)
-		return kkerrors.ErrAppLogicNodeNotRegistered
-	}
-	chooseServer.muConns.RLock()
-	sconn := chooseServer.conns[shardIdx%transport.BackendShardCnt]
-	chooseServer.muConns.RUnlock()
-	if sconn == nil {
-		kkbuffer.Put(bb)
-		return kkerrors.ErrAppLogicShardNotConnected
+		return err
 	}
 	return sconn.conn.SendBuffer(bb)
 }
@@ -122,10 +115,7 @@ func (slf *transportorShard) ForwardToLogic(sessionID string, msgBytes []byte, l
 		return err
 	}
 	shardIdx := slf.getShardIdx(cConn.ID())
-	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
-		return err
-	}
-	return nil
+	return slf.sendToLogicShard(logicNodeId, shardIdx, bb)
 }
 
 // @param packet is a full stream packet [length,message]
@@ -204,10 +194,7 @@ func (slf *transportorShard) NotifyClientConnect(sessionID string, logicNodeId s
 		return err
 	}
 	shardIdx := slf.getShardIdx(connId)
-	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
-		return err
-	}
-	return nil
+	return slf.sendToLogicShard(logicNodeId, shardIdx, bb)
 }
 
 func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
@@ -222,10 +209,7 @@ func (slf *transportorShard) NotifyClientDisconnect(sessionID string, logicNodeI
 		return err
 	}
 	shardIdx := slf.getShardIdx(connId)
-	if err := slf.sendToLogicShard(logicNodeId, shardIdx, bb); err != nil {
-		return err
-	}
-	return nil
+	return slf.sendToLogicShard(logicNodeId, shardIdx, bb)
 }
 
 func (slf *transportorShard) GetMemberMgr() gatetrans.IMemberMgr {
