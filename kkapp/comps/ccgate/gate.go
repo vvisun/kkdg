@@ -72,7 +72,7 @@ type gateComponent struct {
 	logicBindMgr *logicBindManager
 
 	errCallback ErrCallback
-	feedLimit   FeedLimit
+	feedLimit   *FeedLimit
 }
 
 // NewGateComponent creates a new gate component.
@@ -88,6 +88,7 @@ func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 		clientMgr:    newClientManager(),
 		userMgr:      newUserManager(),
 		logicBindMgr: newLogicBindManager(),
+		feedLimit:    NewFeedLimit(),
 	}
 }
 

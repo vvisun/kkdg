@@ -7,11 +7,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 )
 
-type FeedLimitKey struct {
-	connId  kknet.CONN_ID
-	errCode GateErrorCode
-}
-
 type FeedLimit struct {
 	mu    sync.RWMutex
 	cache map[uint64]int64 // key(connId,errCode) -> deadline(unixNano)
