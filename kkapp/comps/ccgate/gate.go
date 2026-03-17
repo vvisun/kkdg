@@ -313,6 +313,7 @@ func (slf *gateComponent) onClientConnClose(c kknet.IConn) {
 	slf.sessionMgr.RemoveConn(sid)
 	slf.clientMgr.removeClient(cid)
 	slf.userMgr.onSessionDisconnect(sid)
+	slf.logicBindMgr.onSessionDisconnect(sid)
 }
 
 func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
@@ -321,7 +322,7 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 
 		slf.logicBindMgr.userBind(user.USER_ID(msg.UserId), msg.NodeType, msg.NodeId)
 
-		kickList := slf.userMgr.addUser(user.USER_ID(msg.UserId), msg.ClientId)
+		kickList := slf.userMgr.onUserLogin(user.USER_ID(msg.UserId), msg.ClientId)
 		if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
 			for _, kick := range kickList {
 				if conn, err := slf.sessionMgr.GetConn(kick.sessionId); err == nil {
@@ -340,7 +341,7 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 		}
 		slf.logicBindMgr.userUnbind(user.USER_ID(msg.UserId), msg.NodeType)
 		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeType, msg.NodeId)
-		slf.userMgr.removeUser(user.USER_ID(msg.UserId))
+		slf.userMgr.onUserLogout(user.USER_ID(msg.UserId))
 	}
 }
 

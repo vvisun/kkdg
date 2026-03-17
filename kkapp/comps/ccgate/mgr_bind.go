@@ -206,3 +206,9 @@ func (m *logicBindManager) getUserBindTable(userId user.USER_ID) *clientBindTabl
 	}
 	return bindTbl
 }
+
+func (m *logicBindManager) onSessionDisconnect(sessionId string) {
+	m.mu.Lock()
+	delete(m.sessionTable, sessionId)
+	m.mu.Unlock()
+}

@@ -15,7 +15,7 @@ func Test_userManager_basic(t *testing.T) {
 	sid := "s1"
 
 	// first login should not kick anyone
-	if kicks := m.addUser(uid, sid); kicks != nil {
+	if kicks := m.onUserLogin(uid, sid); kicks != nil {
 		t.Fatalf("addUser first login kicks = %#v, want none", kicks)
 	}
 
@@ -28,7 +28,7 @@ func Test_userManager_basic(t *testing.T) {
 	}
 
 	// remove and verify
-	m.removeUser(uid)
+	m.onUserLogout(uid)
 	if _, ok := m.getSessionIdByUserId(uid); ok {
 		t.Fatalf("getSessionIdByUserId(%d) ok after remove, want false", uid)
 	}
@@ -46,10 +46,10 @@ func Test_userManager_addUser_kickOldSession(t *testing.T) {
 	newSid := "s-new"
 
 	// first login
-	_ = m.addUser(uid, oldSid)
+	_ = m.onUserLogin(uid, oldSid)
 
 	// second login with same user, different session
-	kicks := m.addUser(uid, newSid)
+	kicks := m.onUserLogin(uid, newSid)
 	if len(kicks) != 1 {
 		t.Fatalf("addUser second login kicks len = %d, want 1", len(kicks))
 	}
@@ -79,10 +79,10 @@ func Test_userManager_addUser_kickOtherUserOnSameSession(t *testing.T) {
 	sid := "s1"
 
 	// first bind uid1 -> sid
-	_ = m.addUser(uid1, sid)
+	_ = m.onUserLogin(uid1, sid)
 
 	// force a conflicting mapping: sid -> uid1 already, now uid2 logs in on same sid
-	kicks := m.addUser(uid2, sid)
+	kicks := m.onUserLogin(uid2, sid)
 
 	if len(kicks) != 1 {
 		t.Fatalf("addUser conflicting login kicks len = %d, want 1", len(kicks))
@@ -104,7 +104,7 @@ func Test_userManager_onSessionDisconnect(t *testing.T) {
 	uid := user.USER_ID(100)
 	sid := "s-100"
 
-	_ = m.addUser(uid, sid)
+	_ = m.onUserLogin(uid, sid)
 
 	m.onSessionDisconnect(sid)
 
@@ -123,7 +123,7 @@ func Benchmark_userManager_addUser(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		uid := user.USER_ID(i + 1)
 		sid := "s-" + strconv.Itoa(i)
-		_ = m.addUser(uid, sid)
+		_ = m.onUserLogin(uid, sid)
 	}
 }
 
@@ -133,13 +133,13 @@ func Benchmark_userManager_get_remove(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		uid := user.USER_ID(i + 1)
 		sid := "s-" + strconv.Itoa(i)
-		_ = m.addUser(uid, sid)
+		_ = m.onUserLogin(uid, sid)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		uid := user.USER_ID(i + 1)
 		_, _ = m.getSessionIdByUserId(uid)
-		m.removeUser(uid)
+		m.onUserLogout(uid)
 	}
 }
 
@@ -152,9 +152,9 @@ func Benchmark_userManager_add_get_remove_parallel(b *testing.B) {
 		for pb.Next() {
 			uid := user.USER_ID(i + 1)
 			sid := "s-" + strconv.Itoa(i)
-			_ = m.addUser(uid, sid)
+			_ = m.onUserLogin(uid, sid)
 			_, _ = m.getSessionIdByUserId(uid)
-			m.removeUser(uid)
+			m.onUserLogout(uid)
 			i++
 		}
 	})

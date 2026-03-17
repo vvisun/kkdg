@@ -70,13 +70,13 @@ func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kick
 //
 //	返回需要踢出的会话ID列表。需要投递给业务回调，发送顶号消息给被踢的连接。
 //	踢出逻辑详见checkKick
-func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickInfo {
+func (m *userManager) onUserLogin(userId user.USER_ID, curSessionId string) []kickInfo {
 	if curSessionId == "" {
-		kklog.Errorf("addUser: sessionId is empty, userId: %d", userId)
+		kklog.Errorf("onUserLogin: sessionId is empty, userId: %d", userId)
 		return nil
 	}
 	if userId == user.NULL_USER_ID {
-		kklog.Errorf("addUser: userId is empty, curSessionId: %s", curSessionId)
+		kklog.Errorf("onUserLogin: userId is empty, curSessionId: %s", curSessionId)
 		return nil
 	}
 
@@ -90,7 +90,7 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickIn
 }
 
 // 用户登出时，清除所有记录
-func (m *userManager) removeUser(userId user.USER_ID) {
+func (m *userManager) onUserLogout(userId user.USER_ID) {
 	m.mu.Lock()
 	if sid, ok := m.uid2sid[userId]; ok {
 		delete(m.sid2uid, sid)
@@ -103,7 +103,8 @@ func (m *userManager) removeUser(userId user.USER_ID) {
 func (m *userManager) onSessionDisconnect(sessionId string) {
 	m.mu.Lock()
 	if userId, ok := m.sid2uid[sessionId]; ok {
-		delete(m.uid2sid, userId)
+		// 这里不删userId, 因为只是断线，不是退出登录。单纯将值置为空字符串，表示离线。
+		m.uid2sid[userId] = ""
 	}
 	delete(m.sid2uid, sessionId)
 	m.mu.Unlock()
