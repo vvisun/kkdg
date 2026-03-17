@@ -2,7 +2,7 @@ package ccgate
 
 import "github.com/vvisun/kkdg/kknet"
 
-type GateErrorCode int
+type GateErrorCode = uint8
 
 type ErrCallback func(conn kknet.IConn, errCode GateErrorCode)
 

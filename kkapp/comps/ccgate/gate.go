@@ -72,6 +72,7 @@ type gateComponent struct {
 	logicBindMgr *logicBindManager
 
 	errCallback ErrCallback
+	feedLimit   FeedLimit
 }
 
 // NewGateComponent creates a new gate component.
@@ -276,8 +277,8 @@ func (slf *gateComponent) startWSServer() error {
 		kknet.WithRawHandler(slf.handler),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(2*1024, 2*1024),
-		kknet.WithRecvQueueSize(128),
 		kknet.WithRecvQueueStrict(true),
+		kknet.WithRecvQueueSize(128),
 		kknet.WithRecvBufShrinkCap(2*1024),
 		kknet.WithRecvQueueFullCallback(func(conn kknet.IConn) {
 			slf.feedCallback(conn.ID(), ERR_RECV_QUEUE_FULL)
@@ -459,6 +460,12 @@ func (slf *gateComponent) feedCallback(connId kknet.CONN_ID, errCode GateErrorCo
 	if slf.errCallback == nil || slf.server.GetConnManager().GetConn(connId) == nil {
 		return
 	}
+
+	if slf.feedLimit.IsLimited(connId, errCode) {
+		return // 同一个连接同一个错误码，短时间内只通知一次。
+	}
+	slf.feedLimit.Reset(connId, errCode)
+
 	xcall.AntsSafeGo(func() {
 		if conn := slf.server.GetConnManager().GetConn(connId); conn != nil {
 			slf.errCallback(conn, errCode)
