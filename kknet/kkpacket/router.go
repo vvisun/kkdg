@@ -73,7 +73,7 @@ func (r *MsgRouter) Register(id MSGID, msgPtr any, route string) error {
 	defer r.mu.Unlock()
 
 	if _, ok := r.idToType[id]; ok && r.idToType[id] != msgType {
-		kklog.Errorf("message id %v is already registered with different type %v", id, r.idToType[id])
+		kklog.Errorf("message id %v is already registered: oldType %v, curType %v", id, r.idToType[id], msgType)
 		return kkerrors.ErrPktMsgIDAlreadyRegistered
 	}
 

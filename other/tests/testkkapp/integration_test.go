@@ -101,17 +101,23 @@ func (h *gameHandler) onMsgCounter(sessionID string, msg *MsgCounter) error {
 	return nil
 }
 
-// TestIntegration_GateGame_Echo 集成测试：gate + game 节点，客户端连 gate 发消息，经 game 回显，验证收到
-func TestIntegration_GateGame_Echo(t *testing.T) {
+func TestIntegration_GateGame_Echo_Shard(t *testing.T) {
+	runIntegration_GateGame_Echo(t, transport.TransTypeShard)
+}
+
+func TestIntegration_GateGame_Echo_Rpc(t *testing.T) {
+	runIntegration_GateGame_Echo(t, transport.TransTypeRpc)
+}
+
+func TestIntegration_GateGame_Echo_Nats(t *testing.T) {
+	runIntegration_GateGame_Echo(t, transport.TransTypeNats)
+}
+
+// runIntegration_GateGame_Echo 集成测试：gate + game 节点，客户端连 gate 发消息，经 game 回显，验证收到
+func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 	natsURL := requireNATS(t)
 	tcpAddr := freePort(t)
 	rpcAddr := freePort(t)
-
-	// 可以在这里调整传输层类型
-	// const transType = transport.TransTypeRpc
-	// const transType = transport.TransTypeNats
-	// const transType = transport.TransTypeShard
-	const transType = transport.TransTypeRpc
 
 	appOpts := kkapp.ApplyOptions()
 
@@ -154,7 +160,7 @@ func TestIntegration_GateGame_Echo(t *testing.T) {
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "", nil)
 	gameApp := component.NewApplication(gameNode, nil, appOpts)
-	InitMsgs(gameApp.GetOptions().TransMsgPacket.GetRouter())
+	InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())
 	game := ccgame.NewGameComponent(ccgame.Option{
 		TransType:    transType,
 		RpcAddr:      rpcAddr,
