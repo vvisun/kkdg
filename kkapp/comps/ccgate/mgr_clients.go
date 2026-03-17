@@ -6,8 +6,9 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 )
 
-// 客户端管理器，管理连接级的逻辑服分配情况。
-// 生命周期为连接级，新建连接时添加，连接断开时移除。
+// 客户端连接管理器。
+//  1. 生命周期为连接级。新建连接时添加，连接断开时移除。
+//  2. 主要用于管理网关侧connId和sessionId的映射关系，以及索引所有连接（按connId和sessionId）
 type clientManager struct {
 	muMaps     sync.RWMutex
 	connMap    map[kknet.CONN_ID]string //kknet.CONN_ID -> sessionId
@@ -21,7 +22,7 @@ func newClientManager() *clientManager {
 	}
 }
 
-// 添加连接connId的客户端。
+// 添加连接。
 func (m *clientManager) addClient(connId kknet.CONN_ID, sessionId string) {
 	m.muMaps.Lock()
 	m.connMap[connId] = sessionId
@@ -29,7 +30,7 @@ func (m *clientManager) addClient(connId kknet.CONN_ID, sessionId string) {
 	m.muMaps.Unlock()
 }
 
-// 移除连接connId的客户端。
+// 移除连接。
 func (m *clientManager) removeClient(connId kknet.CONN_ID) {
 	m.muMaps.Lock()
 	sessionId, ok := m.connMap[connId]
@@ -42,6 +43,7 @@ func (m *clientManager) removeClient(connId kknet.CONN_ID) {
 	m.muMaps.Unlock()
 }
 
+// 根据connId获取sessionId
 func (m *clientManager) getSessionByConnId(connId kknet.CONN_ID) string {
 	m.muMaps.RLock()
 	sessionId, ok := m.connMap[connId]
@@ -52,6 +54,7 @@ func (m *clientManager) getSessionByConnId(connId kknet.CONN_ID) string {
 	return ""
 }
 
+// 根据sessionId获取connId
 func (m *clientManager) getConnIdBySessionId(sessionId string) kknet.CONN_ID {
 	m.muMaps.RLock()
 	connId, ok := m.sessionMap[sessionId]

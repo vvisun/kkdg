@@ -6,7 +6,7 @@ import "sync"
 type session2nodeType map[string]bool
 
 // 实时统计每个逻辑节点上的会话数量，用于负载均衡。
-// 相当于本地简易版discovery，用于负载均衡。
+// 相当于本地简易版discovery。
 type localDiscovery struct {
 	logicNodeTable map[string]session2nodeType // map[nodeId]session2nodeType
 	mu             sync.RWMutex

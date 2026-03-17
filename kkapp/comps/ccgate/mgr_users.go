@@ -12,6 +12,9 @@ type kickInfo struct {
 	sessionId string
 }
 
+// 用户管理。
+//  1. 用户登入时加入，登出时移除。
+//  2. 管理用户ID与sessionId的映射关系。
 type userManager struct {
 	mu      sync.Mutex
 	uid2sid map[user.USER_ID]string //user.USER_ID -> sessionId
@@ -25,23 +28,15 @@ func newUserManager() *userManager {
 	}
 }
 
-// 用户登录时，记录用户与会话的绑定关系
+// 连接curSessionId处，用户登入账号userId时，检查是否需要踢出
 // 返回需要踢出的会话ID列表。需要投递给业务回调，发送顶号消息给被踢的连接。
 //
 //	踢出逻辑：
 //	1. 如果userId已经登录了其他会话，需踢出旧的会话。
 //	2. 如果当前会话已经登录了其他用户，需踢出该其他用户。
-func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickInfo {
-	if curSessionId == "" {
-		kklog.Errorf("addUser: sessionId is empty, userId: %d", userId)
-		return nil
-	}
-
-	// kickList := make([]kickInfo, 0)
+func (m *userManager) checkKick(userId user.USER_ID, curSessionId string) []kickInfo {
 	var kickList []kickInfo
 	hasKick := false
-
-	m.mu.Lock()
 
 	// 如果userId已经登录了其他会话，需踢出旧的会话
 	if oldSid, ok := m.uid2sid[userId]; ok {
@@ -77,6 +72,25 @@ func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickIn
 		}
 	}
 
+	return kickList
+}
+
+// 用户登录时，记录用户与会话的绑定关系
+//
+//	返回需要踢出的会话ID列表。需要投递给业务回调，发送顶号消息给被踢的连接。
+//	踢出逻辑详见checkKick
+func (m *userManager) addUser(userId user.USER_ID, curSessionId string) []kickInfo {
+	if curSessionId == "" {
+		kklog.Errorf("addUser: sessionId is empty, userId: %d", userId)
+		return nil
+	}
+	if userId == user.NULL_USER_ID {
+		kklog.Errorf("addUser: userId is empty, curSessionId: %s", curSessionId)
+		return nil
+	}
+
+	m.mu.Lock()
+	kickList := m.checkKick(userId, curSessionId)
 	m.uid2sid[userId] = curSessionId
 	m.sid2uid[curSessionId] = userId
 	m.mu.Unlock()

@@ -87,18 +87,22 @@ func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
 	}
 }
 
+var _ kkapp.IComponent = (*gateComponent)(nil)
+
+var _ actor.Actor = (*gateComponent)(nil)
+
 // 暴露会话管理器给业务层使用，方便业务层直接操作会话。
 func (slf *gateComponent) GetSessionMgr() ISessionMgr {
 	return slf.sessionMgr
 }
 
+func (slf *gateComponent) GetConnManager() kknet.IConnManager {
+	return slf.server.GetConnManager()
+}
+
 func (slf *gateComponent) GetCompName() string {
 	return "comp_gate"
 }
-
-var _ kkapp.IComponent = (*gateComponent)(nil)
-
-var _ actor.Actor = (*gateComponent)(nil)
 
 func (slf *gateComponent) Receive(context actor.Context) {
 	switch context.Message().(type) {
@@ -321,7 +325,10 @@ func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
 		if slf.opt.UserKickedCallback != nil && len(kickList) > 0 {
 			for _, kick := range kickList {
 				if conn, err := slf.sessionMgr.GetConn(kick.sessionId); err == nil {
-					slf.opt.UserKickedCallback(conn)
+					// 从客户端管理器中移除，不再接收被踢连接的消息。
+					slf.clientMgr.removeClient(conn.ID())
+					// 通知业务层，用户被顶号/被踢出会话。
+					slf.feedCallback(conn.ID(), slf.opt.UserKickedCallback)
 				}
 			}
 		}
@@ -349,9 +356,8 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 	}
 
 	// 如果已分配，则返回已分配的逻辑节点信息
-	lgcNode := slf.logicBindMgr.getLogicItemBySessionId(sessionID, nodeType)
-	if lgcNode != nil {
-		return lgcNode
+	if oldLogicItem := slf.logicBindMgr.getLogicItemBySessionId(sessionID, nodeType); oldLogicItem != nil {
+		return oldLogicItem
 	}
 
 	// 选择逻辑节点
@@ -434,6 +440,16 @@ func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
 	return "", false
 }
 
+func (slf *gateComponent) feedCallback(connId kknet.CONN_ID, fn func(conn kknet.IConn)) {
+	if fn == nil {
+		return
+	}
+	conn := slf.server.GetConnManager().GetConn(connId)
+	if conn != nil {
+		fn(conn)
+	}
+}
+
 //------------------------------------------------------------
 
 type gateHandler struct {
@@ -454,7 +470,7 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 func (h *gateHandler) OnConnect(c kknet.IConn) {
 	//kklog.Debugf("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
 	if h.gate.server.GetConnManager().GetCount() >= h.gate.opt.MaxConnCount {
-		kklog.Warnf("[ccgate] max conn count reached, client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
+		kklog.Debugf("[ccgate] max conn count reached, reject: remoteAddr=%s", c.RemoteAddr())
 		c.Close()
 		return
 	}
@@ -475,11 +491,11 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 
 	sessionID := h.gate.clientMgr.getSessionByConnId(connID)
 	if sessionID == "" {
-		return
+		return // 客户端已断开|已被踢出会话
 	}
 
+	// 解析消息，应该路由到哪类逻辑服
 	appOpts := h.gate.GetApplication().GetOptions()
-	// Best-effort: derive route from msgID if it is registered.
 	msgBytes, err := appOpts.StreamTool.MessageBytes(data.B)
 	if err != nil {
 		kklog.Warnf("[ccgate] get message bytes error: %v", err)
@@ -496,17 +512,11 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 
-	// 这里应该先为client选择一个逻辑服
+	// 先为client选择一个逻辑服
 	logicNode := h.gate.allocLogicNode(connID, route)
 	if logicNode == nil {
-		// kklog.Debugf("[ccgate] alloc logic node failed")
 		// 通知客户端分配逻辑服失败
-		if h.gate.opt.AllocLogicNodeFailedCallback != nil {
-			conn := h.gate.server.GetConnManager().GetConn(connID)
-			if conn != nil {
-				h.gate.opt.AllocLogicNodeFailedCallback(conn)
-			}
-		}
+		h.gate.feedCallback(connID, h.gate.opt.AllocLogicNodeFailedCallback)
 		return
 	}
 
@@ -515,11 +525,6 @@ func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
 		// kklog.Debugf("[ccgate] forward to logic error: %v", err)
 		// 通知业务层，转发逻辑服失败。一般是逻辑服已断线或网络异常，直接当成服务器繁忙反馈。
-		if h.gate.opt.RecvQueueFullCallback != nil {
-			conn := h.gate.server.GetConnManager().GetConn(connID)
-			if conn != nil {
-				h.gate.opt.RecvQueueFullCallback(conn)
-			}
-		}
+		h.gate.feedCallback(connID, h.gate.opt.RecvQueueFullCallback)
 	}
 }
