@@ -109,7 +109,7 @@ func (t *clientBindTable) rangeLogicItems(fn func(nodeType string, logicItem *cl
 // 如果不记录，用户重新登录时可能分配到新的逻辑服，这时候旧的逻辑服可能还在处理用户逻辑，
 // 导致用户登入多个同类逻辑服造成状态和数据混乱，除非业务逻辑本身不依赖顺序性。
 type logicBindManager struct {
-	mu sync.Mutex
+	mu sync.RWMutex
 	// sessionId -> *clientBindTable
 	//  生命周期为会话级。
 	//  会话断开时，移除绑定关系。为会话分配逻辑服成功时，添加绑定关系。
@@ -188,9 +188,9 @@ func (m *logicBindManager) userUnbind(userId user.USER_ID, nodeType string) {
 
 // 获取会话与某类逻辑服的绑定信息。
 func (m *logicBindManager) getLogicItemBySessionId(sessionId string, nodeType string) *clientLogicItem {
-	m.mu.Lock()
+	m.mu.RLock()
 	bindTbl, ok := m.sessionTable[sessionId]
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	if !ok {
 		return nil
 	}
@@ -199,9 +199,9 @@ func (m *logicBindManager) getLogicItemBySessionId(sessionId string, nodeType st
 
 // 获取用户与某类逻辑服的绑定信息。
 func (m *logicBindManager) getLogicItemByUserId(userId user.USER_ID, nodeType string) *clientLogicItem {
-	m.mu.Lock()
+	m.mu.RLock()
 	bindTbl, ok := m.userTable[userId]
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	if !ok {
 		return nil
 	}
@@ -210,9 +210,9 @@ func (m *logicBindManager) getLogicItemByUserId(userId user.USER_ID, nodeType st
 
 // 获取会话的逻辑服绑定表。
 func (m *logicBindManager) getSessionBindTable(sessionId string) *clientBindTable {
-	m.mu.Lock()
+	m.mu.RLock()
 	bindTbl, ok := m.sessionTable[sessionId]
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	if !ok {
 		return nil
 	}
@@ -221,9 +221,9 @@ func (m *logicBindManager) getSessionBindTable(sessionId string) *clientBindTabl
 
 // 获取用户的逻辑服绑定表。
 func (m *logicBindManager) getUserBindTable(userId user.USER_ID) *clientBindTable {
-	m.mu.Lock()
+	m.mu.RLock()
 	bindTbl, ok := m.userTable[userId]
-	m.mu.Unlock()
+	m.mu.RUnlock()
 	if !ok {
 		return nil
 	}
