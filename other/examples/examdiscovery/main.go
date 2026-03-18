@@ -16,8 +16,8 @@ import (
 func main() {
 	natsURL := "nats://127.0.0.1:4222"
 
-	nodeInfo1 := kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "", nil)
-	nodeInfo2 := kkapp.NewNodeInfo("node2", "gate", "127.0.0.1:8081", "", nil)
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "")
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "gate", "127.0.0.1:8081", "")
 
 	opts := dnats.ApplyNatsOptions(dnats.WithUrl(natsURL))
 

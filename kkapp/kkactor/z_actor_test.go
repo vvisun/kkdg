@@ -102,7 +102,7 @@ func TestNewActorLocator(t *testing.T) {
 		t.Fatal("NewActorLocator() returned nil")
 	}
 	// with local nodes
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
+	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
 	loc2 := NewActorLocator(node1)
 	if loc2 == nil {
 		t.Fatal("NewActorLocator(node1) returned nil")
@@ -192,7 +192,7 @@ func TestActorLocator_AddActor_Invalid(t *testing.T) {
 }
 
 func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
+	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
 	loc := NewActorLocator(node1)
 
 	tests := []struct {
@@ -232,7 +232,7 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 
 func TestActorLocator_AddNode_RemoveNode(t *testing.T) {
 	loc := NewActorLocator()
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
+	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
 	loc.AddNode(node1)
 
 	local, _ := loc.IsLocalActor(LucencyActorID{nodeID: "game1", actorKey: "x"})
@@ -248,7 +248,7 @@ func TestActorLocator_AddNode_RemoveNode(t *testing.T) {
 }
 
 func TestActorLocator_ForEachNode_ForEachActor(t *testing.T) {
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
+	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
 	loc := NewActorLocator(node1)
 	actorSys := NewActorSystem()
 

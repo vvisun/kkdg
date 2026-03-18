@@ -36,7 +36,7 @@ func main() {
 }
 
 func runGate() *component.Application {
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, examapp.GateTCPAddr, "", nil)
+	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, examapp.GateTCPAddr, "")
 	gateApp := component.NewApplication(gateNode, nil, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
 	gateOpt := ccgate.Options{

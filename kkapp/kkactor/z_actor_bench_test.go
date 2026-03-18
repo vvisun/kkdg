@@ -92,7 +92,7 @@ func BenchmarkActorLocator_GetActor(b *testing.B) {
 }
 
 func BenchmarkActorLocator_IsLocalActor(b *testing.B) {
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "", nil)
+	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
 	loc := NewActorLocator(node1)
 	id, _ := NewLucencyActorID("game1", "game_player")
 

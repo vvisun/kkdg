@@ -264,7 +264,6 @@ func (slf *Application) onStarted(ctx actor.Context) {
 }
 
 func (slf *Application) onStopped() {
-	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
 	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStopping, ComponentStateStopped)
 	id, _ := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
 	slf.actorFramework.GetLocator().RemoveActor(id)
@@ -272,6 +271,7 @@ func (slf *Application) onStopped() {
 	slf.mu.Lock()
 	slf.compList = make([]kkapp.IComponent, 0)
 	slf.mu.Unlock()
+	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
 }
 
 func (slf *Application) finishStart(err error) {

@@ -34,15 +34,19 @@ func getSessionId(connID kknet.CONN_ID, gateNodeId string) string {
 	return gateNodeId + "-" + strconv.FormatUint(connID, 10)
 }
 
+// 暴露给业务层使用的会话管理器接口。
+// interface for business layer to use.
 type ISessionMgr interface {
-	GetConn(sessionId string) (kknet.IConn, error)
-	RemoveConn(sessionId string)
+	// 根据会话ID获取客户端连接。
+	// GetConn gets a client connection by sessionID
+	GetConn(sessionID string) (kknet.IConn, error)
 }
 
 // 网关服
 //
 //	连接管理: kknet.IConnManager connId -> kknet.IConn
 //	会话管理: gatetrans.ISessionManager sessionId -> kknet.IConn
+//
 //	用户管理: userManager user.USER_ID -> *clientInfo
 //	客户端管理: clientManager connId,sessionId -> *clientInfo
 //	逻辑节点绑定: logicBindManager sessionId|userId -> nodeType, nodeId
@@ -103,6 +107,7 @@ func (slf *gateComponent) GetSessionMgr() ISessionMgr {
 	return slf.sessionMgr
 }
 
+// 暴露连接管理器给业务层使用，方便业务层直接操作连接。
 func (slf *gateComponent) GetConnManager() kknet.IConnManager {
 	return slf.server.GetConnManager()
 }
@@ -425,7 +430,7 @@ func (slf *gateComponent) chooseFromShardOrRpc(nodeType string) (string, bool) {
 			finded = true
 			return true
 		}
-		if lodalDis.getSessionCount(member.GetNodeID()) < lodalDis.getSessionCount(chooseNode.GetNodeID()) {
+		if lodalDis.getMemberWeight(member.GetNodeID()) < lodalDis.getMemberWeight(chooseNode.GetNodeID()) {
 			chooseNode = member
 			finded = true
 		}

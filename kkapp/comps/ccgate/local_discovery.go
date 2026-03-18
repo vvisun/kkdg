@@ -43,7 +43,7 @@ func (m *localDiscovery) onUnbindLogicNode(sessionId string, nodeType string, no
 }
 
 // 获取nodeId上的session数量。get member weight
-func (m *localDiscovery) getSessionCount(nodeId string) int {
+func (m *localDiscovery) getMemberWeight(nodeId string) int {
 	m.mu.RLock()
 	nodeTypeMap, ok := m.nodeTable[nodeId]
 	if !ok {

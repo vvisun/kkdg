@@ -106,7 +106,7 @@ func TestGateHandler_OnRaw_RouteAndForward(t *testing.T) {
 		opts: appOpts,
 		nid:  "gate-1",
 		nt:   "gate",
-		ni:   kkapp.NewNodeInfo("gate-1", "gate", "", "", nil),
+		ni:   kkapp.NewNodeInfo("gate-1", "gate", "", ""),
 	}
 	gate.SetApplication(fa)
 
@@ -174,7 +174,7 @@ func BenchmarkGateHandler_OnRaw(b *testing.B) {
 		opts: appOpts,
 		nid:  "gate-bench",
 		nt:   "gate",
-		ni:   kkapp.NewNodeInfo("gate-bench", "gate", "", "", nil),
+		ni:   kkapp.NewNodeInfo("gate-bench", "gate", "", ""),
 	}
 	gate.SetApplication(fa)
 

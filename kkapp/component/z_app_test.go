@@ -120,7 +120,7 @@ func (slf *failStartComp) Receive(ctx actor.Context) {
 //-------------------------------- test application --------------------------------
 
 func TestApplication_AddComponent(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
 	// 测试正常添加
 	if err := app.AddComponent(&TestComp1{}); err != nil {
 		t.Fatalf("add component: %v", err)
@@ -149,7 +149,7 @@ func TestApplication_AddComponent(t *testing.T) {
 
 // 测试重复启动应用
 func TestApplication_StartTwice(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
 
 	if err := app.Start(); err != nil {
 		t.Fatalf("first start application: %v", err)
@@ -169,7 +169,7 @@ func TestApplication_StartTwice(t *testing.T) {
 
 // 测试未启动时停止应用
 func TestApplication_Stop_NotStarted(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
 
 	if err := app.Stop(); err != kkerrors.ErrAppNotStarted {
 		t.Fatalf("stop application when not started should return ErrAppNotStarted, got: %v", err)
@@ -178,7 +178,7 @@ func TestApplication_Stop_NotStarted(t *testing.T) {
 
 // 测试非 None 状态下添加组件
 func TestApplication_AddComponent_NotNoneState(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
 
 	// 先添加一个组件
 	if err := app.AddComponent(&TestComp1{}); err != nil {
@@ -204,7 +204,7 @@ func TestApplication_AddComponent_NotNoneState(t *testing.T) {
 
 // 测试获取子组件 PID
 func TestApplication_GetChildPID(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
 
 	if err := app.AddComponent(&TestComp1{}); err != nil {
 		t.Fatalf("add component: %v", err)
@@ -232,7 +232,7 @@ func TestApplication_GetChildPID(t *testing.T) {
 }
 
 func TestApplication_Start_WaitsForComponentStart(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
 
 	if err := app.AddComponent(&TestComp1{}); err != nil {
 		t.Fatalf("add component: %v", err)
@@ -252,7 +252,7 @@ func TestApplication_Start_WaitsForComponentStart(t *testing.T) {
 }
 
 func TestApplication_Start_ComponentStartError(t *testing.T) {
-	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", "", nil), nil, kkapp.ApplyOptions())
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
 
 	if err := app.AddComponent(&failStartComp{}); err != nil {
 		t.Fatalf("add component: %v", err)

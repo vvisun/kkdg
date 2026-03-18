@@ -54,8 +54,8 @@ func TestTransport_SendAndRequest(t *testing.T) {
 	transport1 := NewTransport("node1", registry, ApplyNatsOptions(WithURL(natsURL)))
 	transport2 := NewTransport("node2", registry, ApplyNatsOptions(WithURL(natsURL)))
 
-	framework1 := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "", nil)), kkactor.NewActorSystem())
-	framework2 := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node2", "game", "", "", nil)), kkactor.NewActorSystem())
+	framework1 := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "")), kkactor.NewActorSystem())
+	framework2 := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node2", "game", "", "")), kkactor.NewActorSystem())
 
 	if err := framework1.SetRemoteTransport(transport1); err != nil {
 		t.Fatalf("framework1.SetRemoteTransport: %v", err)
@@ -118,7 +118,7 @@ func TestTransport_Request_UnregisteredMessage(t *testing.T) {
 	registry := getTestMessageRegistry(t)
 
 	transport := NewTransport("node1", registry, ApplyNatsOptions(WithURL(natsURL)))
-	framework := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "", nil)), kkactor.NewActorSystem())
+	framework := kkactor.NewActorFramework(kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "")), kkactor.NewActorSystem())
 	if err := framework.SetRemoteTransport(transport); err != nil {
 		t.Fatalf("SetRemoteTransport: %v", err)
 	}

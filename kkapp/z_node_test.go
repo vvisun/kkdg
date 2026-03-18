@@ -68,7 +68,7 @@ func TestNewNodeInfo_Panic(t *testing.T) {
 			t.Error("NewNodeInfo with empty nodeId should panic")
 		}
 	}()
-	NewNodeInfo("", "type", "127.0.0.1:8080", "", nil)
+	NewNodeInfo("", "type", "127.0.0.1:8080", "")
 }
 
 func TestNewNodeInfo_PanicInvalidType(t *testing.T) {
@@ -77,12 +77,11 @@ func TestNewNodeInfo_PanicInvalidType(t *testing.T) {
 			t.Error("NewNodeInfo with empty nodeType should panic")
 		}
 	}()
-	NewNodeInfo("node1", "", "127.0.0.1:8080", "", nil)
+	NewNodeInfo("node1", "", "127.0.0.1:8080", "")
 }
 
 func TestNodeInfo_Getters(t *testing.T) {
-	settings := map[string]string{"k1": "v1", "k2": "v2"}
-	info := NewNodeInfo("node1", "gate", "127.0.0.1:8080", "127.0.0.1:8081", settings)
+	info := NewNodeInfo("node1", "gate", "127.0.0.1:8080", "127.0.0.1:8081")
 
 	if info.GetNodeId() != "node1" {
 		t.Errorf("GetNodeId() = %q, want node1", info.GetNodeId())
@@ -95,22 +94,5 @@ func TestNodeInfo_Getters(t *testing.T) {
 	}
 	if info.GetRpcAddress() != "127.0.0.1:8081" {
 		t.Errorf("GetRpcAddress() = %q, want 127.0.0.1:8081", info.GetRpcAddress())
-	}
-	v, ok := info.GetSetting("k1")
-	if !ok || v != "v1" {
-		t.Errorf("GetSetting(k1) = %q, %v; want v1, true", v, ok)
-	}
-	_, ok = info.GetSetting("notexist")
-	if ok {
-		t.Error("GetSetting(notexist) should return false")
-	}
-}
-
-func TestNodeInfo_GetSetting_NilSettings(t *testing.T) {
-	// NewNodeInfo with nil settings - the struct field is nil
-	info := NewNodeInfo("n", "t", "a", "r", nil)
-	_, ok := info.GetSetting("any")
-	if ok {
-		t.Error("GetSetting on nil settings should return false")
 	}
 }

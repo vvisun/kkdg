@@ -17,7 +17,7 @@ type DiscoveryStatsEvent struct {
 }
 
 type (
-	// IMember 成员接口
+	// IMember 成员接口。Node Data
 	IMember interface {
 		GetNodeID() string     // 节点ID。必须唯一。
 		GetNodeType() string   // 节点类型。如：gate、game、login等
@@ -30,14 +30,6 @@ type (
 	// MemberListener 成员增、删监听函数
 	MemberListener func(member IMember)
 
-	// IInnerMemberMgr 内部成员管理器接口。不对外使用，防止污染成员
-	IInnerMemberMgr interface {
-		// 添加成员，true时为新增，false时为更新
-		AddMember(info *MemberInfo) (IMember, bool)
-		// 删除成员，true时成员存在，false时成员不存在
-		RemoveMember(nodeID string) bool
-	}
-
 	// IMemberObserver 成员增、删监听器接口
 	IMemberObserver interface {
 		// 监听添加成员
@@ -46,6 +38,14 @@ type (
 		ObserveRemoveMember(listener MemberListener)
 		// Stop
 		Stop()
+	}
+
+	// IInnerMemberMgr 内部成员管理器接口。不对外使用，防止污染成员
+	IInnerMemberMgr interface {
+		// 添加成员，true时为新增，false时为更新
+		AddMember(info *MemberInfo) (IMember, bool)
+		// 删除成员，true时成员存在，false时成员不存在
+		RemoveMember(nodeID string) bool
 	}
 
 	// MemberMgr 成员管理器接口
@@ -71,9 +71,9 @@ type (
 		Name() string                       // 发现服务名称
 		Start() error                       // 启动
 		Stop() error                        // 停止
+		IsRunning() bool                    // 是否已启动
 		Stats() DiscoveryStatsSnapshot      // 获取统计信息
 		GetMemberMgr() IMemberMgr           // 获取成员管理器
 		GetMemberObserver() IMemberObserver // 获取成员增、删监听器
-		IsRunning() bool                    // 是否已启动
 	}
 )

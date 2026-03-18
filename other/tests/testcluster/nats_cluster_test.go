@@ -14,7 +14,7 @@ import (
 
 // TestNatsCluster_New 测试创建NatsCluster
 func TestNatsCluster_New(t *testing.T) {
-	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(), kkcluster.ApplyOptions())
 
@@ -30,7 +30,7 @@ func TestNatsCluster_Init(t *testing.T) {
 		t.Skipf("NATS not available: %v", err)
 	}
 
-	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
@@ -52,9 +52,9 @@ func TestNatsCluster_PublishRemote(t *testing.T) {
 	}
 
 	// 创建两个节点
-	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "", nil)
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
 	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
 	if err := discovery1.Start(); err != nil {
@@ -129,9 +129,9 @@ func TestNatsCluster_PublishRemoteType(t *testing.T) {
 	}
 
 	// 创建三个节点，两个同类型
-	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
-	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "", nil)
-	nodeInfo3 := kkapp.NewNodeInfo("node3", "typeb", "127.0.0.1:8082", "", nil)
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
+	nodeInfo3 := kkapp.NewNodeInfo("node3", "typeb", "127.0.0.1:8082", "")
 	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	discovery3 := dnats.NewNatsDiscovery("test3", nodeInfo3, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
@@ -227,8 +227,8 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 	}
 
 	// 创建两个节点
-	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
-	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "", nil)
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
 	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
@@ -285,7 +285,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 		t.Skipf("NATS not available: %v", err)
 	}
 
-	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
@@ -315,7 +315,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 		t.Skipf("NATS not available: %v", err)
 	}
 
-	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
@@ -345,8 +345,8 @@ func TestNatsCluster_RequestRemoteAsync(t *testing.T) {
 		t.Skipf("NATS not available: %v", err)
 	}
 
-	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
-	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "", nil)
+	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
+	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
 	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
@@ -421,7 +421,7 @@ func TestNatsCluster_RequestRemoteAsync_NotFound(t *testing.T) {
 		t.Skipf("NATS not available: %v", err)
 	}
 
-	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
@@ -447,7 +447,7 @@ func TestNatsCluster_Stop(t *testing.T) {
 		t.Skipf("NATS not available: %v", err)
 	}
 
-	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 

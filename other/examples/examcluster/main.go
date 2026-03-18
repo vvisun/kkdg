@@ -16,7 +16,7 @@ import (
 
 func exampleStats() {
 	// 创建服务发现
-	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(), kkdiscovery.ApplyOptions())
 
 	// 启动服务发现

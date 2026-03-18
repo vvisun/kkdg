@@ -11,7 +11,7 @@ import (
 // newTestDiscovery creates a NatsDiscovery without connecting to a real NATS server.
 func newTestDiscovery(t *testing.T) *NatsDiscovery {
 	t.Helper()
-	nodeInfo := kkapp.NewNodeInfo("node1", kkapp.NodeTypeGate, "127.0.0.1:8000", "", nil)
+	nodeInfo := kkapp.NewNodeInfo("node1", kkapp.NodeTypeGate, "127.0.0.1:8000", "")
 	d := NewNatsDiscovery("test", nodeInfo, ApplyNatsOptions(), kkdiscovery.ApplyOptions())
 	nd, ok := d.(*NatsDiscovery)
 	if !ok || nd == nil {
