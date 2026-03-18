@@ -61,13 +61,14 @@ type gateComponent struct {
 	server    kknet.IServer
 	handler   *gateHandler
 
+	cluster kkcluster.ICluster // cluster for forwarding messages to logic and client
+
 	localDis  *localDiscovery
 	discovery kkdiscovery.IDiscovery
-	cluster   kkcluster.ICluster // cluster for forwarding messages to logic and client
 
 	transportor gatetrans.ITransportor
+	sessionMgr  gatetrans.ISessionManager
 
-	sessionMgr   gatetrans.ISessionManager
 	clientMgr    *clientManager
 	userMgr      *userManager
 	logicBindMgr *logicBindManager
