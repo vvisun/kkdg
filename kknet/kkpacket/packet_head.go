@@ -9,9 +9,10 @@ import (
 
 // [head] 编码解码器。用于编码解码[head]部分。
 type PacketHead struct {
-	partList []IHeadPart    // [head]的各个部分。长度: 0 ~ maxHeadPathCount
-	nameMap  map[string]int // [head]的各个部分的名称。长度: 0 ~ maxHeadPathCount
-	size     int            // [head]的总字节数
+	partList []IHeadPart      // [head]的各个部分。长度: 0 ~ maxHeadPathCount
+	nameMap  map[string]int   // [head]的各个部分的名称。长度: 0 ~ maxHeadPathCount
+	size     int              // [head]的总字节数
+	endian   binary.ByteOrder // 字节序
 }
 
 func NewPacketHead(parts ...IHeadPart) *PacketHead {
@@ -24,7 +25,12 @@ func NewPacketHead(parts ...IHeadPart) *PacketHead {
 		size += part.GetSize()
 	}
 
-	head := &PacketHead{partList: parts, size: size, nameMap: make(map[string]int)}
+	head := &PacketHead{
+		partList: parts,
+		size:     size,
+		nameMap:  make(map[string]int),
+		endian:   getByteOrder(),
+	}
 	if len(parts) > 0 {
 		// 默认添加msgID部分
 		head.nameMap[PartNameMsgID] = 0
@@ -72,7 +78,7 @@ func (h *PacketHead) GetPartCount() int {
 	return len(h.partList)
 }
 
-func (h *PacketHead) Marshal(headBytes []byte, endian binary.ByteOrder, valueList ...int) error {
+func (h *PacketHead) Marshal(headBytes []byte, valueList ...int) error {
 	if len(headBytes) < h.size {
 		return kkerrors.ErrPktDataTooShortToMarshal
 	}
@@ -81,7 +87,7 @@ func (h *PacketHead) Marshal(headBytes []byte, endian binary.ByteOrder, valueLis
 	}
 	offset := 0
 	for i, part := range h.partList {
-		if err := part.Marshal(headBytes[offset:offset+part.GetSize()], endian, valueList[i]); err != nil {
+		if err := part.Marshal(headBytes[offset:offset+part.GetSize()], h.endian, valueList[i]); err != nil {
 			return err
 		}
 		offset += part.GetSize()
@@ -89,14 +95,14 @@ func (h *PacketHead) Marshal(headBytes []byte, endian binary.ByteOrder, valueLis
 	return nil
 }
 
-func (h *PacketHead) Unmarshal(headBytes []byte, endian binary.ByteOrder) ([]int, error) {
+func (h *PacketHead) Unmarshal(headBytes []byte) ([]int, error) {
 	if len(headBytes) < h.size {
 		return nil, kkerrors.ErrPktDataTooShortToUnmarshal
 	}
 	valueList := make([]int, len(h.partList))
 	offset := 0
 	for i, part := range h.partList {
-		value, err := part.Unmarshal(headBytes[offset:offset+part.GetSize()], endian)
+		value, err := part.Unmarshal(headBytes[offset:offset+part.GetSize()], h.endian)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +112,7 @@ func (h *PacketHead) Unmarshal(headBytes []byte, endian binary.ByteOrder) ([]int
 	return valueList, nil
 }
 
-func (h *PacketHead) UnmarshalTo(headBytes []byte, endian binary.ByteOrder, valueList []int) ([]int, error) {
+func (h *PacketHead) UnmarshalTo(headBytes []byte, valueList []int) ([]int, error) {
 	if len(headBytes) < h.size || h.GetPartCount() <= 0 {
 		return valueList[:0], kkerrors.ErrPktDataTooShortToUnmarshal
 	}
@@ -115,7 +121,7 @@ func (h *PacketHead) UnmarshalTo(headBytes []byte, endian binary.ByteOrder, valu
 	}
 	offset := 0
 	for i, part := range h.partList {
-		value, err := part.Unmarshal(headBytes[offset:offset+part.GetSize()], endian)
+		value, err := part.Unmarshal(headBytes[offset:offset+part.GetSize()], h.endian)
 		if err != nil {
 			return valueList[:i], err
 		}
@@ -125,7 +131,7 @@ func (h *PacketHead) UnmarshalTo(headBytes []byte, endian binary.ByteOrder, valu
 	return valueList[:h.GetPartCount()], nil
 }
 
-func (h *PacketHead) ReadValueByName(headBytes []byte, endian binary.ByteOrder, name string) (int, error) {
+func (h *PacketHead) ReadValueByName(headBytes []byte, name string) (int, error) {
 	idx, ok := h.nameMap[name]
 	if !ok {
 		return 0, kkerrors.ErrPktHeadPartNameNotFound
@@ -135,5 +141,5 @@ func (h *PacketHead) ReadValueByName(headBytes []byte, endian binary.ByteOrder, 
 	for i := 0; i < idx; i++ {
 		offset += h.partList[i].GetSize()
 	}
-	return part.Unmarshal(headBytes[offset:offset+part.GetSize()], endian)
+	return part.Unmarshal(headBytes[offset:offset+part.GetSize()], h.endian)
 }

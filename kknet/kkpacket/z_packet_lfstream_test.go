@@ -12,13 +12,13 @@ import (
 
 func TestSetByteOrder(t *testing.T) {
 	ConfigDefaults(binary.LittleEndian)
-	if GetByteOrder() != binary.LittleEndian {
-		t.Errorf("GetByteOrder() = %v, want %v", GetByteOrder(), binary.LittleEndian)
+	if getByteOrder() != binary.LittleEndian {
+		t.Errorf("GetByteOrder() = %v, want %v", getByteOrder(), binary.LittleEndian)
 	}
 	// 再次设置，应该不会修改
 	setByteOrder(binary.BigEndian)
-	if GetByteOrder() != binary.LittleEndian {
-		t.Errorf("GetByteOrder() = %v, want %v", GetByteOrder(), binary.LittleEndian)
+	if getByteOrder() != binary.LittleEndian {
+		t.Errorf("GetByteOrder() = %v, want %v", getByteOrder(), binary.LittleEndian)
 	}
 }
 

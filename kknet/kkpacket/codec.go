@@ -42,7 +42,7 @@ func EncodeStream(v any, stream IPacket, messagePacket *MessagePacket) (*kkbuffe
 		kkbuffer.Put(bb)
 		return nil, err
 	}
-	err = messagePacket.GetHead().Marshal(headBytes, GetByteOrder(), int(msgID))
+	err = messagePacket.GetHead().Marshal(headBytes, int(msgID))
 	if err != nil {
 		kkbuffer.Put(bb)
 		return nil, err

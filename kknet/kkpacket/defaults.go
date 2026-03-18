@@ -33,7 +33,7 @@ func setByteOrder(order binary.ByteOrder) error {
 	return nil
 }
 
-func GetByteOrder() binary.ByteOrder {
+func getByteOrder() binary.ByteOrder {
 	return gByteOrder
 }
 

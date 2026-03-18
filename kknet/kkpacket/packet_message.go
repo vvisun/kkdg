@@ -58,7 +58,7 @@ func (p *MessagePacket) BodyBytes(messageBytes []byte) ([]byte, error) {
 }
 
 func (p *MessagePacket) GetMsgID(messageBytes []byte) (MSGID, error) {
-	msgID, err := p.head.ReadValueByName(messageBytes, GetByteOrder(), PartNameMsgID)
+	msgID, err := p.head.ReadValueByName(messageBytes, PartNameMsgID)
 	if err != nil {
 		return 0, err
 	}
@@ -73,5 +73,5 @@ func (p *MessagePacket) HeadValues(messageBytes []byte, valueList []int) ([]int,
 	if err != nil {
 		return nil, err
 	}
-	return p.head.UnmarshalTo(headBytes, GetByteOrder(), valueList)
+	return p.head.UnmarshalTo(headBytes, valueList)
 }

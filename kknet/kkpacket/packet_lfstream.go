@@ -50,7 +50,7 @@ func NewLengthFieldStreamPacket(lfb int, maxPacketSize int) IPacket {
 	return &LengthFieldStreamPacket{
 		lfbCount:      lfb,
 		maxPacketSize: maxPacketSize,
-		endian:        GetByteOrder(),
+		endian:        getByteOrder(),
 	}
 }
 

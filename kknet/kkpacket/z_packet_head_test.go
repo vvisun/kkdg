@@ -12,11 +12,11 @@ import (
 func TestPacketHead_Marshal_Unmarshal(t *testing.T) {
 	head := NewPacketHead(&PartUint16{}, &PartUint32{}, &PartUint64{})
 	data := make([]byte, head.GetSize())
-	if err := head.Marshal(data, binary.BigEndian, 1, 2, 3); err != nil {
+	if err := head.Marshal(data, 1, 2, 3); err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
 
-	valueList, err := head.Unmarshal(data, binary.BigEndian)
+	valueList, err := head.Unmarshal(data)
 	if err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
@@ -33,10 +33,10 @@ func TestPacketHead_NewPacketHead_DefaultMsgIDName(t *testing.T) {
 
 	// msgID 默认映射到第一个 part
 	data := make([]byte, head.GetSize())
-	if err := head.Marshal(data, binary.BigEndian, 0x1234, 0x5678); err != nil {
+	if err := head.Marshal(data, 0x1234, 0x5678); err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	v, err := head.ReadValueByName(data, binary.BigEndian, PartNameMsgID)
+	v, err := head.ReadValueByName(data, PartNameMsgID)
 	if err != nil {
 		t.Fatalf("ReadValueByName(msgID): %v", err)
 	}
@@ -65,15 +65,15 @@ func TestPacketHead_NewPacketHeadWithNames_Ok(t *testing.T) {
 	head := NewPacketHeadWithNames(parts, names)
 
 	data := make([]byte, head.GetSize())
-	if err := head.Marshal(data, binary.BigEndian, 10, 20); err != nil {
+	if err := head.Marshal(data, 10, 20); err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
 
-	v0, err := head.ReadValueByName(data, binary.BigEndian, "msgID")
+	v0, err := head.ReadValueByName(data, "msgID")
 	if err != nil || v0 != 10 {
 		t.Fatalf("ReadValueByName(msgID) = %d, err=%v, want 10, nil", v0, err)
 	}
-	v1, err := head.ReadValueByName(data, binary.BigEndian, "route")
+	v1, err := head.ReadValueByName(data, "route")
 	if err != nil || v1 != 20 {
 		t.Fatalf("ReadValueByName(route) = %d, err=%v, want 20, nil", v1, err)
 	}
@@ -107,13 +107,13 @@ func TestPacketHead_Marshal_Errors(t *testing.T) {
 
 	// headBytes 太短
 	short := make([]byte, head.GetSize()-1)
-	if err := head.Marshal(short, binary.BigEndian, 1, 2); !errors.Is(err, kkerrors.ErrPktDataTooShortToMarshal) {
+	if err := head.Marshal(short, 1, 2); !errors.Is(err, kkerrors.ErrPktDataTooShortToMarshal) {
 		t.Fatalf("Marshal short err = %v, want %v", err, kkerrors.ErrPktDataTooShortToMarshal)
 	}
 
 	// valueList 太短
 	data := make([]byte, head.GetSize())
-	if err := head.Marshal(data, binary.BigEndian, 1); !errors.Is(err, kkerrors.ErrPktValueListTooShortToMarshal) {
+	if err := head.Marshal(data, 1); !errors.Is(err, kkerrors.ErrPktValueListTooShortToMarshal) {
 		t.Fatalf("Marshal valueList short err = %v, want %v", err, kkerrors.ErrPktValueListTooShortToMarshal)
 	}
 }
@@ -122,7 +122,7 @@ func TestPacketHead_Unmarshal_Errors(t *testing.T) {
 	head := NewPacketHead(&PartUint16{}, &PartUint32{})
 
 	short := make([]byte, head.GetSize()-1)
-	if _, err := head.Unmarshal(short, binary.BigEndian); !errors.Is(err, kkerrors.ErrPktDataTooShortToUnmarshal) {
+	if _, err := head.Unmarshal(short); !errors.Is(err, kkerrors.ErrPktDataTooShortToUnmarshal) {
 		t.Fatalf("Unmarshal short err = %v, want %v", err, kkerrors.ErrPktDataTooShortToUnmarshal)
 	}
 }
@@ -130,19 +130,19 @@ func TestPacketHead_Unmarshal_Errors(t *testing.T) {
 func TestPacketHead_UnmarshalTo(t *testing.T) {
 	head := NewPacketHead(&PartUint16{}, &PartUint32{})
 	data := make([]byte, head.GetSize())
-	if err := head.Marshal(data, binary.BigEndian, 7, 8); err != nil {
+	if err := head.Marshal(data, 7, 8); err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
 
 	// headBytes 太短，返回空切片
 	short := data[:head.GetSize()-1]
-	values, err := head.UnmarshalTo(short, binary.BigEndian, nil)
+	values, err := head.UnmarshalTo(short, nil)
 	if !errors.Is(err, kkerrors.ErrPktDataTooShortToUnmarshal) || len(values) != 0 {
 		t.Fatalf("UnmarshalTo short = values:%v err:%v, want len 0, err %v", values, err, kkerrors.ErrPktDataTooShortToUnmarshal)
 	}
 
 	// valueList 初始长度不足时，会自动扩容
-	values, err = head.UnmarshalTo(data, binary.BigEndian, make([]int, 1))
+	values, err = head.UnmarshalTo(data, make([]int, 1))
 	if err != nil {
 		t.Fatalf("UnmarshalTo: %v", err)
 	}
@@ -169,11 +169,11 @@ func TestPacketHead_UnmarshalTo_PartErrorPartialResult(t *testing.T) {
 	head := NewPacketHead(&PartUint8{}, &badPart{})
 	data := make([]byte, head.GetSize())
 	// 只需要保证第一个 part 可解
-	if err := head.Marshal(data, binary.BigEndian, 5, 0); err != nil {
+	if err := head.Marshal(data, 5, 0); err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
 
-	values, err := head.UnmarshalTo(data, binary.BigEndian, nil)
+	values, err := head.UnmarshalTo(data, nil)
 	if !errors.Is(err, kkerrors.ErrPktDataTooShortToUnmarshal) {
 		t.Fatalf("UnmarshalTo err = %v, want %v", err, kkerrors.ErrPktDataTooShortToUnmarshal)
 	}
@@ -185,11 +185,11 @@ func TestPacketHead_UnmarshalTo_PartErrorPartialResult(t *testing.T) {
 func TestPacketHead_ReadValueByName_NameNotFound(t *testing.T) {
 	head := NewPacketHead(&PartUint16{})
 	data := make([]byte, head.GetSize())
-	if err := head.Marshal(data, binary.BigEndian, 1); err != nil {
+	if err := head.Marshal(data, 1); err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
 
-	if _, err := head.ReadValueByName(data, binary.BigEndian, "not_exists"); !errors.Is(err, kkerrors.ErrPktHeadPartNameNotFound) {
+	if _, err := head.ReadValueByName(data, "not_exists"); !errors.Is(err, kkerrors.ErrPktHeadPartNameNotFound) {
 		t.Fatalf("ReadValueByName name not found err = %v, want %v", err, kkerrors.ErrPktHeadPartNameNotFound)
 	}
 }
