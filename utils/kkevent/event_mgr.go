@@ -15,19 +15,19 @@ type ListenerInfo struct {
 
 type EventListener func(data any)
 
-type EventManager[K comparable, T any] struct {
+type EventManager[K comparable] struct {
 	listeners map[K][]ListenerInfo
 	mu        sync.RWMutex
 	autoID    atomic.Uint64
 }
 
-func NewEventManager[K comparable, T any]() *EventManager[K, T] {
-	return &EventManager[K, T]{
+func NewEventManager[K comparable]() *EventManager[K] {
+	return &EventManager[K]{
 		listeners: make(map[K][]ListenerInfo),
 	}
 }
 
-func (m *EventManager[K, T]) AddListener(key K, listener EventListener) uint64 {
+func (m *EventManager[K]) AddListener(key K, listener EventListener) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -49,7 +49,7 @@ func (m *EventManager[K, T]) AddListener(key K, listener EventListener) uint64 {
 	return newList[len(current)].ID
 }
 
-func (m *EventManager[K, T]) RemoveListener(key K, listener EventListener) {
+func (m *EventManager[K]) RemoveListener(key K, listener EventListener) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -76,7 +76,7 @@ func (m *EventManager[K, T]) RemoveListener(key K, listener EventListener) {
 	}
 }
 
-func (m *EventManager[K, T]) RemoveListenerByID(key K, id uint64) {
+func (m *EventManager[K]) RemoveListenerByID(key K, id uint64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -103,13 +103,13 @@ func (m *EventManager[K, T]) RemoveListenerByID(key K, id uint64) {
 	}
 }
 
-func (m *EventManager[K, T]) RemoveAllListeners(key K) {
+func (m *EventManager[K]) RemoveAllListeners(key K) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.listeners, key)
 }
 
-func (m *EventManager[K, T]) Publish(key K, data T) {
+func (m *EventManager[K]) Publish(key K, data any) {
 	m.mu.RLock()
 	listeners := m.listeners[key]
 	m.mu.RUnlock()
