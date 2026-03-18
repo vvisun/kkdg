@@ -4,7 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/xcall"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
@@ -121,15 +121,8 @@ func (m *EventManager[K]) Publish(key K, data any) {
 	m.mu.RUnlock()
 
 	for _, listener := range listeners {
-		func(li ListenerInfo) {
-			defer func() {
-				if r := recover(); r != nil {
-					kklog.Errorf("EventManager publish panic: %v", r)
-				}
-			}()
-			if li.Func != nil {
-				li.Func(data)
-			}
-		}(listener)
+		xcall.SafeCall(func() {
+			listener.Func(data)
+		})
 	}
 }

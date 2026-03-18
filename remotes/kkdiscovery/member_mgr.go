@@ -14,7 +14,7 @@ type MemberMgr struct {
 	typeMap   map[string][]IMember // key: nodeType, value: members
 	membersMu sync.RWMutex
 
-	eventMgr kkevent.Bus
+	eventMgr *kkevent.EventManager[string]
 
 	logger kklog.ILogger
 }
@@ -26,7 +26,7 @@ func NewMemberMgr() *MemberMgr {
 	return &MemberMgr{
 		members:  make(map[string]IMember),
 		typeMap:  make(map[string][]IMember),
-		eventMgr: kkevent.NewEventBus(),
+		eventMgr: kkevent.NewEventManager[string](),
 		logger:   kklog.Nop(),
 	}
 }
@@ -200,7 +200,9 @@ func (m *MemberMgr) ObserveAddMember(listener MemberListener) {
 	if listener == nil {
 		return
 	}
-	m.eventMgr.Subscribe(eventMemberAdd, listener)
+	m.eventMgr.Subscribe(eventMemberAdd, func(data any) {
+		listener(data.(IMember))
+	})
 }
 
 // 监听移除成员
@@ -208,7 +210,9 @@ func (m *MemberMgr) ObserveRemoveMember(listener MemberListener) {
 	if listener == nil {
 		return
 	}
-	m.eventMgr.Subscribe(eventMemberRemove, listener)
+	m.eventMgr.Subscribe(eventMemberRemove, func(data any) {
+		listener(data.(IMember))
+	})
 }
 
 // notifyAddListeners 通知添加
