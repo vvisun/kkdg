@@ -26,6 +26,8 @@ type TimingWheel struct {
 
 	exitC     chan struct{}
 	waitGroup waitGroupWrapper
+
+	autoId atomic.Uint64 // auto increment id for timer
 }
 
 // NewTimingWheel creates an instance of TimingWheel with the given tick and wheelSize.
@@ -168,6 +170,7 @@ func (tw *TimingWheel) Stop() {
 // It returns a Timer that can be used to cancel the call using its Stop method.
 func (tw *TimingWheel) AfterFunc(d time.Duration, f func()) *Timer {
 	t := &Timer{
+		id:         tw.autoId.Add(1),
 		expiration: timeToMs(time.Now().UTC().Add(d)),
 		task:       f,
 	}
@@ -207,6 +210,7 @@ func (tw *TimingWheel) ScheduleFunc(s Scheduler, f func()) (t *Timer) {
 	}
 
 	t = &Timer{
+		id:         tw.autoId.Add(1),
 		expiration: timeToMs(expiration),
 		task: func() {
 			// Schedule the task to execute at the next time if possible.

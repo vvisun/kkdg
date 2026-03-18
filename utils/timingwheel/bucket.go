@@ -10,6 +10,7 @@ import (
 // Timer represents a single event. When the Timer expires, the given
 // task will be executed.
 type Timer struct {
+	id         uint64
 	expiration int64 // in milliseconds
 	task       func()
 
@@ -21,6 +22,10 @@ type Timer struct {
 
 	// The timer's element.
 	element *list.Element
+}
+
+func (t *Timer) GetID() uint64 {
+	return t.id
 }
 
 func (t *Timer) getBucket() *bucket {
