@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/asynkron/protoactor-go/eventstream"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -29,7 +30,7 @@ func getGlobalActorFramework() *kkactor.ActorFramework {
 // new application.
 //
 //	each application is a node, a actor.
-//	if actorFramework is nil, will use default getGlobalActorFramework()
+//	if af is nil, will use default getGlobalActorFramework()
 func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts kkapp.AppOptions) *Application {
 	if nodeInfo == nil {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
@@ -41,12 +42,13 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 	}
 	af.GetLocator().AddNode(nodeInfo)
 	app := &Application{
-		nodeInfo:       nodeInfo,
-		actorFramework: af,
-		state:          ComponentStateNone,
-		compList:       make([]kkapp.IComponent, 0),
-		opts:           &opts,
+		nodeInfo:         nodeInfo,
+		actorFramework:   af,
+		state:            ComponentStateNone,
+		compList:         make([]kkapp.IComponent, 0),
+		opts:             &opts,
 		pidKeyToCompName: make(map[string]string),
+		faultHandledPID:  make(map[string]struct{}),
 	}
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
@@ -58,6 +60,19 @@ func getPIDKey(pid *actor.PID) string {
 	}
 	// Address+Id should be unique enough for correlating Terminated->component.
 	return fmt.Sprintf("%s|%s", pid.Address, pid.Id)
+}
+
+func (slf *Application) markFaultHandled(pidKey string) bool {
+	if pidKey == "" {
+		return false
+	}
+	slf.faultHandledMu.Lock()
+	defer slf.faultHandledMu.Unlock()
+	if _, ok := slf.faultHandledPID[pidKey]; ok {
+		return false
+	}
+	slf.faultHandledPID[pidKey] = struct{}{}
+	return true
 }
 
 type Application struct {
@@ -74,6 +89,17 @@ type Application struct {
 
 	// pidKey -> component name, used to map protoactor Terminated events back to a component.
 	pidKeyToCompName map[string]string
+	pidKeyMu         sync.RWMutex
+
+	// faultHandledPID ensures we publish a component fault only once.
+	// It is accessed from both:
+	// - actor Receive loop (Terminated)
+	// - protoactor EventStream callback (SupervisorEvent)
+	faultHandledPID map[string]struct{}
+	faultHandledMu  sync.Mutex
+
+	// EventStream subscription id for supervision events.
+	faultSub *eventstream.Subscription
 }
 
 var _ kkapp.IApplication = (*Application)(nil)
@@ -253,6 +279,55 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		return //已经启动，直接返回
 	}
 
+	// Subscribe protoactor-go supervision events so we can capture failure context
+	// (e.g. panic value) for component "core severity" decisions.
+	// This subscription is process-local; it decouples the decision point (Application)
+	// from the execution point(s) (listeners that may broadcast maintenance).
+	actorSystem := slf.actorFramework.GetActorSystem()
+	slf.faultSub = actorSystem.EventStream.Subscribe(func(evt interface{}) {
+		// Skip while stopping/stopped to avoid duplicated or late events.
+		curState := ComponentState(atomic.LoadInt64(&slf.state))
+		if curState == ComponentStateStopping || curState == ComponentStateStopped {
+			return
+		}
+
+		supervisorEvent, ok := evt.(*actor.SupervisorEvent)
+		if !ok || supervisorEvent == nil || supervisorEvent.Child == nil {
+			return
+		}
+
+		pidKey := getPIDKey(supervisorEvent.Child)
+		if pidKey == "" {
+			return
+		}
+
+		slf.pidKeyMu.RLock()
+		compName := slf.pidKeyToCompName[pidKey]
+		slf.pidKeyMu.RUnlock()
+		if compName == "" {
+			return
+		}
+
+		if !slf.markFaultHandled(pidKey) {
+			return
+		}
+
+		reasonStr, isPanic := normalizeFailureReason(supervisorEvent.Reason)
+
+		GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
+			NodeID:        slf.GetNodeId(),
+			NodeType:      slf.GetNodeType(),
+			ComponentName: compName,
+
+			FailureReason:       supervisorEvent.Reason,
+			FailureReasonString: reasonStr,
+			FailureDirective:    supervisorEvent.Directive,
+			IsPanic:             isPanic,
+
+			TerminatedPIDKey: pidKey,
+		})
+	})
+
 	slf.mu.RLock()
 	comps := make([]kkapp.IComponent, len(slf.compList))
 	copy(comps, slf.compList)
@@ -272,7 +347,10 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		// Watch component actor lifecycle so we can receive Terminated.
 		ctx.Watch(pid)
 		// Record mapping early so we can correlate Terminated even if OnStart panics/exits.
-		slf.pidKeyToCompName[getPIDKey(pid)] = comp.GetCompName()
+		pidKey := getPIDKey(pid)
+		slf.pidKeyMu.Lock()
+		slf.pidKeyToCompName[pidKey] = comp.GetCompName()
+		slf.pidKeyMu.Unlock()
 
 		id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())
 		if err != nil {
@@ -313,12 +391,33 @@ func (slf *Application) finishStart(err error) {
 
 func (slf *Application) onStopped() {
 	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStopping, ComponentStateStopped)
+
+	// Stop listening to supervision events.
+	if slf.faultSub != nil {
+		actorSystem := slf.actorFramework.GetActorSystem()
+		actorSystem.EventStream.Unsubscribe(slf.faultSub)
+		slf.faultSub = nil
+	}
+
 	id, _ := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
 	slf.actorFramework.GetLocator().RemoveActor(id)
 	slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
 	slf.mu.Lock()
 	slf.compList = make([]kkapp.IComponent, 0)
 	slf.mu.Unlock()
+
+	slf.pidKeyMu.Lock()
+	for k := range slf.pidKeyToCompName {
+		delete(slf.pidKeyToCompName, k)
+	}
+	slf.pidKeyMu.Unlock()
+
+	slf.faultHandledMu.Lock()
+	for k := range slf.faultHandledPID {
+		delete(slf.faultHandledPID, k)
+	}
+	slf.faultHandledMu.Unlock()
+
 	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
 }
 
@@ -334,19 +433,27 @@ func (slf *Application) Receive(ctx actor.Context) {
 		}
 
 		msg := ctx.Message().(*actor.Terminated)
-		compName := slf.pidKeyToCompName[getPIDKey(msg.Who)]
+		pidKey := getPIDKey(msg.Who)
+		slf.pidKeyMu.RLock()
+		compName := slf.pidKeyToCompName[pidKey]
+		slf.pidKeyMu.RUnlock()
 		if compName == "" {
 			// Unknown PID (already cleared mapping or watcher received late message).
 			return
 		}
 
+		// Publish only once per component pid.
+		if !slf.markFaultHandled(pidKey) {
+			return
+		}
+
 		// Broadcast an in-process fault event for listeners to decide maintenance / stop behavior.
 		GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
-			NodeID:            slf.GetNodeId(),
-			NodeType:          slf.GetNodeType(),
+			NodeID:           slf.GetNodeId(),
+			NodeType:         slf.GetNodeType(),
 			ComponentName:    compName,
 			TerminatedWhy:    msg.GetWhy(),
-			TerminatedPIDKey: getPIDKey(msg.Who),
+			TerminatedPIDKey: pidKey,
 		})
 	case *actor.Stopping:
 		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
