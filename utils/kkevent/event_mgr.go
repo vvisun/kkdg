@@ -28,6 +28,9 @@ func NewEventManager[K comparable]() *EventManager[K] {
 }
 
 func (m *EventManager[K]) AddListener(key K, listener EventListener) uint64 {
+	if listener == nil {
+		return 0
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -50,12 +53,15 @@ func (m *EventManager[K]) AddListener(key K, listener EventListener) uint64 {
 }
 
 func (m *EventManager[K]) RemoveListener(key K, listener EventListener) {
+	if listener == nil {
+		return
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	idx := -1
 	for i, l := range m.listeners[key] {
-		if xreflect.IsSameFunc(l, listener) {
+		if xreflect.IsSameFunc(l.Func, listener) {
 			idx = i
 			break
 		}
@@ -115,11 +121,15 @@ func (m *EventManager[K]) Publish(key K, data any) {
 	m.mu.RUnlock()
 
 	for _, listener := range listeners {
-		defer func() {
-			if r := recover(); r != nil {
-				kklog.Errorf("EventManager publish panic: %v", r)
+		func(li ListenerInfo) {
+			defer func() {
+				if r := recover(); r != nil {
+					kklog.Errorf("EventManager publish panic: %v", r)
+				}
+			}()
+			if li.Func != nil {
+				li.Func(data)
 			}
-		}()
-		listener.Func(data)
+		}(listener)
 	}
 }
