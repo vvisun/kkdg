@@ -18,7 +18,6 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
-	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
@@ -71,11 +70,7 @@ func (slf *gameComponent) OnInit() error {
 		discoveryOpts,
 		kkdiscovery.ApplyOptions(),
 	)
-	slf.discoverySubID = kkevent.GlobalBus.Subscribe(kkdiscovery.EventDiscoveryStats, func(eData any) {
-		e, ok := eData.(*kkdiscovery.DiscoveryStatsEvent)
-		if !ok {
-			return
-		}
+	slf.discoverySubID = kkdiscovery.GlobalEventMgr.Subscribe(kkdiscovery.EventDiscoveryStats, func(e *kkdiscovery.DiscoveryStatsEvent) {
 		e.OnlineCount = slf.sessionManager.OnlineCount()
 		e.Status = kkdiscovery.NodeStatusOnline
 	})
@@ -170,7 +165,7 @@ func (slf *gameComponent) OnStart() error {
 }
 
 func (slf *gameComponent) OnStop() error {
-	kkevent.GlobalBus.UnsubscribeByID(kkdiscovery.EventDiscoveryStats, slf.discoverySubID)
+	kkdiscovery.GlobalEventMgr.UnsubscribeAll(kkdiscovery.EventDiscoveryStats)
 	if slf.cluster != nil {
 		slf.cluster.Stop()
 	}

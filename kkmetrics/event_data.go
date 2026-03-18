@@ -18,6 +18,9 @@ const (
 	EventRpcServerMetrics = "rpc_server_metrics"
 )
 
+// GlobalEventMgr 是全局的事件管理器，用于管理各模块的metrics事件。
+var GlobalEventMgr = kkevent.NewSpecEventManager[string, *MetricsEventData]()
+
 // MetricsEventData 是向各模块发出的请求事件的数据结构
 type MetricsEventData struct {
 	EventType string             // 回填事件类型，用于标识是哪个模块的metrics数据
@@ -36,7 +39,7 @@ func collectClusterMetrics(namespace string) *MetricsEventData {
 		Namespace: namespace,
 		Metrics:   make(map[string]float64),
 	}
-	kkevent.GlobalBus.Publish(EventClusterMetrics, e)
+	GlobalEventMgr.Publish(EventClusterMetrics, e)
 	return e
 }
 
@@ -48,7 +51,7 @@ func collectDiscoveryMetrics(namespace string) *MetricsEventData {
 		Namespace: namespace,
 		Metrics:   make(map[string]float64),
 	}
-	kkevent.GlobalBus.Publish(EventDiscoveryMetrics, e)
+	GlobalEventMgr.Publish(EventDiscoveryMetrics, e)
 	return e
 }
 
@@ -60,7 +63,7 @@ func collectRpcClientMetrics(namespace string) *MetricsEventData {
 		Namespace: namespace,
 		Metrics:   make(map[string]float64),
 	}
-	kkevent.GlobalBus.Publish(EventRpcClientMetrics, e)
+	GlobalEventMgr.Publish(EventRpcClientMetrics, e)
 	return e
 }
 
@@ -72,7 +75,7 @@ func collectRpcServerMetrics(namespace string) *MetricsEventData {
 		Namespace: namespace,
 		Metrics:   make(map[string]float64),
 	}
-	kkevent.GlobalBus.Publish(EventRpcServerMetrics, e)
+	GlobalEventMgr.Publish(EventRpcServerMetrics, e)
 	return e
 }
 

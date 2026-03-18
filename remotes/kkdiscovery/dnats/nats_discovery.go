@@ -11,7 +11,6 @@ import (
 	"github.com/vvisun/kkdg/kkmetrics"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kkcodec"
-	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -78,11 +77,7 @@ func NewNatsDiscovery(
 	}
 
 	// 订阅 discovery metrics 事件，通过 Stats 快照填充 MetricsEventData
-	kkevent.GlobalBus.Subscribe(kkmetrics.EventDiscoveryMetrics, func(eData any) {
-		e, ok := eData.(*kkmetrics.MetricsEventData)
-		if !ok {
-			return
-		}
+	kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventDiscoveryMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := d.Stats()
 		e.Metrics = kkdiscovery.MetricsFromSnapshot(e.Namespace, snap)
 	})
@@ -169,7 +164,7 @@ func (d *NatsDiscovery) Stop() error {
 		}
 	}
 
-	kkevent.GlobalBus.UnsubscribeAll(kkmetrics.EventDiscoveryMetrics)
+	kkmetrics.GlobalEventMgr.UnsubscribeAll(kkmetrics.EventDiscoveryMetrics)
 
 	select {
 	case <-d.stopCh:
@@ -364,7 +359,7 @@ func (d *NatsDiscovery) publishSelf() error {
 		OnlineCount: 0,
 		Status:      kkdiscovery.NodeStatusOnline,
 	}
-	kkevent.GlobalBus.Publish(kkdiscovery.EventDiscoveryStats, evt)
+	kkdiscovery.GlobalEventMgr.Publish(kkdiscovery.EventDiscoveryStats, evt)
 
 	if d.closing.Load() {
 		evt.Status = kkdiscovery.NodeStatusOffline // 正在关闭，设置为离线

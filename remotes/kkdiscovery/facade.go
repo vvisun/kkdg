@@ -1,5 +1,7 @@
 package kkdiscovery
 
+import "github.com/vvisun/kkdg/utils/kkevent"
+
 const (
 	NodeStatusOnline  = 0 // 在线
 	NodeStatusOffline = 1 // 离线
@@ -15,6 +17,9 @@ type DiscoveryStatsEvent struct {
 	OnlineCount int // 在线玩家数量
 	Status      int // 状态：NodeStatusOnline(0), NodeStatusOffline(1)
 }
+
+// GlobalEventMgr 是全局的事件管理器，用于管理发现服务的统计事件。
+var GlobalEventMgr = kkevent.NewSpecEventManager[string, *DiscoveryStatsEvent]()
 
 type (
 	// IMember 成员接口。Node Data

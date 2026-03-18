@@ -11,7 +11,6 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kkcodec"
-	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kktime"
 	"github.com/vvisun/kkdg/utils/queues/taskqueue"
@@ -90,11 +89,7 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 // Start 初始化集群
 func (c *NatsCluster) Start() error {
 	kklog.Infof("NatsCluster(%s) startup", c.nodeID)
-	kkevent.GlobalBus.Subscribe(kkmetrics.EventClusterMetrics, func(eData any) {
-		e, ok := eData.(*kkmetrics.MetricsEventData)
-		if !ok {
-			return
-		}
+	kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := c.Stats()
 		e.Metrics = kkcluster.MetricsFromSnapshot(e.Namespace, snap)
 	})
@@ -484,7 +479,7 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 func (c *NatsCluster) Stop() {
 	kklog.Infof("NatsCluster(%s) shutdown", c.nodeID)
 
-	kkevent.GlobalBus.UnsubscribeAll(kkmetrics.EventClusterMetrics)
+	kkmetrics.GlobalEventMgr.UnsubscribeAll(kkmetrics.EventClusterMetrics)
 
 	select {
 	case <-c.stopCh:

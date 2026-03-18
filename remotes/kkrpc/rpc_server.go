@@ -7,7 +7,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
-	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kkoption"
 )
 
@@ -69,11 +68,7 @@ func (s *Server) SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 
 func (s *Server) Start() error {
 	// 订阅 rpc服务端metrics事件，通过 Stats 快照填充 MetricsEventData
-	kkevent.GlobalBus.Subscribe(kkmetrics.EventRpcServerMetrics, func(eData any) {
-		e, ok := eData.(*kkmetrics.MetricsEventData)
-		if !ok {
-			return
-		}
+	kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventRpcServerMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := s.Stats()
 		e.Metrics = MetricsFromSnapshot(e.Namespace, snap)
 	})
@@ -81,7 +76,7 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop() error {
-	kkevent.GlobalBus.UnsubscribeAll(kkmetrics.EventRpcServerMetrics)
+	kkmetrics.GlobalEventMgr.UnsubscribeAll(kkmetrics.EventRpcServerMetrics)
 	s.pending.closeAll()
 	return s.tcp.Stop()
 }
