@@ -90,7 +90,11 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 // Start 初始化集群
 func (c *NatsCluster) Start() error {
 	kklog.Infof("NatsCluster(%s) startup", c.nodeID)
-	kkevent.GlobalBus.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
+	kkevent.GlobalBus.Subscribe(kkmetrics.EventClusterMetrics, func(eData any) {
+		e, ok := eData.(*kkmetrics.MetricsEventData)
+		if !ok {
+			return
+		}
 		snap := c.Stats()
 		e.Metrics = kkcluster.MetricsFromSnapshot(e.Namespace, snap)
 	})

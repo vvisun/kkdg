@@ -71,9 +71,13 @@ func (slf *gameComponent) OnInit() error {
 		discoveryOpts,
 		kkdiscovery.ApplyOptions(),
 	)
-	slf.discoverySubID, _ = kkevent.GlobalBus.Subscribe(kkdiscovery.EventDiscoveryStats, func(event *kkdiscovery.DiscoveryStatsEvent) {
-		event.OnlineCount = slf.sessionManager.OnlineCount()
-		event.Status = kkdiscovery.NodeStatusOnline
+	slf.discoverySubID = kkevent.GlobalBus.Subscribe(kkdiscovery.EventDiscoveryStats, func(eData any) {
+		e, ok := eData.(*kkdiscovery.DiscoveryStatsEvent)
+		if !ok {
+			return
+		}
+		e.OnlineCount = slf.sessionManager.OnlineCount()
+		e.Status = kkdiscovery.NodeStatusOnline
 	})
 
 	// 初始化 cluster

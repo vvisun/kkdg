@@ -1,4 +1,4 @@
 package kkevent
 
 // GlobalBus is a global event bus instance for simple use cases.
-var GlobalBus = NewEventBus()
+var GlobalBus = NewEventManager[string]() // NewEventBus()

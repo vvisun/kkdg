@@ -71,8 +71,9 @@ func (c *Client) SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 
 func (c *Client) Start() error {
 	// 订阅 rpc客户端metrics事件，通过 Stats 快照填充 MetricsEventData
-	kkevent.GlobalBus.Subscribe(kkmetrics.EventRpcClientMetrics, func(e *kkmetrics.MetricsEventData) {
-		if e == nil {
+	kkevent.GlobalBus.Subscribe(kkmetrics.EventRpcClientMetrics, func(eData any) {
+		e, ok := eData.(*kkmetrics.MetricsEventData)
+		if !ok {
 			return
 		}
 		snap := c.Stats()
