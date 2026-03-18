@@ -46,7 +46,7 @@ func NewLengthFieldStreamPacket(lfb int, maxPacketSize int) IPacket {
 	if lfb == 4 && maxPacketSize > 4294967295 {
 		kklog.PanicLog("max packet size must be less than 4294967295")
 	}
-	gInitedByteOrder.Store(true)
+
 	return &LengthFieldStreamPacket{
 		lfbCount:      lfb,
 		maxPacketSize: maxPacketSize,
