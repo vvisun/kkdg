@@ -8,12 +8,12 @@ import (
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-type ListenerInfo struct {
-	ID   uint64
-	Func EventListener
-}
-
 type EventListener func(data any)
+
+type ListenerInfo struct {
+	gid      uint64
+	callback EventListener
+}
 
 type EventManager[K comparable] struct {
 	listeners map[K][]ListenerInfo
@@ -35,8 +35,8 @@ func (m *EventManager[K]) Subscribe(key K, listener EventListener) uint64 {
 	defer m.mu.Unlock()
 
 	for _, l := range m.listeners[key] {
-		if xreflect.IsSameFunc(l.Func, listener) {
-			return l.ID
+		if xreflect.IsSameFunc(l.callback, listener) {
+			return l.gid
 		}
 	}
 
@@ -45,11 +45,11 @@ func (m *EventManager[K]) Subscribe(key K, listener EventListener) uint64 {
 	newList := make([]ListenerInfo, len(current)+1)
 	copy(newList, current)
 	newList[len(current)] = ListenerInfo{
-		ID:   m.autoID.Add(1),
-		Func: listener,
+		gid:      m.autoID.Add(1),
+		callback: listener,
 	}
 	m.listeners[key] = newList
-	return newList[len(current)].ID
+	return newList[len(current)].gid
 }
 
 func (m *EventManager[K]) Unsubscribe(key K, listener EventListener) {
@@ -61,7 +61,7 @@ func (m *EventManager[K]) Unsubscribe(key K, listener EventListener) {
 
 	idx := -1
 	for i, l := range m.listeners[key] {
-		if xreflect.IsSameFunc(l.Func, listener) {
+		if xreflect.IsSameFunc(l.callback, listener) {
 			idx = i
 			break
 		}
@@ -88,7 +88,7 @@ func (m *EventManager[K]) UnsubscribeByID(key K, id uint64) {
 
 	idx := -1
 	for i, l := range m.listeners[key] {
-		if l.ID == id {
+		if l.gid == id {
 			idx = i
 			break
 		}
@@ -122,7 +122,7 @@ func (m *EventManager[K]) Publish(key K, data any) {
 
 	for _, listener := range listeners {
 		xcall.SafeCall(func() {
-			listener.Func(data)
+			listener.callback(data)
 		})
 	}
 }
