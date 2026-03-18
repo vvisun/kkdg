@@ -24,8 +24,6 @@ func (m *mockConn) Close() error                            { return nil }
 func (m *mockConn) RemoteAddr() string                      { return "mock:0" }
 func (m *mockConn) SendBuffer(_ *kkbuffer.ByteBuffer) error { return nil }
 func (m *mockConn) SendMsg(_ any) error                     { return nil }
-func (m *mockConn) SetExtraData(any)                        {}
-func (m *mockConn) GetExtraData() any                       { return nil }
 
 func TestWriteProcessor_DropMode(t *testing.T) {
 	opts := kknet.WriteOptions{

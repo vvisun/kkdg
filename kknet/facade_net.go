@@ -6,13 +6,12 @@ import (
 
 // IConn represents a network connection.
 type IConn interface {
-	ID() CONN_ID        //unique connection id
-	Close() error       //close connection
-	RemoteAddr() string //remote address
-
-	SetExtraData(userData any) //设置自定义数据
-	GetExtraData() any         //获取自定义数据
-
+	//unique connection id
+	ID() CONN_ID
+	//close connection
+	Close() error
+	//remote address
+	RemoteAddr() string
 	//发送二进制数据。内部会自动释放buffer
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 	//发送结构体对象。内部会使用kkpacket编码

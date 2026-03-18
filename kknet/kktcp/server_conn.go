@@ -26,10 +26,6 @@ type tcpConn struct {
 	pendingWrites atomic.Int32
 	closeMu       sync.Mutex
 	closeCond     *sync.Cond
-
-	// 自定义数据
-	extraMu   sync.RWMutex
-	extraData any
 }
 
 var _ kknet.IConn = (*tcpConn)(nil)
@@ -60,19 +56,6 @@ func (c *tcpConn) ID() kknet.CONN_ID {
 
 func (c *tcpConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
-}
-
-func (c *tcpConn) SetExtraData(extraData any) {
-	c.extraMu.Lock()
-	c.extraData = extraData
-	c.extraMu.Unlock()
-}
-
-func (c *tcpConn) GetExtraData() any {
-	c.extraMu.RLock()
-	data := c.extraData
-	c.extraMu.RUnlock()
-	return data
 }
 
 func (c *tcpConn) Close() error {

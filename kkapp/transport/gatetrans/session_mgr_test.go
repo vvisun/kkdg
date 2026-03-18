@@ -19,8 +19,6 @@ func (m *mockConn) Close() error                                 { return nil }
 func (m *mockConn) RemoteAddr() string                           { return "" }
 func (m *mockConn) LocalAddr() string                            { return "" }
 func (m *mockConn) GetConnManager() kknet.IConnManager           { return nil }
-func (m *mockConn) GetExtraData() any                            { return nil }
-func (m *mockConn) SetExtraData(any)                             {}
 func (m *mockConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error { return nil }
 func (m *mockConn) SendMsg(msg any) error                        { return nil }
 

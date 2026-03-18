@@ -34,10 +34,6 @@ type gwsConn struct {
 	closeCond     *sync.Cond
 
 	pingTimer unsafe.Pointer // *timingwheel.Timer
-
-	// 自定义数据
-	extraMu   sync.RWMutex
-	extraData any
 }
 
 var _ kknet.IConn = (*gwsConn)(nil)
@@ -75,19 +71,6 @@ func (c *gwsConn) RemoteAddr() string {
 		return ""
 	}
 	return addr.String()
-}
-
-func (c *gwsConn) SetExtraData(extraData any) {
-	c.extraMu.Lock()
-	c.extraData = extraData
-	c.extraMu.Unlock()
-}
-
-func (c *gwsConn) GetExtraData() any {
-	c.extraMu.RLock()
-	data := c.extraData
-	c.extraMu.RUnlock()
-	return data
 }
 
 func (c *gwsConn) Close() error {

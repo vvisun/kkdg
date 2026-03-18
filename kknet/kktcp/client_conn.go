@@ -26,10 +26,6 @@ type gnetClientConn struct {
 	pendingWrites atomic.Int32
 	closeMu       sync.Mutex
 	closeCond     *sync.Cond
-
-	// 自定义数据
-	extraMu   sync.RWMutex
-	extraData any
 }
 
 var _ kknet.IConn = (*gnetClientConn)(nil)
@@ -59,19 +55,6 @@ func (c *gnetClientConn) ID() kknet.CONN_ID {
 
 func (c *gnetClientConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
-}
-
-func (c *gnetClientConn) SetExtraData(extraData any) {
-	c.extraMu.Lock()
-	c.extraData = extraData
-	c.extraMu.Unlock()
-}
-
-func (c *gnetClientConn) GetExtraData() any {
-	c.extraMu.RLock()
-	data := c.extraData
-	c.extraMu.RUnlock()
-	return data
 }
 
 func (c *gnetClientConn) Close() error {

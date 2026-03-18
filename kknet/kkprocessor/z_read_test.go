@@ -51,8 +51,6 @@ func (m *mockConnForRead) Close() error                          { return nil }
 func (m *mockConnForRead) RemoteAddr() string                    { return "mock:0" }
 func (m *mockConnForRead) SendBuffer(*kkbuffer.ByteBuffer) error { return nil }
 func (m *mockConnForRead) SendMsg(any) error                     { return nil }
-func (m *mockConnForRead) SetExtraData(any)                      {}
-func (m *mockConnForRead) GetExtraData() any                     { return nil }
 
 func TestReadProcessor_OnRecvBytes_SinglePacket(t *testing.T) {
 	h := &collectingRawHandler{}

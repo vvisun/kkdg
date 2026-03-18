@@ -19,11 +19,9 @@ type fakeConn struct {
 	data [][]byte
 }
 
-func (c *fakeConn) ID() kknet.CONN_ID         { return c.id }
-func (c *fakeConn) RemoteAddr() string        { return "fake" }
-func (c *fakeConn) Close() error              { return nil }
-func (c *fakeConn) SetExtraData(userData any) {}
-func (c *fakeConn) GetExtraData() any         { return nil }
+func (c *fakeConn) ID() kknet.CONN_ID  { return c.id }
+func (c *fakeConn) RemoteAddr() string { return "fake" }
+func (c *fakeConn) Close() error       { return nil }
 func (c *fakeConn) SendBuffer(buf *kkbuffer.ByteBuffer) error {
 	c.data = append(c.data, buf.B)
 	return nil
