@@ -19,13 +19,16 @@ type fakeConn struct {
 	data [][]byte
 }
 
-func (c *fakeConn) ID() kknet.CONN_ID                         { return c.id }
-func (c *fakeConn) RemoteAddr() string                        { return "fake" }
-func (c *fakeConn) Close() error                              { return nil }
-func (c *fakeConn) SetExtraData(userData any)                 {}
-func (c *fakeConn) GetExtraData() any                         { return nil }
-func (c *fakeConn) SendBuffer(buf *kkbuffer.ByteBuffer) error { c.data = append(c.data, buf.B); return nil }
-func (c *fakeConn) SendMsg(msg any) error                     { return nil }
+func (c *fakeConn) ID() kknet.CONN_ID         { return c.id }
+func (c *fakeConn) RemoteAddr() string        { return "fake" }
+func (c *fakeConn) Close() error              { return nil }
+func (c *fakeConn) SetExtraData(userData any) {}
+func (c *fakeConn) GetExtraData() any         { return nil }
+func (c *fakeConn) SendBuffer(buf *kkbuffer.ByteBuffer) error {
+	c.data = append(c.data, buf.B)
+	return nil
+}
+func (c *fakeConn) SendMsg(msg any) error { return nil }
 
 type fakeTransportor struct {
 	forwardedSessionID string
@@ -40,7 +43,7 @@ func (t *fakeTransportor) ForwardToLogic(sessionID string, packet []byte, logicN
 	t.forwardedPacket = append([]byte(nil), packet...)
 	return nil
 }
-func (t *fakeTransportor) ForwardToClient(sessionID string, packet []byte) error   { return nil }
+func (t *fakeTransportor) ForwardToClient(sessionID string, packet []byte) error { return nil }
 func (t *fakeTransportor) ForwardToClients(sessionIDs []string, packet []byte) error {
 	return nil
 }
@@ -61,18 +64,18 @@ type fakeApp struct {
 	pid  *actor.PID
 }
 
-func (a *fakeApp) GetOptions() *kkapp.AppOptions           { return &a.opts }
-func (a *fakeApp) GetNodeId() string                       { return a.nid }
-func (a *fakeApp) GetNodeType() string                     { return a.nt }
-func (a *fakeApp) GetNodeInfo() *kkapp.NodeInfo            { return a.ni }
-func (a *fakeApp) Receive(actor.Context)                   {}
-func (a *fakeApp) GetPID() *actor.PID                      { return a.pid }
-func (a *fakeApp) GetCompPID(string) *actor.PID            { return nil }
-func (a *fakeApp) Start() error                            { return nil }
-func (a *fakeApp) Stop() error                             { return nil }
-func (a *fakeApp) AddComponent(kkapp.IComponent) error     { return nil }
-func (a *fakeApp) SetConfigDir(string)                     {}
-func (a *fakeApp) GetConfigDir() string                    { return "" }
+func (a *fakeApp) GetOptions() *kkapp.AppOptions       { return &a.opts }
+func (a *fakeApp) GetNodeId() string                   { return a.nid }
+func (a *fakeApp) GetNodeType() string                 { return a.nt }
+func (a *fakeApp) GetNodeInfo() *kkapp.NodeInfo        { return a.ni }
+func (a *fakeApp) Receive(actor.Context)               {}
+func (a *fakeApp) GetPID() *actor.PID                  { return a.pid }
+func (a *fakeApp) GetCompPID(string) *actor.PID        { return nil }
+func (a *fakeApp) Start() error                        { return nil }
+func (a *fakeApp) Stop() error                         { return nil }
+func (a *fakeApp) AddComponent(kkapp.IComponent) error { return nil }
+func (a *fakeApp) SetConfigDir(string)                 {}
+func (a *fakeApp) GetConfigDir() string                { return "" }
 
 // message type used in tests/benchmarks
 type testMsg struct {
@@ -92,11 +95,11 @@ func TestGateHandler_OnRaw_RouteAndForward(t *testing.T) {
 
 	// build gate component with fake application attached via embedding
 	gate := &gateComponent{
-		opt:        Option{TransType: transport.TransTypeNats, MaxConnCount: 10},
-		localDis:   newLocalDiscovery(),
-		sessionMgr: gatetrans.NewSessionMgr(),
-		clientMgr:  newClientManager(),
-		userMgr:    newUserManager(),
+		gateOpt:      Options{TransType: transport.TransTypeNats, MaxConnCount: 10},
+		localDis:     newLocalDiscovery(),
+		sessionMgr:   gatetrans.NewSessionMgr(),
+		clientMgr:    newClientManager(),
+		userMgr:      newUserManager(),
 		logicBindMgr: newLogicBindManager(),
 	}
 
@@ -161,11 +164,11 @@ func BenchmarkGateHandler_OnRaw(b *testing.B) {
 	}
 
 	gate := &gateComponent{
-		opt:        Option{TransType: transport.TransTypeNats, MaxConnCount: 100000},
-		localDis:   newLocalDiscovery(),
-		sessionMgr: gatetrans.NewSessionMgr(),
-		clientMgr:  newClientManager(),
-		userMgr:    newUserManager(),
+		gateOpt:      Options{TransType: transport.TransTypeNats, MaxConnCount: 100000},
+		localDis:     newLocalDiscovery(),
+		sessionMgr:   gatetrans.NewSessionMgr(),
+		clientMgr:    newClientManager(),
+		userMgr:      newUserManager(),
 		logicBindMgr: newLogicBindManager(),
 	}
 
@@ -203,5 +206,3 @@ func BenchmarkGateHandler_OnRaw(b *testing.B) {
 		handler.OnRaw(clientConn.ID(), buf)
 	}
 }
-
-

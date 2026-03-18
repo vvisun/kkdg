@@ -8,7 +8,7 @@ import (
 )
 
 func TestFeedLimit_IsLimited_BasicWindow(t *testing.T) {
-	f := NewFeedLimit()
+	f := NewFeedLimit(time.Second)
 	const connID kknet.CONN_ID = 1
 	const code GateErrorCode = ERR_CLIENT_INVALID_PACKET
 
@@ -24,7 +24,7 @@ func TestFeedLimit_IsLimited_BasicWindow(t *testing.T) {
 }
 
 func TestFeedLimit_IsLimited_ExpiredWindow(t *testing.T) {
-	f := NewFeedLimit()
+	f := NewFeedLimit(time.Second)
 	const connID kknet.CONN_ID = 2
 	const code GateErrorCode = ERR_RECV_QUEUE_FULL
 
@@ -45,7 +45,7 @@ func TestFeedLimit_IsLimited_ExpiredWindow(t *testing.T) {
 }
 
 func TestFeedLimit_IsLimited_DifferentConnOrCode(t *testing.T) {
-	f := NewFeedLimit()
+	f := NewFeedLimit(time.Second)
 	const connID1 kknet.CONN_ID = 3
 	const connID2 kknet.CONN_ID = 4
 
@@ -61,7 +61,7 @@ func TestFeedLimit_IsLimited_DifferentConnOrCode(t *testing.T) {
 }
 
 func TestFeedLimit_Reset(t *testing.T) {
-	f := NewFeedLimit()
+	f := NewFeedLimit(time.Second)
 	const connID kknet.CONN_ID = 5
 	const code GateErrorCode = ERR_CLIENT_INVALID_PACKET
 
@@ -88,7 +88,7 @@ func TestFeedLimit_Reset(t *testing.T) {
 
 // Benchmark single-threaded IsLimited calls on same (connID, errCode).
 func BenchmarkFeedLimit_IsLimited_SameKey(b *testing.B) {
-	f := NewFeedLimit()
+	f := NewFeedLimit(time.Second)
 	const connID kknet.CONN_ID = 100
 	const code GateErrorCode = ERR_CLIENT_INVALID_PACKET
 
@@ -99,7 +99,7 @@ func BenchmarkFeedLimit_IsLimited_SameKey(b *testing.B) {
 
 // Benchmark IsLimited with varying connID to simulate many connections.
 func BenchmarkFeedLimit_IsLimited_ManyConns(b *testing.B) {
-	f := NewFeedLimit()
+	f := NewFeedLimit(time.Second)
 	const code GateErrorCode = ERR_RECV_QUEUE_FULL
 
 	for i := 0; i < b.N; i++ {
@@ -109,7 +109,7 @@ func BenchmarkFeedLimit_IsLimited_ManyConns(b *testing.B) {
 
 // Benchmark concurrent IsLimited calls.
 func BenchmarkFeedLimit_IsLimited_Parallel(b *testing.B) {
-	f := NewFeedLimit()
+	f := NewFeedLimit(time.Second)
 	const code GateErrorCode = ERR_ALLOC_LOGIC_NODE_FAILED
 
 	b.RunParallel(func(pb *testing.PB) {
@@ -120,5 +120,3 @@ func BenchmarkFeedLimit_IsLimited_Parallel(b *testing.B) {
 		}
 	})
 }
-
-

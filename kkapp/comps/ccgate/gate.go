@@ -3,6 +3,7 @@ package ccgate
 import (
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
@@ -55,7 +56,7 @@ type ISessionMgr interface {
 //     所以为了通用性，并没有采取这样的做法，而是通过转发协议来得知，详见[ptotrans.RpcC2S]。
 type gateComponent struct {
 	component.Component
-	opt       Option
+	gateOpt   Options
 	serverOpt kknet.Options
 	server    kknet.IServer
 	handler   *gateHandler
@@ -76,19 +77,19 @@ type gateComponent struct {
 }
 
 // NewGateComponent creates a new gate component.
-func NewGateComponent(gateOpt Option, serverOpt kknet.Options) *gateComponent {
+func NewGateComponent(gateOpt Options, serverOpt kknet.Options) *gateComponent {
 	if err := validateOption(&gateOpt); err != nil {
 		kklog.PanicErr(err)
 	}
 	return &gateComponent{
-		opt:          gateOpt,
+		gateOpt:      gateOpt,
 		serverOpt:    serverOpt,
 		localDis:     newLocalDiscovery(),
 		sessionMgr:   gatetrans.NewSessionMgr(),
 		clientMgr:    newClientManager(),
 		userMgr:      newUserManager(),
 		logicBindMgr: newLogicBindManager(),
-		feedLimit:    NewFeedLimit(),
+		feedLimit:    NewFeedLimit(time.Second),
 	}
 }
 
@@ -121,7 +122,7 @@ func (slf *gateComponent) OnInit() error {
 	slf.handler = newGateHandler(slf)
 
 	// 初始化 discovery
-	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.DiscoveryUrl))
+	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.gateOpt.DiscoveryUrl))
 	slf.discovery = dnats.NewNatsDiscovery(
 		"gate."+slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeInfo(),
@@ -130,7 +131,7 @@ func (slf *gateComponent) OnInit() error {
 	)
 
 	// 初始化 cluster（用于 gate <-> logic 转发）
-	clusterOpts := cnats.ApplyNatsOptions(cnats.WithUrl(slf.opt.ClusterUrl))
+	clusterOpts := cnats.ApplyNatsOptions(cnats.WithUrl(slf.gateOpt.ClusterUrl))
 	slf.cluster = cnats.NewNatsCluster(
 		slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeType(),
@@ -149,31 +150,42 @@ func (slf *gateComponent) OnInit() error {
 	)
 
 	// 初始化 transportor
-	switch slf.opt.TransType {
+	switch slf.gateOpt.TransType {
 	case transport.TransTypeNats:
 		transportor, err := transnat.NewTransportorNats(
-			slf.cluster, slf.sessionMgr, transMsgPacket, appOpts.StreamTool)
+			slf.cluster,
+			slf.sessionMgr,
+			transMsgPacket,
+			appOpts.StreamTool,
+		)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
 	case transport.TransTypeRpc:
 		transportor, err := transrpc.NewTransportorRpc(
-			slf.sessionMgr, nodeInfo.GetNodeId(), slf.opt.TransServerAddr)
+			slf.sessionMgr,
+			nodeInfo.GetNodeId(),
+			slf.gateOpt.TransServerAddr,
+		)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
 	case transport.TransTypeShard:
 		transportor, err := transshard.NewTransportorShard(
-			slf.opt.TransServerAddr, slf.sessionMgr, nodeInfo.GetNodeId(),
-			transMsgPacket, appOpts.ClientMsgPacket, appOpts.StreamTool, appOpts.StreamTool)
+			slf.gateOpt.TransServerAddr, slf.sessionMgr, nodeInfo.GetNodeId(),
+			transMsgPacket,
+			appOpts.ClientMsgPacket,
+			appOpts.StreamTool,
+			appOpts.StreamTool,
+		)
 		if err != nil {
 			return err
 		}
 		slf.transportor = transportor
 	default:
-		return errors.New("invalid trans type: " + slf.opt.TransType)
+		return errors.New("invalid trans type: " + slf.gateOpt.TransType)
 	}
 
 	slf.transportor.HookMsg(func(msgId kkpacket.MSGID, data any) {
@@ -189,11 +201,11 @@ func (slf *gateComponent) OnInit() error {
 }
 
 func (slf *gateComponent) OnStart() error {
-	if slf.opt.WSAddr != "" {
+	if slf.gateOpt.WSAddr != "" {
 		if err := slf.startWSServer(); err != nil {
 			return err
 		}
-	} else if slf.opt.TCPAddr != "" {
+	} else if slf.gateOpt.TCPAddr != "" {
 		if err := slf.startTCPServer(); err != nil {
 			return err
 		}
@@ -256,7 +268,7 @@ func (slf *gateComponent) startTCPServer() error {
 			slf.feedCallback(conn.ID(), ERR_RECV_QUEUE_FULL)
 		}),
 	)
-	server := kktcp.NewServer(slf.opt.TCPAddr, slf.handler, opts)
+	server := kktcp.NewServer(slf.gateOpt.TCPAddr, slf.handler, opts)
 
 	if err := server.Start(); err != nil {
 		return err
@@ -264,7 +276,7 @@ func (slf *gateComponent) startTCPServer() error {
 
 	slf.server = server
 
-	kklog.Infof("[ccgate] tcp server started on %s", slf.opt.TCPAddr)
+	kklog.Infof("[ccgate] tcp server started on %s", slf.gateOpt.TCPAddr)
 	return nil
 }
 
@@ -285,7 +297,7 @@ func (slf *gateComponent) startWSServer() error {
 			slf.feedCallback(conn.ID(), ERR_RECV_QUEUE_FULL)
 		}),
 	)
-	server := kkgws.NewServer(slf.opt.WSAddr, slf.handler, opts)
+	server := kkgws.NewServer(slf.gateOpt.WSAddr, slf.handler, opts)
 
 	if err := server.Start(); err != nil {
 		return err
@@ -293,16 +305,16 @@ func (slf *gateComponent) startWSServer() error {
 
 	slf.server = server
 
-	kklog.Infof("[ccgate] ws server started on %s", slf.opt.WSAddr)
+	kklog.Infof("[ccgate] ws server started on %s", slf.gateOpt.WSAddr)
 	return nil
 }
 
 //------------------------------------------------------------
 
 func (slf *gateComponent) onNewClientConn(c kknet.IConn) {
-	sessionID := getSessionId(c.ID(), slf.GetApplication().GetNodeId())
-	slf.sessionMgr.AddConn(sessionID, c)
-	slf.clientMgr.addClient(c.ID(), sessionID)
+	sid := getSessionId(c.ID(), slf.GetApplication().GetNodeId())
+	slf.sessionMgr.AddConn(sid, c)
+	slf.clientMgr.addClient(c.ID(), sid)
 }
 
 func (slf *gateComponent) onClientConnClose(c kknet.IConn) {
@@ -329,6 +341,7 @@ func (slf *gateComponent) onClientConnClose(c kknet.IConn) {
 	slf.clientMgr.removeClient(cid)
 	slf.userMgr.onSessionDisconnect(sid)
 	slf.logicBindMgr.onSessionDisconnect(sid)
+	slf.feedLimit.Remove(cid)
 }
 
 func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
@@ -386,7 +399,7 @@ func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) 
 
 // 选择逻辑节点的唯一入口。
 func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
-	if slf.opt.TransType == transport.TransTypeShard || slf.opt.TransType == transport.TransTypeRpc {
+	if slf.gateOpt.TransType == transport.TransTypeShard || slf.gateOpt.TransType == transport.TransTypeRpc {
 		return slf.chooseFromShardOrRpc(nodeType)
 	}
 	return slf.chooseFromDiscovery(nodeType)
@@ -493,7 +506,7 @@ func newGateHandler(gate *gateComponent) *gateHandler {
 
 func (h *gateHandler) OnConnect(c kknet.IConn) {
 	//kklog.Debugf("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
-	if h.gate.server.GetConnManager().GetCount() >= h.gate.opt.MaxConnCount {
+	if h.gate.server.GetConnManager().GetCount() >= h.gate.gateOpt.MaxConnCount {
 		kklog.Debugf("[ccgate] max conn count reached, reject: remoteAddr=%s", c.RemoteAddr())
 		c.Close()
 		return

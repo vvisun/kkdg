@@ -127,12 +127,11 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "", nil)
 	gateApp := component.NewApplication(gateNode, nil, appOpts)
 	InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
-	gateOpt := ccgate.Option{
+	gateOpt := ccgate.Options{
 		TCPAddr:         tcpAddr,
 		TransServerAddr: rpcAddr,
 		DiscoveryUrl:    natsURL,
 		ClusterUrl:      natsURL,
-		LogicNodeType:   kkapp.NodeTypeLogic,
 		TransType:       transType,
 	}
 	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())

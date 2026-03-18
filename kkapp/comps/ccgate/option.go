@@ -7,8 +7,8 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// Option configures the gate component.
-type Option struct {
+// Options configures the gate component.
+type Options struct {
 	TCPAddr string //客户端 tcp 连接地址
 	WSAddr  string //客户端 websocket 连接地址
 
@@ -19,30 +19,28 @@ type Option struct {
 	// 转发层服务器地址。TransType为TransTypeRpc或TransTypeShard时有效。
 	TransServerAddr string
 
-	// 逻辑服节点类型。默认值为"logic"。
-	LogicNodeType string
-
 	// 发现服务器URL。
 	DiscoveryUrl string
 	// 集群服务器URL。
 	ClusterUrl string
 }
 
-func DefaultOption() Option {
-	return Option{
+func DefaultOptions() Options {
+	return Options{
 		MaxConnCount: 50000,
 		TransType:    transport.TransTypeShard,
 	}
 }
 
-func ApplyOption(opt *Option, opts ...func(o *Option)) *Option {
+func ApplyOptions(opts ...func(o *Options)) Options {
+	cfg := DefaultOptions()
 	for _, o := range opts {
-		o(opt)
+		o(&cfg)
 	}
-	return opt
+	return cfg
 }
 
-func validateOption(opt *Option) error {
+func validateOption(opt *Options) error {
 	if opt.MaxConnCount <= 0 {
 		opt.MaxConnCount = 50000
 		kklog.Warn("max conn count is required, set to 50000")
@@ -64,56 +62,47 @@ func validateOption(opt *Option) error {
 	if opt.TCPAddr == opt.WSAddr || opt.TCPAddr == opt.TransServerAddr || opt.WSAddr == opt.TransServerAddr {
 		return errors.New("tcp addr, ws addr and rpc addr cannot be the same")
 	}
-	if opt.LogicNodeType == "" {
-		return errors.New("logic node type is required")
-	}
 	return nil
 }
 
-func WithTransType(transType transport.TransType) func(o *Option) {
-	return func(o *Option) {
+func WithTransType(transType transport.TransType) func(o *Options) {
+	return func(o *Options) {
 		o.TransType = transType
 	}
 }
 
-func WithTCPAddr(tcpAddr string) func(o *Option) {
-	return func(o *Option) {
+func WithTCPAddr(tcpAddr string) func(o *Options) {
+	return func(o *Options) {
 		o.TCPAddr = tcpAddr
 	}
 }
 
-func WithWSAddr(wsAddr string) func(o *Option) {
-	return func(o *Option) {
+func WithWSAddr(wsAddr string) func(o *Options) {
+	return func(o *Options) {
 		o.WSAddr = wsAddr
 	}
 }
 
-func WithDiscoveryURL(natsURL string) func(o *Option) {
-	return func(o *Option) {
+func WithDiscoveryURL(natsURL string) func(o *Options) {
+	return func(o *Options) {
 		o.DiscoveryUrl = natsURL
 	}
 }
 
-func WithClusterURL(clusterURL string) func(o *Option) {
-	return func(o *Option) {
+func WithClusterURL(clusterURL string) func(o *Options) {
+	return func(o *Options) {
 		o.ClusterUrl = clusterURL
 	}
 }
 
-func WithLogicNodeType(logicNodeType string) func(o *Option) {
-	return func(o *Option) {
-		o.LogicNodeType = logicNodeType
-	}
-}
-
-func WithTransServerAddr(transServerAddr string) func(o *Option) {
-	return func(o *Option) {
+func WithTransServerAddr(transServerAddr string) func(o *Options) {
+	return func(o *Options) {
 		o.TransServerAddr = transServerAddr
 	}
 }
 
-func WithMaxConnCount(maxConnCount int) func(o *Option) {
-	return func(o *Option) {
+func WithMaxConnCount(maxConnCount int) func(o *Options) {
+	return func(o *Options) {
 		o.MaxConnCount = maxConnCount
 	}
 }

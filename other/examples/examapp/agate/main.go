@@ -39,13 +39,12 @@ func runGate() *component.Application {
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, examapp.GateTCPAddr, "", nil)
 	gateApp := component.NewApplication(gateNode, nil, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
-	gateOpt := ccgate.Option{
+	gateOpt := ccgate.Options{
 		TCPAddr:         examapp.GateTCPAddr,
 		WSAddr:          examapp.GateWSAddr,
 		TransServerAddr: examapp.RpcAddr,
 		DiscoveryUrl:    examapp.NatsURL,
 		ClusterUrl:      examapp.NatsURL,
-		LogicNodeType:   kkapp.NodeTypeLogic,
 		TransType:       examapp.UseTransType,
 	}
 	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())
