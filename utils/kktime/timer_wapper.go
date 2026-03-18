@@ -55,17 +55,6 @@ func (w *TimerWrapper) StopTimer(id uint64) {
 	w.muTimerMap.Unlock()
 }
 
-func (w *TimerWrapper) GetTimer(id uint64) *timingwheel.Timer {
-	w.muTimerMap.RLock()
-	t, ok := w.timerMap[id]
-	if ok {
-		w.muTimerMap.RUnlock()
-		return t
-	}
-	w.muTimerMap.RUnlock()
-	return nil
-}
-
 func (w *TimerWrapper) Stop() {
 	w.muTimerMap.Lock()
 	if len(w.timerMap) == 0 {
@@ -81,4 +70,22 @@ func (w *TimerWrapper) Stop() {
 	for _, t := range timerList {
 		t.Stop()
 	}
+}
+
+func (w *TimerWrapper) GetTimer(id uint64) *timingwheel.Timer {
+	w.muTimerMap.RLock()
+	t, ok := w.timerMap[id]
+	if ok {
+		w.muTimerMap.RUnlock()
+		return t
+	}
+	w.muTimerMap.RUnlock()
+	return nil
+}
+
+func (w *TimerWrapper) GetTimerCount() int {
+	w.muTimerMap.RLock()
+	count := len(w.timerMap)
+	w.muTimerMap.RUnlock()
+	return count
 }
