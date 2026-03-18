@@ -27,7 +27,7 @@ func NewEventManager[K comparable]() *EventManager[K] {
 	}
 }
 
-func (m *EventManager[K]) AddListener(key K, listener EventListener) uint64 {
+func (m *EventManager[K]) Subscribe(key K, listener EventListener) uint64 {
 	if listener == nil {
 		return 0
 	}
@@ -52,7 +52,7 @@ func (m *EventManager[K]) AddListener(key K, listener EventListener) uint64 {
 	return newList[len(current)].ID
 }
 
-func (m *EventManager[K]) RemoveListener(key K, listener EventListener) {
+func (m *EventManager[K]) Unsubscribe(key K, listener EventListener) {
 	if listener == nil {
 		return
 	}
@@ -82,7 +82,7 @@ func (m *EventManager[K]) RemoveListener(key K, listener EventListener) {
 	}
 }
 
-func (m *EventManager[K]) RemoveListenerByID(key K, id uint64) {
+func (m *EventManager[K]) UnsubscribeByID(key K, id uint64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -109,7 +109,7 @@ func (m *EventManager[K]) RemoveListenerByID(key K, id uint64) {
 	}
 }
 
-func (m *EventManager[K]) RemoveAllListeners(key K) {
+func (m *EventManager[K]) UnsubscribeAll(key K) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.listeners, key)

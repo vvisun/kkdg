@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 var autoEventID atomic.Uint64
@@ -163,14 +163,6 @@ func (bus *EventBus) getHandler(topic string, fn interface{}) *eventHandler {
 	return nil
 }
 
-// HasCallback returns true if exists any callback subscribed to the topic.
-func (bus *EventBus) HasCallback(topic string) bool {
-	bus.lock.RLock()
-	defer bus.lock.RUnlock()
-	handlers, ok := bus.handlers[topic]
-	return ok && len(handlers) > 0
-}
-
 // Unsubscribe removes callback defined for a topic.
 func (bus *EventBus) Unsubscribe(topic string, handler interface{}) error {
 	bus.lock.Lock()
@@ -205,14 +197,6 @@ func (bus *EventBus) Unsubscribe(topic string, handler interface{}) error {
 		delete(bus.handlers, topic)
 	}
 
-	return nil
-}
-
-// UnsubscribeAll removes all callbacks defined for a topic.
-func (bus *EventBus) UnsubscribeAll(topic string) error {
-	bus.lock.Lock()
-	delete(bus.handlers, topic)
-	bus.lock.Unlock()
 	return nil
 }
 
@@ -252,6 +236,14 @@ func (bus *EventBus) UnsubscribeByID(topic string, id uint64) error {
 	return nil
 }
 
+// UnsubscribeAll removes all callbacks defined for a topic.
+func (bus *EventBus) UnsubscribeAll(topic string) error {
+	bus.lock.Lock()
+	delete(bus.handlers, topic)
+	bus.lock.Unlock()
+	return nil
+}
+
 // Publish executes callback defined for a topic.
 func (bus *EventBus) Publish(topic string, args ...interface{}) {
 	bus.lock.RLock()
@@ -280,12 +272,9 @@ func (bus *EventBus) Publish(topic string, args ...interface{}) {
 		}
 
 		if !handler.async {
-			defer func() {
-				if r := recover(); r != nil {
-					kklog.Errorf("EventBus publish panic: %v", r)
-				}
-			}()
-			handler.callBack.Call(passedArgs)
+			xcall.SafeCall(func() {
+				handler.callBack.Call(passedArgs)
+			})
 		} else {
 			bus.wg.Add(1)
 			go func(h *eventHandler, a []reflect.Value) {
@@ -294,12 +283,9 @@ func (bus *EventBus) Publish(topic string, args ...interface{}) {
 					h.mu.Lock()
 					defer h.mu.Unlock()
 				}
-				defer func() {
-					if r := recover(); r != nil {
-						kklog.Errorf("EventBus publish panic: %v", r)
-					}
-				}()
-				h.callBack.Call(a)
+				xcall.SafeCall(func() {
+					h.callBack.Call(a)
+				})
 			}(handler, passedArgs)
 		}
 	}
@@ -365,6 +351,14 @@ func (bus *EventBus) setUpPublish(callback *eventHandler, args ...interface{}) [
 	}
 
 	return passedArguments
+}
+
+// HasCallback returns true if exists any callback subscribed to the topic.
+func (bus *EventBus) HasCallback(topic string) bool {
+	bus.lock.RLock()
+	defer bus.lock.RUnlock()
+	handlers, ok := bus.handlers[topic]
+	return ok && len(handlers) > 0
 }
 
 // WaitAsync waits for all async callbacks to complete
