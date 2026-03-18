@@ -172,8 +172,11 @@ func (slf *Application) Stop() error {
 //
 // 注意:
 //
-//	-启动顺序和添加顺序相反，先添加的后启动；
-//	-停止顺序和启动顺序相反，先启动的后停止；
+//	-启动顺序和添加顺序相反，先添加的后启动（因为protoactor-go的actor启动顺序是先添加的后启动）；
+//	-停止顺序和启动顺序相反，先启动的后停止（因为protoactor-go的actor停止顺序是先添加的后停止）；
+//
+// 最佳的应用层架构方式应该是，能做到所有组件的启动顺序可以任意调换，不需要考虑启动顺序。
+// 因为组件应该尽量独立，只有在需要通信交互时，才需要也只需要 通过这个组件的actorID，进行消息投递。
 func (slf *Application) AddComponent(comp kkapp.IComponent) error {
 	if _, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName()); err != nil {
 		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
@@ -263,17 +266,6 @@ func (slf *Application) onStarted(ctx actor.Context) {
 	slf.finishStart(nil)
 }
 
-func (slf *Application) onStopped() {
-	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStopping, ComponentStateStopped)
-	id, _ := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
-	slf.actorFramework.GetLocator().RemoveActor(id)
-	slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
-	slf.mu.Lock()
-	slf.compList = make([]kkapp.IComponent, 0)
-	slf.mu.Unlock()
-	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
-}
-
 func (slf *Application) finishStart(err error) {
 	slf.mu.Lock()
 	startResultCh := slf.startResultCh
@@ -284,6 +276,17 @@ func (slf *Application) finishStart(err error) {
 	}
 	startResultCh <- err
 	close(startResultCh)
+}
+
+func (slf *Application) onStopped() {
+	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStopping, ComponentStateStopped)
+	id, _ := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
+	slf.actorFramework.GetLocator().RemoveActor(id)
+	slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
+	slf.mu.Lock()
+	slf.compList = make([]kkapp.IComponent, 0)
+	slf.mu.Unlock()
+	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
 }
 
 func (slf *Application) Receive(ctx actor.Context) {
