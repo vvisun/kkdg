@@ -104,6 +104,11 @@ func (d *NatsDiscovery) GetMemberMgr() kkdiscovery.IMemberMgr {
 	return d.memberMgr
 }
 
+// GetMemberObserver 获取成员增、删监听器
+func (d *NatsDiscovery) GetMemberObserver() kkdiscovery.IMemberObserver {
+	return d.memberMgr
+}
+
 // addMemberInfo 根据 MemberInfo 添加或更新成员
 func (d *NatsDiscovery) addMemberInfo(info *kkdiscovery.MemberInfo) {
 	if info == nil {

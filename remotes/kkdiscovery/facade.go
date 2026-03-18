@@ -17,6 +17,16 @@ type DiscoveryStatsEvent struct {
 }
 
 type (
+	// IMember 成员接口
+	IMember interface {
+		GetNodeID() string     // 节点ID。必须唯一。
+		GetNodeType() string   // 节点类型。如：gate、game、login等
+		GetAddress() string    // 节点地址。如：127.0.0.1:8080
+		GetRpcAddress() string // rpc监听地址。如：127.0.0.1:8080
+		GetWeight() int        // 获取权重
+		GetStatus() int        // 获取状态
+	}
+
 	// MemberListener 成员增、删监听函数
 	MemberListener func(member IMember)
 
@@ -26,6 +36,16 @@ type (
 		AddMember(info *MemberInfo) (IMember, bool)
 		// 删除成员，true时成员存在，false时成员不存在
 		RemoveMember(nodeID string) bool
+	}
+
+	// IMemberObserver 成员增、删监听器接口
+	IMemberObserver interface {
+		// 监听添加成员
+		ObserveAddMember(listener MemberListener)
+		// 监听移除成员
+		ObserveRemoveMember(listener MemberListener)
+		// Stop
+		Stop()
 	}
 
 	// MemberMgr 成员管理器接口
@@ -41,33 +61,19 @@ type (
 		RangeType(nodeType string, fn func(nodeID string, member IMember) bool)
 
 		// 根据节点id获取成员类型
-		GetType(nodeID string) (string, error)
+		GetNodeType(nodeID string) (string, error)
 		// 根据节点id获取成员
 		GetMember(nodeID string) (IMember, bool)
-
-		// 监听添加成员
-		ObserveAddMember(listener MemberListener)
-		// 监听移除成员
-		ObserveRemoveMember(listener MemberListener)
 	}
 
 	// IDiscovery 发现服务接口
 	IDiscovery interface {
-		Name() string                  // 发现服务名称
-		Start() error                  // 启动
-		Stop() error                   // 停止
-		Stats() DiscoveryStatsSnapshot // 获取统计信息
-		GetMemberMgr() IMemberMgr      // 获取成员管理器
-		IsRunning() bool               // 是否已启动
-	}
-
-	// IMember 成员接口
-	IMember interface {
-		GetNodeID() string     // 节点ID。必须唯一。
-		GetNodeType() string   // 节点类型。如：gate、game、login等
-		GetAddress() string    // 节点地址。如：127.0.0.1:8080
-		GetRpcAddress() string // rpc监听地址。如：127.0.0.1:8080
-		GetWeight() int        // 获取权重
-		GetStatus() int        // 获取状态
+		Name() string                       // 发现服务名称
+		Start() error                       // 启动
+		Stop() error                        // 停止
+		Stats() DiscoveryStatsSnapshot      // 获取统计信息
+		GetMemberMgr() IMemberMgr           // 获取成员管理器
+		GetMemberObserver() IMemberObserver // 获取成员增、删监听器
+		IsRunning() bool                    // 是否已启动
 	}
 )

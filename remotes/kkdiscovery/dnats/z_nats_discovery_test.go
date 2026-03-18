@@ -26,10 +26,10 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 	d := newTestDiscovery(t)
 
 	var addCount, removeCount atomic.Int64
-	d.GetMemberMgr().ObserveAddMember(func(m kkdiscovery.IMember) {
+	d.GetMemberObserver().ObserveAddMember(func(m kkdiscovery.IMember) {
 		addCount.Add(1)
 	})
-	d.GetMemberMgr().ObserveRemoveMember(func(m kkdiscovery.IMember) {
+	d.GetMemberObserver().ObserveRemoveMember(func(m kkdiscovery.IMember) {
 		removeCount.Add(1)
 	})
 
@@ -51,7 +51,7 @@ func TestNatsDiscovery_AddRemove_StatsAndDelegation(t *testing.T) {
 	if !ok || m == nil {
 		t.Fatalf("GetMember(node2) = (%v,%v), want non-nil,true", m, ok)
 	}
-	if typ, err := d.GetMemberMgr().GetType("node2"); err != nil || typ != "logic" {
+	if typ, err := d.GetMemberMgr().GetNodeType("node2"); err != nil || typ != "logic" {
 		t.Fatalf("GetType(node2) = (%q,%v), want (\"logic\",nil)", typ, err)
 	}
 

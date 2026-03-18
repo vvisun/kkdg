@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"sync"
 	"sync/atomic"
+
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 var autoEventID atomic.Uint64
@@ -95,6 +97,9 @@ func (bus *EventBus) doSubscribe(topic string, fn interface{}, handler *eventHan
 
 // Subscribe subscribes to a topic.
 func (bus *EventBus) Subscribe(topic string, fn interface{}) (uint64, error) {
+	if handler := bus.getHandler(topic, fn); handler != nil {
+		return handler.id, nil
+	}
 	id := autoEventID.Add(1)
 	return id, bus.doSubscribe(topic, fn, &eventHandler{
 		id:       id,
@@ -104,6 +109,9 @@ func (bus *EventBus) Subscribe(topic string, fn interface{}) (uint64, error) {
 
 // SubscribeAsync subscribes to a topic with an asynchronous callback
 func (bus *EventBus) SubscribeAsync(topic string, fn interface{}, transactional bool) (uint64, error) {
+	if handler := bus.getHandler(topic, fn); handler != nil {
+		return handler.id, nil
+	}
 	id := autoEventID.Add(1)
 	return id, bus.doSubscribe(topic, fn, &eventHandler{
 		id:            id,
@@ -115,6 +123,9 @@ func (bus *EventBus) SubscribeAsync(topic string, fn interface{}, transactional 
 
 // SubscribeOnce subscribes to a topic once.
 func (bus *EventBus) SubscribeOnce(topic string, fn interface{}) (uint64, error) {
+	if handler := bus.getHandler(topic, fn); handler != nil {
+		return handler.id, nil
+	}
 	id := autoEventID.Add(1)
 	return id, bus.doSubscribe(topic, fn, &eventHandler{
 		id:       id,
@@ -125,6 +136,9 @@ func (bus *EventBus) SubscribeOnce(topic string, fn interface{}) (uint64, error)
 
 // SubscribeOnceAsync subscribes to a topic once with an asynchronous callback
 func (bus *EventBus) SubscribeOnceAsync(topic string, fn interface{}) (uint64, error) {
+	if handler := bus.getHandler(topic, fn); handler != nil {
+		return handler.id, nil
+	}
 	id := autoEventID.Add(1)
 	return id, bus.doSubscribe(topic, fn, &eventHandler{
 		id:       id,
@@ -132,6 +146,21 @@ func (bus *EventBus) SubscribeOnceAsync(topic string, fn interface{}) (uint64, e
 		flagOnce: true,
 		async:    true,
 	})
+}
+
+func (bus *EventBus) getHandler(topic string, fn interface{}) *eventHandler {
+	bus.lock.RLock()
+	defer bus.lock.RUnlock()
+	handlers, ok := bus.handlers[topic]
+	if !ok || len(handlers) == 0 {
+		return nil
+	}
+	for _, h := range handlers {
+		if h.callBack.Type() == reflect.ValueOf(fn).Type() && h.callBack.Pointer() == reflect.ValueOf(fn).Pointer() {
+			return h
+		}
+	}
+	return nil
 }
 
 // HasCallback returns true if exists any callback subscribed to the topic.
@@ -251,6 +280,11 @@ func (bus *EventBus) Publish(topic string, args ...interface{}) {
 		}
 
 		if !handler.async {
+			defer func() {
+				if r := recover(); r != nil {
+					kklog.Errorf("EventBus publish panic: %v", r)
+				}
+			}()
 			handler.callBack.Call(passedArgs)
 		} else {
 			bus.wg.Add(1)
@@ -260,6 +294,11 @@ func (bus *EventBus) Publish(topic string, args ...interface{}) {
 					h.mu.Lock()
 					defer h.mu.Unlock()
 				}
+				defer func() {
+					if r := recover(); r != nil {
+						kklog.Errorf("EventBus publish panic: %v", r)
+					}
+				}()
 				h.callBack.Call(a)
 			}(handler, passedArgs)
 		}

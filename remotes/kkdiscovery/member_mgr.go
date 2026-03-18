@@ -4,9 +4,9 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xrand"
-	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
 type MemberMgr struct {
@@ -14,9 +14,7 @@ type MemberMgr struct {
 	typeMap   map[string][]IMember // key: nodeType, value: members
 	membersMu sync.RWMutex
 
-	addListeners    []MemberListener
-	removeListeners []MemberListener
-	listenersMu     sync.RWMutex
+	eventMgr kkevent.Bus
 
 	logger kklog.ILogger
 }
@@ -26,11 +24,10 @@ var _ IInnerMemberMgr = (*MemberMgr)(nil)
 
 func NewMemberMgr() *MemberMgr {
 	return &MemberMgr{
-		members:         make(map[string]IMember),
-		typeMap:         make(map[string][]IMember),
-		addListeners:    make([]MemberListener, 0),
-		removeListeners: make([]MemberListener, 0),
-		logger:          kklog.Nop(),
+		members:  make(map[string]IMember),
+		typeMap:  make(map[string][]IMember),
+		eventMgr: kkevent.NewEventBus(),
+		logger:   kklog.Nop(),
 	}
 }
 
@@ -181,7 +178,7 @@ func (m *MemberMgr) random(nodeType string) (IMember, bool) {
 }
 
 // 根据节点id获取成员类型
-func (m *MemberMgr) GetType(nodeID string) (string, error) {
+func (m *MemberMgr) GetNodeType(nodeID string) (string, error) {
 	m.membersMu.RLock()
 	member, ok := m.members[nodeID]
 	m.membersMu.RUnlock()
@@ -191,20 +188,19 @@ func (m *MemberMgr) GetType(nodeID string) (string, error) {
 	return member.GetNodeType(), nil
 }
 
+//----------------------------------------------------------
+
+const (
+	eventMemberAdd    = "add"
+	eventMemberRemove = "remove"
+)
+
 // 监听添加成员
 func (m *MemberMgr) ObserveAddMember(listener MemberListener) {
 	if listener == nil {
 		return
 	}
-	m.listenersMu.Lock()
-	for _, l := range m.addListeners {
-		if xreflect.IsSameFunc(l, listener) {
-			m.listenersMu.Unlock()
-			return // already exists
-		}
-	}
-	m.addListeners = append(m.addListeners, listener)
-	m.listenersMu.Unlock()
+	m.eventMgr.Subscribe(eventMemberAdd, listener)
 }
 
 // 监听移除成员
@@ -212,51 +208,21 @@ func (m *MemberMgr) ObserveRemoveMember(listener MemberListener) {
 	if listener == nil {
 		return
 	}
-	m.listenersMu.Lock()
-	for _, l := range m.removeListeners {
-		if xreflect.IsSameFunc(l, listener) {
-			m.listenersMu.Unlock()
-			return // already exists
-		}
-	}
-	m.removeListeners = append(m.removeListeners, listener)
-	m.listenersMu.Unlock()
+	m.eventMgr.Subscribe(eventMemberRemove, listener)
 }
 
 // notifyAddListeners 通知添加
 func (m *MemberMgr) notifyAddListeners(member IMember) {
-	m.listenersMu.RLock()
-	listeners := make([]MemberListener, len(m.addListeners))
-	copy(listeners, m.addListeners)
-	m.listenersMu.RUnlock()
-
-	for _, listener := range listeners {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					kklog.Errorf("MemberMgr add listener panic: %v", r)
-				}
-			}()
-			listener(member)
-		}()
-	}
+	m.eventMgr.Publish(eventMemberAdd, member)
 }
 
 // notifyRemoveListeners 通知移除
 func (m *MemberMgr) notifyRemoveListeners(member IMember) {
-	m.listenersMu.RLock()
-	listeners := make([]MemberListener, len(m.removeListeners))
-	copy(listeners, m.removeListeners)
-	m.listenersMu.RUnlock()
+	m.eventMgr.Publish(eventMemberRemove, member)
+}
 
-	for _, listener := range listeners {
-		func() {
-			defer func() {
-				if r := recover(); r != nil {
-					kklog.Errorf("MemberMgr remove listener panic: %v", r)
-				}
-			}()
-			listener(member)
-		}()
-	}
+// Stop 停止监听
+func (m *MemberMgr) Stop() {
+	m.eventMgr.UnsubscribeAll(eventMemberAdd)
+	m.eventMgr.UnsubscribeAll(eventMemberRemove)
 }

@@ -76,7 +76,7 @@ func TestMemberMgr_GetType(t *testing.T) {
 	mgr := NewMemberMgr()
 	mgr.AddMember(newTestMemberInfo("n1", "logic", "addr1", 1, NodeStatusOnline))
 
-	typ, err := mgr.GetType("n1")
+	typ, err := mgr.GetNodeType("n1")
 	if err != nil {
 		t.Fatalf("GetType(n1) error = %v", err)
 	}
@@ -84,7 +84,7 @@ func TestMemberMgr_GetType(t *testing.T) {
 		t.Fatalf("GetType(n1) = %q, want \"logic\"", typ)
 	}
 
-	if _, err := mgr.GetType("missing"); err != kkerrors.ErrClusterMemberNotFound {
+	if _, err := mgr.GetNodeType("missing"); err != kkerrors.ErrClusterMemberNotFound {
 		t.Fatalf("GetType(missing) error = %v, want ErrMemberNotFound", err)
 	}
 }
