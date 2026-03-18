@@ -8,26 +8,26 @@ import (
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-type EventListener func(data any)
+type SpecEventListener[T any] func(data T)
 
-type ListenerInfo struct {
+type SpecListenerInfo[T any] struct {
 	gid      uint64
-	callback EventListener
+	callback SpecEventListener[T]
 }
 
-type EventManager[K comparable] struct {
-	listeners map[K][]ListenerInfo
+type SpecEventManager[K comparable, T any] struct {
+	listeners map[K][]SpecListenerInfo[T]
 	mu        sync.RWMutex
 	autoID    atomic.Uint64
 }
 
-func NewEventManager[K comparable]() *EventManager[K] {
-	return &EventManager[K]{
-		listeners: make(map[K][]ListenerInfo),
+func NewSpecEventManager[K comparable, T any]() *SpecEventManager[K, T] {
+	return &SpecEventManager[K, T]{
+		listeners: make(map[K][]SpecListenerInfo[T]),
 	}
 }
 
-func (m *EventManager[K]) getHandlerIdx(key K, listener EventListener) (uint64, int) {
+func (m *SpecEventManager[K, T]) getHandlerIdx(key K, listener SpecEventListener[T]) (uint64, int) {
 	for i, l := range m.listeners[key] {
 		if xreflect.IsSameFunc(l.callback, listener) {
 			return l.gid, i
@@ -36,7 +36,7 @@ func (m *EventManager[K]) getHandlerIdx(key K, listener EventListener) (uint64, 
 	return 0, -1
 }
 
-func (m *EventManager[K]) Subscribe(key K, listener EventListener) uint64 {
+func (m *SpecEventManager[K, T]) Subscribe(key K, listener SpecEventListener[T]) uint64 {
 	if listener == nil {
 		return 0
 	}
@@ -49,9 +49,9 @@ func (m *EventManager[K]) Subscribe(key K, listener EventListener) uint64 {
 
 	// COW: 拷贝并追加，然后替换原 map 中的切片
 	current := m.listeners[key]
-	newList := make([]ListenerInfo, len(current)+1)
+	newList := make([]SpecListenerInfo[T], len(current)+1)
 	copy(newList, current)
-	newList[len(current)] = ListenerInfo{
+	newList[len(current)] = SpecListenerInfo[T]{
 		gid:      m.autoID.Add(1),
 		callback: listener,
 	}
@@ -59,7 +59,7 @@ func (m *EventManager[K]) Subscribe(key K, listener EventListener) uint64 {
 	return newList[len(current)].gid
 }
 
-func (m *EventManager[K]) Unsubscribe(key K, listener EventListener) {
+func (m *SpecEventManager[K, T]) Unsubscribe(key K, listener SpecEventListener[T]) {
 	if listener == nil {
 		return
 	}
@@ -71,19 +71,19 @@ func (m *EventManager[K]) Unsubscribe(key K, listener EventListener) {
 		return
 	}
 
-	// COW: 拷贝并删除，然后替换原 map 中的切片
-	newLen := len(m.listeners[key]) - 1
+	current := m.listeners[key]
+	newLen := len(current) - 1
 	if newLen > 0 {
-		newList := make([]ListenerInfo, newLen)
-		copy(newList, m.listeners[key][:idx])
-		copy(newList[idx:], m.listeners[key][idx+1:])
+		newList := make([]SpecListenerInfo[T], newLen)
+		copy(newList, current[:idx])
+		copy(newList[idx:], current[idx+1:])
 		m.listeners[key] = newList
 	} else {
 		delete(m.listeners, key)
 	}
 }
 
-func (m *EventManager[K]) UnsubscribeByID(key K, id uint64) {
+func (m *SpecEventManager[K, T]) UnsubscribeByID(key K, id uint64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -98,25 +98,25 @@ func (m *EventManager[K]) UnsubscribeByID(key K, id uint64) {
 		return
 	}
 
-	// COW: 拷贝并删除，然后替换原 map 中的切片
-	newLen := len(m.listeners[key]) - 1
+	current := m.listeners[key]
+	newLen := len(current) - 1
 	if newLen > 0 {
-		newList := make([]ListenerInfo, newLen)
-		copy(newList, m.listeners[key][:idx])
-		copy(newList[idx:], m.listeners[key][idx+1:])
+		newList := make([]SpecListenerInfo[T], newLen)
+		copy(newList, current[:idx])
+		copy(newList[idx:], current[idx+1:])
 		m.listeners[key] = newList
 	} else {
 		delete(m.listeners, key)
 	}
 }
 
-func (m *EventManager[K]) UnsubscribeAll(key K) {
+func (m *SpecEventManager[K, T]) UnsubscribeAll(key K) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.listeners, key)
 }
 
-func (m *EventManager[K]) Publish(key K, data any) {
+func (m *SpecEventManager[K, T]) Publish(key K, data T) {
 	m.mu.RLock()
 	listeners := m.listeners[key]
 	m.mu.RUnlock()
