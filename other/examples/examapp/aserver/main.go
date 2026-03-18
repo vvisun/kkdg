@@ -35,11 +35,11 @@ func runGame() *component.Application {
 	gameNode := kkapp.NewNodeInfo(examapp.LogicNodeID, kkapp.NodeTypeLogic, "127.0.0.1:0", "")
 	gameApp := component.NewApplication(gameNode, nil, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())
-	game := ccgame.NewGameComponent(ccgame.Option{
-		TransType:    examapp.UseTransType,
-		RpcAddr:      examapp.RpcAddr,
-		DiscoveryUrl: examapp.NatsURL,
-		ClusterUrl:   examapp.NatsURL,
+	game := ccgame.NewGameComponent(ccgame.Options{
+		TransType:       examapp.UseTransType,
+		TransServerAddr: examapp.RpcAddr,
+		DiscoveryUrl:    examapp.NatsURL,
+		ClusterUrl:      examapp.NatsURL,
 	})
 
 	if err := gameApp.AddComponent(game); err != nil {

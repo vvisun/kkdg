@@ -160,11 +160,11 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "")
 	gameApp := component.NewApplication(gameNode, nil, appOpts)
 	InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())
-	game := ccgame.NewGameComponent(ccgame.Option{
-		TransType:    transType,
-		RpcAddr:      rpcAddr,
-		DiscoveryUrl: natsURL,
-		ClusterUrl:   natsURL,
+	game := ccgame.NewGameComponent(ccgame.Options{
+		TransType:       transType,
+		TransServerAddr: rpcAddr,
+		DiscoveryUrl:    natsURL,
+		ClusterUrl:      natsURL,
 	})
 
 	if err := gameApp.AddComponent(game); err != nil {

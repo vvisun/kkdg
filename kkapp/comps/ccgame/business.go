@@ -23,7 +23,7 @@ import (
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
-func NewGameComponent(opt Option) *gameComponent {
+func NewGameComponent(opt Options) *gameComponent {
 	if err := validateOption(&opt); err != nil {
 		kklog.PanicErr(err)
 	}
@@ -41,7 +41,7 @@ type gameComponent struct {
 	msgReceiver        *msgreceiver.MsgReceiver[string]
 	sessionManager     *gametrans.SessionManager
 	transportor        gametrans.ITransportor
-	opt                Option
+	opt                Options
 	transOkListeners   []func(transportor gametrans.ITransportor)
 	transOkListenersMu sync.RWMutex
 	discoverySubID     uint64
@@ -123,7 +123,7 @@ func (slf *gameComponent) OnInit() error {
 			slf.sessionManager,
 			slf.msgReceiver,
 			slf.GetApplication().GetNodeInfo(),
-			slf.opt.RpcAddr,
+			slf.opt.TransServerAddr,
 			appOpts.ClientMsgPacket,
 			appOpts.StreamTool,
 		)
@@ -135,7 +135,7 @@ func (slf *gameComponent) OnInit() error {
 		transportor, err := gametransshard.NewTransportorShard(
 			slf.sessionManager,
 			slf.msgReceiver,
-			slf.opt.RpcAddr,
+			slf.opt.TransServerAddr,
 			slf.GetApplication().GetNodeInfo(),
 			transMsgPacket,
 			appOpts.ClientMsgPacket,
