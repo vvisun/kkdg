@@ -1,8 +1,10 @@
 package component
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
@@ -44,9 +46,18 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		state:          ComponentStateNone,
 		compList:       make([]kkapp.IComponent, 0),
 		opts:           &opts,
+		pidKeyToCompName: make(map[string]string),
 	}
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
+}
+
+func getPIDKey(pid *actor.PID) string {
+	if pid == nil {
+		return ""
+	}
+	// Address+Id should be unique enough for correlating Terminated->component.
+	return fmt.Sprintf("%s|%s", pid.Address, pid.Id)
 }
 
 type Application struct {
@@ -60,6 +71,9 @@ type Application struct {
 
 	configDir string // 配置文件所在目录
 	opts      *kkapp.AppOptions
+
+	// pidKey -> component name, used to map protoactor Terminated events back to a component.
+	pidKeyToCompName map[string]string
 }
 
 var _ kkapp.IApplication = (*Application)(nil)
@@ -125,7 +139,21 @@ func (slf *Application) Start() error {
 	slf.startResultCh = startResultCh
 	slf.mu.Unlock()
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
-	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(actor.PropsFromFunc(slf.Receive))
+	// Ensure components (children) will not be restarted on failure.
+	// When a component actor crashes, protoactor-go will apply the supervisor strategy defined here.
+	// We use StopDirective to permanently stop the failed child instead of Restart.
+	sup := actor.NewOneForOneStrategy(
+		0, 10*time.Second,
+		func(_ any) actor.Directive {
+			return actor.StopDirective
+		},
+	)
+	slf.pid = slf.actorFramework.GetActorSystem().Root.Spawn(
+		actor.PropsFromFunc(
+			slf.Receive,
+			actor.WithSupervisor(sup),
+		),
+	)
 	if slf.pid == nil {
 		kklog.Errorf("[kkapp] application %s spawn actor fail", slf.GetNodeId())
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
@@ -241,6 +269,11 @@ func (slf *Application) onStarted(ctx actor.Context) {
 
 		comp.SetPID(pid)
 
+		// Watch component actor lifecycle so we can receive Terminated.
+		ctx.Watch(pid)
+		// Record mapping early so we can correlate Terminated even if OnStart panics/exits.
+		slf.pidKeyToCompName[getPIDKey(pid)] = comp.GetCompName()
+
 		id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())
 		if err != nil {
 			kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
@@ -293,6 +326,28 @@ func (slf *Application) Receive(ctx actor.Context) {
 	switch ctx.Message().(type) {
 	case *actor.Started:
 		slf.onStarted(ctx)
+	case *actor.Terminated:
+		// Normal shutdown path: ignore component termination while application is stopping/stopped.
+		curState := ComponentState(atomic.LoadInt64(&slf.state))
+		if curState == ComponentStateStopping || curState == ComponentStateStopped {
+			return
+		}
+
+		msg := ctx.Message().(*actor.Terminated)
+		compName := slf.pidKeyToCompName[getPIDKey(msg.Who)]
+		if compName == "" {
+			// Unknown PID (already cleared mapping or watcher received late message).
+			return
+		}
+
+		// Broadcast an in-process fault event for listeners to decide maintenance / stop behavior.
+		GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
+			NodeID:            slf.GetNodeId(),
+			NodeType:          slf.GetNodeType(),
+			ComponentName:    compName,
+			TerminatedWhy:    msg.GetWhy(),
+			TerminatedPIDKey: getPIDKey(msg.Who),
+		})
 	case *actor.Stopping:
 		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
 	case *actor.Stopped:
