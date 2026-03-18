@@ -27,6 +27,15 @@ func NewEventManager[K comparable]() *EventManager[K] {
 	}
 }
 
+func (m *EventManager[K]) getHandler(key K, listener EventListener) (*ListenerInfo, int) {
+	for i, l := range m.listeners[key] {
+		if xreflect.IsSameFunc(l.callback, listener) {
+			return &l, i
+		}
+	}
+	return nil, -1
+}
+
 func (m *EventManager[K]) Subscribe(key K, listener EventListener) uint64 {
 	if listener == nil {
 		return 0
@@ -34,10 +43,8 @@ func (m *EventManager[K]) Subscribe(key K, listener EventListener) uint64 {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, l := range m.listeners[key] {
-		if xreflect.IsSameFunc(l.callback, listener) {
-			return l.gid
-		}
+	if info, idx := m.getHandler(key, listener); info != nil && idx != -1 {
+		return info.gid
 	}
 
 	// COW: 拷贝并追加，然后替换原 map 中的切片
@@ -59,13 +66,7 @@ func (m *EventManager[K]) Unsubscribe(key K, listener EventListener) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	idx := -1
-	for i, l := range m.listeners[key] {
-		if xreflect.IsSameFunc(l.callback, listener) {
-			idx = i
-			break
-		}
-	}
+	_, idx := m.getHandler(key, listener)
 	if idx == -1 {
 		return
 	}
