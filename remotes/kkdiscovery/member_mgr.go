@@ -14,19 +14,20 @@ type MemberMgr struct {
 	typeMap   map[string][]IMember // key: nodeType, value: members
 	membersMu sync.RWMutex
 
-	eventMgr *kkevent.EventManager[string]
+	eventMgr *kkevent.SpecEventManager[string, IMember]
 
 	logger kklog.ILogger
 }
 
 var _ IMemberMgr = (*MemberMgr)(nil)
 var _ IInnerMemberMgr = (*MemberMgr)(nil)
+var _ IMemberObserver = (*MemberMgr)(nil)
 
 func NewMemberMgr() *MemberMgr {
 	return &MemberMgr{
 		members:  make(map[string]IMember),
 		typeMap:  make(map[string][]IMember),
-		eventMgr: kkevent.NewEventManager[string](),
+		eventMgr: kkevent.NewSpecEventManager[string, IMember](),
 		logger:   kklog.Nop(),
 	}
 }
@@ -196,23 +197,19 @@ const (
 )
 
 // 监听添加成员
-func (m *MemberMgr) ObserveAddMember(listener MemberListener) {
+func (m *MemberMgr) ObserveAddMember(listener func(member IMember)) {
 	if listener == nil {
 		return
 	}
-	m.eventMgr.Subscribe(eventMemberAdd, func(data any) {
-		listener(data.(IMember))
-	})
+	m.eventMgr.Subscribe(eventMemberAdd, listener)
 }
 
 // 监听移除成员
-func (m *MemberMgr) ObserveRemoveMember(listener MemberListener) {
+func (m *MemberMgr) ObserveRemoveMember(listener func(member IMember)) {
 	if listener == nil {
 		return
 	}
-	m.eventMgr.Subscribe(eventMemberRemove, func(data any) {
-		listener(data.(IMember))
-	})
+	m.eventMgr.Subscribe(eventMemberRemove, listener)
 }
 
 // notifyAddListeners 通知添加
@@ -225,7 +222,7 @@ func (m *MemberMgr) notifyRemoveListeners(member IMember) {
 	m.eventMgr.Publish(eventMemberRemove, member)
 }
 
-// Stop 停止监听
+// Stop 注销所有监听，发现服务停止时调用
 func (m *MemberMgr) Stop() {
 	m.eventMgr.UnsubscribeAll(eventMemberAdd)
 	m.eventMgr.UnsubscribeAll(eventMemberRemove)

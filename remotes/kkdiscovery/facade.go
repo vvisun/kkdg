@@ -32,16 +32,13 @@ type (
 		GetStatus() int        // 获取状态
 	}
 
-	// MemberListener 成员增、删监听函数
-	MemberListener func(member IMember)
-
 	// IMemberObserver 成员增、删监听器接口
 	IMemberObserver interface {
 		// 监听添加成员
-		ObserveAddMember(listener MemberListener)
+		ObserveAddMember(listener func(member IMember))
 		// 监听移除成员
-		ObserveRemoveMember(listener MemberListener)
-		// Stop
+		ObserveRemoveMember(listener func(member IMember))
+		// 注销所有监听，发现服务停止时调用
 		Stop()
 	}
 
