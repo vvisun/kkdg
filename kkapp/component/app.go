@@ -46,15 +46,15 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 	}
 	af.GetLocator().AddNode(nodeInfo)
 	app := &Application{
-		nodeInfo:         nodeInfo,
-		actorFramework:   af,
-		state:            ComponentStateNone,
-		compList:         make([]kkapp.IComponent, 0),
-		opts:             &opts,
-		pidKeyToCompName: make(map[string]string),
-		faultHandledPID:  make(map[string]struct{}),
+		nodeInfo:          nodeInfo,
+		actorFramework:    af,
+		state:             ComponentStateNone,
+		compList:          make([]kkapp.IComponent, 0),
+		opts:              &opts,
+		pidKeyToCompName:  make(map[string]string),
+		faultHandledPID:   make(map[string]struct{}),
 		pendingTerminated: make(map[string]*time.Timer),
-		faultEventMgr:    kkevent.NewSpecEventManager[string, *faultreport.ComponentFaultEvent](),
+		faultEventMgr:     kkevent.NewSpecEventManager[string, *faultreport.ComponentFaultEvent](),
 	}
 	// Built-in default listener:
 	// Any component fault -> stop the whole application after 0.5s (best-effort).
@@ -453,6 +453,10 @@ func (slf *Application) onTerminated(ctx actor.Context) {
 			TerminatedPIDKey: pidKey,
 			TerminatedWhy:    why,
 		})
+
+		slf.pendingMu.Lock()
+		delete(slf.pendingTerminated, pidKey)
+		slf.pendingMu.Unlock()
 	})
 	slf.pendingTerminated[pidKey] = timer
 	slf.pendingMu.Unlock()
