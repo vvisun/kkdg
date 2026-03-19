@@ -31,6 +31,11 @@ func (slf *RuleTable) FromMap(rules map[string]int) {
 		return
 	}
 
+	if slf.locket.Load() {
+		kklog.Errorf("[faultreport] rule table is locked")
+		return
+	}
+
 	slf.mu.Lock()
 	defer slf.mu.Unlock()
 
