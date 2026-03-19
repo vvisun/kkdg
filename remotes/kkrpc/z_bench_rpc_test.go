@@ -9,6 +9,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 func Benchmark_InvokeUnary(b *testing.B) {
@@ -29,13 +30,17 @@ func Benchmark_InvokeUnary(b *testing.B) {
 		return nil
 	})
 
-	svr := NewServer(addr, kknet.DefaultOptions(), rpcRouter)
+	svr := NewServer(addr, kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+	), rpcRouter)
 	if err := svr.Start(); err != nil {
 		b.Fatalf("start server: %v", err)
 	}
 	defer svr.Stop()
 
-	cli := NewClient(addr, kknet.DefaultOptions(), rpcRouter)
+	cli := NewClient(addr, kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+	), rpcRouter)
 	if err := cli.Start(); err != nil {
 		b.Fatalf("start client: %v", err)
 	}
@@ -80,13 +85,17 @@ func Benchmark_InvokeUnary_ReuseInvoker(b *testing.B) {
 		return nil
 	})
 
-	svr := NewServer(addr, kknet.DefaultOptions(), rpcRouter)
+	svr := NewServer(addr, kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+	), rpcRouter)
 	if err := svr.Start(); err != nil {
 		b.Fatalf("start server: %v", err)
 	}
 	defer svr.Stop()
 
-	cli := NewClient(addr, kknet.DefaultOptions(), rpcRouter)
+	cli := NewClient(addr, kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+	), rpcRouter)
 	if err := cli.Start(); err != nil {
 		b.Fatalf("start client: %v", err)
 	}
@@ -133,13 +142,17 @@ func Benchmark_InvokeUnary_Parallel(b *testing.B) {
 		return nil
 	})
 
-	svr := NewServer(addr, kknet.DefaultOptions(), rpcRouter)
+	svr := NewServer(addr, kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+	), rpcRouter)
 	if err := svr.Start(); err != nil {
 		b.Fatalf("start server: %v", err)
 	}
 	defer svr.Stop()
 
-	cli := NewClient(addr, kknet.DefaultOptions(), rpcRouter)
+	cli := NewClient(addr, kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+	), rpcRouter)
 	if err := cli.Start(); err != nil {
 		b.Fatalf("start client: %v", err)
 	}

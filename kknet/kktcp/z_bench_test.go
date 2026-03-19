@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // freePortBench returns a free TCP addr for benchmarks.
@@ -23,7 +24,10 @@ func freePortBench(b *testing.B) string {
 // end-to-end SendBuffer throughput for a single TCP client<->server pair.
 func BenchmarkTCPConn_SendBuffer(b *testing.B) {
 	addr := freePortBench(b)
-	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithLogger(kklog.Nop()),
+	)
 	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
 		b.Fatalf("Start: %v", err)
