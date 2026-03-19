@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -19,11 +20,55 @@ const (
 	SymbolSeed           = "!\\\"#$%&'()*+,-./:;<=>?@[\\\\]^_`{|}~"               // 特殊字符
 )
 
-var globalRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+var (
+	globalRand   = rand.New(rand.NewSource(time.Now().UnixNano()))
+	globalRandMu sync.Mutex
+)
 
 // Rand 获取全局随机对象
 func Rand() *rand.Rand {
 	return globalRand
+}
+
+func intn(n int) int {
+	globalRandMu.Lock()
+	v := globalRand.Intn(n)
+	globalRandMu.Unlock()
+	return v
+}
+
+func int31n(n int32) int32 {
+	globalRandMu.Lock()
+	v := globalRand.Int31n(n)
+	globalRandMu.Unlock()
+	return v
+}
+
+func int63n(n int64) int64 {
+	globalRandMu.Lock()
+	v := globalRand.Int63n(n)
+	globalRandMu.Unlock()
+	return v
+}
+
+func float32v() float32 {
+	globalRandMu.Lock()
+	v := globalRand.Float32()
+	globalRandMu.Unlock()
+	return v
+}
+
+func float64v() float64 {
+	globalRandMu.Lock()
+	v := globalRand.Float64()
+	globalRandMu.Unlock()
+	return v
+}
+
+func shuffle(n int, swap func(i, j int)) {
+	globalRandMu.Lock()
+	globalRand.Shuffle(n, swap)
+	globalRandMu.Unlock()
 }
 
 // Str 生成指定长度的字符串
@@ -40,7 +85,7 @@ func Str(seed string, length int) (str string) {
 	}
 
 	for range length {
-		pos := globalRand.Intn(n)
+		pos := intn(n)
 		str += string(r[pos : pos+1])
 	}
 
@@ -80,7 +125,7 @@ func Int(min, max int) int {
 		min, max = max, min
 	}
 
-	return globalRand.Intn(max+1-min) + min
+	return intn(max+1-min) + min
 }
 
 // Int32 生成[min,max]范围间的32位整数，
@@ -93,7 +138,7 @@ func Int32(min, max int32) int32 {
 		min, max = max, min
 	}
 
-	return globalRand.Int31n(max+1-min) + min
+	return int31n(max+1-min) + min
 }
 
 // Int64 生成[min,max]范围间的64位整数
@@ -106,7 +151,7 @@ func Int64(min, max int64) int64 {
 		min, max = max, min
 	}
 
-	return globalRand.Int63n(max+1-min) + min
+	return int63n(max+1-min) + min
 }
 
 // Float32 生成[min,max)范围间的32位浮点数
@@ -119,7 +164,7 @@ func Float32(min, max float32) float32 {
 		min, max = max, min
 	}
 
-	return min + globalRand.Float32()*(max-min)
+	return min + float32v()*(max-min)
 }
 
 // Float64 生成[min,max)范围间的64位浮点数
@@ -132,7 +177,7 @@ func Float64(min, max float64) float64 {
 		min, max = max, min
 	}
 
-	return min + globalRand.Float64()*(max-min)
+	return min + float64v()*(max-min)
 }
 
 // Duration 生成[min,max]范围间的时间间隔
@@ -206,7 +251,7 @@ func Weight(fn func(v any) float64, list ...any) int {
 
 // Shuffle 打乱数组
 func Shuffle(list []any) {
-	globalRand.Shuffle(len(list), func(i, j int) {
+	shuffle(len(list), func(i, j int) {
 		list[i], list[j] = list[j], list[i]
 	})
 }
