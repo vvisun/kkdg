@@ -1,6 +1,7 @@
 package kkapp
 
 import (
+	"github.com/vvisun/kkdg/kkapp/faultreport"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -17,6 +18,8 @@ type AppOptions struct {
 	ClientMsgPacket *kkpacket.MessagePacket
 	// 转发层的消息编解码器。
 	TransportorCodec kkcodec.ICodec
+	// 故障处理动作。
+	FaultActionMap map[string]faultreport.EFaultAction // key: 组件名称, value: 故障处理动作
 }
 
 func DefaultOptions() AppOptions {
@@ -28,6 +31,7 @@ func DefaultOptions() AppOptions {
 			kkpacket.NewMsgRouter(),
 		),
 		TransportorCodec: kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		FaultActionMap:   make(map[string]faultreport.EFaultAction),
 	}
 }
 
@@ -50,6 +54,15 @@ func CheckOptions(opt *AppOptions) {
 	if opt.TransportorCodec == nil {
 		kklog.Warnf("[kkapp] transportor codec is nil, use default codec: %s", "json")
 		opt.TransportorCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
+	}
+	if opt.FaultActionMap == nil {
+		opt.FaultActionMap = make(map[string]faultreport.EFaultAction)
+	}
+	for compName, action := range opt.FaultActionMap {
+		if !faultreport.IsValidFaultAction(action) {
+			kklog.Errorf("[kkapp] fault compName %s action %d is invalid", compName, action)
+			delete(opt.FaultActionMap, compName)
+		}
 	}
 }
 
@@ -85,5 +98,22 @@ func WithClientMsgPacket(clientMsgPacket *kkpacket.MessagePacket) func(o *AppOpt
 func WithTransportorCodec(codec kkcodec.ICodec) func(o *AppOptions) {
 	return func(o *AppOptions) {
 		o.TransportorCodec = codec
+	}
+}
+
+func WithFaultAction(compName string, action faultreport.EFaultAction) func(o *AppOptions) {
+	return func(o *AppOptions) {
+		if compName == "" {
+			kklog.Errorf("[kkapp] fault action compName is empty")
+			return
+		}
+		if !faultreport.IsValidFaultAction(action) {
+			kklog.Errorf("[kkapp] fault compName %s action %d is invalid", compName, action)
+			return
+		}
+		if o.FaultActionMap == nil {
+			o.FaultActionMap = make(map[string]faultreport.EFaultAction)
+		}
+		o.FaultActionMap[compName] = action
 	}
 }

@@ -2,17 +2,6 @@ package faultreport
 
 import "github.com/asynkron/protoactor-go/actor"
 
-// EFaultAction 是Application对故障的处理动作。
-type EFaultAction int
-
-const (
-	FaultActionNone        EFaultAction = iota // 不采取任何行动
-	FaultActionRestartComp                     // 重启组件
-	FaultActionStopComp                        // 停止组件
-	FaultActionRestartApp                      // 重启应用
-	FaultActionStopApp                         // 停止应用
-)
-
 const (
 	// EventKeyComponentFault is the payload published when a component actor terminates.
 	// EventKeyComponentFault 是组件故障事件。当组件actor终止时，会发布这个事件。

@@ -383,7 +383,16 @@ func (slf *Application) Receive(ctx actor.Context) {
 	}
 }
 
-func (slf *Application) onComponentFault(ctx actor.Context, eData *faultreport.ComponentFaultEvent) {
+func (slf *Application) decideFaultAction(eData *faultreport.ComponentFaultEvent) faultreport.EFaultAction {
+	action, ok := slf.opts.FaultActionMap[eData.ComponentName]
+	if ok {
+		return action
+	}
+	// 如果外部没有配置，则默认停止应用
+	return faultreport.FaultActionStopApp
+}
+
+func (slf *Application) onComponentFault(ctx actor.Context, eData *faultreport.ComponentFaultEvent, action faultreport.EFaultAction) {
 	pidKey := eData.TerminatedPIDKey
 
 	// Cancel any pending Terminated fallback for this pid.
@@ -394,13 +403,13 @@ func (slf *Application) onComponentFault(ctx actor.Context, eData *faultreport.C
 	}
 	slf.pendingMu.Unlock()
 
-	// todo: 这里后面可以根据外部配置，决定行为
-	eData.FaultAction = faultreport.FaultActionStopApp
-
-	if slf.faultStopScheduled.CompareAndSwap(false, true) {
-		time.AfterFunc(500*time.Millisecond, func() {
-			_ = slf.Stop()
-		})
+	switch action {
+	case faultreport.FaultActionStopApp:
+		if slf.faultStopScheduled.CompareAndSwap(false, true) {
+			time.AfterFunc(500*time.Millisecond, func() {
+				_ = slf.Stop()
+			})
+		}
 	}
 }
 
@@ -455,9 +464,10 @@ func (slf *Application) onTerminated(ctx actor.Context) {
 			TerminatedPIDKey: pidKey,
 			TerminatedWhy:    why,
 		}
-
-		slf.onComponentFault(ctx, eData)
+		action := slf.decideFaultAction(eData)
+		eData.FaultAction = action
 		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, eData)
+		slf.onComponentFault(ctx, eData, action)
 	})
 	slf.pendingTerminated[pidKey] = timer
 	slf.pendingMu.Unlock()
@@ -514,8 +524,10 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 			FailureDirective:    supervisorEvent.Directive,
 			IsPanic:             isPanic,
 		}
-		slf.onComponentFault(ctx, eData)
+		action := slf.decideFaultAction(eData)
+		eData.FaultAction = action
 		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, eData)
+		slf.onComponentFault(ctx, eData, action)
 
 	}, func(evt interface{}) bool {
 		_, ok := evt.(*actor.SupervisorEvent)
