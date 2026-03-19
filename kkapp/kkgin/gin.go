@@ -108,3 +108,7 @@ func (s *Server) Stop() error {
 		return err
 	}
 }
+
+func (s *Server) GetEngine() *gin.Engine {
+	return s.Engine
+}
