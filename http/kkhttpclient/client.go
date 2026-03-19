@@ -155,3 +155,43 @@ func (c *Client) SyncJSON(ctx context.Context, method, pathOrURL string, headers
 	}
 	return json.Unmarshal(res.Body, respObj)
 }
+
+// AsyncJSON executes the HTTP request asynchronously and JSON-unmarshals the response into respObj.
+// It returns a channel with exactly one Result.
+func (c *Client) AsyncJSON(ctx context.Context, method, pathOrURL string, headers map[string]string, reqObj any, respObj any) <-chan Result {
+	ch := make(chan Result, 1)
+	go func() {
+		defer func() { close(ch) }()
+
+		var body []byte
+		var contentType string
+		if reqObj != nil {
+			b, err := json.Marshal(reqObj)
+			if err != nil {
+				ch <- Result{Err: err}
+				return
+			}
+			body = b
+			contentType = "application/json"
+		}
+
+		if headers == nil {
+			headers = make(map[string]string, 1)
+		}
+		if contentType != "" && headers["Content-Type"] == "" {
+			headers["Content-Type"] = contentType
+		}
+
+		res, err := c.SyncRequest(ctx, method, pathOrURL, headers, body)
+		if err != nil {
+			ch <- Result{Resp: res, Err: err}
+			return
+		}
+		if respObj != nil {
+			ch <- Result{Resp: res, Err: json.Unmarshal(res.Body, respObj)}
+			return
+		}
+		ch <- Result{Resp: res, Err: nil}
+	}()
+	return ch
+}
