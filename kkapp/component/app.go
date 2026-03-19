@@ -157,6 +157,10 @@ func (slf *Application) logTag() string {
 	return fmt.Sprintf("[kkapp] (nodeId: %s, nodeType: %s)", slf.GetNodeId(), slf.GetNodeType())
 }
 
+func (slf *Application) curStateName() string {
+	return GetStateName(atomic.LoadInt64(&slf.state))
+}
+
 func (slf *Application) GetCompPID(compName string) *actor.PID {
 	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), compName)
 	if err != nil {
@@ -173,8 +177,7 @@ func (slf *Application) GetCompPID(compName string) *actor.PID {
 
 func (slf *Application) Start() error {
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
-		kklog.Errorf("%s start fail. already started, state: %s",
-			slf.logTag(), GetStateName(atomic.LoadInt64(&slf.state)))
+		kklog.Errorf("%s start fail. already started, state: %s", slf.logTag(), slf.curStateName())
 		return kkerrors.ErrAppAlreadyStarted
 	}
 	startResultCh := make(chan error, 1)
@@ -220,13 +223,11 @@ func (slf *Application) Start() error {
 
 func (slf *Application) Stop() error {
 	if slf.pid == nil {
-		kklog.Errorf("%s stop fail. not started, state: %s",
-			slf.logTag(), GetStateName(atomic.LoadInt64(&slf.state)))
+		kklog.Errorf("%s stop fail. not started, state: %s", slf.logTag(), slf.curStateName())
 		return kkerrors.ErrAppNotStarted
 	}
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStopping) {
-		kklog.Errorf("%s stop fail. not started, state: %s",
-			slf.logTag(), GetStateName(atomic.LoadInt64(&slf.state)))
+		kklog.Errorf("%s stop fail. not started, state: %s", slf.logTag(), slf.curStateName())
 		return kkerrors.ErrAppNotStarted
 	}
 	// 等待 Application actor 完全退出，否则进程可能在 Stopping/Stopped 未处理时就退出，看不到日志
@@ -259,8 +260,7 @@ func (slf *Application) AddComponent(comp kkapp.IComponent) error {
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	if atomic.LoadInt64(&slf.state) != ComponentStateNone {
-		kklog.Errorf("%s add component %s fail. not none state, state: %s",
-			slf.logTag(), comp.GetCompName(), GetStateName(atomic.LoadInt64(&slf.state)))
+		kklog.Errorf("%s add component %s fail. not none state, state: %s", slf.logTag(), comp.GetCompName(), slf.curStateName())
 		return kkerrors.ErrAppAddCompMustInNoneState
 	}
 
@@ -291,8 +291,7 @@ func (slf *Application) existsComponent(comp kkapp.IComponent) bool {
 
 func (slf *Application) onStarted(ctx actor.Context) {
 	if atomic.LoadInt64(&slf.state) != ComponentStateStarting {
-		kklog.Errorf("%s already started, state: %s",
-			slf.logTag(), GetStateName(atomic.LoadInt64(&slf.state)))
+		kklog.Errorf("%s already started, state: %s", slf.logTag(), slf.curStateName())
 		return //已经启动，直接返回
 	}
 
