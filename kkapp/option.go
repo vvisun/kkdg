@@ -56,6 +56,7 @@ func CheckOptions(opt *AppOptions) {
 		opt.TransportorCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 	if opt.FaultRuleTable == nil {
+		kklog.Warnf("[kkapp] fault rule table is nil, use default fault rule table")
 		opt.FaultRuleTable = faultreport.NewRuleTable()
 	}
 }

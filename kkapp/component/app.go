@@ -44,6 +44,7 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application actorFramework is nil, use default", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 		af = getGlobalActorFramework()
 	}
+	kkapp.CheckOptions(&opts)
 	af.GetLocator().AddNode(nodeInfo)
 	app := &Application{
 		nodeInfo:          nodeInfo,
