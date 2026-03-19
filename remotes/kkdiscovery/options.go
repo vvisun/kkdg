@@ -10,12 +10,14 @@ import (
 type DiscoveryOption struct {
 	MsgCodec       kkcodec.ICodec
 	OfflineTimeout time.Duration
+	Url            string
 }
 
 func DefaultDiscoveryOption() DiscoveryOption {
 	return DiscoveryOption{
 		MsgCodec:       kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
 		OfflineTimeout: 3 * time.Second,
+		Url:            "nats://127.0.0.1:4222",
 	}
 }
 
@@ -26,6 +28,9 @@ func CheckDiscoveryOption(opt *DiscoveryOption) {
 	}
 	if opt.OfflineTimeout <= 0 {
 		opt.OfflineTimeout = 3 * time.Second
+	}
+	if opt.Url == "" {
+		opt.Url = "nats://127.0.0.1:4222"
 	}
 }
 
@@ -56,5 +61,14 @@ func WithOfflineTimeout(timeout time.Duration) func(o *DiscoveryOption) {
 			return
 		}
 		o.OfflineTimeout = timeout
+	}
+}
+
+func WithUrl(url string) func(o *DiscoveryOption) {
+	return func(o *DiscoveryOption) {
+		if url == "" {
+			return
+		}
+		o.Url = url
 	}
 }

@@ -7,11 +7,13 @@ import (
 
 type ClusterOption struct {
 	MsgCodec kkcodec.ICodec
+	Url      string
 }
 
 func DefaultClusterOption() ClusterOption {
 	return ClusterOption{
 		MsgCodec: kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		Url:      "nats://127.0.0.1:4222",
 	}
 }
 
@@ -19,6 +21,9 @@ func CheckClusterOption(opt *ClusterOption) {
 	if opt.MsgCodec == nil {
 		kklog.Warnf("[kkcluster] msg codec is nil, use default codec: %s", "msgpack")
 		opt.MsgCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	}
+	if opt.Url == "" {
+		opt.Url = "nats://127.0.0.1:4222"
 	}
 }
 
@@ -40,5 +45,14 @@ func WithMsgCodec(codec kkcodec.ICodec) func(o *ClusterOption) {
 			codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 		}
 		o.MsgCodec = codec
+	}
+}
+
+func WithUrl(url string) func(o *ClusterOption) {
+	return func(o *ClusterOption) {
+		if url == "" {
+			return
+		}
+		o.Url = url
 	}
 }

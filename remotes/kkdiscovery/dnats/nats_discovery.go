@@ -59,11 +59,8 @@ type NatsDiscovery struct {
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
-func NewNatsDiscovery(
-	nodeInfo *kkapp.NodeInfo,
-	natsOpts nats.Options,
-	discoveryOpt kkdiscovery.DiscoveryOption,
-) kkdiscovery.IDiscovery {
+func NewNatsDiscovery(nodeInfo *kkapp.NodeInfo, discoveryOpt kkdiscovery.DiscoveryOption) kkdiscovery.IDiscovery {
+	natsOpts := FromDiscoveryOption(discoveryOpt)
 	d := &NatsDiscovery{
 		nodeInfo:     nodeInfo,
 		memberMgr:    kkdiscovery.NewMemberMgr(),

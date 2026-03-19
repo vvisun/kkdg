@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 )
 
 const (
@@ -33,6 +34,14 @@ func ApplyNatsOptions(options ...nats.Option) nats.Options {
 	opts := defaultNatsOptions()
 	for _, option := range options {
 		option(&opts)
+	}
+	return opts
+}
+
+func FromDiscoveryOption(opt kkdiscovery.DiscoveryOption) nats.Options {
+	opts := defaultNatsOptions()
+	if opt.Url != "" {
+		opts.Url = opt.Url
 	}
 	return opts
 }

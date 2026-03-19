@@ -59,11 +59,11 @@ func (slf *gameComponent) Receive(context actor.Context) {
 
 func (slf *gameComponent) OnInit() error {
 	// 初始化 discovery
-	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.DiscoveryUrl))
 	slf.discovery = dnats.NewNatsDiscovery(
 		slf.GetApplication().GetNodeInfo(),
-		discoveryOpts,
-		kkdiscovery.ApplyOptions(),
+		kkdiscovery.ApplyOptions(
+			kkdiscovery.WithUrl(slf.opt.DiscoveryUrl),
+		),
 	)
 	slf.discoverySubID = kkdiscovery.GlobalEventMgr.Subscribe(kkdiscovery.EventDiscoveryStats, func(e *kkdiscovery.DiscoveryStatsEvent) {
 		e.OnlineCount = slf.sessionManager.OnlineCount()
@@ -71,13 +71,13 @@ func (slf *gameComponent) OnInit() error {
 	})
 
 	// 初始化 cluster
-	clusterOpts := cnats.ApplyNatsOptions(cnats.WithUrl(slf.opt.ClusterUrl))
 	slf.cluster = cnats.NewNatsCluster(
 		slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeType(),
 		slf.discovery,
-		clusterOpts,
-		kkcluster.ApplyOptions(),
+		kkcluster.ApplyOptions(
+			kkcluster.WithUrl(slf.opt.ClusterUrl),
+		),
 	)
 
 	appOpts := slf.GetApplication().GetOptions()

@@ -73,7 +73,8 @@ var asyncReqPool = sync.Pool{
 }
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, natsOpts nats.Options, clusterOpt kkcluster.ClusterOption) kkcluster.ICluster {
+func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, clusterOpt kkcluster.ClusterOption) kkcluster.ICluster {
+	natsOpts := FromClusterOption(clusterOpt)
 	kkcluster.CheckClusterOption(&clusterOpt)
 	return &NatsCluster{
 		nodeID:      nodeID,

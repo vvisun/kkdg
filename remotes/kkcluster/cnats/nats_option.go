@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -30,6 +31,14 @@ func ApplyNatsOptions(options ...nats.Option) nats.Options {
 		if err != nil {
 			kklog.Errorf("ApplyNatsOptions error: %v", err)
 		}
+	}
+	return opts
+}
+
+func FromClusterOption(opt kkcluster.ClusterOption) nats.Options {
+	opts := defaultNatsOptions()
+	if opt.Url != "" {
+		opts.Url = opt.Url
 	}
 	return opts
 }

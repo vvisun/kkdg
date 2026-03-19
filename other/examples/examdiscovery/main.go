@@ -19,10 +19,12 @@ func main() {
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "")
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "gate", "127.0.0.1:8081", "")
 
-	opts := dnats.ApplyNatsOptions(dnats.WithUrl(natsURL))
-
-	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, opts, kkdiscovery.ApplyOptions())
-	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, opts, kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl(natsURL),
+	))
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl(natsURL),
+	))
 
 	// 监听成员添加
 	discovery1.GetMemberObserver().ObserveAddMember(func(member kkdiscovery.IMember) {

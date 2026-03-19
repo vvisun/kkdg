@@ -22,8 +22,12 @@ func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cle
 
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
-	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl(natsURL),
+	))
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl(natsURL),
+	))
 
 	if err := discovery1.Start(); err != nil {
 		b.Fatalf("discovery1.Start() failed: %v", err)
@@ -39,8 +43,12 @@ func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cle
 		b.Fatal("discovery1 did not discover node2")
 	}
 
-	cluster1 = cnats.NewNatsCluster("node1", "typea", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
-	cluster2 = cnats.NewNatsCluster("node2", "typea", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
+	cluster1 = cnats.NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
+		kkcluster.WithUrl(natsURL),
+	))
+	cluster2 = cnats.NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
+		kkcluster.WithUrl(natsURL),
+	))
 
 	if err := cluster1.Start(); err != nil {
 		discovery1.Stop()
@@ -75,9 +83,15 @@ func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkclu
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
 	nodeInfo3 := kkapp.NewNodeInfo("node3", "typeb", "127.0.0.1:8082", "")
-	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery3 := dnats.NewNatsDiscovery(nodeInfo3, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl(natsURL),
+	))
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl(natsURL),
+	))
+	discovery3 := dnats.NewNatsDiscovery(nodeInfo3, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl(natsURL),
+	))
 
 	if err := discovery1.Start(); err != nil {
 		b.Fatalf("discovery1.Start() failed: %v", err)
@@ -96,9 +110,15 @@ func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkclu
 		b.Fatal("discovery1 did not discover other nodes")
 	}
 
-	cluster1 = cnats.NewNatsCluster("node1", "typea", discovery1, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
-	cluster2 = cnats.NewNatsCluster("node2", "typea", discovery2, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
-	cluster3 = cnats.NewNatsCluster("node3", "typeb", discovery3, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
+	cluster1 = cnats.NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
+		kkcluster.WithUrl(natsURL),
+	))
+	cluster2 = cnats.NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
+		kkcluster.WithUrl(natsURL),
+	))
+	cluster3 = cnats.NewNatsCluster("node3", "typeb", discovery3, kkcluster.ApplyOptions(
+		kkcluster.WithUrl(natsURL),
+	))
 
 	if err := cluster1.Start(); err != nil {
 		b.Fatalf("cluster1.Init() failed: %v", err)
