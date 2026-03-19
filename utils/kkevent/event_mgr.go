@@ -116,6 +116,9 @@ func (m *EventManager[K]) UnsubscribeAll(key K) {
 	delete(m.listeners, key)
 }
 
+// Publish 安全地发布事件，进行安全调用，进行错误处理
+//
+//	主要用于非核心事件处理，一旦处理失败应该吞没panic，防止打蹦进程
 func (m *EventManager[K]) Publish(key K, data any) {
 	m.mu.RLock()
 	listeners := m.listeners[key]
@@ -125,5 +128,18 @@ func (m *EventManager[K]) Publish(key K, data any) {
 		xcall.SafeCall(func() {
 			listener.callback(data)
 		})
+	}
+}
+
+// UnsafePublish 不安全地发布事件，不进行安全调用，不进行错误处理
+//
+//	主要用于核心事件处理，一旦处理失败不应该吞没panic，而是应该让他panic，防止将问题隐藏，导致不可预测的错误
+func (m *EventManager[K]) UnsafePublish(key K, data any) {
+	m.mu.RLock()
+	listeners := m.listeners[key]
+	m.mu.RUnlock()
+
+	for _, listener := range listeners {
+		listener.callback(data)
 	}
 }
