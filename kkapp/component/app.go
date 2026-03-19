@@ -164,6 +164,7 @@ func (slf *Application) GetCompPID(compName string) *actor.PID {
 }
 
 func (slf *Application) Start() error {
+	slf.opts.FaultRuleTable.Lock() // 启动后锁定规则表，后续不允许再修改
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
 		kklog.Errorf("%s start fail. already started, state: %s", slf.logTag(), slf.curStateName())
 		return kkerrors.ErrAppAlreadyStarted
@@ -384,7 +385,7 @@ func (slf *Application) Receive(ctx actor.Context) {
 }
 
 func (slf *Application) decideFaultAction(eData *faultreport.ComponentFaultEvent) faultreport.EFaultAction {
-	action, ok := slf.opts.FaultActionMap[eData.ComponentName]
+	action, ok := slf.opts.FaultRuleTable.GetRule(eData.ComponentName)
 	if ok {
 		return action
 	}
@@ -451,6 +452,10 @@ func (slf *Application) onTerminated(ctx actor.Context) {
 		return
 	}
 	timer := time.AfterFunc(terminatedFallbackDelay, func() {
+		slf.pendingMu.Lock()
+		delete(slf.pendingTerminated, pidKey)
+		slf.pendingMu.Unlock()
+
 		curState := atomic.LoadInt64(&slf.state)
 		if curState == ComponentStateStopping || curState == ComponentStateStopped {
 			return

@@ -18,8 +18,8 @@ type AppOptions struct {
 	ClientMsgPacket *kkpacket.MessagePacket
 	// 转发层的消息编解码器。
 	TransportorCodec kkcodec.ICodec
-	// 故障处理动作。
-	FaultActionMap map[string]faultreport.EFaultAction // key: 组件名称, value: 故障处理动作
+	// 故障处理规则表。
+	FaultRuleTable *faultreport.RuleTable
 }
 
 func DefaultOptions() AppOptions {
@@ -31,7 +31,7 @@ func DefaultOptions() AppOptions {
 			kkpacket.NewMsgRouter(),
 		),
 		TransportorCodec: kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
-		FaultActionMap:   make(map[string]faultreport.EFaultAction),
+		FaultRuleTable:   faultreport.NewRuleTable(),
 	}
 }
 
@@ -55,14 +55,8 @@ func CheckOptions(opt *AppOptions) {
 		kklog.Warnf("[kkapp] transportor codec is nil, use default codec: %s", "json")
 		opt.TransportorCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
-	if opt.FaultActionMap == nil {
-		opt.FaultActionMap = make(map[string]faultreport.EFaultAction)
-	}
-	for compName, action := range opt.FaultActionMap {
-		if !faultreport.IsValidFaultAction(action) {
-			kklog.Errorf("[kkapp] fault compName %s action %d is invalid", compName, action)
-			delete(opt.FaultActionMap, compName)
-		}
+	if opt.FaultRuleTable == nil {
+		opt.FaultRuleTable = faultreport.NewRuleTable()
 	}
 }
 
@@ -111,10 +105,10 @@ func WithFaultAction(compName string, action faultreport.EFaultAction) func(o *A
 			kklog.Errorf("[kkapp] fault compName %s action %d is invalid", compName, action)
 			return
 		}
-		if o.FaultActionMap == nil {
-			o.FaultActionMap = make(map[string]faultreport.EFaultAction)
+		if o.FaultRuleTable == nil {
+			o.FaultRuleTable = faultreport.NewRuleTable()
 		}
-		o.FaultActionMap[compName] = action
+		o.FaultRuleTable.AddRule(compName, action)
 	}
 }
 
@@ -123,13 +117,16 @@ func WithFaultActionMap(faultActionMap map[string]faultreport.EFaultAction) func
 		if faultActionMap == nil {
 			return
 		}
+		if o.FaultRuleTable == nil {
+			o.FaultRuleTable = faultreport.NewRuleTable()
+		}
 		for compName, action := range faultActionMap {
 			if !faultreport.IsValidFaultAction(action) {
 				kklog.Errorf("[kkapp] fault compName %s action %d is invalid", compName, action)
-				delete(faultActionMap, compName)
+				continue
 			}
+			o.FaultRuleTable.AddRule(compName, action)
 		}
-		o.FaultActionMap = faultActionMap
 	}
 }
 
