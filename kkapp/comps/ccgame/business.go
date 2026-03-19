@@ -50,8 +50,8 @@ var _ kkapp.IComponent = (*gameComponent)(nil)
 
 var _ actor.Actor = (*gameComponent)(nil)
 
-func (slf *gameComponent) Receive(context actor.Context) {
-	switch context.Message().(type) {
+func (slf *gameComponent) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
 	case *actor.Stopping:
 		slf.OnStop()
 	}

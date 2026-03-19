@@ -116,8 +116,8 @@ func (slf *gateComponent) GetCompName() string {
 	return "comp_gate"
 }
 
-func (slf *gateComponent) Receive(context actor.Context) {
-	switch context.Message().(type) {
+func (slf *gateComponent) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
 	case *actor.Stopping:
 		slf.OnStop()
 	}
