@@ -6,7 +6,6 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xrand"
 )
 
 type MemberMgr struct {
@@ -162,20 +161,6 @@ func (m *MemberMgr) CountOfType(nodeType string) int {
 	count := len(m.typeMap[nodeType])
 	m.membersMu.RUnlock()
 	return count
-}
-
-// 根据节点类型随机一个成员
-func (m *MemberMgr) random(nodeType string) (IMember, bool) {
-	m.membersMu.RLock()
-	listOfType := m.typeMap[nodeType]
-	if len(listOfType) == 0 {
-		m.membersMu.RUnlock()
-		return nil, false
-	}
-	idx := xrand.Int(0, len(listOfType)-1)
-	member := listOfType[idx]
-	m.membersMu.RUnlock()
-	return member, true
 }
 
 // 根据节点id获取成员类型

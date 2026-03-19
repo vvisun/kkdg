@@ -163,22 +163,3 @@ func BenchmarkMemberMgr_AddMember(b *testing.B) {
 		_, _ = mgr.AddMember(info)
 	}
 }
-
-// BenchmarkMemberMgr_Random benchmarks Random selection from a given type.
-func BenchmarkMemberMgr_Random(b *testing.B) {
-	mgr := NewMemberMgr()
-	const total = 2048
-	for i := 0; i < total; i++ {
-		mgr.AddMember(newTestMemberInfo(fmt.Sprintf("n-%d", i), "logic", "addr", 1, NodeStatusOnline))
-	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		m, ok := mgr.random("logic")
-		if !ok || m == nil {
-			b.Fatalf("Random(logic) returned nil, false")
-		}
-	}
-}
