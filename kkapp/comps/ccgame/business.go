@@ -2,7 +2,6 @@ package ccgame
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
@@ -19,7 +18,6 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xreflect"
 )
 
 func NewGameComponent(opt Options) *gameComponent {
@@ -35,15 +33,13 @@ func NewGameComponent(opt Options) *gameComponent {
 // 业务服：游戏服
 type gameComponent struct {
 	component.Component
-	discovery          kkdiscovery.IDiscovery
-	cluster            kkcluster.ICluster
-	msgReceiver        *msgreceiver.MsgReceiver[string]
-	sessionManager     *gametrans.SessionManager
-	transportor        gametrans.ITransportor
-	opt                Options
-	transOkListeners   []func(transportor gametrans.ITransportor)
-	transOkListenersMu sync.RWMutex
-	discoverySubID     uint64
+	discovery      kkdiscovery.IDiscovery
+	cluster        kkcluster.ICluster
+	msgReceiver    *msgreceiver.MsgReceiver[string]
+	sessionManager *gametrans.SessionManager
+	transportor    gametrans.ITransportor
+	opt            Options
+	discoverySubID uint64
 }
 
 func (slf *gameComponent) GetCompName() string {
@@ -65,7 +61,6 @@ func (slf *gameComponent) OnInit() error {
 	// 初始化 discovery
 	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.opt.DiscoveryUrl))
 	slf.discovery = dnats.NewNatsDiscovery(
-		"logic."+slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeInfo(),
 		discoveryOpts,
 		kkdiscovery.ApplyOptions(),
@@ -145,8 +140,6 @@ func (slf *gameComponent) OnInit() error {
 		return errors.New("invalid trans type: " + slf.opt.TransType)
 	}
 
-	slf.notifyTransportorOK()
-
 	return nil
 }
 
@@ -192,34 +185,4 @@ func (slf *gameComponent) GetSessionManager() *gametrans.SessionManager {
 
 func (slf *gameComponent) GetTransportor() gametrans.ITransportor {
 	return slf.transportor
-}
-
-// OnTransportorOK 注册 transportor 就绪回调函数。
-//
-//	注意：
-//	 1. transportor 就绪回调函数在 transportor 就绪后立即执行，不会等待 transportor 的 Start 方法执行完成。
-//	 2. 触发 transportor 就绪回调函数后，回调函数会被自动移除。
-func (slf *gameComponent) OnTransportorOK(fn func(transportor gametrans.ITransportor)) {
-	if fn == nil {
-		return
-	}
-	slf.transOkListenersMu.Lock()
-	for _, listener := range slf.transOkListeners {
-		if xreflect.IsSameFunc(listener, fn) {
-			return
-		}
-	}
-	slf.transOkListeners = append(slf.transOkListeners, fn)
-	slf.transOkListenersMu.Unlock()
-}
-
-func (slf *gameComponent) notifyTransportorOK() {
-	slf.transOkListenersMu.RLock()
-	listeners := make([]func(transportor gametrans.ITransportor), len(slf.transOkListeners))
-	copy(listeners, slf.transOkListeners)
-	slf.transOkListenersMu.RUnlock()
-	for _, listener := range listeners {
-		listener(slf.transportor)
-	}
-	slf.transOkListeners = make([]func(transportor gametrans.ITransportor), 0)
 }

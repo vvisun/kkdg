@@ -70,7 +70,6 @@ type (
 
 	// IDiscovery 发现服务接口
 	IDiscovery interface {
-		Name() string                       // 发现服务名称
 		Start() error                       // 启动
 		Stop() error                        // 停止
 		IsRunning() bool                    // 是否已启动

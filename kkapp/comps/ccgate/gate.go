@@ -130,7 +130,6 @@ func (slf *gateComponent) OnInit() error {
 	// 初始化 discovery
 	discoveryOpts := dnats.ApplyNatsOptions(dnats.WithUrl(slf.gateOpt.DiscoveryUrl))
 	slf.discovery = dnats.NewNatsDiscovery(
-		"gate."+slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeInfo(),
 		discoveryOpts,
 		kkdiscovery.ApplyOptions(),

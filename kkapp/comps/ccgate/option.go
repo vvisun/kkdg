@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/remotes/kkcluster"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -20,9 +22,11 @@ type Options struct {
 	TransServerAddr string
 
 	// 发现服务器URL。
-	DiscoveryUrl string
+	DiscoveryUrl  string
+	DiscoveryOpts kkdiscovery.DiscoveryOption
 	// 集群服务器URL。
-	ClusterUrl string
+	ClusterUrl  string
+	ClusterOpts kkcluster.ClusterOption
 }
 
 func validateOption(opt *Options) error {

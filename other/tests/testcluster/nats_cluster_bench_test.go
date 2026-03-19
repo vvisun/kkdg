@@ -22,8 +22,8 @@ func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cle
 
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
-	discovery1 := dnats.NewNatsDiscovery("bench1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery2 := dnats.NewNatsDiscovery("bench2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
 	if err := discovery1.Start(); err != nil {
 		b.Fatalf("discovery1.Start() failed: %v", err)
@@ -75,9 +75,9 @@ func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkclu
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
 	nodeInfo3 := kkapp.NewNodeInfo("node3", "typeb", "127.0.0.1:8082", "")
-	discovery1 := dnats.NewNatsDiscovery("bench1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery2 := dnats.NewNatsDiscovery("bench2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery3 := dnats.NewNatsDiscovery("bench3", nodeInfo3, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery3 := dnats.NewNatsDiscovery(nodeInfo3, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
 	if err := discovery1.Start(); err != nil {
 		b.Fatalf("discovery1.Start() failed: %v", err)

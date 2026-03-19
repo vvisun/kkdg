@@ -15,7 +15,7 @@ import (
 // TestNatsCluster_New 测试创建NatsCluster
 func TestNatsCluster_New(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(), kkdiscovery.ApplyOptions())
+	discovery := dnats.NewNatsDiscovery(nodeInfo, dnats.ApplyNatsOptions(), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(), kkcluster.ApplyOptions())
 
 	if cluster == nil {
@@ -31,7 +31,7 @@ func TestNatsCluster_Init(t *testing.T) {
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery := dnats.NewNatsDiscovery(nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
 	if err := cluster.Start(); err != nil {
@@ -53,9 +53,9 @@ func TestNatsCluster_PublishRemote(t *testing.T) {
 
 	// 创建两个节点
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
-	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
@@ -132,9 +132,9 @@ func TestNatsCluster_PublishRemoteType(t *testing.T) {
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
 	nodeInfo3 := kkapp.NewNodeInfo("node3", "typeb", "127.0.0.1:8082", "")
-	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery3 := dnats.NewNatsDiscovery("test3", nodeInfo3, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery3 := dnats.NewNatsDiscovery(nodeInfo3, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
@@ -229,8 +229,8 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 	// 创建两个节点
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
-	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
@@ -286,7 +286,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery := dnats.NewNatsDiscovery(nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
 	if err := cluster.Start(); err != nil {
@@ -316,7 +316,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery := dnats.NewNatsDiscovery(nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
 	if err := cluster.Start(); err != nil {
@@ -347,8 +347,8 @@ func TestNatsCluster_RequestRemoteAsync(t *testing.T) {
 
 	nodeInfo1 := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	nodeInfo2 := kkapp.NewNodeInfo("node2", "typea", "127.0.0.1:8081", "")
-	discovery1 := dnats.NewNatsDiscovery("test1", nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
-	discovery2 := dnats.NewNatsDiscovery("test2", nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery1 := dnats.NewNatsDiscovery(nodeInfo1, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery2 := dnats.NewNatsDiscovery(nodeInfo2, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 
 	if err := discovery1.Start(); err != nil {
 		t.Fatalf("discovery1.Start() failed: %v", err)
@@ -422,7 +422,7 @@ func TestNatsCluster_RequestRemoteAsync_NotFound(t *testing.T) {
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery := dnats.NewNatsDiscovery(nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
 	if err := cluster.Start(); err != nil {
@@ -448,7 +448,7 @@ func TestNatsCluster_Stop(t *testing.T) {
 	}
 
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery := dnats.NewNatsDiscovery("test", nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
+	discovery := dnats.NewNatsDiscovery(nodeInfo, dnats.ApplyNatsOptions(dnats.WithUrl(natsURL)), kkdiscovery.ApplyOptions())
 	cluster := cnats.NewNatsCluster("node1", "typea", discovery, cnats.ApplyNatsOptions(cnats.WithUrl(natsURL)), kkcluster.ApplyOptions())
 
 	if err := cluster.Start(); err != nil {

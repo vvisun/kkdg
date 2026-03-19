@@ -22,7 +22,6 @@ const (
 
 // NatsDiscovery 基于NATS的服务发现实现
 type NatsDiscovery struct {
-	name     string
 	nodeInfo *kkapp.NodeInfo
 
 	conn       *nats.Conn
@@ -61,13 +60,11 @@ var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
 func NewNatsDiscovery(
-	name string,
 	nodeInfo *kkapp.NodeInfo,
 	natsOpts nats.Options,
 	discoveryOpt kkdiscovery.DiscoveryOption,
 ) kkdiscovery.IDiscovery {
 	d := &NatsDiscovery{
-		name:         name,
 		nodeInfo:     nodeInfo,
 		memberMgr:    kkdiscovery.NewMemberMgr(),
 		memberTimes:  make(map[string]time.Time), // key: nodeID, value: last update time
@@ -85,11 +82,6 @@ func NewNatsDiscovery(
 	})
 
 	return d
-}
-
-// Name 返回发现服务名称
-func (d *NatsDiscovery) Name() string {
-	return d.name
 }
 
 // IsRunning 是否已启动
