@@ -1,11 +1,15 @@
-package component
+package faultreport
 
 import (
 	"fmt"
 	"runtime"
 )
 
-func normalizeFailureReason(reason any) (reasonStr string, isPanic bool) {
+// NormalizeFailureReason 规范化失败原因
+//
+//	规范化失败原因，将失败原因转换为字符串，并判断是否为panic。
+//	主要用于规范化失败原因，方便后续处理。
+func NormalizeFailureReason(reason any) (reasonStr string, isPanic bool) {
 	if reason == nil {
 		return "", false
 	}

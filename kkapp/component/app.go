@@ -439,7 +439,7 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 			return
 		}
 
-		reasonStr, isPanic := normalizeFailureReason(supervisorEvent.Reason)
+		reasonStr, isPanic := faultreport.NormalizeFailureReason(supervisorEvent.Reason)
 
 		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
 			NodeID:        slf.GetNodeId(),
