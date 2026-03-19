@@ -13,9 +13,10 @@ const (
 // - the decision/orchestration point (Application reception point)
 // - the execution point(s) that react (maintenance mode, metrics, etc.)
 type ComponentFaultEvent struct {
-	NodeID        string
-	NodeType      string
-	ComponentName string
+	NodeID           string
+	NodeType         string
+	ComponentName    string
+	TerminatedPIDKey string
 
 	// Failure fields are derived from protoactor-go supervision events.
 	// They are best-effort context: Reason is usually the panic value.
@@ -24,6 +25,5 @@ type ComponentFaultEvent struct {
 	FailureDirective    actor.Directive
 	IsPanic             bool
 
-	TerminatedWhy    actor.TerminatedReason
-	TerminatedPIDKey string
+	TerminatedWhy actor.TerminatedReason
 }

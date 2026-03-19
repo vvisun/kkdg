@@ -400,12 +400,17 @@ func (slf *Application) onTerminated(ctx actor.Context) {
 		NodeID:           slf.GetNodeId(),
 		NodeType:         slf.GetNodeType(),
 		ComponentName:    compName,
-		TerminatedWhy:    msg.GetWhy(),
 		TerminatedPIDKey: pidKey,
+
+		TerminatedWhy: msg.GetWhy(),
 	})
 }
 
 func (slf *Application) initSupervisorEvent(ctx actor.Context) {
+	if slf.faultSub != nil {
+		return
+	}
+
 	// Subscribe protoactor-go supervision events so we can capture failure context
 	// (e.g. panic value) for component "core severity" decisions.
 	// This subscription is process-local; it decouples the decision point (Application)
@@ -442,16 +447,15 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 		reasonStr, isPanic := faultreport.NormalizeFailureReason(supervisorEvent.Reason)
 
 		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
-			NodeID:        slf.GetNodeId(),
-			NodeType:      slf.GetNodeType(),
-			ComponentName: compName,
+			NodeID:           slf.GetNodeId(),
+			NodeType:         slf.GetNodeType(),
+			ComponentName:    compName,
+			TerminatedPIDKey: pidKey,
 
 			FailureReason:       supervisorEvent.Reason,
 			FailureReasonString: reasonStr,
 			FailureDirective:    supervisorEvent.Directive,
 			IsPanic:             isPanic,
-
-			TerminatedPIDKey: pidKey,
 		})
 	}, func(evt interface{}) bool {
 		_, ok := evt.(*actor.SupervisorEvent)
