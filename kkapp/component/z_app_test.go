@@ -325,6 +325,9 @@ func TestApplication_FaultEvent_SupervisorEventWinsAndCancelsTerminatedFallback(
 	if !first.IsPanic {
 		t.Fatalf("expected IsPanic=true for panic value")
 	}
+	if first.FaultAction != faultreport.FaultActionStopApp {
+		t.Fatalf("event FaultAction=%v, want %v", first.FaultAction, faultreport.FaultActionStopApp)
+	}
 
 	// Wait longer than terminated fallback delay; should not receive a second event.
 	time.Sleep(terminatedFallbackDelay + 200*time.Millisecond)
@@ -372,9 +375,55 @@ func TestApplication_FaultEvent_TerminatedFallbackPublishesWhenNoSupervisorEvent
 		if e.FailureReasonString != "" || e.IsPanic {
 			t.Fatalf("expected no FailureReason fields for terminated fallback, got reason=%q isPanic=%v", e.FailureReasonString, e.IsPanic)
 		}
+		if e.FaultAction != faultreport.FaultActionStopApp {
+			t.Fatalf("event FaultAction=%v, want %v", e.FaultAction, faultreport.FaultActionStopApp)
+		}
 		// TerminatedWhy should be populated for fallback
 		_ = e.TerminatedWhy
 	case <-time.After(terminatedFallbackDelay + 2*time.Second):
 		t.Fatalf("expected terminated fallback fault event, got timeout (count=%d)", got.Load())
+	}
+}
+
+func TestApplication_FaultEvent_ActionFromOptions_DoesNotStopAppWhenNotStopApp(t *testing.T) {
+	app := NewApplication(
+		kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""),
+		nil,
+		kkapp.ApplyOptions(
+			kkapp.WithFaultAction("panic_comp", faultreport.FaultActionRestartComp),
+		),
+	)
+	if err := app.AddComponent(&panicOnStringComp{}); err != nil {
+		t.Fatalf("add component: %v", err)
+	}
+	if err := app.Start(); err != nil {
+		t.Fatalf("start application: %v", err)
+	}
+	defer func() { _ = app.Stop() }()
+
+	evtCh := make(chan *faultreport.ComponentFaultEvent, 10)
+	app.GetFaultEventMgr().Subscribe(faultreport.EventKeyComponentFault, func(e *faultreport.ComponentFaultEvent) {
+		evtCh <- e
+	})
+
+	pid := app.GetCompPID("panic_comp")
+	if pid == nil {
+		t.Fatal("panic_comp pid should not be nil")
+	}
+	app.GetActorFramework().GetActorSystem().Root.Send(pid, "trigger")
+
+	select {
+	case e := <-evtCh:
+		if e.FaultAction != faultreport.FaultActionRestartComp {
+			t.Fatalf("event FaultAction=%v, want %v", e.FaultAction, faultreport.FaultActionRestartComp)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected fault event, got timeout")
+	}
+
+	// Give enough time to observe whether stop-app action was incorrectly triggered.
+	time.Sleep(700 * time.Millisecond)
+	if atomic.LoadInt64(&app.state) != ComponentStateStarted {
+		t.Fatalf("application state=%s, want %s", GetStateName(atomic.LoadInt64(&app.state)), GetStateName(ComponentStateStarted))
 	}
 }
