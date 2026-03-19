@@ -112,3 +112,12 @@ func (s *Server) Stop() error {
 func (s *Server) GetEngine() *gin.Engine {
 	return s.Engine
 }
+
+// ListenAddr returns the actual listen address after Start().
+// If Start() hasn't been called yet, it returns empty string.
+func (s *Server) ListenAddr() string {
+	if s.ln == nil {
+		return ""
+	}
+	return s.ln.Addr().String()
+}

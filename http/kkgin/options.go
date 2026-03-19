@@ -10,7 +10,7 @@ import (
 // defaultCorsConfig 默认跨域；AllowOrigins 为 * 时 AllowCredentials 须为 false，否则浏览器会拒绝。
 var defaultCorsConfig = cors.Config{
 	AllowOrigins:     []string{"*"},
-	AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"},
+	AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 	AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "User-Agent", "Referrer", "Host"},
 	ExposeHeaders:    []string{"Content-Length"},
 	AllowCredentials: false,
