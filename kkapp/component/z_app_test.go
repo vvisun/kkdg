@@ -2,12 +2,14 @@ package component
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kkapp/faultreport"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xreflect"
 )
@@ -261,5 +263,118 @@ func TestApplication_Start_ComponentStartError(t *testing.T) {
 	err := app.Start()
 	if err == nil || err.Error() != "start failed" {
 		t.Fatalf("start application err = %v, want start failed", err)
+	}
+}
+
+//--------------------------------------------------------------------------------
+// fault event tests
+//--------------------------------------------------------------------------------
+
+type panicOnStringComp struct {
+	Component
+}
+
+func (c *panicOnStringComp) GetCompName() string { return "panic_comp" }
+func (c *panicOnStringComp) OnInit() error       { return nil }
+func (c *panicOnStringComp) OnStart() error      { return nil }
+func (c *panicOnStringComp) OnStop() error       { return nil }
+func (c *panicOnStringComp) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
+	case string:
+		panic("boom")
+	case *actor.Stopping:
+		_ = c.OnStop()
+	}
+}
+
+func TestApplication_FaultEvent_SupervisorEventWinsAndCancelsTerminatedFallback(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
+	if err := app.AddComponent(&panicOnStringComp{}); err != nil {
+		t.Fatalf("add component: %v", err)
+	}
+	if err := app.Start(); err != nil {
+		t.Fatalf("start application: %v", err)
+	}
+	defer func() { _ = app.Stop() }()
+
+	evtCh := make(chan *faultreport.ComponentFaultEvent, 10)
+	app.GetFaultEventMgr().Subscribe(faultreport.EventKeyComponentFault, func(e *faultreport.ComponentFaultEvent) {
+		evtCh <- e
+	})
+
+	pid := app.GetCompPID("panic_comp")
+	if pid == nil {
+		t.Fatal("panic_comp pid should not be nil")
+	}
+
+	// trigger panic -> should publish via SupervisorEvent (with FailureReasonString/IsPanic)
+	app.GetActorFramework().GetActorSystem().Root.Send(pid, "trigger")
+
+	var first *faultreport.ComponentFaultEvent
+	select {
+	case first = <-evtCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected fault event, got timeout")
+	}
+	if first.ComponentName != "panic_comp" {
+		t.Fatalf("event ComponentName=%q, want %q", first.ComponentName, "panic_comp")
+	}
+	if first.FailureReasonString == "" {
+		t.Fatalf("expected FailureReasonString to be set for supervisor event")
+	}
+	if !first.IsPanic {
+		t.Fatalf("expected IsPanic=true for panic value")
+	}
+
+	// Wait longer than terminated fallback delay; should not receive a second event.
+	time.Sleep(terminatedFallbackDelay + 200*time.Millisecond)
+
+	select {
+	case extra := <-evtCh:
+		t.Fatalf("unexpected extra fault event after fallback window: %+v", extra)
+	default:
+	}
+}
+
+func TestApplication_FaultEvent_TerminatedFallbackPublishesWhenNoSupervisorEvent(t *testing.T) {
+	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), nil, kkapp.ApplyOptions())
+	if err := app.AddComponent(&TestComp1{}); err != nil {
+		t.Fatalf("add component: %v", err)
+	}
+	if err := app.Start(); err != nil {
+		t.Fatalf("start application: %v", err)
+	}
+	defer func() { _ = app.Stop() }()
+
+	var got atomic.Int32
+	evtCh := make(chan *faultreport.ComponentFaultEvent, 10)
+	app.GetFaultEventMgr().Subscribe(faultreport.EventKeyComponentFault, func(e *faultreport.ComponentFaultEvent) {
+		got.Add(1)
+		evtCh <- e
+	})
+
+	pid := app.GetCompPID("test1")
+	if pid == nil {
+		t.Fatal("test1 pid should not be nil")
+	}
+
+	// Stop the child explicitly (no failure), should lead to Terminated and fallback publication.
+	app.GetActorFramework().GetActorSystem().Root.Stop(pid)
+
+	select {
+	case e := <-evtCh:
+		if e.ComponentName != "test1" {
+			t.Fatalf("event ComponentName=%q, want %q", e.ComponentName, "test1")
+		}
+		if e.TerminatedPIDKey == "" {
+			t.Fatalf("expected TerminatedPIDKey to be set")
+		}
+		if e.FailureReasonString != "" || e.IsPanic {
+			t.Fatalf("expected no FailureReason fields for terminated fallback, got reason=%q isPanic=%v", e.FailureReasonString, e.IsPanic)
+		}
+		// TerminatedWhy should be populated for fallback
+		_ = e.TerminatedWhy
+	case <-time.After(terminatedFallbackDelay + 2*time.Second):
+		t.Fatalf("expected terminated fallback fault event, got timeout (count=%d)", got.Load())
 	}
 }
