@@ -62,19 +62,6 @@ func getPIDKey(pid *actor.PID) string {
 	return fmt.Sprintf("%s|%s", pid.Address, pid.Id)
 }
 
-func (slf *Application) markFaultHandled(pidKey string) bool {
-	if pidKey == "" {
-		return false
-	}
-	slf.faultHandledMu.Lock()
-	defer slf.faultHandledMu.Unlock()
-	if _, ok := slf.faultHandledPID[pidKey]; ok {
-		return false
-	}
-	slf.faultHandledPID[pidKey] = struct{}{}
-	return true
-}
-
 type Application struct {
 	nodeInfo       *kkapp.NodeInfo
 	actorFramework *kkactor.ActorFramework
@@ -165,6 +152,7 @@ func (slf *Application) Start() error {
 	slf.startResultCh = startResultCh
 	slf.mu.Unlock()
 	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
+
 	// Ensure components (children) will not be restarted on failure.
 	// When a component actor crashes, protoactor-go will apply the supervisor strategy defined here.
 	// We use StopDirective to permanently stop the failed child instead of Restart.
@@ -279,54 +267,7 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		return //已经启动，直接返回
 	}
 
-	// Subscribe protoactor-go supervision events so we can capture failure context
-	// (e.g. panic value) for component "core severity" decisions.
-	// This subscription is process-local; it decouples the decision point (Application)
-	// from the execution point(s) (listeners that may broadcast maintenance).
-	actorSystem := slf.actorFramework.GetActorSystem()
-	slf.faultSub = actorSystem.EventStream.Subscribe(func(evt interface{}) {
-		// Skip while stopping/stopped to avoid duplicated or late events.
-		curState := ComponentState(atomic.LoadInt64(&slf.state))
-		if curState == ComponentStateStopping || curState == ComponentStateStopped {
-			return
-		}
-
-		supervisorEvent, ok := evt.(*actor.SupervisorEvent)
-		if !ok || supervisorEvent == nil || supervisorEvent.Child == nil {
-			return
-		}
-
-		pidKey := getPIDKey(supervisorEvent.Child)
-		if pidKey == "" {
-			return
-		}
-
-		slf.pidKeyMu.RLock()
-		compName := slf.pidKeyToCompName[pidKey]
-		slf.pidKeyMu.RUnlock()
-		if compName == "" {
-			return
-		}
-
-		if !slf.markFaultHandled(pidKey) {
-			return
-		}
-
-		reasonStr, isPanic := normalizeFailureReason(supervisorEvent.Reason)
-
-		GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
-			NodeID:        slf.GetNodeId(),
-			NodeType:      slf.GetNodeType(),
-			ComponentName: compName,
-
-			FailureReason:       supervisorEvent.Reason,
-			FailureReasonString: reasonStr,
-			FailureDirective:    supervisorEvent.Directive,
-			IsPanic:             isPanic,
-
-			TerminatedPIDKey: pidKey,
-		})
-	})
+	slf.initSupervisorEvent(ctx)
 
 	slf.mu.RLock()
 	comps := make([]kkapp.IComponent, len(slf.compList))
@@ -406,6 +347,110 @@ func (slf *Application) onStopped() {
 	slf.compList = make([]kkapp.IComponent, 0)
 	slf.mu.Unlock()
 
+	slf.cleanupSupervisorEvent()
+
+	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
+}
+
+func (slf *Application) Receive(ctx actor.Context) {
+	switch ctx.Message().(type) {
+	case *actor.Started:
+		slf.onStarted(ctx)
+	case *actor.Terminated:
+		slf.onTerminated(ctx)
+	case *actor.Stopping:
+		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
+	case *actor.Stopped:
+		slf.onStopped()
+	case *actor.Restarting:
+		kklog.Infof("[kkapp] application %s restarting", slf.GetNodeId())
+	}
+}
+
+func (slf *Application) onTerminated(ctx actor.Context) {
+	curState := ComponentState(atomic.LoadInt64(&slf.state))
+	if curState == ComponentStateStopping || curState == ComponentStateStopped {
+		// Normal shutdown path: ignore component termination while application is stopping/stopped.
+		return
+	}
+
+	msg := ctx.Message().(*actor.Terminated)
+	pidKey := getPIDKey(msg.Who)
+	slf.pidKeyMu.RLock()
+	compName := slf.pidKeyToCompName[pidKey]
+	slf.pidKeyMu.RUnlock()
+	if compName == "" {
+		// Unknown PID (already cleared mapping or watcher received late message).
+		return
+	}
+
+	// Publish only once per component pid.
+	if !slf.markFaultHandled(pidKey) {
+		return
+	}
+
+	// Broadcast an in-process fault event for listeners to decide maintenance / stop behavior.
+	GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
+		NodeID:           slf.GetNodeId(),
+		NodeType:         slf.GetNodeType(),
+		ComponentName:    compName,
+		TerminatedWhy:    msg.GetWhy(),
+		TerminatedPIDKey: pidKey,
+	})
+}
+
+func (slf *Application) initSupervisorEvent(ctx actor.Context) {
+	// Subscribe protoactor-go supervision events so we can capture failure context
+	// (e.g. panic value) for component "core severity" decisions.
+	// This subscription is process-local; it decouples the decision point (Application)
+	// from the execution point(s) (listeners that may broadcast maintenance).
+	actorSystem := slf.actorFramework.GetActorSystem()
+	slf.faultSub = actorSystem.EventStream.Subscribe(func(evt interface{}) {
+		// Skip while stopping/stopped to avoid duplicated or late events.
+		curState := ComponentState(atomic.LoadInt64(&slf.state))
+		if curState == ComponentStateStopping || curState == ComponentStateStopped {
+			return
+		}
+
+		supervisorEvent, ok := evt.(*actor.SupervisorEvent)
+		if !ok || supervisorEvent == nil || supervisorEvent.Child == nil {
+			return
+		}
+
+		pidKey := getPIDKey(supervisorEvent.Child)
+		if pidKey == "" {
+			return
+		}
+
+		slf.pidKeyMu.RLock()
+		compName := slf.pidKeyToCompName[pidKey]
+		slf.pidKeyMu.RUnlock()
+		if compName == "" {
+			return
+		}
+
+		if !slf.markFaultHandled(pidKey) {
+			return
+		}
+
+		reasonStr, isPanic := normalizeFailureReason(supervisorEvent.Reason)
+
+		GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
+			NodeID:        slf.GetNodeId(),
+			NodeType:      slf.GetNodeType(),
+			ComponentName: compName,
+
+			FailureReason:       supervisorEvent.Reason,
+			FailureReasonString: reasonStr,
+			FailureDirective:    supervisorEvent.Directive,
+			IsPanic:             isPanic,
+
+			TerminatedPIDKey: pidKey,
+		})
+	})
+}
+
+func (slf *Application) cleanupSupervisorEvent() {
 	slf.pidKeyMu.Lock()
 	for k := range slf.pidKeyToCompName {
 		delete(slf.pidKeyToCompName, k)
@@ -418,48 +463,24 @@ func (slf *Application) onStopped() {
 	}
 	slf.faultHandledMu.Unlock()
 
-	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
+	if slf.faultSub != nil {
+		actorSystem := slf.actorFramework.GetActorSystem()
+		actorSystem.EventStream.Unsubscribe(slf.faultSub)
+		slf.faultSub = nil
+	}
+
+	GlobalFaultEventMgr.UnsubscribeAll(EventKeyComponentFault)
 }
 
-func (slf *Application) Receive(ctx actor.Context) {
-	switch ctx.Message().(type) {
-	case *actor.Started:
-		slf.onStarted(ctx)
-	case *actor.Terminated:
-		// Normal shutdown path: ignore component termination while application is stopping/stopped.
-		curState := ComponentState(atomic.LoadInt64(&slf.state))
-		if curState == ComponentStateStopping || curState == ComponentStateStopped {
-			return
-		}
-
-		msg := ctx.Message().(*actor.Terminated)
-		pidKey := getPIDKey(msg.Who)
-		slf.pidKeyMu.RLock()
-		compName := slf.pidKeyToCompName[pidKey]
-		slf.pidKeyMu.RUnlock()
-		if compName == "" {
-			// Unknown PID (already cleared mapping or watcher received late message).
-			return
-		}
-
-		// Publish only once per component pid.
-		if !slf.markFaultHandled(pidKey) {
-			return
-		}
-
-		// Broadcast an in-process fault event for listeners to decide maintenance / stop behavior.
-		GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
-			NodeID:           slf.GetNodeId(),
-			NodeType:         slf.GetNodeType(),
-			ComponentName:    compName,
-			TerminatedWhy:    msg.GetWhy(),
-			TerminatedPIDKey: pidKey,
-		})
-	case *actor.Stopping:
-		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
-	case *actor.Stopped:
-		slf.onStopped()
-	case *actor.Restarting:
-		kklog.Infof("[kkapp] application %s restarting", slf.GetNodeId())
+func (slf *Application) markFaultHandled(pidKey string) bool {
+	if pidKey == "" {
+		return false
 	}
+	slf.faultHandledMu.Lock()
+	defer slf.faultHandledMu.Unlock()
+	if _, ok := slf.faultHandledPID[pidKey]; ok {
+		return false
+	}
+	slf.faultHandledPID[pidKey] = struct{}{}
+	return true
 }
