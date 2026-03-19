@@ -56,7 +56,10 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		faultHandledPID:   make(map[string]struct{}),
 		pendingTerminated: make(map[string]*time.Timer),
 		faultEventMgr:     kkevent.NewSpecEventManager[string, *faultreport.ComponentFaultEvent](),
+		faultRuleTable:    faultreport.NewRuleTable(),
 	}
+	app.faultRuleTable.FromMap(app.opts.FaultRuleMap)
+	app.faultRuleTable.Lock()
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
 }
@@ -102,6 +105,7 @@ type Application struct {
 
 	// faultStopScheduled is used to schedule the stop of the application after a short delay.
 	faultStopScheduled atomic.Bool
+	faultRuleTable     *faultreport.RuleTable
 }
 
 var _ kkapp.IApplication = (*Application)(nil)
@@ -169,7 +173,6 @@ func (slf *Application) Start() error {
 		kklog.Errorf("%s start fail. already started, state: %s", slf.logTag(), slf.curStateName())
 		return kkerrors.ErrAppAlreadyStarted
 	}
-	slf.opts.FaultRuleTable.Lock() // 启动后锁定规则表，后续不允许再修改
 	startResultCh := make(chan error, 1)
 	slf.mu.Lock()
 	slf.startResultCh = startResultCh
@@ -386,7 +389,7 @@ func (slf *Application) Receive(ctx actor.Context) {
 }
 
 func (slf *Application) decideFaultAction(eData *faultreport.ComponentFaultEvent) faultreport.EFaultAction {
-	action, ok := slf.opts.FaultRuleTable.GetRule(eData.ComponentName)
+	action, ok := slf.faultRuleTable.GetRule(eData.ComponentName)
 	if ok {
 		return action
 	}

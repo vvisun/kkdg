@@ -8,8 +8,8 @@ package faultreport
 type EFaultAction int
 
 const (
-	FaultActionStopApp     EFaultAction = iota // 停止应用
-	FaultActionStopComp                        // 停止组件
+	FaultActionStopApp  EFaultAction = iota // 停止应用
+	FaultActionStopComp                     // 停止组件
 	actionCount
 )
 
