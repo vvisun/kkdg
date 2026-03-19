@@ -165,11 +165,11 @@ func (slf *Application) GetCompPID(compName string) *actor.PID {
 }
 
 func (slf *Application) Start() error {
-	slf.opts.FaultRuleTable.Lock() // 启动后锁定规则表，后续不允许再修改
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
 		kklog.Errorf("%s start fail. already started, state: %s", slf.logTag(), slf.curStateName())
 		return kkerrors.ErrAppAlreadyStarted
 	}
+	slf.opts.FaultRuleTable.Lock() // 启动后锁定规则表，后续不允许再修改
 	startResultCh := make(chan error, 1)
 	slf.mu.Lock()
 	slf.startResultCh = startResultCh
@@ -418,9 +418,6 @@ func (slf *Application) onComponentFault(ctx actor.Context, eData *faultreport.C
 		scheduleStopApp()
 	case faultreport.FaultActionStopComp:
 		// 组件已经终止，这里无需额外应用级动作。
-	case faultreport.FaultActionRestartComp:
-		// 当前策略不做组件自动重启，后续可在这里接入重启编排。
-		kklog.Warnf("%s restart comp %s is not supported now", slf.logTag(), eData.ComponentName)
 	default:
 		kklog.Warnf("%s unknown fault action %d for component %s", slf.logTag(), action, eData.ComponentName)
 	}

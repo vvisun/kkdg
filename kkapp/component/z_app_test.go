@@ -385,12 +385,12 @@ func TestApplication_FaultEvent_TerminatedFallbackPublishesWhenNoSupervisorEvent
 	}
 }
 
-func TestApplication_FaultEvent_ActionFromOptions_DoesNotStopAppWhenNotStopApp(t *testing.T) {
+func TestApplication_FaultEvent_ActionFromOptions_DoesNotStopAppWhenStopComp(t *testing.T) {
 	app := NewApplication(
 		kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""),
 		nil,
 		kkapp.ApplyOptions(
-			kkapp.WithFaultAction("panic_comp", faultreport.FaultActionRestartComp),
+			kkapp.WithFaultAction("panic_comp", faultreport.FaultActionStopComp),
 		),
 	)
 	if err := app.AddComponent(&panicOnStringComp{}); err != nil {
@@ -414,8 +414,8 @@ func TestApplication_FaultEvent_ActionFromOptions_DoesNotStopAppWhenNotStopApp(t
 
 	select {
 	case e := <-evtCh:
-		if e.FaultAction != faultreport.FaultActionRestartComp {
-			t.Fatalf("event FaultAction=%v, want %v", e.FaultAction, faultreport.FaultActionRestartComp)
+		if e.FaultAction != faultreport.FaultActionStopComp {
+			t.Fatalf("event FaultAction=%v, want %v", e.FaultAction, faultreport.FaultActionStopComp)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("expected fault event, got timeout")
