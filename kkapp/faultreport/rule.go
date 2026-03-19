@@ -26,6 +26,10 @@ func (slf *RuleTable) Lock() {
 }
 
 func (slf *RuleTable) FromMap(rules map[string]int) {
+	if rules == nil {
+		kklog.Errorf("[faultreport] rule map is nil")
+		return
+	}
 	if slf.locket.Load() {
 		kklog.Errorf("[faultreport] rule table is locked")
 		return
