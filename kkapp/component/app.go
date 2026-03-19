@@ -403,13 +403,23 @@ func (slf *Application) onComponentFault(ctx actor.Context, eData *faultreport.C
 	}
 	slf.pendingMu.Unlock()
 
-	switch action {
-	case faultreport.FaultActionStopApp:
+	scheduleStopApp := func() {
 		if slf.faultStopScheduled.CompareAndSwap(false, true) {
 			time.AfterFunc(500*time.Millisecond, func() {
 				_ = slf.Stop()
 			})
 		}
+	}
+
+	switch action {
+	case faultreport.FaultActionStopApp:
+		scheduleStopApp()
+	case faultreport.FaultActionStopComp:
+		// 组件已经终止，这里无需额外应用级动作。
+	case faultreport.FaultActionRestartComp:
+		// 当前策略不做组件自动重启，后续可在这里接入重启编排。
+	default:
+		kklog.Warnf("%s unknown fault action %d for component %s", slf.logTag(), action, eData.ComponentName)
 	}
 }
 

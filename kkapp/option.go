@@ -140,7 +140,7 @@ func WithCoreComponent(compName string) func(o *AppOptions) {
 }
 
 // WithNotCoreComponent 是默认配置非核心组件的故障处理动作。
-// 非核心组件是指：如果该组件故障，则重启组件。
+// 非核心组件是指：如果该组件故障，则停止组件。
 func WithNotCoreComponent(compName string) func(o *AppOptions) {
-	return WithFaultAction(compName, faultreport.FaultActionRestartComp)
+	return WithFaultAction(compName, faultreport.FaultActionStopComp)
 }

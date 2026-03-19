@@ -427,3 +427,4 @@ func TestApplication_FaultEvent_ActionFromOptions_DoesNotStopAppWhenNotStopApp(t
 		t.Fatalf("application state=%s, want %s", GetStateName(atomic.LoadInt64(&app.state)), GetStateName(ComponentStateStarted))
 	}
 }
+
