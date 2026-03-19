@@ -30,12 +30,15 @@ func (slf *RuleTable) FromMap(rules map[string]int) {
 		kklog.Errorf("[faultreport] rule map is nil")
 		return
 	}
+
+	slf.mu.Lock()
+	defer slf.mu.Unlock()
+
 	if slf.locket.Load() {
 		kklog.Errorf("[faultreport] rule table is locked")
 		return
 	}
-	slf.mu.Lock()
-	defer slf.mu.Unlock()
+
 	for compName, action := range rules {
 		if !IsValidFaultAction(EFaultAction(action)) {
 			kklog.Errorf("[faultreport] rule compName %s action %d is invalid", compName, action)
@@ -43,24 +46,6 @@ func (slf *RuleTable) FromMap(rules map[string]int) {
 		}
 		slf.rules[compName] = EFaultAction(action)
 	}
-}
-
-func (slf *RuleTable) AddRule(compName string, action EFaultAction) {
-	if slf.locket.Load() {
-		kklog.Errorf("[faultreport] rule table is locked")
-		return
-	}
-	if compName == "" {
-		kklog.Errorf("[faultreport] rule compName is empty")
-		return
-	}
-	if !IsValidFaultAction(action) {
-		kklog.Errorf("[faultreport] rule compName %s action %d is invalid", compName, action)
-		return
-	}
-	slf.mu.Lock()
-	defer slf.mu.Unlock()
-	slf.rules[compName] = action
 }
 
 func (slf *RuleTable) GetRule(compName string) (EFaultAction, bool) {
