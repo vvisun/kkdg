@@ -71,6 +71,7 @@ func (m *SpecEventManager[K, T]) Unsubscribe(key K, listener SpecEventListener[T
 		return
 	}
 
+	// COW: 拷贝并删除，然后替换原 map 中的切片
 	current := m.listeners[key]
 	newLen := len(current) - 1
 	if newLen > 0 {
@@ -98,6 +99,7 @@ func (m *SpecEventManager[K, T]) UnsubscribeByID(key K, id uint64) {
 		return
 	}
 
+	// COW: 拷贝并删除，然后替换原 map 中的切片
 	current := m.listeners[key]
 	newLen := len(current) - 1
 	if newLen > 0 {

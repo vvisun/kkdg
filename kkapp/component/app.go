@@ -56,6 +56,16 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		pendingTerminated: make(map[string]*time.Timer),
 		faultEventMgr:    kkevent.NewSpecEventManager[string, *faultreport.ComponentFaultEvent](),
 	}
+	// Built-in default listener:
+	// Any component fault -> stop the whole application after 0.5s (best-effort).
+	// This matches the "do not restart components; stop for maintenance" philosophy.
+	app.defaultFaultListenerID = app.faultEventMgr.Subscribe(faultreport.EventKeyComponentFault, func(_ *faultreport.ComponentFaultEvent) {
+		if app.faultStopScheduled.CompareAndSwap(false, true) {
+			time.AfterFunc(500*time.Millisecond, func() {
+				_ = app.Stop()
+			})
+		}
+	})
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
 }
@@ -98,6 +108,11 @@ type Application struct {
 	// EventStream subscription id for supervision events.
 	faultSub      *eventstream.Subscription
 	faultEventMgr *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent]
+
+	// defaultFaultListenerID is the subscription id for the built-in listener:
+	// when any component fault event happens, stop the app after a short delay.
+	defaultFaultListenerID uint64
+	faultStopScheduled     atomic.Bool
 }
 
 var _ kkapp.IApplication = (*Application)(nil)
@@ -362,6 +377,12 @@ func (slf *Application) onStopped() {
 	slf.mu.Unlock()
 
 	slf.cleanupSupervisorEvent()
+
+	// Unsubscribe default fault listener (if any).
+	if slf.defaultFaultListenerID != 0 {
+		slf.faultEventMgr.UnsubscribeByID(faultreport.EventKeyComponentFault, slf.defaultFaultListenerID)
+		slf.defaultFaultListenerID = 0
+	}
 
 	kklog.Infof("%s stopped", slf.logTag())
 }
