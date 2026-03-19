@@ -1,4 +1,4 @@
-package testcluster
+package cnats
 
 import (
 	"testing"
@@ -7,7 +7,6 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
-	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 )
@@ -16,7 +15,7 @@ import (
 func TestNatsCluster_New(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
 	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions())
-	cluster := cnats.NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions())
+	cluster := NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions())
 
 	if cluster == nil {
 		t.Fatal("NewNatsCluster returned nil")
@@ -34,7 +33,7 @@ func TestNatsCluster_Init(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions(
 		kkdiscovery.WithUrl(natsURL),
 	))
-	cluster := cnats.NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
+	cluster := NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -80,10 +79,10 @@ func TestNatsCluster_PublishRemote(t *testing.T) {
 		t.Fatal("discovery1 did not discover node2")
 	}
 
-	cluster1 := cnats.NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
+	cluster1 := NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
-	cluster2 := cnats.NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
+	cluster2 := NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -174,13 +173,13 @@ func TestNatsCluster_PublishRemoteType(t *testing.T) {
 		t.Fatal("discovery1 did not discover other nodes")
 	}
 
-	cluster1 := cnats.NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
+	cluster1 := NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
-	cluster2 := cnats.NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
+	cluster2 := NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
-	cluster3 := cnats.NewNatsCluster("node3", "typeb", discovery3, kkcluster.ApplyOptions(
+	cluster3 := NewNatsCluster("node3", "typeb", discovery3, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -275,10 +274,10 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 		t.Fatal("discovery1 did not discover node2")
 	}
 
-	cluster1 := cnats.NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
+	cluster1 := NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
-	cluster2 := cnats.NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
+	cluster2 := NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -321,7 +320,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions(
 		kkdiscovery.WithUrl(natsURL),
 	))
-	cluster := cnats.NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
+	cluster := NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -355,7 +354,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions(
 		kkdiscovery.WithUrl(natsURL),
 	))
-	cluster := cnats.NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
+	cluster := NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -408,10 +407,10 @@ func TestNatsCluster_RequestRemoteAsync(t *testing.T) {
 		t.Fatal("discovery1 did not discover node2")
 	}
 
-	cluster1 := cnats.NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
+	cluster1 := NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
-	cluster2 := cnats.NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
+	cluster2 := NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -473,7 +472,7 @@ func TestNatsCluster_RequestRemoteAsync_NotFound(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions(
 		kkdiscovery.WithUrl(natsURL),
 	))
-	cluster := cnats.NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
+	cluster := NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -503,7 +502,7 @@ func TestNatsCluster_Stop(t *testing.T) {
 	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions(
 		kkdiscovery.WithUrl(natsURL),
 	))
-	cluster := cnats.NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
+	cluster := NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 

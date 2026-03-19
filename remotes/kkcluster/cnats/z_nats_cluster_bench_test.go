@@ -1,4 +1,4 @@
-package testcluster
+package cnats
 
 import (
 	"sync"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
-	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 )
@@ -43,10 +42,10 @@ func setupBenchCluster(b *testing.B) (cluster1, cluster2 kkcluster.ICluster, cle
 		b.Fatal("discovery1 did not discover node2")
 	}
 
-	cluster1 = cnats.NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
+	cluster1 = NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
-	cluster2 = cnats.NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
+	cluster2 = NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 
@@ -110,13 +109,13 @@ func setupBenchClusterWithType(b *testing.B) (cluster1, cluster2, cluster3 kkclu
 		b.Fatal("discovery1 did not discover other nodes")
 	}
 
-	cluster1 = cnats.NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
+	cluster1 = NewNatsCluster("node1", "typea", discovery1, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
-	cluster2 = cnats.NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
+	cluster2 = NewNatsCluster("node2", "typea", discovery2, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
-	cluster3 = cnats.NewNatsCluster("node3", "typeb", discovery3, kkcluster.ApplyOptions(
+	cluster3 = NewNatsCluster("node3", "typeb", discovery3, kkcluster.ApplyOptions(
 		kkcluster.WithUrl(natsURL),
 	))
 

@@ -1,4 +1,4 @@
-package testcluster
+package cnats
 
 import (
 	"time"

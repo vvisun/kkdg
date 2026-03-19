@@ -1,4 +1,4 @@
-package testcluster
+package cnats
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
-	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 )
@@ -26,7 +25,7 @@ func TestStats(t *testing.T) {
 	defer discovery.Stop()
 
 	// 创建集群
-	cluster := cnats.NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions())
+	cluster := NewNatsCluster("node1", "typea", discovery, kkcluster.ApplyOptions())
 	if err := cluster.Start(); err != nil {
 		fmt.Printf("Failed to init cluster: %v\n", err)
 		return
