@@ -84,12 +84,12 @@ func Str(seed string, length int) (str string) {
 		return
 	}
 
-	for range length {
-		pos := intn(n)
-		str += string(r[pos : pos+1])
+	buf := make([]rune, length)
+	for i := 0; i < length; i++ {
+		buf[i] = r[intn(n)]
 	}
 
-	return
+	return string(buf)
 }
 
 // Letters 生成指定长度的字母字符串
