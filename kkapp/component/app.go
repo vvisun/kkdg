@@ -16,6 +16,8 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+const terminatedFallbackDelay = 150 * time.Millisecond
+
 var (
 	defaultActorFramework *kkactor.ActorFramework
 	onceActorFramework    sync.Once
@@ -51,6 +53,7 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		opts:             &opts,
 		pidKeyToCompName: make(map[string]string),
 		faultHandledPID:  make(map[string]struct{}),
+		pendingTerminated: make(map[string]*time.Timer),
 		faultEventMgr:    kkevent.NewSpecEventManager[string, *faultreport.ComponentFaultEvent](),
 	}
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
@@ -86,6 +89,11 @@ type Application struct {
 	// - protoactor EventStream callback (SupervisorEvent)
 	faultHandledPID map[string]struct{}
 	faultHandledMu  sync.Mutex
+
+	// pendingTerminated holds fallback timers. If we receive Terminated but miss SupervisorEvent,
+	// we will publish a minimal fault event after a short delay.
+	pendingTerminated map[string]*time.Timer
+	pendingMu         sync.Mutex
 
 	// EventStream subscription id for supervision events.
 	faultSub      *eventstream.Subscription
@@ -390,20 +398,43 @@ func (slf *Application) onTerminated(ctx actor.Context) {
 		return
 	}
 
-	// Publish only once per component pid.
-	if !slf.markFaultHandled(pidKey) {
+	// Terminated is a fallback signal. Prefer SupervisorEvent (with failure reason) when available.
+	// Delay this publication so the SupervisorEvent can arrive first.
+	why := msg.GetWhy()
+
+	slf.pendingMu.Lock()
+	// if already scheduled, don't schedule twice
+	if _, ok := slf.pendingTerminated[pidKey]; ok {
+		slf.pendingMu.Unlock()
 		return
 	}
+	timer := time.AfterFunc(terminatedFallbackDelay, func() {
+		curState := atomic.LoadInt64(&slf.state)
+		if curState == ComponentStateStopping || curState == ComponentStateStopped {
+			return
+		}
+		if !slf.markFaultHandled(pidKey) {
+			return
+		}
 
-	// Broadcast an in-process fault event for listeners to decide maintenance / stop behavior.
-	slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
-		NodeID:           slf.GetNodeId(),
-		NodeType:         slf.GetNodeType(),
-		ComponentName:    compName,
-		TerminatedPIDKey: pidKey,
+		// best-effort re-read comp name
+		slf.pidKeyMu.RLock()
+		cn := slf.pidKeyToCompName[pidKey]
+		slf.pidKeyMu.RUnlock()
+		if cn == "" {
+			cn = compName
+		}
 
-		TerminatedWhy: msg.GetWhy(),
+		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
+			NodeID:           slf.GetNodeId(),
+			NodeType:         slf.GetNodeType(),
+			ComponentName:    cn,
+			TerminatedPIDKey: pidKey,
+			TerminatedWhy:    why,
+		})
 	})
+	slf.pendingTerminated[pidKey] = timer
+	slf.pendingMu.Unlock()
 }
 
 func (slf *Application) initSupervisorEvent(ctx actor.Context) {
@@ -444,6 +475,14 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 			return
 		}
 
+		// Cancel any pending Terminated fallback for this pid.
+		slf.pendingMu.Lock()
+		if t := slf.pendingTerminated[pidKey]; t != nil {
+			t.Stop()
+			delete(slf.pendingTerminated, pidKey)
+		}
+		slf.pendingMu.Unlock()
+
 		reasonStr, isPanic := faultreport.NormalizeFailureReason(supervisorEvent.Reason)
 
 		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
@@ -464,6 +503,16 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 }
 
 func (slf *Application) cleanupSupervisorEvent() {
+	// stop & clear pending terminated fallbacks
+	slf.pendingMu.Lock()
+	for k, t := range slf.pendingTerminated {
+		if t != nil {
+			t.Stop()
+		}
+		delete(slf.pendingTerminated, k)
+	}
+	slf.pendingMu.Unlock()
+
 	slf.pidKeyMu.Lock()
 	for k := range slf.pidKeyToCompName {
 		delete(slf.pidKeyToCompName, k)
