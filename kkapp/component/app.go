@@ -411,15 +411,15 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 	// This subscription is process-local; it decouples the decision point (Application)
 	// from the execution point(s) (listeners that may broadcast maintenance).
 	actorSystem := slf.actorFramework.GetActorSystem()
-	slf.faultSub = actorSystem.EventStream.Subscribe(func(evt interface{}) {
+	slf.faultSub = actorSystem.EventStream.SubscribeWithPredicate(func(evt interface{}) {
 		// Skip while stopping/stopped to avoid duplicated or late events.
 		curState := atomic.LoadInt64(&slf.state)
 		if curState == ComponentStateStopping || curState == ComponentStateStopped {
 			return
 		}
 
-		supervisorEvent, ok := evt.(*actor.SupervisorEvent)
-		if !ok || supervisorEvent == nil || supervisorEvent.Child == nil {
+		supervisorEvent := evt.(*actor.SupervisorEvent)
+		if supervisorEvent == nil || supervisorEvent.Child == nil {
 			return
 		}
 
@@ -453,6 +453,9 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 
 			TerminatedPIDKey: pidKey,
 		})
+	}, func(evt interface{}) bool {
+		_, ok := evt.(*actor.SupervisorEvent)
+		return ok
 	})
 }
 
