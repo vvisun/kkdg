@@ -10,15 +10,15 @@ kkdg/
 │   ├── comps/       # ccgate（网关）、ccgame（业务服）
 │   ├── kkactor/     # Actor 寻址、远程传输（actornats/actorrpc/actorshard）
 │   ├── kkmodule/    # 模块树
-│   └── transport/   # Gate↔Logic 转发（nats/rpc/shard）
+│   ├── transport/   # Gate↔Logic 转发（nats/rpc/shard）
+|   └── msgreceiver/ # 消息分发
 ├── kknet/           # 网络层
 │   ├── kktcp/       # TCP（gnet）
 │   ├── kktcptls/    # TCP TLS
 │   ├── kkws/        # WebSocket（gorilla）
 │   ├── kkgws/       # WebSocket（lxzan/gws）
 │   ├── kkprocessor/ # 读/写处理器
-│   ├── kkpacket/    # 封包、MsgRouter
-│   └── msgreceiver/ # 消息分发
+│   └── kkpacket/    # 封包、MsgRouter
 ├── remotes/         # 远程能力
 │   ├── kkrpc/       # RPC（请求响应/单向/异步）
 │   ├── kkcluster/   # NATS 集群
