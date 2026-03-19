@@ -11,7 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type GinComponent struct {
+// Server 封装 Gin Engine 与 http.Server，作为普通 HTTP 模块使用（与 kkapp 组件生命周期解耦）。
+type Server struct {
 	*gin.Engine
 	opt Options
 
@@ -23,60 +24,58 @@ type GinComponent struct {
 	serveErr  chan error
 }
 
-func NewGinComponent(opt Options) *GinComponent {
+// NewServer 创建 HTTP 服务：应用 CORS、中间件，并在此时调用 RegisterRoutes（若已配置）。
+func NewServer(opt Options) *Server {
 	engine := gin.New()
 	engine.Use(gin.Recovery())
 	cfgCors(engine, opt.CorsConfig)
 	for _, mw := range opt.Middlewares {
 		engine.Use(mw)
 	}
-	return &GinComponent{
+	if opt.RegisterRoutes != nil {
+		opt.RegisterRoutes(engine)
+	}
+	return &Server{
 		Engine: engine,
 		opt:    opt,
 	}
 }
 
-func (slf *GinComponent) Start() error {
-	if slf.opt.RegisterRoutes != nil {
-		slf.opt.RegisterRoutes(slf.Engine)
-	}
-
-	// Ensure bind failure is surfaced from OnStart quickly.
-	ln, err := net.Listen("tcp", slf.opt.HttpAddr)
+// Start 监听 HttpAddr 并在后台提供 HTTP/HTTPS 服务。
+func (s *Server) Start() error {
+	ln, err := net.Listen("tcp", s.opt.HttpAddr)
 	if err != nil {
 		return err
 	}
-	slf.ln = ln
+	s.ln = ln
 
-	slf.srv = &http.Server{
-		Addr:    slf.opt.HttpAddr,
-		Handler: slf.Engine,
+	s.srv = &http.Server{
+		Addr:    s.opt.HttpAddr,
+		Handler: s.Engine,
 	}
 
-	slf.serveErr = make(chan error, 1)
-	slf.startOnce.Do(func() {
+	s.serveErr = make(chan error, 1)
+	s.startOnce.Do(func() {
 		go func() {
 			var serveErr error
-			if slf.opt.CertFile != "" && slf.opt.KeyFile != "" {
-				serveErr = slf.srv.ServeTLS(slf.ln, slf.opt.CertFile, slf.opt.KeyFile)
+			if s.opt.CertFile != "" && s.opt.KeyFile != "" {
+				serveErr = s.srv.ServeTLS(s.ln, s.opt.CertFile, s.opt.KeyFile)
 			} else {
-				serveErr = slf.srv.Serve(slf.ln)
+				serveErr = s.srv.Serve(s.ln)
 			}
 
-			// Serve returns http.ErrServerClosed on graceful shutdown.
 			if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
-				slf.serveErr <- serveErr
+				s.serveErr <- serveErr
 				return
 			}
-			slf.serveErr <- nil
+			s.serveErr <- nil
 		}()
 	})
 
-	// Give Serve a tiny window to fail fast (e.g. TLS/cert errors).
 	select {
-	case err := <-slf.serveErr:
+	case err := <-s.serveErr:
 		if err != nil {
-			_ = slf.srv.Close()
+			_ = s.srv.Close()
 			return err
 		}
 		return nil
@@ -85,28 +84,27 @@ func (slf *GinComponent) Start() error {
 	}
 }
 
-func (slf *GinComponent) Stop() error {
-	if slf.srv == nil {
+// Stop 优雅关闭，等待 Serve 退出（最长 ShutdownTimeout）。
+func (s *Server) Stop() error {
+	if s.srv == nil {
 		return nil
 	}
 
-	timeout := slf.opt.ShutdownTimeout
+	timeout := s.opt.ShutdownTimeout
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	slf.stopOnce.Do(func() {
-		// Gracefully stop accepting new requests and wait in-flight ones.
-		_ = slf.srv.Shutdown(ctx)
+	s.stopOnce.Do(func() {
+		_ = s.srv.Shutdown(ctx)
 	})
 
-	// Wait for Serve to exit (best-effort).
 	select {
 	case <-time.After(timeout):
 		return nil
-	case err := <-slf.serveErr:
+	case err := <-s.serveErr:
 		return err
 	}
 }

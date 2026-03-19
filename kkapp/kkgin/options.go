@@ -7,13 +7,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// defaultCorsConfig 默认跨域；AllowOrigins 为 * 时 AllowCredentials 须为 false，否则浏览器会拒绝。
 var defaultCorsConfig = cors.Config{
 	AllowOrigins:     []string{"*"},
 	AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"},
 	AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "User-Agent", "Referrer", "Host"},
 	ExposeHeaders:    []string{"Content-Length"},
-	AllowCredentials: true,           //允许携带cookie
-	MaxAge:           12 * time.Hour, //预检请求的缓存时间
+	AllowCredentials: false,
+	MaxAge:           12 * time.Hour,
 }
 
 func cfgCors(eng *gin.Engine, cfg *cors.Config) {
@@ -29,27 +30,22 @@ type Options struct {
 	CertFile string
 	KeyFile  string
 
-	// Middlewares will be applied in order via engine.Use().
+	// Middlewares 按顺序 engine.Use
 	Middlewares []gin.HandlerFunc
 
-	// RegisterRoutes will be called during OnInit before server start.
-	// Use it to define routes / handlers.
-	//  ccgin.WithRegisterRoutes(func(e *gin.Engine) {
-	//	    e.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })
-	//  })
+	// RegisterRoutes 在 NewServer 时调用一次，用于注册路由。
 	RegisterRoutes func(engine *gin.Engine)
 
-	// ShutdownTimeout is used in OnStop for graceful shutdown.
+	// ShutdownTimeout 用于 Stop 时的优雅关闭超时。
 	ShutdownTimeout time.Duration
 
-	// 跨域配置接口。如果为nil，则使用默认配置。
+	// CorsConfig 为 nil 时使用默认跨域配置。
 	CorsConfig *cors.Config
 }
 
 func defaultOptions() Options {
 	return Options{
-		HttpAddr: "0.0.0.0:8080",
-		// Keep default small so shutdown during tests is not too slow.
+		HttpAddr:        "0.0.0.0:8080",
 		ShutdownTimeout: 5 * time.Second,
 	}
 }
