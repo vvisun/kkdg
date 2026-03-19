@@ -5,11 +5,13 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/faultreport"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkevent"
 )
 
 // fake implementations for black-box testing of gateHandler.OnRaw.
@@ -74,6 +76,9 @@ func (a *fakeApp) Stop() error                         { return nil }
 func (a *fakeApp) AddComponent(kkapp.IComponent) error { return nil }
 func (a *fakeApp) SetConfigDir(string)                 {}
 func (a *fakeApp) GetConfigDir() string                { return "" }
+func (a *fakeApp) GetFaultEventMgr() *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent] {
+	return nil
+}
 
 // message type used in tests/benchmarks
 type testMsg struct {

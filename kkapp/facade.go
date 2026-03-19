@@ -2,6 +2,8 @@ package kkapp
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/kkapp/faultreport"
+	"github.com/vvisun/kkdg/utils/kkevent"
 )
 
 // INodeIdentity 节点身份接口。
@@ -26,6 +28,8 @@ type IApplication interface {
 
 	GetConfigDir() string
 	GetOptions() *AppOptions
+
+	GetFaultEventMgr() *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent]
 }
 
 type IComponentLifecycle interface {

@@ -9,8 +9,10 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/eventstream"
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/faultreport"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/kkevent"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -49,6 +51,7 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		opts:             &opts,
 		pidKeyToCompName: make(map[string]string),
 		faultHandledPID:  make(map[string]struct{}),
+		faultEventMgr:    kkevent.NewSpecEventManager[string, *faultreport.ComponentFaultEvent](),
 	}
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
@@ -85,7 +88,8 @@ type Application struct {
 	faultHandledMu  sync.Mutex
 
 	// EventStream subscription id for supervision events.
-	faultSub *eventstream.Subscription
+	faultSub      *eventstream.Subscription
+	faultEventMgr *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent]
 }
 
 var _ kkapp.IApplication = (*Application)(nil)
@@ -120,6 +124,10 @@ func (slf *Application) GetPID() *actor.PID {
 
 func (slf *Application) GetOptions() *kkapp.AppOptions {
 	return slf.opts
+}
+
+func (slf *Application) GetFaultEventMgr() *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent] {
+	return slf.faultEventMgr
 }
 
 func (slf *Application) logTag() string {
@@ -388,7 +396,7 @@ func (slf *Application) onTerminated(ctx actor.Context) {
 	}
 
 	// Broadcast an in-process fault event for listeners to decide maintenance / stop behavior.
-	GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
+	slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
 		NodeID:           slf.GetNodeId(),
 		NodeType:         slf.GetNodeType(),
 		ComponentName:    compName,
@@ -433,7 +441,7 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 
 		reasonStr, isPanic := normalizeFailureReason(supervisorEvent.Reason)
 
-		GlobalFaultEventMgr.Publish(EventKeyComponentFault, &ComponentFaultEvent{
+		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
 			NodeID:        slf.GetNodeId(),
 			NodeType:      slf.GetNodeType(),
 			ComponentName: compName,
