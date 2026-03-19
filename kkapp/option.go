@@ -37,6 +37,7 @@ func DefaultOptions() AppOptions {
 
 func CheckOptions(opt *AppOptions) {
 	if opt == nil {
+		kklog.PanicLog("[kkapp] options is nil, must be set")
 		return
 	}
 	if opt.StreamTool == nil {
@@ -56,8 +57,7 @@ func CheckOptions(opt *AppOptions) {
 		opt.TransportorCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 	if opt.FaultRuleTable == nil {
-		kklog.Warnf("[kkapp] fault rule table is nil, use default fault rule table")
-		opt.FaultRuleTable = faultreport.NewRuleTable()
+		kklog.PanicLog("[kkapp] fault rule table is nil, must be set")
 	}
 }
 
