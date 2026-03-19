@@ -2,17 +2,28 @@ package faultreport
 
 import "github.com/asynkron/protoactor-go/actor"
 
+// EFaultAction 是Application对故障的处理动作。
+type EFaultAction int
+
 const (
-	// EventKeyComponentFault is used to broadcast component actor termination events.
+	FaultActionNone        EFaultAction = iota // 不采取任何行动
+	FaultActionRestartComp                     // 重启组件
+	FaultActionStopComp                        // 停止组件
+	FaultActionRestartApp                      // 重启应用
+	FaultActionStopApp                         // 停止应用
+)
+
+const (
+	// EventKeyComponentFault is the payload published when a component actor terminates.
+	// EventKeyComponentFault 是组件故障事件。当组件actor终止时，会发布这个事件。
+	//
+	//  外部可以通过订阅这个事件来获取组件故障信息，然后【广播到客户端】。
+	//  只是为了客户端体验更佳，是否订阅并处理不强制要求。因为服务停止后客户端会全部掉线，再重连登录时登录服会自动反馈“维护中”。
 	EventKeyComponentFault = "component_fault"
 )
 
-// ComponentFaultEvent is the payload published when a component actor terminates.
-//
-// This event bus is in-process and is meant to decouple:
-// - the decision/orchestration point (Application reception point)
-// - the execution point(s) that react (maintenance mode, metrics, etc.)
 type ComponentFaultEvent struct {
+	FaultAction      EFaultAction
 	NodeID           string
 	NodeType         string
 	ComponentName    string

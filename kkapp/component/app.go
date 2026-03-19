@@ -56,16 +56,6 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		pendingTerminated: make(map[string]*time.Timer),
 		faultEventMgr:     kkevent.NewSpecEventManager[string, *faultreport.ComponentFaultEvent](),
 	}
-	// Built-in default listener:
-	// Any component fault -> stop the whole application after 0.5s (best-effort).
-	// This matches the "do not restart components; stop for maintenance" philosophy.
-	app.defaultFaultListenerID = app.faultEventMgr.Subscribe(faultreport.EventKeyComponentFault, func(_ *faultreport.ComponentFaultEvent) {
-		if app.faultStopScheduled.CompareAndSwap(false, true) {
-			time.AfterFunc(500*time.Millisecond, func() {
-				_ = app.Stop()
-			})
-		}
-	})
 	kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
 	return app
 }
@@ -109,10 +99,8 @@ type Application struct {
 	faultSub      *eventstream.Subscription
 	faultEventMgr *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent]
 
-	// defaultFaultListenerID is the subscription id for the built-in listener:
-	// when any component fault event happens, stop the app after a short delay.
-	defaultFaultListenerID uint64
-	faultStopScheduled     atomic.Bool
+	// faultStopScheduled is used to schedule the stop of the application after a short delay.
+	faultStopScheduled atomic.Bool
 }
 
 var _ kkapp.IApplication = (*Application)(nil)
@@ -377,12 +365,6 @@ func (slf *Application) onStopped() {
 
 	slf.cleanupSupervisorEvent()
 
-	// Unsubscribe default fault listener (if any).
-	if slf.defaultFaultListenerID != 0 {
-		slf.faultEventMgr.UnsubscribeByID(faultreport.EventKeyComponentFault, slf.defaultFaultListenerID)
-		slf.defaultFaultListenerID = 0
-	}
-
 	kklog.Infof("%s stopped", slf.logTag())
 }
 
@@ -398,6 +380,27 @@ func (slf *Application) Receive(ctx actor.Context) {
 		slf.onStopped()
 	case *actor.Restarting:
 		kklog.Infof("%s restarting", slf.logTag())
+	}
+}
+
+func (slf *Application) onComponentFault(ctx actor.Context, eData *faultreport.ComponentFaultEvent) {
+	pidKey := eData.TerminatedPIDKey
+
+	// Cancel any pending Terminated fallback for this pid.
+	slf.pendingMu.Lock()
+	if t := slf.pendingTerminated[pidKey]; t != nil {
+		t.Stop()
+		delete(slf.pendingTerminated, pidKey)
+	}
+	slf.pendingMu.Unlock()
+
+	// todo: 这里后面可以根据外部配置，决定行为
+	eData.FaultAction = faultreport.FaultActionStopApp
+
+	if slf.faultStopScheduled.CompareAndSwap(false, true) {
+		time.AfterFunc(500*time.Millisecond, func() {
+			_ = slf.Stop()
+		})
 	}
 }
 
@@ -445,17 +448,16 @@ func (slf *Application) onTerminated(ctx actor.Context) {
 			cn = compName
 		}
 
-		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
+		eData := &faultreport.ComponentFaultEvent{
 			NodeID:           slf.GetNodeId(),
 			NodeType:         slf.GetNodeType(),
 			ComponentName:    cn,
 			TerminatedPIDKey: pidKey,
 			TerminatedWhy:    why,
-		})
+		}
 
-		slf.pendingMu.Lock()
-		delete(slf.pendingTerminated, pidKey)
-		slf.pendingMu.Unlock()
+		slf.onComponentFault(ctx, eData)
+		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, eData)
 	})
 	slf.pendingTerminated[pidKey] = timer
 	slf.pendingMu.Unlock()
@@ -499,17 +501,9 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 			return
 		}
 
-		// Cancel any pending Terminated fallback for this pid.
-		slf.pendingMu.Lock()
-		if t := slf.pendingTerminated[pidKey]; t != nil {
-			t.Stop()
-			delete(slf.pendingTerminated, pidKey)
-		}
-		slf.pendingMu.Unlock()
-
 		reasonStr, isPanic := faultreport.NormalizeFailureReason(supervisorEvent.Reason)
 
-		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, &faultreport.ComponentFaultEvent{
+		eData := &faultreport.ComponentFaultEvent{
 			NodeID:           slf.GetNodeId(),
 			NodeType:         slf.GetNodeType(),
 			ComponentName:    compName,
@@ -519,7 +513,10 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 			FailureReasonString: reasonStr,
 			FailureDirective:    supervisorEvent.Directive,
 			IsPanic:             isPanic,
-		})
+		}
+		slf.onComponentFault(ctx, eData)
+		slf.faultEventMgr.Publish(faultreport.EventKeyComponentFault, eData)
+
 	}, func(evt interface{}) bool {
 		_, ok := evt.(*actor.SupervisorEvent)
 		return ok
