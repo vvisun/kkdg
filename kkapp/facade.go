@@ -24,7 +24,6 @@ type IApplication interface {
 
 	AddComponent(child IComponent) error
 
-	SetConfigDir(configDir string)
 	GetConfigDir() string
 	GetOptions() *AppOptions
 }

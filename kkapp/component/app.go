@@ -71,8 +71,7 @@ type Application struct {
 	startResultCh  chan error
 	mu             sync.RWMutex
 
-	configDir string // 配置文件所在目录
-	opts      *kkapp.AppOptions
+	opts *kkapp.AppOptions
 
 	// pidKey -> component name, used to map protoactor Terminated events back to a component.
 	pidKeyToCompName map[string]string
@@ -95,14 +94,6 @@ func (slf *Application) GetCompName() string {
 	return slf.nodeInfo.GetNodeId()
 }
 
-func (slf *Application) SetConfigDir(configDir string) {
-	slf.configDir = configDir
-}
-
-func (slf *Application) GetConfigDir() string {
-	return slf.configDir
-}
-
 func (slf *Application) GetNodeInfo() *kkapp.NodeInfo {
 	return slf.nodeInfo
 }
@@ -113,6 +104,10 @@ func (slf *Application) GetNodeId() string {
 
 func (slf *Application) GetNodeType() string {
 	return slf.nodeInfo.GetNodeType()
+}
+
+func (slf *Application) GetConfigDir() string {
+	return slf.opts.ConfigsDir
 }
 
 func (slf *Application) GetActorFramework() *kkactor.ActorFramework {
@@ -127,15 +122,19 @@ func (slf *Application) GetOptions() *kkapp.AppOptions {
 	return slf.opts
 }
 
+func (slf *Application) logTag() string {
+	return fmt.Sprintf("[kkapp] (nodeId: %s, nodeType: %s)", slf.GetNodeId(), slf.GetNodeType())
+}
+
 func (slf *Application) GetCompPID(compName string) *actor.PID {
 	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), compName)
 	if err != nil {
-		kklog.Debugf("[kkapp] application %s get component %s pid error: %v", slf.GetNodeId(), compName, err)
+		kklog.Debugf("%s get component %s pid error: %v", slf.logTag(), compName, err)
 		return nil
 	}
 	pid, err := slf.actorFramework.GetLocator().GetActor(id)
 	if err != nil {
-		kklog.Debugf("[kkapp] application %s get component %s pid error: %v", slf.GetNodeId(), compName, err)
+		kklog.Debugf("%s get component %s pid error: %v", slf.logTag(), compName, err)
 		return nil
 	}
 	return pid
@@ -143,15 +142,15 @@ func (slf *Application) GetCompPID(compName string) *actor.PID {
 
 func (slf *Application) Start() error {
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateNone, ComponentStateStarting) {
-		kklog.Errorf("[kkapp] application %s start fail. already started, state: %s",
-			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
+		kklog.Errorf("%s start fail. already started, state: %s",
+			slf.logTag(), GetStateName(atomic.LoadInt64(&slf.state)))
 		return kkerrors.ErrAppAlreadyStarted
 	}
 	startResultCh := make(chan error, 1)
 	slf.mu.Lock()
 	slf.startResultCh = startResultCh
 	slf.mu.Unlock()
-	kklog.Infof("[kkapp] application %s starting", slf.GetNodeId())
+	kklog.Infof("%s starting", slf.logTag())
 
 	// Ensure components (children) will not be restarted on failure.
 	// When a component actor crashes, protoactor-go will apply the supervisor strategy defined here.
@@ -169,19 +168,19 @@ func (slf *Application) Start() error {
 		),
 	)
 	if slf.pid == nil {
-		kklog.Errorf("[kkapp] application %s spawn actor fail", slf.GetNodeId())
+		kklog.Errorf("%s spawn actor fail", slf.logTag())
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		kklog.PanicErr(kkerrors.ErrAppSpawnActorFailed)
 	}
 	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
 	if err != nil {
-		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
+		kklog.Errorf("%s add component %s error: %v", slf.logTag(), slf.GetCompName(), err)
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		kklog.PanicErr(err)
 	}
 	err = slf.actorFramework.GetLocator().AddActor(id, slf.pid)
 	if err != nil {
-		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), slf.GetCompName(), err)
+		kklog.Errorf("%s add component %s error: %v", slf.logTag(), slf.GetCompName(), err)
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		kklog.PanicErr(err)
 	}
@@ -190,19 +189,19 @@ func (slf *Application) Start() error {
 
 func (slf *Application) Stop() error {
 	if slf.pid == nil {
-		kklog.Errorf("[kkapp] stop fail. application %s not started, state: %s",
-			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
+		kklog.Errorf("%s stop fail. not started, state: %s",
+			slf.logTag(), GetStateName(atomic.LoadInt64(&slf.state)))
 		return kkerrors.ErrAppNotStarted
 	}
 	if !atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarted, ComponentStateStopping) {
-		kklog.Errorf("[kkapp] stop fail. application %s not started, state: %s",
-			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
+		kklog.Errorf("%s stop fail. not started, state: %s",
+			slf.logTag(), GetStateName(atomic.LoadInt64(&slf.state)))
 		return kkerrors.ErrAppNotStarted
 	}
 	// 等待 Application actor 完全退出，否则进程可能在 Stopping/Stopped 未处理时就退出，看不到日志
 	err := slf.actorFramework.GetActorSystem().Root.PoisonFuture(slf.pid).Wait()
 	if err != nil {
-		kklog.Errorf("[kkapp] application %s stop error: %v", slf.GetNodeId(), err)
+		kklog.Errorf("%s stop error: %v", slf.logTag(), err)
 		return err
 	}
 	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStopping, ComponentStateStopped)
@@ -221,31 +220,30 @@ func (slf *Application) Stop() error {
 // 因为组件应该尽量独立，只有在需要通信交互时，才需要也只需要 通过这个组件的actorID，进行消息投递。
 func (slf *Application) AddComponent(comp kkapp.IComponent) error {
 	if _, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName()); err != nil {
-		kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+		kklog.Errorf("%s add component %s error: %v", slf.logTag(), comp.GetCompName(), err)
 		return err
 	}
 	if slf.existsComponent(comp) {
-		kklog.Errorf("[kkapp] application %s already has component %s",
-			slf.GetNodeId(), comp.GetCompName())
+		kklog.Errorf("%s already has component %s", slf.logTag(), comp.GetCompName())
 		return kkerrors.ErrComponentAlreadyAdded
 	}
 	if atomic.LoadInt64(&slf.state) != ComponentStateNone {
-		kklog.Errorf("[kkapp] application %s add component %s fail. not none state, state: %s",
-			slf.GetNodeId(), comp.GetCompName(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
+		kklog.Errorf("%s add component %s fail. not none state, state: %s",
+			slf.logTag(), comp.GetCompName(), GetStateName(atomic.LoadInt64(&slf.state)))
 		return kkerrors.ErrAppAddCompMustInNoneState
 	}
 
 	comp.SetApplication(slf)
 	err := comp.OnInit()
 	if err != nil {
-		kklog.Errorf("[kkapp] application %s init component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+		kklog.Errorf("%s init component %s error: %v", slf.logTag(), comp.GetCompName(), err)
 		return err
 	}
 
 	slf.mu.Lock()
 	slf.compList = append(slf.compList, comp)
 	slf.mu.Unlock()
-	kklog.Infof("[kkapp] application %s add component %s", slf.GetNodeId(), comp.GetCompName())
+	kklog.Infof("%s add component %s", slf.logTag(), comp.GetCompName())
 	return nil
 }
 
@@ -262,8 +260,8 @@ func (slf *Application) existsComponent(comp kkapp.IComponent) bool {
 
 func (slf *Application) onStarted(ctx actor.Context) {
 	if atomic.LoadInt64(&slf.state) != ComponentStateStarting {
-		kklog.Errorf("[kkapp] application %s already started, state: %s",
-			slf.GetNodeId(), GetStateName(ComponentState(atomic.LoadInt64(&slf.state))))
+		kklog.Errorf("%s already started, state: %s",
+			slf.logTag(), GetStateName(atomic.LoadInt64(&slf.state)))
 		return //已经启动，直接返回
 	}
 
@@ -278,7 +276,7 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		props := actor.PropsFromFunc(comp.Receive)
 		pid := ctx.Spawn(props)
 		if pid == nil {
-			kklog.Errorf("[kkapp] application %s spawn component %s fail", slf.GetNodeId(), comp.GetCompName())
+			kklog.Errorf("%s spawn component %s fail", slf.logTag(), comp.GetCompName())
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 			kklog.PanicErr(kkerrors.ErrAppSpawnActorFailed)
 		}
@@ -295,18 +293,18 @@ func (slf *Application) onStarted(ctx actor.Context) {
 
 		id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())
 		if err != nil {
-			kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+			kklog.Errorf("%s add component %s error: %v", slf.logTag(), comp.GetCompName(), err)
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 			kklog.PanicErr(err)
 		}
 		err = slf.actorFramework.GetLocator().AddActor(id, pid)
 		if err != nil {
-			kklog.Errorf("[kkapp] application %s add component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+			kklog.Errorf("%s add component %s error: %v", slf.logTag(), comp.GetCompName(), err)
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 			kklog.PanicErr(err)
 		}
 		if err := comp.OnStart(); err != nil {
-			kklog.Errorf("[kkapp] application %s start component %s error: %v", slf.GetNodeId(), comp.GetCompName(), err)
+			kklog.Errorf("%s start component %s error: %v", slf.logTag(), comp.GetCompName(), err)
 			atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStopping)
 			slf.finishStart(err)
 			ctx.Stop(ctx.Self())
@@ -314,7 +312,7 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		}
 	}
 	atomic.CompareAndSwapInt64(&slf.state, ComponentStateStarting, ComponentStateStarted)
-	kklog.Infof("[kkapp] application %s started", slf.GetNodeId())
+	kklog.Infof("%s started", slf.logTag())
 	slf.finishStart(nil)
 }
 
@@ -349,7 +347,7 @@ func (slf *Application) onStopped() {
 
 	slf.cleanupSupervisorEvent()
 
-	kklog.Infof("[kkapp] application %s stopped", slf.GetNodeId())
+	kklog.Infof("%s stopped", slf.logTag())
 }
 
 func (slf *Application) Receive(ctx actor.Context) {
@@ -359,16 +357,16 @@ func (slf *Application) Receive(ctx actor.Context) {
 	case *actor.Terminated:
 		slf.onTerminated(ctx)
 	case *actor.Stopping:
-		kklog.Infof("[kkapp] application %s stopping", slf.GetNodeId())
+		kklog.Infof("%s stopping", slf.logTag())
 	case *actor.Stopped:
 		slf.onStopped()
 	case *actor.Restarting:
-		kklog.Infof("[kkapp] application %s restarting", slf.GetNodeId())
+		kklog.Infof("%s restarting", slf.logTag())
 	}
 }
 
 func (slf *Application) onTerminated(ctx actor.Context) {
-	curState := ComponentState(atomic.LoadInt64(&slf.state))
+	curState := atomic.LoadInt64(&slf.state)
 	if curState == ComponentStateStopping || curState == ComponentStateStopped {
 		// Normal shutdown path: ignore component termination while application is stopping/stopped.
 		return
@@ -407,7 +405,7 @@ func (slf *Application) initSupervisorEvent(ctx actor.Context) {
 	actorSystem := slf.actorFramework.GetActorSystem()
 	slf.faultSub = actorSystem.EventStream.Subscribe(func(evt interface{}) {
 		// Skip while stopping/stopped to avoid duplicated or late events.
-		curState := ComponentState(atomic.LoadInt64(&slf.state))
+		curState := atomic.LoadInt64(&slf.state)
 		if curState == ComponentStateStopping || curState == ComponentStateStopped {
 			return
 		}
@@ -468,8 +466,6 @@ func (slf *Application) cleanupSupervisorEvent() {
 		actorSystem.EventStream.Unsubscribe(slf.faultSub)
 		slf.faultSub = nil
 	}
-
-	GlobalFaultEventMgr.UnsubscribeAll(EventKeyComponentFault)
 }
 
 func (slf *Application) markFaultHandled(pidKey string) bool {

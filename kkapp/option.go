@@ -7,6 +7,8 @@ import (
 )
 
 type AppOptions struct {
+	// 配置文件所在目录
+	ConfigsDir string
 	// 理论上可以分别设置transport和client的stream工具。
 	// 但为了简化配置，直接都使用同一个了，影响不大，就是一个[length]字段用2字节还是4字节的问题而已。
 	StreamTool kkpacket.IPacket
