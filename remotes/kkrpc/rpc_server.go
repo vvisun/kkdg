@@ -11,12 +11,13 @@ import (
 )
 
 type Server struct {
-	tcp              kknet.IServer
-	pending          *pendingMap
-	lifeCycleHandler kknet.IConnLifecycleHandler
-	rpcOpts          RpcOption
-	stats            RpcStats
-	methodMgr        *MethodManager //不用创建，从rpcRouter中传入
+	tcp               kknet.IServer
+	pending           *pendingMap
+	lifeCycleHandler  kknet.IConnLifecycleHandler
+	rpcOpts           RpcOption
+	stats             RpcStats
+	methodMgr         *MethodManager //不用创建，从rpcRouter中传入
+	metricsListenerID uint64
 }
 
 var _ IRpcServer = (*Server)(nil)
@@ -68,7 +69,7 @@ func (s *Server) SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 
 func (s *Server) Start() error {
 	// 订阅 rpc服务端metrics事件，通过 Stats 快照填充 MetricsEventData
-	kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventRpcServerMetrics, func(e *kkmetrics.MetricsEventData) {
+	s.metricsListenerID = kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventRpcServerMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := s.Stats()
 		e.Metrics = MetricsFromSnapshot(e.Namespace, snap)
 	})
@@ -76,7 +77,8 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop() error {
-	kkmetrics.GlobalEventMgr.UnsubscribeAll(kkmetrics.EventRpcServerMetrics)
+	kkmetrics.GlobalEventMgr.UnsubscribeByID(kkmetrics.EventRpcServerMetrics, s.metricsListenerID)
+	s.metricsListenerID = 0
 	s.pending.closeAll()
 	return s.tcp.Stop()
 }

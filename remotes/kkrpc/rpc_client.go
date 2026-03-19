@@ -11,12 +11,13 @@ import (
 )
 
 type Client struct {
-	cli       kknet.IClient
-	pending   *pendingMap
-	stopped   bool
-	rpcOpts   RpcOption
-	stats     RpcStats
-	methodMgr *MethodManager //不用创建，从rpcRouter中传入
+	cli               kknet.IClient
+	pending           *pendingMap
+	stopped           bool
+	rpcOpts           RpcOption
+	stats             RpcStats
+	methodMgr         *MethodManager //不用创建，从rpcRouter中传入
+	metricsListenerID uint64
 }
 
 var _ IRpcClient = (*Client)(nil)
@@ -70,7 +71,7 @@ func (c *Client) SendBuffer(connId kknet.CONN_ID, data *kkbuffer.ByteBuffer) err
 
 func (c *Client) Start() error {
 	// 订阅 rpc客户端metrics事件，通过 Stats 快照填充 MetricsEventData
-	kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventRpcClientMetrics, func(e *kkmetrics.MetricsEventData) {
+	c.metricsListenerID = kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventRpcClientMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := c.Stats()
 		e.Metrics = MetricsFromSnapshot(e.Namespace, snap)
 	})
@@ -78,7 +79,8 @@ func (c *Client) Start() error {
 }
 
 func (c *Client) Stop() error {
-	kkmetrics.GlobalEventMgr.UnsubscribeAll(kkmetrics.EventRpcClientMetrics)
+	kkmetrics.GlobalEventMgr.UnsubscribeByID(kkmetrics.EventRpcClientMetrics, c.metricsListenerID)
+	c.metricsListenerID = 0
 	c.pending.closeAll()
 	err := c.cli.Close()
 	if err == nil {

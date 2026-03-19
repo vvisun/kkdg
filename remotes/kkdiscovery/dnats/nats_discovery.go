@@ -53,6 +53,8 @@ type NatsDiscovery struct {
 	closed  atomic.Bool // 关闭标志
 
 	msgCodec kkcodec.ICodec
+
+	metricsListenerID uint64
 }
 
 var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
@@ -77,7 +79,7 @@ func NewNatsDiscovery(
 	}
 
 	// 订阅 discovery metrics 事件，通过 Stats 快照填充 MetricsEventData
-	kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventDiscoveryMetrics, func(e *kkmetrics.MetricsEventData) {
+	d.metricsListenerID = kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventDiscoveryMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := d.Stats()
 		e.Metrics = kkdiscovery.MetricsFromSnapshot(e.Namespace, snap)
 	})
@@ -164,7 +166,8 @@ func (d *NatsDiscovery) Stop() error {
 		}
 	}
 
-	kkmetrics.GlobalEventMgr.UnsubscribeAll(kkmetrics.EventDiscoveryMetrics)
+	kkmetrics.GlobalEventMgr.UnsubscribeByID(kkmetrics.EventDiscoveryMetrics, d.metricsListenerID)
+	d.metricsListenerID = 0
 
 	select {
 	case <-d.stopCh:

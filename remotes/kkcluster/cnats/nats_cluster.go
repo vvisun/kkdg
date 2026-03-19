@@ -56,6 +56,8 @@ type NatsCluster struct {
 	workerQueue *taskqueue.WorkerQueue
 
 	msgCodec kkcodec.ICodec
+
+	metricsListenerID uint64
 }
 
 var _ kkcluster.ICluster = (*NatsCluster)(nil)
@@ -89,7 +91,7 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 // Start 初始化集群
 func (c *NatsCluster) Start() error {
 	kklog.Infof("NatsCluster(%s) startup", c.nodeID)
-	kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
+	c.metricsListenerID = kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := c.Stats()
 		e.Metrics = kkcluster.MetricsFromSnapshot(e.Namespace, snap)
 	})
@@ -479,7 +481,8 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 func (c *NatsCluster) Stop() {
 	kklog.Infof("NatsCluster(%s) shutdown", c.nodeID)
 
-	kkmetrics.GlobalEventMgr.UnsubscribeAll(kkmetrics.EventClusterMetrics)
+	kkmetrics.GlobalEventMgr.UnsubscribeByID(kkmetrics.EventClusterMetrics, c.metricsListenerID)
+	c.metricsListenerID = 0
 
 	select {
 	case <-c.stopCh:
