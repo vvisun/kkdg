@@ -32,7 +32,7 @@ func main() {
 
 func runGame() *component.Application {
 	// game 节点，nodeType 必须为 logic 以匹配 gate 的 LogicNodeType
-	gameNode := kkapp.NewNodeInfo(examapp.LogicNodeID, kkapp.NodeTypeLogic, "127.0.0.1:0", "")
+	gameNode := kkapp.NewNodeInfo(examapp.LogicNodeID, kkapp.NodeTypeLogic, "", "")
 	gameApp := component.NewApplication(gameNode, nil, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())
 	game := ccgame.NewGameComponent(ccgame.Options{
@@ -56,7 +56,6 @@ func runGame() *component.Application {
 	}
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
 	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginReq)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onRegisterReq)
 
 	return gameApp
 }
@@ -87,10 +86,5 @@ func (h *gameHandler) onLoginReq(sessionID string, msg *ptoexam.LoginReq) error 
 	}
 	h.transportor.SendToClient(sessionID, resp)
 
-	return nil
-}
-
-func (h *gameHandler) onRegisterReq(sessionID string, msg *ptoexam.RegisterReq) error {
-	kklog.Debugf("onRegisterReq: sessionID=%s, msg=%v", sessionID, msg)
 	return nil
 }

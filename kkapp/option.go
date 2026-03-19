@@ -153,3 +153,9 @@ func WithCoreComponent(compName string) func(o *AppOptions) {
 func WithNotCoreComponent(compName string) func(o *AppOptions) {
 	return WithFaultAction(compName, faultreport.FaultActionStopComp)
 }
+
+func WithConfigDir(configsDir string) func(o *AppOptions) {
+	return func(o *AppOptions) {
+		o.ConfigsDir = configsDir
+	}
+}
