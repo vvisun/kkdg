@@ -1,4 +1,4 @@
-package ccgin
+package kkgin
 
 import (
 	"time"

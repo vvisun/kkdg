@@ -1,4 +1,4 @@
-package ccgin
+package kkgin
 
 import (
 	"context"
@@ -8,14 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/asynkron/protoactor-go/actor"
 	"github.com/gin-gonic/gin"
-	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/component"
 )
 
 type GinComponent struct {
-	component.Component
 	*gin.Engine
 	opt Options
 
@@ -25,10 +21,6 @@ type GinComponent struct {
 	startOnce sync.Once
 	stopOnce  sync.Once
 	serveErr  chan error
-}
-
-func (slf *GinComponent) GetCompName() string {
-	return "comp_gin"
 }
 
 func NewGinComponent(opt Options) *GinComponent {
@@ -44,25 +36,11 @@ func NewGinComponent(opt Options) *GinComponent {
 	}
 }
 
-var _ kkapp.IComponent = (*GinComponent)(nil)
-var _ actor.Actor = (*GinComponent)(nil)
-
-func (slf *GinComponent) Receive(ctx actor.Context) {
-	switch ctx.Message().(type) {
-	case *actor.Stopping:
-		// Do not block actor shutdown loop on long HTTP graceful shutdown.
-		go func() { _ = slf.OnStop() }()
-	}
-}
-
-func (slf *GinComponent) OnInit() error {
+func (slf *GinComponent) Start() error {
 	if slf.opt.RegisterRoutes != nil {
 		slf.opt.RegisterRoutes(slf.Engine)
 	}
-	return nil
-}
 
-func (slf *GinComponent) OnStart() error {
 	// Ensure bind failure is surfaced from OnStart quickly.
 	ln, err := net.Listen("tcp", slf.opt.HttpAddr)
 	if err != nil {
@@ -107,7 +85,7 @@ func (slf *GinComponent) OnStart() error {
 	}
 }
 
-func (slf *GinComponent) OnStop() error {
+func (slf *GinComponent) Stop() error {
 	if slf.srv == nil {
 		return nil
 	}
