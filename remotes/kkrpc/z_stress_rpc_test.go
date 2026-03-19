@@ -146,7 +146,8 @@ func TestStress_Rpc_ManyConns_ManyCalls(t *testing.T) {
 
 			invoker, err := NewReqRspInvoker[testReq, testRsp](cli)
 			if err != nil {
-				t.Fatalf("create reqrsp invoker: %v", err)
+				errCh <- err
+				return
 			}
 			for j := 0; j < callsPerConn; j++ {
 				req := testReq{ID: idx*1000 + j, Data: "stress"}
@@ -371,7 +372,8 @@ func TestStress_Rpc_InvokeNR_ManyConns_ManyCalls(t *testing.T) {
 
 			invoker, err := NewOneWayInvoker[testReq](cli)
 			if err != nil {
-				t.Fatalf("create oneway invoker: %v", err)
+				errCh <- err
+				return
 			}
 			for j := 0; j < callsPerConn; j++ {
 				req := testReq{ID: idx*1000 + j, Data: "invokenr"}
