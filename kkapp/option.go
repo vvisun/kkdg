@@ -117,3 +117,30 @@ func WithFaultAction(compName string, action faultreport.EFaultAction) func(o *A
 		o.FaultActionMap[compName] = action
 	}
 }
+
+func WithFaultActionMap(faultActionMap map[string]faultreport.EFaultAction) func(o *AppOptions) {
+	return func(o *AppOptions) {
+		if faultActionMap == nil {
+			return
+		}
+		for compName, action := range faultActionMap {
+			if !faultreport.IsValidFaultAction(action) {
+				kklog.Errorf("[kkapp] fault compName %s action %d is invalid", compName, action)
+				delete(faultActionMap, compName)
+			}
+		}
+		o.FaultActionMap = faultActionMap
+	}
+}
+
+// WithCoreComponent 是默认配置核心组件的故障处理动作。
+// 核心组件是指：如果该组件故障，则停止应用。
+func WithCoreComponent(compName string) func(o *AppOptions) {
+	return WithFaultAction(compName, faultreport.FaultActionStopApp)
+}
+
+// WithNotCoreComponent 是默认配置非核心组件的故障处理动作。
+// 非核心组件是指：如果该组件故障，则重启组件。
+func WithNotCoreComponent(compName string) func(o *AppOptions) {
+	return WithFaultAction(compName, faultreport.FaultActionRestartComp)
+}
