@@ -15,6 +15,8 @@ var (
 	ErrActorAddInvalidPID = errors.New("invalid pid")
 	// actor 添加无效的node
 	ErrActorAddInvalidNode = errors.New("invalid node")
+	//
+	ErrActorInvalidActorRef = errors.New("actorRef is nil")
 )
 
 var (

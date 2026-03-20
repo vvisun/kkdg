@@ -30,7 +30,7 @@ type HubClient struct {
 	clientInfos    []clientInfo
 	remoteActorMgr *actorhub.RemoteActorMgr
 	af             *kkactor.ActorFramework
-	opts           Options
+	opts           ClientOptions
 	autoReqId      uint64
 	currentClient  int32
 	reqMap         map[uint64]any // 请求ID -> 请求数据
@@ -40,7 +40,7 @@ type HubClient struct {
 
 var _ actorhub.IHubClient = (*HubClient)(nil)
 
-func NewHubClient(opts Options, af *kkactor.ActorFramework, nodeInfo *kkapp.NodeInfo) *HubClient {
+func NewHubClient(opts ClientOptions, af *kkactor.ActorFramework, nodeInfo *kkapp.NodeInfo) *HubClient {
 	info := kkdiscovery.MemberInfo{
 		NodeID:     nodeInfo.GetNodeId(),
 		NodeType:   nodeInfo.GetNodeType(),

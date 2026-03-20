@@ -22,11 +22,11 @@ type HubServer struct {
 	srv            *kktcp.Server
 	handler        *serverHandler
 	remoteActorMgr *actorhub.RemoteActorMgr
-	opts           Options
+	opts           ServerOptions
 }
 
 // NewHubServer 创建 Hub TCP 服务端。
-func NewHubServer(opts Options) *HubServer {
+func NewHubServer(opts ServerOptions) *HubServer {
 	hub := &HubServer{
 		remoteActorMgr: actorhub.NewRemoteActorMgr(),
 		opts:           opts,
