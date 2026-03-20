@@ -33,7 +33,7 @@ func main() {
 
 func runGame() *component.Application {
 	// game 节点，nodeType 必须为 logic 以匹配 gate 的 LogicNodeType
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	gameNode := kkapp.NewNodeInfo(examapp.LogicNodeID, kkapp.NodeTypeLogic, "", "")
 	gameApp := component.NewApplication(gameNode, af, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())

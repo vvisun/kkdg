@@ -21,19 +21,15 @@ func TestActorFramework_HubRemoteSendAndRequest(t *testing.T) {
 	addr := hub.Addr()
 	reg := testRegistry(t)
 
-	framework2 := kkactor.NewActorFramework(
-		kkactor.NewActorLocator(kkapp.NewNodeInfo("node2", "game", "", "")),
-		kkactor.NewSilentActorSystem(),
-	)
+	framework2 := kkactor.NewActorFramework()
+	framework2.GetLocator().AddNode(kkapp.NewNodeInfo("node2", "game", "", ""))
 	transport2 := NewTransport("node2", reg, Options{HubAddr: addr, NodeType: "game"})
 	if err := framework2.SetRemoteTransport(transport2); err != nil {
 		t.Fatalf("framework2.SetRemoteTransport: %v", err)
 	}
 
-	framework1 := kkactor.NewActorFramework(
-		kkactor.NewActorLocator(kkapp.NewNodeInfo("node1", "game", "", "")),
-		kkactor.NewSilentActorSystem(),
-	)
+	framework1 := kkactor.NewActorFramework()
+	framework1.GetLocator().AddNode(kkapp.NewNodeInfo("node1", "game", "", ""))
 	transport1 := NewTransport("node1", reg, Options{HubAddr: addr})
 	if err := framework1.SetRemoteTransport(transport1); err != nil {
 		t.Fatalf("framework1.SetRemoteTransport: %v", err)

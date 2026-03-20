@@ -37,7 +37,7 @@ func main() {
 }
 
 func runGate() *component.Application {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, "", "")
 	gateApp := component.NewApplication(gateNode, af, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())

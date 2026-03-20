@@ -12,9 +12,9 @@ import (
 //------------------------------------------------------------------------------
 
 func setupBenchFramework(b *testing.B) (*ActorFramework, LucencyActorID, func()) {
-	actorSys := NewSilentActorSystem()
-	loc := NewActorLocator()
-	af := NewActorFramework(loc, actorSys)
+	af := NewActorFramework()
+	actorSys := af.GetActorSystem()
+	loc := af.GetLocator()
 	id, _ := NewLucencyActorID("", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {

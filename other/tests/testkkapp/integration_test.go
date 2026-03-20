@@ -126,7 +126,7 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 
 	// gate 节点
 	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "")
-	afGate := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	afGate := kkactor.NewActorFramework()
 	gateApp := component.NewApplication(gateNode, afGate, appOpts)
 	InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
 	gateOpt := ccgate.Options{
@@ -160,7 +160,7 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
 	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "")
-	afGame := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	afGame := kkactor.NewActorFramework()
 	gameApp := component.NewApplication(gameNode, afGame, appOpts)
 	InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())
 	game := ccgame.NewGameComponent(ccgame.Options{

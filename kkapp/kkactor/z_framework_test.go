@@ -13,31 +13,8 @@ import (
 // framework_test
 //------------------------------------------------------------------------------
 
-func TestNewActorFramework_Panic(t *testing.T) {
-	actorSys := NewActorSystem()
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("NewActorFramework(nil, actorSys) should panic")
-		}
-	}()
-	_ = NewActorFramework(nil, actorSys)
-}
-
-func TestNewActorFramework_PanicNilSys(t *testing.T) {
-	loc := NewActorLocator()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("NewActorFramework(loc, nil) should panic")
-		}
-	}()
-	_ = NewActorFramework(loc, nil)
-}
-
 func TestActorFramework_Send_NotFound(t *testing.T) {
-	loc := NewActorLocator()
-	actorSys := NewActorSystem()
-	af := NewActorFramework(loc, actorSys)
+	af := NewActorFramework()
 
 	id, _ := NewLucencyActorID("", "nonexistent")
 	err := af.Send(id, "hello")
@@ -47,9 +24,7 @@ func TestActorFramework_Send_NotFound(t *testing.T) {
 }
 
 func TestActorFramework_Request_NotFound(t *testing.T) {
-	loc := NewActorLocator()
-	actorSys := NewActorSystem()
-	af := NewActorFramework(loc, actorSys)
+	af := NewActorFramework()
 
 	id, _ := NewLucencyActorID("", "nonexistent")
 	_, err := af.Request(id, "hello", time.Second)
@@ -59,9 +34,7 @@ func TestActorFramework_Request_NotFound(t *testing.T) {
 }
 
 func TestActorFramework_RequestAsync_NotFound(t *testing.T) {
-	loc := NewActorLocator()
-	actorSys := NewActorSystem()
-	af := NewActorFramework(loc, actorSys)
+	af := NewActorFramework()
 
 	id, _ := NewLucencyActorID("", "nonexistent")
 	err := af.RequestAsync(id, "hello", time.Second, func(result any, err error) {})
@@ -71,9 +44,9 @@ func TestActorFramework_RequestAsync_NotFound(t *testing.T) {
 }
 
 func TestActorFramework_RequestAsync_NilCallback(t *testing.T) {
-	actorSys := NewActorSystem()
-	loc := NewActorLocator()
-	af := NewActorFramework(loc, actorSys)
+	af := NewActorFramework()
+	actorSys := af.GetActorSystem()
+	loc := af.GetLocator()
 
 	id, _ := NewLucencyActorID("", "echo")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {
@@ -93,7 +66,7 @@ func TestActorFramework_RequestAsync_NilCallback(t *testing.T) {
 }
 
 func TestActorFramework_SetRemoteTransport_RollbackOnStartError(t *testing.T) {
-	af := NewActorFramework(NewActorLocator(), NewActorSystem())
+	af := NewActorFramework()
 
 	oldTransport := &stubRemoteTransport{}
 	if err := af.SetRemoteTransport(oldTransport); err != nil {
@@ -124,9 +97,9 @@ func TestActorFramework_SetRemoteTransport_RollbackOnStartError(t *testing.T) {
 }
 
 func TestActorFramework_Send_Request_Integration(t *testing.T) {
-	actorSys := NewActorSystem()
-	loc := NewActorLocator()
-	af := NewActorFramework(loc, actorSys)
+	af := NewActorFramework()
+	actorSys := af.GetActorSystem()
+	loc := af.GetLocator()
 
 	id, err := NewLucencyActorID("", "echo")
 	if err != nil {
@@ -168,9 +141,9 @@ func TestActorFramework_Send_Request_Integration(t *testing.T) {
 }
 
 func TestActorFramework_RequestAsync_Integration(t *testing.T) {
-	actorSys := NewActorSystem()
-	loc := NewActorLocator()
-	af := NewActorFramework(loc, actorSys)
+	af := NewActorFramework()
+	actorSys := af.GetActorSystem()
+	loc := af.GetLocator()
 
 	id, _ := NewLucencyActorID("", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
@@ -206,9 +179,9 @@ func TestActorFramework_RequestAsync_Integration(t *testing.T) {
 }
 
 func TestRequest_RequestAsync_Generic(t *testing.T) {
-	actorSys := NewActorSystem()
-	loc := NewActorLocator()
-	af := NewActorFramework(loc, actorSys)
+	af := NewActorFramework()
+	actorSys := af.GetActorSystem()
+	loc := af.GetLocator()
 
 	id, _ := NewLucencyActorID("", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {

@@ -9,7 +9,6 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // IActorFramework 是 Actor 框架门面。
@@ -45,26 +44,23 @@ func NewSilentActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 
 //-------------------------------------------------------------------------
 
-func NewActorFramework(locator *ActorLocator, actorSys *actor.ActorSystem) *ActorFramework {
-	if locator == nil {
-		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-		kklog.PanicLog("locator is nil")
-	}
-	if actorSys == nil {
-		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
-		kklog.PanicLog("actorSys is nil")
-	}
+func NewActorFramework(options ...actor.ConfigOption) *ActorFramework {
 	return &ActorFramework{
-		locator:  locator,
-		actorSys: actorSys,
+		locator:  NewActorLocator(),
+		actorSys: NewActorSystem(),
 	}
 }
 
 // ActorFramework 是 Actor 框架门面。
 type ActorFramework struct {
-	locator         *ActorLocator                      // Actor寻址系统
-	actorSys        *actor.ActorSystem                 // Actor系统
-	remoteTransport actorremotes.IRemoteActorTransport // 远程Actor传输层
+	// Actor寻址系统，利用ActorLocator透明寻址actorSys下的pid。
+	// 如果找到本地actor，则直接发送消息，否则通过remoteTransport发送消息。
+	// 所以请注意，添加actor时，需要添加到locator中，否则可能找不到actor。
+	locator *ActorLocator
+	// Actor系统
+	actorSys *actor.ActorSystem
+	// 远程Actor传输层
+	remoteTransport actorremotes.IRemoteActorTransport
 }
 
 func (slf *ActorFramework) GetLocator() *ActorLocator {

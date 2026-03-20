@@ -123,7 +123,7 @@ func (slf *failStartComp) Receive(ctx actor.Context) {
 //-------------------------------- test application --------------------------------
 
 func TestApplication_AddComponent(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 	// 测试正常添加
 	if err := app.AddComponent(&TestComp1{}); err != nil {
@@ -153,7 +153,7 @@ func TestApplication_AddComponent(t *testing.T) {
 
 // 测试重复启动应用
 func TestApplication_StartTwice(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	if err := app.Start(); err != nil {
@@ -174,7 +174,7 @@ func TestApplication_StartTwice(t *testing.T) {
 
 // 测试未启动时停止应用
 func TestApplication_Stop_NotStarted(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	if err := app.Stop(); err != kkerrors.ErrAppNotStarted {
@@ -184,7 +184,7 @@ func TestApplication_Stop_NotStarted(t *testing.T) {
 
 // 测试非 None 状态下添加组件
 func TestApplication_AddComponent_NotNoneState(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	// 先添加一个组件
@@ -211,7 +211,7 @@ func TestApplication_AddComponent_NotNoneState(t *testing.T) {
 
 // 测试获取子组件 PID
 func TestApplication_GetChildPID(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	if err := app.AddComponent(&TestComp1{}); err != nil {
@@ -240,7 +240,7 @@ func TestApplication_GetChildPID(t *testing.T) {
 }
 
 func TestApplication_Start_WaitsForComponentStart(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	if err := app.AddComponent(&TestComp1{}); err != nil {
@@ -261,7 +261,7 @@ func TestApplication_Start_WaitsForComponentStart(t *testing.T) {
 }
 
 func TestApplication_Start_ComponentStartError(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	if err := app.AddComponent(&failStartComp{}); err != nil {
@@ -296,7 +296,7 @@ func (c *panicOnStringComp) Receive(ctx actor.Context) {
 }
 
 func TestApplication_FaultEvent_SupervisorEventWinsAndCancelsTerminatedFallback(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 	if err := app.AddComponent(&panicOnStringComp{}); err != nil {
 		t.Fatalf("add component: %v", err)
@@ -349,7 +349,7 @@ func TestApplication_FaultEvent_SupervisorEventWinsAndCancelsTerminatedFallback(
 }
 
 func TestApplication_FaultEvent_TerminatedFallbackPublishesWhenNoSupervisorEvent(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 	if err := app.AddComponent(&TestComp1{}); err != nil {
 		t.Fatalf("add component: %v", err)
@@ -398,7 +398,7 @@ func TestApplication_FaultEvent_TerminatedFallbackPublishesWhenNoSupervisorEvent
 func TestApplication_FaultEvent_ActionFromOptions_DoesNotStopAppWhenStopComp(t *testing.T) {
 	app := NewApplication(
 		kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""),
-		kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem()),
+		kkactor.NewActorFramework(),
 		kkapp.ApplyOptions(
 			kkapp.WithFaultAction("panic_comp", faultreport.FaultActionStopComp),
 		),

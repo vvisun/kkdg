@@ -31,7 +31,7 @@ func (c *docTestComp) Receive(ctx actor.Context) {
 // TestDoc_ApplicationIsOneNode 验证：每个应用程序视为 1 个节点。
 func TestDoc_ApplicationIsOneNode(t *testing.T) {
 	nodeInfo := kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", "")
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(nodeInfo, af, kkapp.ApplyOptions())
 
 	if app.GetNodeId() != "node1" {
@@ -48,7 +48,7 @@ func TestDoc_ApplicationIsOneNode(t *testing.T) {
 
 // TestDoc_NodeCanHaveMultipleComponents 验证：每个节点可以包含多个组件。
 func TestDoc_NodeCanHaveMultipleComponents(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	if err := app.AddComponent(&docTestComp{name: "comp1"}); err != nil {
@@ -82,7 +82,7 @@ func TestDoc_NodeCanHaveMultipleComponents(t *testing.T) {
 
 // TestDoc_ComponentIsActor 验证：每个组件视为 1 个 actor（可寻址、有 PID）。
 func TestDoc_ComponentIsActor(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 	comp := &docTestComp{name: "logic"}
 	if err := app.AddComponent(comp); err != nil {
@@ -110,7 +110,7 @@ func TestDoc_ComponentIsActor(t *testing.T) {
 
 // TestDoc_MultipleNodesInOneProcess 验证：同一进程内可运行多个节点（单机多节点部署）。
 func TestDoc_MultipleNodesInOneProcess(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	node1 := NewApplication(kkapp.NewNodeInfo("node1", "gate", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 	node2 := NewApplication(kkapp.NewNodeInfo("node2", "game", "127.0.0.1:8081", ""), af, kkapp.ApplyOptions())
 
@@ -143,7 +143,7 @@ func TestDoc_MultipleNodesInOneProcess(t *testing.T) {
 // TestDoc_DeploymentLayoutTransparency 验证：组件挂接方式可任意组合，逻辑层按“节点+组件名”寻址即可。
 // doc 例：comp1,comp2,comp3 分别挂 node1,node2,node3 与 comp1+comp2 挂 node1、comp3 挂 node2 效果等价。
 func TestDoc_DeploymentLayoutTransparency(t *testing.T) {
-	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
+	af := kkactor.NewActorFramework()
 	// 布局 A：3 个节点，每节点 1 个组件
 	nodesA := []*Application{
 		NewApplication(kkapp.NewNodeInfo("n1", "t", "127.0.0.1:9001", ""), af, kkapp.ApplyOptions()),
