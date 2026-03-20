@@ -8,7 +8,7 @@ kkdg/
 ├── kkapp/           # 应用框架（ProtoActor + Component）
 │   ├── component/   # Application、Component 生命周期
 │   ├── comps/       # ccgate（网关）、ccgame（业务服）
-│   ├── kkactor/     # Actor 寻址、远程传输（actornats/actorrpc/actorshard）
+│   ├── kkactor/     # Actor 寻址、远程传输（actornats、actorshard Hub）
 │   ├── kkmodule/    # 模块树
 │   ├── transport/   # Gate↔Logic 转发（nats/rpc/shard）
 |   └── msgreceiver/ # 消息分发

@@ -3,15 +3,16 @@
 //
 // 设计思路：
 //  1. 透明化寻址、远程传输。LucencyActorID 是 Actor 的唯一标识。
-//  2. actor之间的交互只关心actorID，不需要关心actor所在节点。
-//  3. actor远程交互的传输层可以基于nats/rpc/shard等实现。外部无需关心底层实现，可以任意替换。
+//  2. actor之间的交互只关心 actorID，不需要关心 actor 所在节点。
+//  3. 远程传输通过 actorremotes.IRemoteActorTransport 注入，可按部署选用 NATS、ActorHub（TCP）等实现。
 //
 // 目录说明：
 //   - actor_id.go：LucencyActorID 是 Actor 的唯一标识。
 //   - framework.go：ActorFramework 是 Actor 框架门面。
-//   - locator.go：ActorLocator 是 Actor 寻址系统。
-//   - actorremotes：actor远程交互的传输层公共部分，包含协议，和传输抽象接口定义。
-//   - actornats：基于nats的actor远程交互的传输层。
-//   - actorrpc：基于rpc的actor远程交互的传输层。
-//   - actorshard：基于独立中心服（Hub）TCP 中转的 actor 远程传输层。
+//   - actor_locator.go：ActorLocator 是 Actor 寻址系统。
+//   - actorremotes：远程协议（信封、MessageRegistry）与 IRemoteActorTransport / IRemoteActorReceiver 抽象。
+//   - actornats：基于 NATS 的远程传输实现。
+//   - actorshard：基于独立中心服（Hub）TCP 中转的远程传输实现。
+//
+// 其他进程内远程通道可自行实现 IRemoteActorTransport 并交给 ActorFramework.SetRemoteTransport。
 package kkactor

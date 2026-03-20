@@ -29,7 +29,7 @@ type IRemoteActorTransport interface {
 	// Start 启动底层连接与订阅。
 	Start() error
 	// Close 关闭底层连接。
-	// 例如：nats 需要取消订阅等。 rpc/shard需要关闭连接。
+	// 例如：nats 需要取消订阅；TCP 类实现需关闭连接等。
 	Close() error
 	// SetReceiver 设置本地接收器，用于把远程消息投递到当前进程。
 	SetReceiver(receiver IRemoteActorReceiver)
