@@ -29,6 +29,16 @@ type RemoteActor struct {
 	rpcAddr string                 // 远程RPC地址
 }
 
+// LucencyID 返回透明 Actor ID（供 Hub 等组包使用）。
+func (r *RemoteActor) LucencyID() kkactor.LucencyActorID {
+	return r.actorID
+}
+
+// RpcAddress 返回该 Actor 所在节点的 RPC 监听地址（Hub 注册表中的值）。
+func (r *RemoteActor) RpcAddress() string {
+	return r.rpcAddr
+}
+
 // RemoteActorMgr 远程Actor管理器。
 //
 //	hubserver 与 hubclient 可以通过这个管理器缓存远程Actor信息。

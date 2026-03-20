@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub/hubproto"
@@ -13,6 +14,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kktime"
 )
@@ -25,19 +27,27 @@ type HubClient struct {
 	opts           Options
 	autoReqId      uint64
 	currentClient  int32
-	authLive       atomic.Int32   // 已完成鉴权的连接数 (>0 才允许业务请求)
+	authedClients  []atomic.Bool  // 与 clients 同序，该条连接是否已通过 AuthResp
 	reqMap         map[uint64]any // 请求ID -> 请求数据
 	muReqMap       sync.Mutex
+	nodeInfo       *kkdiscovery.MemberInfo
 }
 
 var _ actorhub.IHubClient = (*HubClient)(nil)
 
-func NewHubClient(opts Options, af *kkactor.ActorFramework) *HubClient {
+func NewHubClient(opts Options, af *kkactor.ActorFramework, nodeInfo *kkapp.NodeInfo) *HubClient {
+	info := kkdiscovery.MemberInfo{
+		NodeID:     nodeInfo.GetNodeId(),
+		NodeType:   nodeInfo.GetNodeType(),
+		Address:    nodeInfo.GetAddress(),
+		RpcAddress: nodeInfo.GetRpcAddress(),
+	}
 	return &HubClient{
 		opts:           opts,
 		remoteActorMgr: actorhub.NewRemoteActorMgr(),
 		af:             af,
 		reqMap:         make(map[uint64]any),
+		nodeInfo:       &info,
 	}
 }
 
@@ -46,9 +56,10 @@ func (slf *HubClient) Start() error {
 		return errors.New("client count must be greater than 0")
 	}
 	hubproto.InitMsgs()
+	slf.authedClients = make([]atomic.Bool, slf.opts.clientCount)
 	slf.clients = make([]kknet.IClient, 0, slf.opts.clientCount)
 	for i := 0; i < slf.opts.clientCount; i++ {
-		handler := newClientHandler(slf)
+		handler := newClientHandler(slf, i)
 		client := kktcp.NewClient(slf.opts.Addr, handler, kknet.ApplyOptions(
 			kknet.WithRawHandler(handler),
 			kknet.WithStreamTool(hubproto.HubMessagePacket.GetStreamTool()),
@@ -75,7 +86,7 @@ func (slf *HubClient) GetRemoteActorMgr() actorhub.IClientRemoteActorMgr {
 }
 
 func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) error {
-	if slf.authLive.Load() <= 0 {
+	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
 	req := &hubproto.RegisterActorReq{
@@ -85,6 +96,7 @@ func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) error {
 			NodeID:   actorID.NodeID(),
 			ActorKey: actorID.ActorKey(),
 		},
+		NodeInfo: slf.nodeInfo,
 	}
 
 	err := slf.sendRequest(req)
@@ -98,7 +110,7 @@ func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) error {
 }
 
 func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) error {
-	if slf.authLive.Load() <= 0 {
+	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
 	req := &hubproto.RegisterActorReq{
@@ -108,6 +120,7 @@ func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) error {
 			NodeID:   actorID.NodeID(),
 			ActorKey: actorID.ActorKey(),
 		},
+		NodeInfo: slf.nodeInfo,
 	}
 
 	err := slf.sendRequest(req)
@@ -121,7 +134,7 @@ func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) error {
 }
 
 func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) error {
-	if slf.authLive.Load() <= 0 {
+	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
 	req := &hubproto.FindActorReq{
@@ -143,7 +156,7 @@ func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) error {
 }
 
 func (slf *HubClient) GetAllActorsOfNode(nodeID string) error {
-	if slf.authLive.Load() <= 0 {
+	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
 	req := &hubproto.GetAllActorsOfNodeReq{
@@ -161,13 +174,30 @@ func (slf *HubClient) GetAllActorsOfNode(nodeID string) error {
 	return nil
 }
 
+func (slf *HubClient) anyConnAuthed() bool {
+	for i := range slf.authedClients {
+		if slf.authedClients[i].Load() {
+			return true
+		}
+	}
+	return false
+}
+
 func (slf *HubClient) sendRequest(req any) error {
 	if req == nil {
 		return nil
 	}
-	curClient := atomic.AddInt32(&slf.currentClient, 1)
-	curClient = curClient % int32(len(slf.clients))
-	return slf.clients[curClient].SendMsg(req)
+	n := len(slf.clients)
+	if n == 0 {
+		return errors.New("no hub connections")
+	}
+	for try := 0; try < n; try++ {
+		cur := int(atomic.AddInt32(&slf.currentClient, 1)) % n
+		if slf.authedClients[cur].Load() {
+			return slf.clients[cur].SendMsg(req)
+		}
+	}
+	return hubproto.ErrNotAuthed
 }
 
 func (slf *HubClient) delReq(reqID uint64) {
@@ -189,13 +219,14 @@ func (slf *HubClient) getReq(reqID uint64) any {
 //----------------------------------------------------------------
 
 type clientHandler struct {
-	hubClient  *HubClient
-	connAuthed atomic.Bool // 本连接是否已通过 AuthResp
+	hubClient *HubClient
+	idx       int
 }
 
-func newClientHandler(hubClient *HubClient) *clientHandler {
+func newClientHandler(hubClient *HubClient, idx int) *clientHandler {
 	return &clientHandler{
 		hubClient: hubClient,
+		idx:       idx,
 	}
 }
 
@@ -203,10 +234,8 @@ func (h *clientHandler) OnConnect(c kknet.IConn) {
 	_ = c.SendMsg(&hubproto.AuthReq{Password: h.hubClient.opts.Password})
 }
 
-func (h *clientHandler) OnClose(c kknet.IConn, err error) {
-	if h.connAuthed.Swap(false) {
-		h.hubClient.authLive.Add(-1)
-	}
+func (h *clientHandler) OnClose(kknet.IConn, error) {
+	h.hubClient.authedClients[h.idx].Store(false)
 }
 
 func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
@@ -220,12 +249,13 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		if info.Code != 0 {
 			return
 		}
-		if !h.connAuthed.Swap(true) {
-			h.hubClient.authLive.Add(1)
-		}
+		h.hubClient.authedClients[h.idx].Store(true)
 	case *hubproto.FindActorResp:
 		h.hubClient.delReq(info.ReqID)
 		if info.ErrorInfo != nil {
+			return
+		}
+		if info.NodeInfo == nil || info.NodeInfo.RpcAddress == "" {
 			return
 		}
 		lucId, err := kkactor.NewLucencyActorID(info.ActorID.NodeID, info.ActorID.ActorKey)
@@ -236,6 +266,9 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	case *hubproto.GetAllActorsOfNodeResp:
 		h.hubClient.delReq(info.ReqID)
 		if info.ErrorInfo != nil {
+			return
+		}
+		if info.NodeInfo == nil || info.NodeInfo.RpcAddress == "" {
 			return
 		}
 		for _, actor := range info.Actors {
