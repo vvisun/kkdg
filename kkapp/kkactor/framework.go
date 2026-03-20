@@ -47,7 +47,14 @@ func NewSilentActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 func NewActorFramework(options ...actor.ConfigOption) *ActorFramework {
 	return &ActorFramework{
 		locator:  NewActorLocator(),
-		actorSys: NewActorSystem(),
+		actorSys: NewActorSystem(options...),
+	}
+}
+
+func NewSilentActorFramework(options ...actor.ConfigOption) *ActorFramework {
+	return &ActorFramework{
+		locator:  NewActorLocator(),
+		actorSys: NewSilentActorSystem(options...),
 	}
 }
 
