@@ -4,27 +4,10 @@ import (
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
-	"github.com/vvisun/kkdg/utils/kkcodec"
-)
-
-var HubMessagePacket = kkpacket.NewFullPacket(
-	kkpacket.DefaultStreamPacket(),
-	kkpacket.NewMessagePacket(
-		kkpacket.NewPacketHeadWithNames(
-			[]kkpacket.IHeadPart{
-				&kkpacket.PartUint16{},
-			},
-			[]string{
-				kkpacket.PartNameMsgID, // 消息ID
-			},
-		),
-		kkcodec.GetCodec(kkcodec.CodecTypeJson),
-		kkpacket.NewMsgRouter(),
-	),
 )
 
 const (
-	MsgIDRegisterActorReq uint16 = 1 + iota
+	MsgIDRegisterActorReq kkpacket.MSGID = 1 + iota
 	MsgIDRegisterActorResp
 	MsgIDFindActorReq
 	MsgIDFindActorResp
