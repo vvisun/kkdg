@@ -44,6 +44,12 @@ func NewSilentActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 
 //-------------------------------------------------------------------------
 
+// NewActorFramework 创建一套与彼此绑定的 Locator + ActorSystem。
+//
+// 不提供「单独注入 Locator」的构造方式：Locator 里存放的 *actor.PID 必须与某一 ActorSystem 中
+// Spawn 出来的 PID 同源。若允许外部分别传入 locator1 与 system2，极易出现「往 locator1 里
+// AddActor 的却是 system2.Root.Spawn 的 PID」——Send/Request 仍走本 framework 的 actorSys，
+// 会造成找不到 PID 或与错误进程通信。因此二者只在工厂方法内成对创建，保证一一对应。
 func NewActorFramework(options ...actor.ConfigOption) *ActorFramework {
 	return &ActorFramework{
 		locator:  NewActorLocator(),
@@ -51,6 +57,7 @@ func NewActorFramework(options ...actor.ConfigOption) *ActorFramework {
 	}
 }
 
+// NewSilentActorFramework 与 NewActorFramework 相同配对关系，仅 ActorSystem 使用静默日志，便于测试/压测。
 func NewSilentActorFramework(options ...actor.ConfigOption) *ActorFramework {
 	return &ActorFramework{
 		locator:  NewActorLocator(),
@@ -60,9 +67,9 @@ func NewSilentActorFramework(options ...actor.ConfigOption) *ActorFramework {
 
 // ActorFramework 是 Actor 框架门面。
 type ActorFramework struct {
-	// Actor寻址系统，利用ActorLocator透明寻址actorSys下的pid。
-	// 如果找到本地actor，则直接发送消息，否则通过remoteTransport发送消息。
-	// 所以请注意，添加actor时，需要添加到locator中，否则可能找不到actor。
+	// locator 与 actorSys 由同一工厂创建并绑定：仅寻址本 ActorSystem 下注册的 PID。
+	// 本地命中时向 actorSys.Root 发消息；否则走 remoteTransport。
+	// 业务 Spawn 后须 GetLocator().AddActor(...) 登记，否则本地无法解析。
 	locator *ActorLocator
 	// Actor系统
 	actorSys *actor.ActorSystem
