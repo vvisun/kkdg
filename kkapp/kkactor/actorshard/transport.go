@@ -27,7 +27,7 @@ type relayWait struct {
 // Options actorshard Transport 连接中心服的选项。
 type Options struct {
 	HubAddr  string
-	NodeType string // 选填，随注册上报中心服（日志/运维用）
+	NodeType string           // 选填，随注册上报中心服（日志/运维用）
 	Stream   kkpacket.IPacket // 选填，默认与 Hub 一致：DefaultStreamPacket
 }
 
@@ -38,15 +38,15 @@ func (o *Options) stream() kkpacket.IPacket {
 	return o.Stream
 }
 
-// Transport 通过独立中心服（Hub）中转 Actor 远程消息；不依赖 kkapp/transport 网关协议。
+// Transport 通过独立中心服（Hub）中转 Actor 远程消息
 type Transport struct {
 	nodeID   string
 	registry *actorremotes.MessageRegistry
 	opt      Options
 	stream   kkpacket.IPacket
 
-	client   *kktcp.GnetClient
-	handler  *clientHandler
+	client  *kktcp.GnetClient
+	handler *clientHandler
 
 	receiver actorremotes.IRemoteActorReceiver
 	mu       sync.RWMutex
@@ -313,6 +313,8 @@ func (t *Transport) sendReply(destNodeId, replyTag string, payload []byte) error
 	}
 	return t.client.SendBuffer(bb)
 }
+
+//------------------------------------------------------------------
 
 type clientHandler struct {
 	t *Transport
