@@ -2,6 +2,7 @@ package dnats
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -185,7 +186,10 @@ func (d *NatsDiscovery) Stop() error {
 
 // Start 启动服务发现（需要在外部调用）
 func (d *NatsDiscovery) Start() error {
-	kklog.Infof("NatsDiscovery(%s) startup", d.nodeInfo.GetNodeId())
+	kklog.Infof("NatsDiscovery(%s) startup, addr=%s", d.nodeInfo.GetNodeId(), d.options.Url)
+	if d.options.Url == "" {
+		return errors.New("nats addr is empty")
+	}
 	return d.connectAndSubscribe()
 }
 

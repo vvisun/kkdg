@@ -1,6 +1,7 @@
 package cnats
 
 import (
+	"errors"
 	"strconv"
 	"sync"
 	"time"
@@ -91,7 +92,10 @@ func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDisco
 
 // Start 初始化集群
 func (c *NatsCluster) Start() error {
-	kklog.Infof("NatsCluster(%s) startup", c.nodeID)
+	kklog.Infof("NatsCluster(%s) startup, addr=%s", c.nodeID, c.options.Url)
+	if c.options.Url == "" {
+		return errors.New("nats addr is empty")
+	}
 	c.metricsListenerID = kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := c.Stats()
 		e.Metrics = kkcluster.MetricsFromSnapshot(e.Namespace, snap)
