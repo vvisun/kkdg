@@ -56,8 +56,8 @@ type (
 		NodeID string `json:"nodeID"` // 节点ID，用于获取。
 	}
 	GetAllActorsOfNodeResp struct {
-		ReqID  uint64                   `json:"reqID"`  // 请求ID，用于请求与响应的匹配。
-		NodeID string                   `json:"nodeID"` // 节点ID。
-		Actors []*actorremotes.ActorRef `json:"actors"` // 节点上的所有actor列表。
+		ReqID    uint64                   `json:"reqID"`    // 请求ID，用于请求与响应的匹配。
+		NodeInfo kkdiscovery.MemberInfo   `json:"nodeInfo"` // 节点信息。
+		Actors   []*actorremotes.ActorRef `json:"actors"`   // 节点上的所有actor列表。
 	}
 )
