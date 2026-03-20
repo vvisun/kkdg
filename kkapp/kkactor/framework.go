@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
@@ -23,6 +24,9 @@ type IActorFramework interface {
 	RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
 }
 
+//-------------------------------------------------------------------------
+
+// NewActorSystem 创建一个 ActorSystem，主要用于生产环境。
 func NewActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 	return actor.NewActorSystem(options...)
 }
@@ -42,11 +46,17 @@ func NewSilentActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 
 //-------------------------------------------------------------------------
 
-// ActorFramework 是 Actor 框架门面。
-type ActorFramework struct {
-	locator         *ActorLocator                      // Actor寻址系统
-	actorSys        *actor.ActorSystem                 // Actor系统
-	remoteTransport actorremotes.IRemoteActorTransport // 远程Actor传输层
+var (
+	defaultActorFramework *ActorFramework
+	onceActorFramework    sync.Once
+)
+
+// 进程级全局ActorFramework，单点部署时可以减小网络通信开销。
+func GlobalActorFramework() *ActorFramework {
+	onceActorFramework.Do(func() {
+		defaultActorFramework = NewActorFramework(NewActorLocator(), NewActorSystem())
+	})
+	return defaultActorFramework
 }
 
 func NewActorFramework(locator *ActorLocator, actorSys *actor.ActorSystem) *ActorFramework {
@@ -62,6 +72,13 @@ func NewActorFramework(locator *ActorLocator, actorSys *actor.ActorSystem) *Acto
 		locator:  locator,
 		actorSys: actorSys,
 	}
+}
+
+// ActorFramework 是 Actor 框架门面。
+type ActorFramework struct {
+	locator         *ActorLocator                      // Actor寻址系统
+	actorSys        *actor.ActorSystem                 // Actor系统
+	remoteTransport actorremotes.IRemoteActorTransport // 远程Actor传输层
 }
 
 func (slf *ActorFramework) GetLocator() *ActorLocator {

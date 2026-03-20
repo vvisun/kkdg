@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
+	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/other/examples/examapp"
@@ -32,8 +33,9 @@ func main() {
 
 func runGame() *component.Application {
 	// game 节点，nodeType 必须为 logic 以匹配 gate 的 LogicNodeType
+	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
 	gameNode := kkapp.NewNodeInfo(examapp.LogicNodeID, kkapp.NodeTypeLogic, "", "")
-	gameApp := component.NewApplication(gameNode, nil, kkapp.ApplyOptions())
+	gameApp := component.NewApplication(gameNode, af, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())
 	game := ccgame.NewGameComponent(ccgame.Options{
 		TransType:       examapp.UseTransType,

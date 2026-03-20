@@ -18,31 +18,17 @@ import (
 
 const terminatedFallbackDelay = 150 * time.Millisecond
 
-var (
-	defaultActorFramework *kkactor.ActorFramework
-	onceActorFramework    sync.Once
-)
-
-// NewApplication中actorFramework参数为nil时，会使用该默认的全局ActorFramework
-func getGlobalActorFramework() *kkactor.ActorFramework {
-	onceActorFramework.Do(func() {
-		defaultActorFramework = kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
-	})
-	return defaultActorFramework
-}
-
 // new application.
 //
 //	each application is a node, a actor.
-//	if af is nil, will use default getGlobalActorFramework()
 func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts kkapp.AppOptions) *Application {
 	if nodeInfo == nil {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		kklog.PanicLog("nodeInfo is nil")
 	}
 	if af == nil {
-		kklog.Infof("[kkapp] (nodeId: %s, nodeType: %s) new application actorFramework is nil, use default", nodeInfo.GetNodeId(), nodeInfo.GetNodeType())
-		af = getGlobalActorFramework()
+		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+		kklog.PanicLog("actorFramework is nil")
 	}
 	kkapp.CheckOptions(&opts)
 	af.GetLocator().AddNode(nodeInfo)
