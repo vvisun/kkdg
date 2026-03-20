@@ -60,7 +60,7 @@ func TestNewLucencyActorID(t *testing.T) {
 		actorKey string
 		wantErr  error
 	}{
-		{"valid_empty_node", "", "game_main", nil},
+		{"invalid_empty_node", "", "game_main", kkerrors.ErrActorInvalidNodeId},
 		{"valid_with_node", "game1", "game_player", nil},
 		{"valid_node_underscore", "node_1", "gate_router", nil},
 		{"valid_node_hyphen", "node-1", "gate_router", nil},
@@ -74,12 +74,12 @@ func TestNewLucencyActorID(t *testing.T) {
 			id, err := NewLucencyID(tt.nodeId, tt.actorKey)
 			if tt.wantErr != nil {
 				if err == nil || !errors.Is(err, tt.wantErr) {
-					t.Errorf("NewLucencyActorID(%q, %q) = %v, want %v", tt.nodeId, tt.actorKey, err, tt.wantErr)
+					t.Errorf("NewLucencyID(%q, %q) = %v, want %v", tt.nodeId, tt.actorKey, err, tt.wantErr)
 				}
 				return
 			}
 			if err != nil {
-				t.Errorf("NewLucencyActorID(%q, %q) err = %v", tt.nodeId, tt.actorKey, err)
+				t.Errorf("NewLucencyID(%q, %q) err = %v", tt.nodeId, tt.actorKey, err)
 				return
 			}
 			if id.NodeID() != tt.nodeId {
@@ -116,7 +116,7 @@ func TestActorLocator_AddActor_GetActor_RemoveActor(t *testing.T) {
 
 	id, err := NewLucencyID("game1", "test_actor")
 	if err != nil {
-		t.Fatalf("NewLucencyActorID: %v", err)
+		t.Fatalf("NewLucencyID: %v", err)
 	}
 
 	// GetActor before add returns nil
@@ -172,6 +172,7 @@ func TestActorLocator_AddActor_Invalid(t *testing.T) {
 		want error
 	}{
 		{"invalid_key", LucencyID{nodeID: "", actorKey: "a/b"}, pid, kkerrors.ErrActorInvalidActorKey},
+		{"invalid_empty_node", LucencyID{nodeID: "", actorKey: "ok"}, pid, kkerrors.ErrActorInvalidNodeId},
 		{"invalid_node", LucencyID{nodeID: "a/b", actorKey: "ok"}, pid, kkerrors.ErrActorInvalidNodeId},
 		{"valid_hyphenated_key", LucencyID{nodeID: "node-1", actorKey: "ok-key"}, pid, nil},
 		{"nil_pid", LucencyID{nodeID: "game1", actorKey: "ok"}, nil, kkerrors.ErrActorAddInvalidPID},
@@ -203,7 +204,6 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 		wantLocal  bool
 		wantRemote bool
 	}{
-		{"local_empty_node", "", "game_main", false, false},
 		{"local_same_node", "game1", "game_player", true, false},
 		{"remote_other_node", "game2", "game_player", false, true},
 	}
@@ -211,7 +211,7 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			id, err := NewLucencyID(tt.nodeId, tt.actorKey)
 			if err != nil {
-				t.Fatalf("NewLucencyActorID: %v", err)
+				t.Fatalf("NewLucencyID: %v", err)
 			}
 			local, err := loc.IsLocalActor(id)
 			if err != nil {
@@ -228,6 +228,20 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 				t.Errorf("IsRemoteActor() = %v, want %v", remote, tt.wantRemote)
 			}
 		})
+	}
+}
+
+func TestActorLocator_IsLocalActor_EmptyNodeID(t *testing.T) {
+	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
+	loc := NewActorLocator(node1)
+	id := LucencyID{nodeID: "", actorKey: "game_main"}
+	_, err := loc.IsLocalActor(id)
+	if err == nil || !errors.Is(err, kkerrors.ErrActorInvalidNodeId) {
+		t.Fatalf("IsLocalActor(empty nodeID) err = %v, want %v", err, kkerrors.ErrActorInvalidNodeId)
+	}
+	_, err = loc.IsRemoteActor(id)
+	if err == nil || !errors.Is(err, kkerrors.ErrActorInvalidNodeId) {
+		t.Fatalf("IsRemoteActor(empty nodeID) err = %v, want %v", err, kkerrors.ErrActorInvalidNodeId)
 	}
 }
 

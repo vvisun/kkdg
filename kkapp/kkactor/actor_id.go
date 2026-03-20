@@ -6,11 +6,12 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
-// LucencyID 是 Actor 的唯一标识。
-// 不需要关心 Actor 所在节点，由 ActorLocator 自动判断本地/远程：
-// 如果【NodeID 在当前进程的任意节点中存在】，则认为是本地 Actor；否则为远程 Actor。
+// LucencyID 是 Actor 的逻辑唯一标识：nodeID（节点内路由）+ actorKey（节点内唯一）。
 //
-//	unique id = nodeID + actorKey。
+// nodeID 与 actorKey 均须通过 kkapp 校验（非空、字符集等）；不允许空 nodeID，以便单进程多节点时能稳定归属。
+// ActorLocator 判断本地/远程：若 nodeID 已在当前进程 ActorLocator 中登记为本地节点，则为本地 Actor，否则视为远程。
+//
+//	unique id = (nodeID, actorKey)。
 //
 // 不采用字符串拼接而使用结构体表示，
 // 一是字符串拼接拆解消耗，二是必须强行规定字符串格式，容易出错。

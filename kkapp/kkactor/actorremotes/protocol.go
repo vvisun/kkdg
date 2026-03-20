@@ -8,7 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
-// ActorRef 是 LucencyActorID 的协议层表示。
+// ActorRef 是 kkactor.LucencyID 的协议层表示（NodeID + ActorKey）。
 type ActorRef struct {
 	NodeID   string
 	ActorKey string
@@ -27,8 +27,7 @@ type ResponseEnvelope struct {
 	Error       string
 }
 
-// IsValid 校验远程目标是否合法。
-// 远程协议要求 NodeID 非空；空 NodeID 仅用于进程内本地 actor 标识。
+// IsValid 校验远程目标是否合法（NodeID、ActorKey 均需符合 kkapp 字符集规则且非空）。
 func (ref ActorRef) IsValid() bool {
 	return ref.NodeID != "" && kkapp.IsValidActorNodeId(ref.NodeID) && kkapp.IsValidActorKey(ref.ActorKey)
 }

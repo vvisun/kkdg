@@ -1,4 +1,5 @@
-// Package actorhub 通过中心服（Hub）注册actor节点或actor透明ID。
-// 用于自动定位actor所在节点。
-// 定位到所在节点后，再通过actorremotes.IRemoteActorTransport发送消息。
+// Package actorhub 提供 Actor 注册与查询（Hub 协议与可替换实现）。
+//
+// 典型流程：节点在 Hub 上登记 LucencyID（见 hubproto.RegisterActorReq，含 NodeInfo / RpcAddress 等），
+// 查询得到目标节点信息后，再通过 actorremotes.IRemoteActorTransport 发送业务消息。
 package actorhub

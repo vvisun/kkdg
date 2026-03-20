@@ -54,7 +54,7 @@ func TestActorFramework_HubRemoteSendAndRequest(t *testing.T) {
 
 	targetID, err := kkactor.NewLucencyID("node2", "echo")
 	if err != nil {
-		t.Fatalf("NewLucencyActorID: %v", err)
+		t.Fatalf("NewLucencyID: %v", err)
 	}
 	if err := framework2.GetLocator().AddActor(targetID, pid); err != nil {
 		t.Fatalf("AddActor: %v", err)

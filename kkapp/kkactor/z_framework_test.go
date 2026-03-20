@@ -109,7 +109,7 @@ func TestActorFramework_Send_Request_Integration(t *testing.T) {
 
 	id, err := NewLucencyID("aa", "echo")
 	if err != nil {
-		t.Fatalf("NewLucencyActorID: %v", err)
+		t.Fatalf("NewLucencyID: %v", err)
 	}
 
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {

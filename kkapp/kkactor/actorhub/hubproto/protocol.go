@@ -51,7 +51,7 @@ type (
 	// FindActorReq 请求寻找actor
 	FindActorReq struct {
 		ReqID   uint64                `json:"reqID"`   // 请求ID，用于请求与响应的匹配。
-		ActorID actorremotes.ActorRef `json:"actorID"` // 与 LucencyActorID 一致。
+		ActorID actorremotes.ActorRef `json:"actorID"` // 与 kkactor.LucencyID 语义一致（NodeID + ActorKey）。
 	}
 	FindActorResp struct {
 		ReqID     uint64                  `json:"reqID"`     // 请求ID，用于请求与响应的匹配。

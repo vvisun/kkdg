@@ -85,7 +85,7 @@ func TestTransport_SendAndRequest(t *testing.T) {
 
 	targetID, err := kkactor.NewLucencyID("node2", "echo")
 	if err != nil {
-		t.Fatalf("NewLucencyActorID: %v", err)
+		t.Fatalf("NewLucencyID: %v", err)
 	}
 	if err := framework2.GetLocator().AddActor(targetID, pid); err != nil {
 		t.Fatalf("AddActor: %v", err)
@@ -129,7 +129,7 @@ func TestTransport_Request_UnregisteredMessage(t *testing.T) {
 
 	targetID, err := kkactor.NewLucencyID("node2", "echo")
 	if err != nil {
-		t.Fatalf("NewLucencyActorID: %v", err)
+		t.Fatalf("NewLucencyID: %v", err)
 	}
 	targetRef := actorremotes.ActorRef{NodeID: "node2", ActorKey: "echo"}
 	_, err = framework.Request(targetID, &struct{ Text string }{Text: "x"}, time.Second)

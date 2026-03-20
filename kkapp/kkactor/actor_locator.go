@@ -9,11 +9,11 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// Actor寻址系统
+// ActorLocator 本进程内 Actor 寻址：已登记节点（nodes）与已注册 PID（actors）。
 type ActorLocator struct {
 	mu     sync.RWMutex
-	actors map[LucencyID]*actor.PID   // LucencyActorID -> *actor.PID 当前进程的所有Actor信息
-	nodes  map[string]*kkapp.NodeInfo // nodeId -> kkapp.IApplication 当前进程的所有节点信息
+	actors map[LucencyID]*actor.PID   // LucencyID -> *actor.PID，本进程内由 AddActor 登记的实例
+	nodes  map[string]*kkapp.NodeInfo // nodeId -> NodeInfo，本进程内视为「本地节点」的集合（可多个，支持单机多节点）
 }
 
 // 创建Actor寻址系统，localNodes为当前进程的本地节点信息。
@@ -58,7 +58,7 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) error {
 	nodeId := node.GetNodeId()
 	slf.mu.Lock()
 	// 如果移除的是本地节点，则需要移除本地Actor。
-	if slf.isLocalNode(nodeId) {
+	if _, ok := slf.nodes[nodeId]; ok {
 		for id := range slf.actors {
 			ok, err := slf.isLocalActor(id)
 			if err != nil {
@@ -74,14 +74,7 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) error {
 	return nil
 }
 
-func (slf *ActorLocator) isLocalNode(nodeId string) bool {
-	if nodeId == "" {
-		return true //空nodeId表示本地Node
-	}
-	_, ok := slf.nodes[nodeId]
-	return ok
-}
-
+// GetLocalActor 按 nodeID + actorKey 查找本进程已登记的 PID；参数须满足与 LucencyID 相同的合法性（非空 nodeID 等）。
 func (slf *ActorLocator) GetLocalActor(nodeID, actorKey string) (*actor.PID, error) {
 	return slf.GetActor(LucencyID{nodeID: nodeID, actorKey: actorKey})
 }
