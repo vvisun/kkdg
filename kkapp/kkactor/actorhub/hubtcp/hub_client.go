@@ -25,7 +25,7 @@ type HubClient struct {
 	opts           Options
 	autoReqId      uint64
 	currentClient  int32
-	hasAuthed      atomic.Bool
+	authLive       atomic.Int32   // 已完成鉴权的连接数 (>0 才允许业务请求)
 	reqMap         map[uint64]any // 请求ID -> 请求数据
 	muReqMap       sync.Mutex
 }
@@ -37,6 +37,7 @@ func NewHubClient(opts Options, af *kkactor.ActorFramework) *HubClient {
 		opts:           opts,
 		remoteActorMgr: actorhub.NewRemoteActorMgr(),
 		af:             af,
+		reqMap:         make(map[uint64]any),
 	}
 }
 
@@ -62,10 +63,10 @@ func (slf *HubClient) Start() error {
 }
 
 func (slf *HubClient) Stop() error {
-	slf.hasAuthed.Store(false)
 	for _, client := range slf.clients {
 		client.Close()
 	}
+	// 鉴权计数由各自连接的 OnClose 成对扣减，这里不再 Store(0)，避免先于 OnClose 清零导致扣成负数。
 	return nil
 }
 
@@ -74,7 +75,7 @@ func (slf *HubClient) GetRemoteActorMgr() actorhub.IClientRemoteActorMgr {
 }
 
 func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) error {
-	if !slf.hasAuthed.Load() {
+	if slf.authLive.Load() <= 0 {
 		return hubproto.ErrNotAuthed
 	}
 	req := &hubproto.RegisterActorReq{
@@ -97,7 +98,7 @@ func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) error {
 }
 
 func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) error {
-	if !slf.hasAuthed.Load() {
+	if slf.authLive.Load() <= 0 {
 		return hubproto.ErrNotAuthed
 	}
 	req := &hubproto.RegisterActorReq{
@@ -120,7 +121,7 @@ func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) error {
 }
 
 func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) error {
-	if !slf.hasAuthed.Load() {
+	if slf.authLive.Load() <= 0 {
 		return hubproto.ErrNotAuthed
 	}
 	req := &hubproto.FindActorReq{
@@ -142,7 +143,7 @@ func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) error {
 }
 
 func (slf *HubClient) GetAllActorsOfNode(nodeID string) error {
-	if !slf.hasAuthed.Load() {
+	if slf.authLive.Load() <= 0 {
 		return hubproto.ErrNotAuthed
 	}
 	req := &hubproto.GetAllActorsOfNodeReq{
@@ -188,7 +189,8 @@ func (slf *HubClient) getReq(reqID uint64) any {
 //----------------------------------------------------------------
 
 type clientHandler struct {
-	hubClient *HubClient
+	hubClient  *HubClient
+	connAuthed atomic.Bool // 本连接是否已通过 AuthResp
 }
 
 func newClientHandler(hubClient *HubClient) *clientHandler {
@@ -198,10 +200,13 @@ func newClientHandler(hubClient *HubClient) *clientHandler {
 }
 
 func (h *clientHandler) OnConnect(c kknet.IConn) {
+	_ = c.SendMsg(&hubproto.AuthReq{Password: h.hubClient.opts.Password})
 }
 
 func (h *clientHandler) OnClose(c kknet.IConn, err error) {
-	h.hubClient.hasAuthed.Store(false)
+	if h.connAuthed.Swap(false) {
+		h.hubClient.authLive.Add(-1)
+	}
 }
 
 func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
@@ -215,7 +220,9 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		if info.Code != 0 {
 			return
 		}
-		h.hubClient.hasAuthed.Store(true)
+		if !h.connAuthed.Swap(true) {
+			h.hubClient.authLive.Add(1)
+		}
 	case *hubproto.FindActorResp:
 		h.hubClient.delReq(info.ReqID)
 		if info.ErrorInfo != nil {
@@ -244,6 +251,9 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			return
 		}
 		kktime.GetGameTimingWheel().AfterFunc(time.Second*1, func() {
+			if h.hubClient.af == nil {
+				return
+			}
 			req := h.hubClient.getReq(info.ReqID)
 			if req == nil {
 				return
