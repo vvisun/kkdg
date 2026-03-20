@@ -1,7 +1,7 @@
 package actorhub
 
 import (
-	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub/hubproto"
+	"github.com/vvisun/kkdg/kkapp/kkactor"
 )
 
 // IHubServer 注册中心服务端接口。(实现方式可以是tcp服务器集群， nats, etcd等)
@@ -23,13 +23,13 @@ type IHubClient interface {
 	// 停止
 	Stop() error
 	// 注册actor，发送请求
-	RegisterActor(req *hubproto.RegisterActorReq)
+	RegisterActor(actorID kkactor.LucencyActorID)
 	// 注销actor，发送请求
-	UnregisterActor(req *hubproto.RegisterActorReq)
+	UnregisterActor(actorID kkactor.LucencyActorID)
 	// 寻找actor，发送请求
-	FindActor(req *hubproto.FindActorReq)
+	FindActor(actorID kkactor.LucencyActorID)
 	// 某个节点上的所有actor列表，发送请求
-	GetAllActorsOfNode(req *hubproto.GetAllActorsOfNodeReq)
+	GetAllActorsOfNode(nodeID string)
 	// 获取远程Actor管理器
 	GetRemoteActorMgr() IClientRemoteActorMgr
 }

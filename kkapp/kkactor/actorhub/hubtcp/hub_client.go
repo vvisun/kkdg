@@ -7,10 +7,10 @@ import (
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub/hubproto"
+	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
-	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
 
@@ -19,17 +19,16 @@ type HubClient struct {
 	clients        []kknet.IClient
 	remoteActorMgr *actorhub.RemoteActorMgr
 	opts           Options
-	discovery      kkdiscovery.IDiscovery
 	autoReqId      uint64
-	currentClient  int
+	currentClient  int32
 }
 
 var _ actorhub.IHubClient = (*HubClient)(nil)
 
-func NewHubClient(opts Options, discovery kkdiscovery.IDiscovery) *HubClient {
+func NewHubClient(opts Options) *HubClient {
 	return &HubClient{
-		opts:      opts,
-		discovery: discovery,
+		opts:           opts,
+		remoteActorMgr: actorhub.NewRemoteActorMgr(),
 	}
 }
 
@@ -37,6 +36,7 @@ func (slf *HubClient) Start() error {
 	if slf.opts.clientCount <= 0 {
 		return errors.New("client count must be greater than 0")
 	}
+	hubproto.InitMsgs()
 	slf.clients = make([]kknet.IClient, 0, slf.opts.clientCount)
 	for i := 0; i < slf.opts.clientCount; i++ {
 		handler := newClientHandler(slf)
@@ -60,48 +60,61 @@ func (slf *HubClient) Stop() error {
 	return nil
 }
 
-func (slf *HubClient) RegisterActor(req *hubproto.RegisterActorReq) {
-	if req == nil {
-		return
-	}
-	reqId := atomic.AddUint64(&slf.autoReqId, 1)
-	req.ReqID = reqId
-	slf.clients[slf.currentClient].SendMsg(req)
-	slf.currentClient = (slf.currentClient + 1) % len(slf.clients)
-}
-
-func (slf *HubClient) UnregisterActor(req *hubproto.RegisterActorReq) {
-	if req == nil {
-		return
-	}
-	reqId := atomic.AddUint64(&slf.autoReqId, 1)
-	req.ReqID = reqId
-	slf.clients[slf.currentClient].SendMsg(req)
-	slf.currentClient = (slf.currentClient + 1) % len(slf.clients)
-}
-
-func (slf *HubClient) FindActor(req *hubproto.FindActorReq) {
-	if req == nil {
-		return
-	}
-	reqId := atomic.AddUint64(&slf.autoReqId, 1)
-	req.ReqID = reqId
-	slf.clients[slf.currentClient].SendMsg(req)
-	slf.currentClient = (slf.currentClient + 1) % len(slf.clients)
-}
-
-func (slf *HubClient) GetAllActorsOfNode(req *hubproto.GetAllActorsOfNodeReq) {
-	if req == nil {
-		return
-	}
-	reqId := atomic.AddUint64(&slf.autoReqId, 1)
-	req.ReqID = reqId
-	slf.clients[slf.currentClient].SendMsg(req)
-	slf.currentClient = (slf.currentClient + 1) % len(slf.clients)
-}
-
 func (slf *HubClient) GetRemoteActorMgr() actorhub.IClientRemoteActorMgr {
 	return slf.remoteActorMgr
+}
+
+func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) {
+	req := &hubproto.RegisterActorReq{
+		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
+		OpCode: 1,
+		ActorID: actorremotes.ActorRef{
+			NodeID:   actorID.NodeID(),
+			ActorKey: actorID.ActorKey(),
+		},
+	}
+	slf.sendRequest(req)
+}
+
+func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) {
+	req := &hubproto.RegisterActorReq{
+		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
+		OpCode: 2,
+		ActorID: actorremotes.ActorRef{
+			NodeID:   actorID.NodeID(),
+			ActorKey: actorID.ActorKey(),
+		},
+	}
+	slf.sendRequest(req)
+}
+
+func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) {
+	req := &hubproto.FindActorReq{
+		ReqID: atomic.AddUint64(&slf.autoReqId, 1),
+		ActorID: actorremotes.ActorRef{
+			NodeID:   actorID.NodeID(),
+			ActorKey: actorID.ActorKey(),
+		},
+	}
+	slf.sendRequest(req)
+}
+
+func (slf *HubClient) GetAllActorsOfNode(nodeID string) {
+	req := &hubproto.GetAllActorsOfNodeReq{
+		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
+		NodeID: nodeID,
+	}
+	slf.sendRequest(req)
+}
+
+func (slf *HubClient) sendRequest(req any) {
+	curClient := atomic.AddInt32(&slf.currentClient, 1)
+	curClient = curClient % int32(len(slf.clients))
+	slf.clients[curClient].SendMsg(req)
+}
+
+func (slf *HubClient) onError(reqID uint64, code int, message string) {
+
 }
 
 //----------------------------------------------------------------
@@ -143,5 +156,7 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			}
 			h.hubClient.remoteActorMgr.RegisterActor(lucId, info.NodeInfo.RpcAddress)
 		}
+	case *hubproto.ErrorResp:
+		h.hubClient.onError(info.ReqID, info.Code, info.Message)
 	}
 }

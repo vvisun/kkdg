@@ -37,6 +37,12 @@ type RemoteActorMgr struct {
 	mu     sync.RWMutex
 }
 
+func NewRemoteActorMgr() *RemoteActorMgr {
+	return &RemoteActorMgr{
+		actors: make(map[kkactor.LucencyActorID]*RemoteActor),
+	}
+}
+
 var _ IServerRemoteActorMgr = &RemoteActorMgr{}
 var _ IClientRemoteActorMgr = &RemoteActorMgr{}
 
