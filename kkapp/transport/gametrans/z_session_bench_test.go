@@ -7,7 +7,7 @@ import (
 )
 
 func Benchmark_SessionManager_AddSession(b *testing.B) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -17,7 +17,7 @@ func Benchmark_SessionManager_AddSession(b *testing.B) {
 }
 
 func Benchmark_SessionManager_GetSession(b *testing.B) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	n := 10000
 	for i := 0; i < n; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
@@ -32,7 +32,7 @@ func Benchmark_SessionManager_GetSession(b *testing.B) {
 }
 
 func Benchmark_SessionManager_RemoveSession(b *testing.B) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	for i := 0; i < b.N; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
 		mgr.AddSession(sid, "gate1")
@@ -46,7 +46,7 @@ func Benchmark_SessionManager_RemoveSession(b *testing.B) {
 }
 
 func Benchmark_SessionManager_AddGetRemove(b *testing.B) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -58,7 +58,7 @@ func Benchmark_SessionManager_AddGetRemove(b *testing.B) {
 }
 
 func Benchmark_SessionManager_GetSession_Parallel(b *testing.B) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	n := 10000
 	for i := 0; i < n; i++ {
 		sid := strconv.FormatInt(int64(i), 10)
@@ -77,7 +77,7 @@ func Benchmark_SessionManager_GetSession_Parallel(b *testing.B) {
 }
 
 func Benchmark_SessionManager_AddGetRemove_Parallel(b *testing.B) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	b.ResetTimer()
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {

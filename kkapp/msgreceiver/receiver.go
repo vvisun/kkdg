@@ -8,8 +8,6 @@ import (
 	"github.com/vvisun/kkdg/utils/queues/taskqueue"
 )
 
-const workers_count = 4096
-
 // MsgReceiver 消息接收器
 type MsgReceiver[K any] struct {
 	packetTool    *kkpacket.FullPacket
@@ -19,14 +17,9 @@ type MsgReceiver[K any] struct {
 
 // NewMsgReceiver 创建消息接收器
 func NewMsgReceiver[K any](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
-	workers := make([]*taskqueue.WorkerQueue, workers_count)
-	for i := 0; i < workers_count; i++ {
-		workers[i] = taskqueue.NewWorkerQueue(1)
-	}
 	return &MsgReceiver[K]{
-		packetTool:    packetTool,
-		hdMap:         make(map[kkpacket.MSGID]IMsgHandler[K]),
-		decodeWorkers: workers,
+		packetTool: packetTool,
+		hdMap:      make(map[kkpacket.MSGID]IMsgHandler[K]),
 	}
 }
 
@@ -96,7 +89,16 @@ func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte, threadIdx int) {
 	bodyCopy := byteslice.GetWithLenCap(len(bodyBytes), len(bodyBytes))
 	copy(bodyCopy, bodyBytes)
 
-	r.decodeWorkers[threadIdx].Push(func() {
+	r.getDecodeWorker(threadIdx).Push(func() {
 		h.OnMessage(sessionID, bodyCopy)
 	})
+}
+
+func (r *MsgReceiver[K]) getDecodeWorker(threadIdx int) *taskqueue.WorkerQueue {
+	if threadIdx >= len(r.decodeWorkers) {
+		for i := len(r.decodeWorkers); i <= threadIdx; i++ {
+			r.decodeWorkers = append(r.decodeWorkers, taskqueue.NewWorkerQueue(1))
+		}
+	}
+	return r.decodeWorkers[threadIdx]
 }

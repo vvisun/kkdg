@@ -10,7 +10,7 @@ import (
 )
 
 func TestSessionManager_AddGetRemove(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 
 	if mgr.OnlineCount() != 0 || mgr.UserCount() != 0 {
 		t.Fatalf("initial counts = online=%d user=%d, want 0,0", mgr.OnlineCount(), mgr.UserCount())
@@ -49,7 +49,7 @@ func TestSessionManager_AddGetRemove(t *testing.T) {
 }
 
 func TestSessionManager_AddSession_Idempotent(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 
 	mgr.AddSession("s1", "gate1")
 	mgr.AddSession("s1", "gate2") // 已存在，应忽略，不覆盖
@@ -63,7 +63,7 @@ func TestSessionManager_AddSession_Idempotent(t *testing.T) {
 }
 
 func TestSessionManager_GetSessionByUserID_AfterLogin(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 
 	mgr.AddSession("s1", "gate1")
 	if mgr.GetSessionByUserID(100) != nil {
@@ -85,7 +85,7 @@ func TestSessionManager_GetSessionByUserID_AfterLogin(t *testing.T) {
 }
 
 func TestSessionManager_Login_NullUserID_ReturnsFalse(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	mgr.AddSession("s1", "gate1")
 
 	if mgr.Login("s1", user.NULL_USER_ID, nil) {
@@ -100,7 +100,7 @@ func TestSessionManager_Login_NullUserID_ReturnsFalse(t *testing.T) {
 }
 
 func TestSessionManager_Login_NoSession_ReturnsFalse(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 
 	if mgr.Login("nonexist", 100, nil) {
 		t.Error("Login(nonexist, 100) = true, want false")
@@ -111,7 +111,7 @@ func TestSessionManager_Login_NoSession_ReturnsFalse(t *testing.T) {
 }
 
 func TestSessionManager_CheckKickOutUser_SameSessionSameUser_NoKick(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	mgr.AddSession("s1", "gate1")
 	mgr.Login("s1", 100, nil)
 
@@ -122,7 +122,7 @@ func TestSessionManager_CheckKickOutUser_SameSessionSameUser_NoKick(t *testing.T
 }
 
 func TestSessionManager_CheckKickOutUser_OtherSessionSameUser_ReturnsOtherSessionID(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	mgr.AddSession("s1", "gate1")
 	mgr.AddSession("s2", "gate1")
 	mgr.Login("s1", 100, nil)
@@ -135,7 +135,7 @@ func TestSessionManager_CheckKickOutUser_OtherSessionSameUser_ReturnsOtherSessio
 }
 
 func TestSessionManager_Login_KicksOtherSessionWithSameUser(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	mgr.AddSession("s1", "gate1")
 	mgr.AddSession("s2", "gate1")
 	mgr.Login("s1", 100, nil)
@@ -162,7 +162,7 @@ func TestSessionManager_Login_KicksOtherSessionWithSameUser(t *testing.T) {
 }
 
 func TestSessionManager_RemoveSession_CleansUserMap(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	mgr.AddSession("s1", "gate1")
 	mgr.Login("s1", 100, nil)
 	if mgr.OnlineCount() != 1 || mgr.UserCount() != 1 {
@@ -179,7 +179,7 @@ func TestSessionManager_RemoveSession_CleansUserMap(t *testing.T) {
 }
 
 func TestSessionManager_RemoveSessionByUserID(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 	mgr.AddSession("s1", "gate1")
 	mgr.AddSession("s2", "gate2")
 	if !mgr.Login("s1", 100, nil) || !mgr.Login("s2", 200, nil) {
@@ -225,7 +225,7 @@ func TestSessionManager_PutSessionInfo_Duplicate(t *testing.T) {
 
 // 并发场景测试：不同会话/用户在多个 goroutine 中同时增删，确保计数最终一致且无 panic。
 func TestSessionManager_ConcurrentAddLoginRemove_DisjointSessions(t *testing.T) {
-	mgr := NewSessionManager()
+	mgr := NewSessionManager(4)
 
 	const goroutines = 8
 	const perG = 256

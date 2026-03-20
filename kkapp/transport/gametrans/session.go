@@ -10,8 +10,6 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-const workers_count = 4096
-
 // 使用稳定哈希将任意 sessionID 均匀映射到 [0, workersCount) 区间。
 func sessionIdToThreadIdx(sessionID string, workersCount int) int {
 	h := fnv.New32a()
@@ -87,14 +85,18 @@ func getAutoShardIdx() int {
 // SessionManager 客户端会话管理器。
 // 用于管理客户端会话信息【会话ID、用户ID、网关节点ID、分片索引】
 type SessionManager struct {
-	sessionMap  sync.Map // map[sessionID]*SessionInfo
-	userMap     sync.Map // map[userID]*SessionInfo
-	onlineCount int32
-	userCount   int32
+	sessionMap   sync.Map // map[sessionID]*SessionInfo
+	userMap      sync.Map // map[userID]*SessionInfo
+	onlineCount  int32
+	userCount    int32
+	workersCount int
 }
 
-func NewSessionManager() *SessionManager {
-	return &SessionManager{}
+func NewSessionManager(workersCount int) *SessionManager {
+	if workersCount <= 0 {
+		workersCount = 1
+	}
+	return &SessionManager{workersCount: workersCount}
 }
 
 func (slf *SessionManager) AddSession(sessionID string, gateNodeID string) *SessionInfo {
@@ -118,7 +120,7 @@ func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID stri
 	si.sessionID = sessionID
 	si.gateNodeID = gateNodeID
 	si.shardIdx = shardIdx
-	si.threadIdx = sessionIdToThreadIdx(si.sessionID, workers_count)
+	si.threadIdx = sessionIdToThreadIdx(si.sessionID, slf.workersCount)
 	slf.sessionMap.Store(sessionID, si)
 	// kklog.Debugf("newSessionInfo: sessionID=%s, threadIdx=%d", si.sessionID, si.threadIdx)
 	return si
