@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/kkapp"
 )
 
 //------------------------------------------------------------------------------
@@ -12,10 +13,11 @@ import (
 //------------------------------------------------------------------------------
 
 func setupBenchFramework(b *testing.B) (*ActorFramework, LucencyID, func()) {
-	af := NewActorFramework()
+	af := NewSilentActorFramework()
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
-	id, _ := NewLucencyID("", "echo")
+	loc.AddNode(kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", ""))
+	id, _ := NewLucencyID("game1", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())

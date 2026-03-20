@@ -112,8 +112,9 @@ func TestNewActorLocator(t *testing.T) {
 func TestActorLocator_AddActor_GetActor_RemoveActor(t *testing.T) {
 	actorSys := NewActorSystem()
 	loc := NewActorLocator()
+	loc.AddNode(kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", ""))
 
-	id, err := NewLucencyID("", "test_actor")
+	id, err := NewLucencyID("game1", "test_actor")
 	if err != nil {
 		t.Fatalf("NewLucencyActorID: %v", err)
 	}
@@ -173,7 +174,7 @@ func TestActorLocator_AddActor_Invalid(t *testing.T) {
 		{"invalid_key", LucencyID{nodeID: "", actorKey: "a/b"}, pid, kkerrors.ErrActorInvalidActorKey},
 		{"invalid_node", LucencyID{nodeID: "a/b", actorKey: "ok"}, pid, kkerrors.ErrActorInvalidNodeId},
 		{"valid_hyphenated_key", LucencyID{nodeID: "node-1", actorKey: "ok-key"}, pid, nil},
-		{"nil_pid", LucencyID{nodeID: "", actorKey: "ok"}, nil, kkerrors.ErrActorAddInvalidPID},
+		{"nil_pid", LucencyID{nodeID: "game1", actorKey: "ok"}, nil, kkerrors.ErrActorAddInvalidPID},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -202,7 +203,7 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 		wantLocal  bool
 		wantRemote bool
 	}{
-		{"local_empty_node", "", "game_main", true, false},
+		{"local_empty_node", "", "game_main", false, false},
 		{"local_same_node", "game1", "game_player", true, false},
 		{"remote_other_node", "game2", "game_player", false, true},
 	}
@@ -252,7 +253,7 @@ func TestActorLocator_ForEachNode_ForEachActor(t *testing.T) {
 	loc := NewActorLocator(node1)
 	actorSys := NewActorSystem()
 
-	id, _ := NewLucencyID("", "test")
+	id, _ := NewLucencyID("game1", "test")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	_ = loc.AddActor(id, pid)
 	defer actorSys.Root.Stop(pid)

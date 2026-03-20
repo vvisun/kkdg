@@ -50,9 +50,6 @@ func checkNodeType(nodeType string) error {
 
 // 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
 func IsValidActorNodeId(nodeId string) bool {
-	if nodeId == "" {
-		return true //允许空字符串，表示本地Actor
-	}
 	return isASCIIAlphaNumericUnderscoreHyphen(nodeId)
 }
 

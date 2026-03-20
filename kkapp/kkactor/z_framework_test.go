@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -15,8 +16,9 @@ import (
 
 func TestActorFramework_Send_NotFound(t *testing.T) {
 	af := NewActorFramework()
+	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
-	id, _ := NewLucencyID("", "nonexistent")
+	id, _ := NewLucencyID("aa", "nonexistent")
 	err := af.Send(id, "hello")
 	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
 		t.Errorf("Send(not found) = %v, want ErrActorNotFound", err)
@@ -25,8 +27,9 @@ func TestActorFramework_Send_NotFound(t *testing.T) {
 
 func TestActorFramework_Request_NotFound(t *testing.T) {
 	af := NewActorFramework()
+	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
-	id, _ := NewLucencyID("", "nonexistent")
+	id, _ := NewLucencyID("aa", "nonexistent")
 	_, err := af.Request(id, "hello", time.Second)
 	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
 		t.Errorf("Request(not found) = %v, want ErrActorNotFound", err)
@@ -35,8 +38,9 @@ func TestActorFramework_Request_NotFound(t *testing.T) {
 
 func TestActorFramework_RequestAsync_NotFound(t *testing.T) {
 	af := NewActorFramework()
+	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
-	id, _ := NewLucencyID("", "nonexistent")
+	id, _ := NewLucencyID("aa", "nonexistent")
 	err := af.RequestAsync(id, "hello", time.Second, func(result any, err error) {})
 	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
 		t.Errorf("RequestAsync(not found) = %v, want ErrActorNotFound", err)
@@ -45,10 +49,11 @@ func TestActorFramework_RequestAsync_NotFound(t *testing.T) {
 
 func TestActorFramework_RequestAsync_NilCallback(t *testing.T) {
 	af := NewActorFramework()
+	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
 
-	id, _ := NewLucencyID("", "echo")
+	id, _ := NewLucencyID("aa", "echo")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())
@@ -100,8 +105,9 @@ func TestActorFramework_Send_Request_Integration(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
+	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
-	id, err := NewLucencyID("", "echo")
+	id, err := NewLucencyID("aa", "echo")
 	if err != nil {
 		t.Fatalf("NewLucencyActorID: %v", err)
 	}
@@ -144,8 +150,9 @@ func TestActorFramework_RequestAsync_Integration(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
+	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
-	id, _ := NewLucencyID("", "echo")
+	id, _ := NewLucencyID("aa", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())
@@ -182,8 +189,9 @@ func TestRequest_RequestAsync_Generic(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
+	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
-	id, _ := NewLucencyID("", "echo")
+	id, _ := NewLucencyID("aa", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())

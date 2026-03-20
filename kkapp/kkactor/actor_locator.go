@@ -146,9 +146,6 @@ func (slf *ActorLocator) isLocalActor(id LucencyID) (bool, error) {
 	if !kkapp.IsValidActorKey(id.actorKey) {
 		return false, kkerrors.ErrActorInvalidActorKey
 	}
-	if id.nodeID == "" {
-		return true, nil //空nodeID表示本地Actor
-	}
 	_, ok := slf.nodes[id.nodeID]
 	return ok, nil //如果nodeID在nodes中，则认为是本地Actor
 }

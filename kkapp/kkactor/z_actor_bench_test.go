@@ -79,7 +79,8 @@ func BenchmarkActorLocator_AddActor(b *testing.B) {
 func BenchmarkActorLocator_GetActor(b *testing.B) {
 	actorSys := NewSilentActorSystem()
 	loc := NewActorLocator()
-	id, _ := NewLucencyID("", "bench_actor")
+	loc.AddNode(kkapp.NewNodeInfo("node_bench", "game", "", ""))
+	id, _ := NewLucencyID("node_bench", "bench_actor")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	defer actorSys.Root.Stop(pid)
 	_ = loc.AddActor(id, pid)
