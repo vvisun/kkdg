@@ -12,7 +12,7 @@ import (
 //------------------------------------------------------------------------------
 
 func setupBenchFramework(b *testing.B) (*ActorFramework, LucencyActorID, func()) {
-	actorSys := NewActorSystem()
+	actorSys := NewSilentActorSystem()
 	loc := NewActorLocator()
 	af := NewActorFramework(loc, actorSys)
 	id, _ := NewLucencyActorID("", "echo")
@@ -64,7 +64,7 @@ func BenchmarkRequest_Generic(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = Request[Msg, Msg](af, id, req, 5*time.Second)
+		_, _ = af.Request(id, req, 5*time.Second)
 	}
 }
 

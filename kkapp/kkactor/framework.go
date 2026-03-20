@@ -206,39 +206,3 @@ func (slf *ActorFramework) HandleRemoteRequest(targetRef actorremotes.ActorRef, 
 	future := slf.actorSys.Root.RequestFuture(pid, msg, timeout)
 	return future.Result()
 }
-
-//-------------------------------------------------------------------------
-
-// 发送消息到指定actor
-func Send[T any](af *ActorFramework, target LucencyActorID, msg T) error {
-	return af.Send(target, msg)
-}
-
-// 同步请求指定actor
-func Request[REQ any, RSP any](af *ActorFramework, target LucencyActorID, msg *REQ, timeout time.Duration) (*RSP, error) {
-	result, err := af.Request(target, msg, timeout)
-	if err != nil {
-		return nil, err
-	}
-	rsp, ok := result.(*RSP)
-	if !ok {
-		return nil, fmt.Errorf("invalid result type: %T", result)
-	}
-	return rsp, nil
-}
-
-// 异步请求指定actor
-func RequestAsync[REQ any, RSP any](af *ActorFramework, target LucencyActorID, msg *REQ, timeout time.Duration, callback func(result *RSP, err error)) error {
-	return af.RequestAsync(target, msg, timeout, func(result any, err error) {
-		if err != nil {
-			callback(nil, err)
-			return
-		}
-		rsp, ok := result.(*RSP)
-		if !ok {
-			callback(nil, fmt.Errorf("invalid result type: %T", result))
-			return
-		}
-		callback(rsp, nil)
-	})
-}

@@ -224,17 +224,18 @@ func TestRequest_RequestAsync_Generic(t *testing.T) {
 	type Msg struct{ V string }
 	req := &Msg{V: "ok"}
 
-	rsp, err := Request[Msg, Msg](af, id, req, time.Second)
+	rsp, err := af.Request(id, req, time.Second)
 	if err != nil {
 		t.Fatalf("Request: %v", err)
 	}
-	if rsp.V != "ok" {
-		t.Errorf("Request Rsp.V = %q, want ok", rsp.V)
+	r, ok := rsp.(*Msg)
+	if !ok || r.V != "ok" {
+		t.Errorf("Request Rsp.V = %q, want ok", r.V)
 	}
 
 	done := make(chan struct{})
-	err = RequestAsync[Msg, Msg](af, id, req, time.Second, func(result *Msg, err error) {
-		if err != nil || result.V != "ok" {
+	err = af.RequestAsync(id, req, time.Second, func(result any, err error) {
+		if err != nil || result.(*Msg).V != "ok" {
 			t.Errorf("RequestAsync result = %v err = %v", result, err)
 		}
 		close(done)
