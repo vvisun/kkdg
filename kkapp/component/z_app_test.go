@@ -174,7 +174,7 @@ func TestApplication_StartTwice(t *testing.T) {
 
 // 测试未启动时停止应用
 func TestApplication_Stop_NotStarted(t *testing.T) {
-	af := kkactor.GlobalActorFramework()
+	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	if err := app.Stop(); err != kkerrors.ErrAppNotStarted {
@@ -184,7 +184,7 @@ func TestApplication_Stop_NotStarted(t *testing.T) {
 
 // 测试非 None 状态下添加组件
 func TestApplication_AddComponent_NotNoneState(t *testing.T) {
-	af := kkactor.GlobalActorFramework()
+	af := kkactor.NewActorFramework(kkactor.NewActorLocator(), kkactor.NewActorSystem())
 	app := NewApplication(kkapp.NewNodeInfo("node1", "test", "127.0.0.1:8080", ""), af, kkapp.ApplyOptions())
 
 	// 先添加一个组件

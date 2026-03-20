@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
@@ -45,19 +44,6 @@ func NewSilentActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 }
 
 //-------------------------------------------------------------------------
-
-var (
-	defaultActorFramework *ActorFramework
-	onceActorFramework    sync.Once
-)
-
-// 进程级全局ActorFramework，单点部署时可以减小网络通信开销。
-func GlobalActorFramework() *ActorFramework {
-	onceActorFramework.Do(func() {
-		defaultActorFramework = NewActorFramework(NewActorLocator(), NewActorSystem())
-	})
-	return defaultActorFramework
-}
 
 func NewActorFramework(locator *ActorLocator, actorSys *actor.ActorSystem) *ActorFramework {
 	if locator == nil {
