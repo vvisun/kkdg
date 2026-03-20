@@ -12,9 +12,8 @@ import (
 type EWpQueueFullAction int
 
 const (
-	EWpQueueFullActionDrop  EWpQueueFullAction = iota // 丢弃
-	EWpQueueFullActionBlock                           // 阻塞
-	EWpQueueFullActionRetry                           // 重试
+	EWpQueueFullActionDrop EWpQueueFullAction = iota // 丢弃
+	EWpQueueFullActionRetry                          // 重试
 )
 
 // 多包合并发送时，限制的包数量。
@@ -91,7 +90,7 @@ func CheckWriteOptions(opts *WriteOptions) {
 		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 128)
 		opts.SendQueueSize = 128
 	}
-	if opts.SendQueueFullAction < 0 || opts.SendQueueFullAction > 2 {
+	if opts.SendQueueFullAction < 0 || opts.SendQueueFullAction > 1 {
 		kklog.Debugf("wp SendQueueFullAction fixed from %d to %d", opts.SendQueueFullAction, EWpQueueFullActionDrop)
 		opts.SendQueueFullAction = EWpQueueFullActionDrop
 	}

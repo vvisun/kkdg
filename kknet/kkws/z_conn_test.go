@@ -192,54 +192,6 @@ func TestWSConn_SendQueueFullAction_Drop(t *testing.T) {
 	}
 }
 
-func TestWSConn_SendQueueFullAction_Block(t *testing.T) {
-	wsURL, recv, closeSrv := startTestWSServer(t)
-	defer closeSrv()
-	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-	opts := kknet.ApplyOptions(
-		kknet.WithSendQueueSize(2),
-		kknet.WithStreamTool(testStreamTool),
-	)
-	opts.WpOptions.SendQueueStrict = true
-	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionBlock
-	opts.WpOptions.SendQueueNeedFlushOver = false
-	wc := newWSConn(c, &opts, nil)
-
-	wc.writeMu.Lock()
-	fillQueueAndBlockWriteBatch(t, wc, "b")
-	blockErrCh := make(chan error, 1)
-	go func() {
-		bb, _ := wc.opts.StreamTool.Pack([]byte("blocked"))
-		blockErrCh <- wc.SendBuffer(bb)
-	}()
-	// Block 模式：应阻塞
-	select {
-	case err := <-blockErrCh:
-		t.Fatalf("Block mode should block when full, got %v", err)
-	case <-time.After(50 * time.Millisecond):
-	}
-	wc.writeMu.Unlock()
-
-	// Stop 应唤醒阻塞的 SendBuffer，返回 ErrConnectionClosed
-	_ = wc.Close()
-	select {
-	case err := <-blockErrCh:
-		if err != kkerrors.ErrNetConnectionClosed {
-			t.Errorf("blocked SendBuffer after Close: got %v, want ErrConnectionClosed", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("blocked SendBuffer should unblock after Close")
-	}
-
-	// 应收到 4 条
-	for i := 0; i < 4; i++ {
-		_ = mustRecv(t, recv, 500*time.Millisecond)
-	}
-}
-
 func TestWSConn_SendQueueFullAction_Retry(t *testing.T) {
 	wsURL, recv, closeSrv := startTestWSServer(t)
 	defer closeSrv()
@@ -355,12 +307,10 @@ func TestWSConn_SendQueueStrict_False(t *testing.T) {
 func TestWSConn_SendQueueFullAction_AfterClose(t *testing.T) {
 	actions := []kknet.EWpQueueFullAction{
 		kknet.EWpQueueFullActionDrop,
-		kknet.EWpQueueFullActionBlock,
 		kknet.EWpQueueFullActionRetry,
 	}
 	names := map[kknet.EWpQueueFullAction]string{
 		kknet.EWpQueueFullActionDrop:  "Drop",
-		kknet.EWpQueueFullActionBlock: "Block",
 		kknet.EWpQueueFullActionRetry: "Retry",
 	}
 	for _, action := range actions {

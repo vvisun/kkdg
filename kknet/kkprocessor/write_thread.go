@@ -26,7 +26,6 @@ type WriteProcessor struct {
 	sendBatchBuffer [kknet.BatchPacketSize]*kkbuffer.ByteBuffer //批量发送缓冲区。as an array to reduce memory allocation.
 
 	sendMu    sync.Mutex
-	cond      *sync.Cond // 用于 Block 模式：队列有空位时由 writeLoop 唤醒
 	closeOnce sync.Once
 	closing   atomic.Bool
 
@@ -52,7 +51,6 @@ func NewWriteProcessor(opts kknet.WriteOptions) kknet.IWriteProcessor {
 		drainedCh: make(chan struct{}),
 		doneCh:    make(chan struct{}),
 	}
-	wp.cond = sync.NewCond(&wp.sendMu)
 	return wp
 }
 
@@ -82,8 +80,6 @@ func (wp *WriteProcessor) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	switch wp.opts.SendQueueFullAction {
 	case kknet.EWpQueueFullActionDrop:
 		return wp.sendBufferDrop(buffer)
-	case kknet.EWpQueueFullActionBlock:
-		return wp.sendBufferBlock(buffer)
 	case kknet.EWpQueueFullActionRetry:
 		return wp.sendBufferRetry(buffer)
 	default:
@@ -112,28 +108,6 @@ func (wp *WriteProcessor) sendBufferDrop(buffer *kkbuffer.ByteBuffer) error {
 		wp.wakeWriter()
 	}
 	return nil
-}
-
-// sendBufferBlock 队列满时阻塞等待，直到有空位或连接关闭
-func (wp *WriteProcessor) sendBufferBlock(buffer *kkbuffer.ByteBuffer) error {
-	wp.sendMu.Lock()
-	defer wp.sendMu.Unlock()
-
-	for {
-		if wp.closing.Load() {
-			kkbuffer.Put(buffer)
-			return kkerrors.ErrNetConnectionClosed
-		}
-		wasEmpty := wp.sendQueue.IsEmpty()
-		ok := wp.sendQueue.Push(buffer)
-		if ok {
-			if wasEmpty {
-				wp.wakeWriter()
-			}
-			return nil
-		}
-		wp.cond.Wait()
-	}
 }
 
 // sendBufferRetry 队列满时重试，带间隔退避，直到成功或达到最大重试次数
@@ -192,9 +166,6 @@ func (wp *WriteProcessor) wakeWriter() {
 func (wp *WriteProcessor) Stop(err error) {
 	wp.closeOnce.Do(func() {
 		wp.closing.Store(true)
-		wp.sendMu.Lock()
-		wp.cond.Broadcast()
-		wp.sendMu.Unlock()
 		flush := wp.opts.SendQueueNeedFlushOver && err == nil
 		if flush {
 			wp.wakeWriter()
@@ -240,9 +211,6 @@ func (wp *WriteProcessor) writeLoop() {
 			for {
 				wp.sendMu.Lock()
 				n := wp.sendQueue.PopMany(sbbLen, wp.sendBatchBuffer[:], 0)
-				if n > 0 {
-					wp.cond.Signal()
-				}
 				wp.sendMu.Unlock()
 				if n <= 0 {
 					return
@@ -256,9 +224,6 @@ func (wp *WriteProcessor) writeLoop() {
 			n := wp.sendQueue.PopMany(sbbLen, wp.sendBatchBuffer[:], wp.opts.BatchWriteLimitBytes)
 			remain := wp.sendQueue.Len()
 			closing := wp.closing.Load()
-			if n > 0 {
-				wp.cond.Signal()
-			}
 			wp.sendMu.Unlock()
 
 			if n <= 0 {
