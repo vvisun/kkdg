@@ -28,12 +28,13 @@ var initMsgsOnce sync.Once
 func InitMsgs() {
 	initMsgsOnce.Do(func() {
 		router := HubMessagePacket.GetMessageTool().GetRouter()
+		router.Register(MsgIDAuthReq, &AuthReq{}, "hub")
+		router.Register(MsgIDAuthResp, &AuthResp{}, "hub")
 		router.Register(MsgIDRegisterActorReq, &RegisterActorReq{}, "hub")
 		router.Register(MsgIDRegisterActorResp, &RegisterActorResp{}, "hub")
 		router.Register(MsgIDFindActorReq, &FindActorReq{}, "hub")
 		router.Register(MsgIDFindActorResp, &FindActorResp{}, "hub")
 		router.Register(MsgIDGetAllActorsOfNodeReq, &GetAllActorsOfNodeReq{}, "hub")
 		router.Register(MsgIDGetAllActorsOfNodeResp, &GetAllActorsOfNodeResp{}, "hub")
-		router.Register(MsgIDErrorResp, &ErrorResp{}, "hub")
 	})
 }

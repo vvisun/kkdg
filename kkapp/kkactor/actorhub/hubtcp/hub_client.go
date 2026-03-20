@@ -2,7 +2,9 @@ package hubtcp
 
 import (
 	"errors"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub"
@@ -12,23 +14,29 @@ import (
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kktime"
 )
 
 // HubClient。基于kktcp实现的注册中心客户端。
 type HubClient struct {
 	clients        []kknet.IClient
 	remoteActorMgr *actorhub.RemoteActorMgr
+	af             *kkactor.ActorFramework
 	opts           Options
 	autoReqId      uint64
 	currentClient  int32
+	hasAuthed      atomic.Bool
+	reqMap         map[uint64]any // 请求ID -> 请求数据
+	muReqMap       sync.Mutex
 }
 
 var _ actorhub.IHubClient = (*HubClient)(nil)
 
-func NewHubClient(opts Options) *HubClient {
+func NewHubClient(opts Options, af *kkactor.ActorFramework) *HubClient {
 	return &HubClient{
 		opts:           opts,
 		remoteActorMgr: actorhub.NewRemoteActorMgr(),
+		af:             af,
 	}
 }
 
@@ -54,6 +62,7 @@ func (slf *HubClient) Start() error {
 }
 
 func (slf *HubClient) Stop() error {
+	slf.hasAuthed.Store(false)
 	for _, client := range slf.clients {
 		client.Close()
 	}
@@ -64,7 +73,10 @@ func (slf *HubClient) GetRemoteActorMgr() actorhub.IClientRemoteActorMgr {
 	return slf.remoteActorMgr
 }
 
-func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) {
+func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) error {
+	if !slf.hasAuthed.Load() {
+		return hubproto.ErrNotAuthed
+	}
 	req := &hubproto.RegisterActorReq{
 		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
 		OpCode: 1,
@@ -73,10 +85,21 @@ func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) {
 			ActorKey: actorID.ActorKey(),
 		},
 	}
-	slf.sendRequest(req)
+
+	err := slf.sendRequest(req)
+	if err != nil {
+		return err
+	}
+	slf.muReqMap.Lock()
+	slf.reqMap[req.ReqID] = req
+	slf.muReqMap.Unlock()
+	return nil
 }
 
-func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) {
+func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) error {
+	if !slf.hasAuthed.Load() {
+		return hubproto.ErrNotAuthed
+	}
 	req := &hubproto.RegisterActorReq{
 		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
 		OpCode: 2,
@@ -85,10 +108,21 @@ func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) {
 			ActorKey: actorID.ActorKey(),
 		},
 	}
-	slf.sendRequest(req)
+
+	err := slf.sendRequest(req)
+	if err != nil {
+		return err
+	}
+	slf.muReqMap.Lock()
+	slf.reqMap[req.ReqID] = req
+	slf.muReqMap.Unlock()
+	return nil
 }
 
-func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) {
+func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) error {
+	if !slf.hasAuthed.Load() {
+		return hubproto.ErrNotAuthed
+	}
 	req := &hubproto.FindActorReq{
 		ReqID: atomic.AddUint64(&slf.autoReqId, 1),
 		ActorID: actorremotes.ActorRef{
@@ -96,25 +130,59 @@ func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) {
 			ActorKey: actorID.ActorKey(),
 		},
 	}
-	slf.sendRequest(req)
+
+	err := slf.sendRequest(req)
+	if err != nil {
+		return err
+	}
+	slf.muReqMap.Lock()
+	slf.reqMap[req.ReqID] = req
+	slf.muReqMap.Unlock()
+	return nil
 }
 
-func (slf *HubClient) GetAllActorsOfNode(nodeID string) {
+func (slf *HubClient) GetAllActorsOfNode(nodeID string) error {
+	if !slf.hasAuthed.Load() {
+		return hubproto.ErrNotAuthed
+	}
 	req := &hubproto.GetAllActorsOfNodeReq{
 		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
 		NodeID: nodeID,
 	}
-	slf.sendRequest(req)
+
+	err := slf.sendRequest(req)
+	if err != nil {
+		return err
+	}
+	slf.muReqMap.Lock()
+	slf.reqMap[req.ReqID] = req
+	slf.muReqMap.Unlock()
+	return nil
 }
 
-func (slf *HubClient) sendRequest(req any) {
+func (slf *HubClient) sendRequest(req any) error {
+	if req == nil {
+		return nil
+	}
 	curClient := atomic.AddInt32(&slf.currentClient, 1)
 	curClient = curClient % int32(len(slf.clients))
-	slf.clients[curClient].SendMsg(req)
+	return slf.clients[curClient].SendMsg(req)
 }
 
-func (slf *HubClient) onError(reqID uint64, code int, message string) {
+func (slf *HubClient) delReq(reqID uint64) {
+	slf.muReqMap.Lock()
+	delete(slf.reqMap, reqID)
+	slf.muReqMap.Unlock()
+}
 
+func (slf *HubClient) getReq(reqID uint64) any {
+	slf.muReqMap.Lock()
+	req, ok := slf.reqMap[reqID]
+	slf.muReqMap.Unlock()
+	if ok {
+		return req
+	}
+	return nil
 }
 
 //----------------------------------------------------------------
@@ -133,6 +201,7 @@ func (h *clientHandler) OnConnect(c kknet.IConn) {
 }
 
 func (h *clientHandler) OnClose(c kknet.IConn, err error) {
+	h.hubClient.hasAuthed.Store(false)
 }
 
 func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
@@ -142,13 +211,26 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		return
 	}
 	switch info := msg.(type) {
+	case *hubproto.AuthResp:
+		if info.Code != 0 {
+			return
+		}
+		h.hubClient.hasAuthed.Store(true)
 	case *hubproto.FindActorResp:
+		h.hubClient.delReq(info.ReqID)
+		if info.ErrorInfo != nil {
+			return
+		}
 		lucId, err := kkactor.NewLucencyActorID(info.ActorID.NodeID, info.ActorID.ActorKey)
 		if err != nil {
 			return
 		}
 		h.hubClient.remoteActorMgr.RegisterActor(lucId, info.NodeInfo.RpcAddress)
 	case *hubproto.GetAllActorsOfNodeResp:
+		h.hubClient.delReq(info.ReqID)
+		if info.ErrorInfo != nil {
+			return
+		}
 		for _, actor := range info.Actors {
 			lucId, err := kkactor.NewLucencyActorID(actor.NodeID, actor.ActorKey)
 			if err != nil {
@@ -156,7 +238,23 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			}
 			h.hubClient.remoteActorMgr.RegisterActor(lucId, info.NodeInfo.RpcAddress)
 		}
-	case *hubproto.ErrorResp:
-		h.hubClient.onError(info.ReqID, info.Code, info.Message)
+	case *hubproto.RegisterActorResp:
+		if info.ErrorInfo == nil {
+			h.hubClient.delReq(info.ReqID)
+			return
+		}
+		kktime.GetGameTimingWheel().AfterFunc(time.Second*1, func() {
+			req := h.hubClient.getReq(info.ReqID)
+			if req == nil {
+				return
+			}
+			// 如果本地有这个actor，则重新发送请求
+			if _, err := h.hubClient.af.GetLocator().GetLocalActor(
+				req.(*hubproto.RegisterActorReq).ActorID.NodeID,
+				req.(*hubproto.RegisterActorReq).ActorID.ActorKey); err != nil {
+				return
+			}
+			h.hubClient.sendRequest(req)
+		})
 	}
 }

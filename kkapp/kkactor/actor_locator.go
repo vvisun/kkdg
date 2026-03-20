@@ -82,6 +82,10 @@ func (slf *ActorLocator) isLocalNode(nodeId string) bool {
 	return ok
 }
 
+func (slf *ActorLocator) GetLocalActor(nodeID, actorKey string) (*actor.PID, error) {
+	return slf.GetActor(LucencyActorID{nodeID: nodeID, actorKey: actorKey})
+}
+
 func (slf *ActorLocator) GetActor(id LucencyActorID) (*actor.PID, error) {
 	slf.mu.RLock()
 	pid, ok := slf.actors[id]

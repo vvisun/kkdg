@@ -22,14 +22,16 @@ type IHubClient interface {
 	Start() error
 	// 停止
 	Stop() error
-	// 注册actor，发送请求
-	RegisterActor(actorID kkactor.LucencyActorID)
-	// 注销actor，发送请求
-	UnregisterActor(actorID kkactor.LucencyActorID)
-	// 寻找actor，发送请求
-	FindActor(actorID kkactor.LucencyActorID)
-	// 某个节点上的所有actor列表，发送请求
-	GetAllActorsOfNode(nodeID string)
+
 	// 获取远程Actor管理器
 	GetRemoteActorMgr() IClientRemoteActorMgr
+
+	// 注册actor，发送请求
+	RegisterActor(actorID kkactor.LucencyActorID) error
+	// 注销actor，发送请求
+	UnregisterActor(actorID kkactor.LucencyActorID) error
+	// 寻找actor，发送请求
+	FindActor(actorID kkactor.LucencyActorID) error
+	// 某个节点上的所有actor列表，发送请求
+	GetAllActorsOfNode(nodeID string) error
 }
