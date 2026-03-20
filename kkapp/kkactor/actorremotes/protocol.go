@@ -8,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
+// ActorRef 是 LucencyActorID 的协议层表示。
 type ActorRef struct {
 	NodeID   string
 	ActorKey string

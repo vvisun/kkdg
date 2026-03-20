@@ -8,9 +8,17 @@ import (
 // LucencyActorID 是 Actor 的唯一标识。
 // 不需要关心 Actor 所在节点，由 ActorLocator 自动判断本地/远程：
 // 如果【NodeID 为空字符串】或【NodeID 在当前进程的任意节点中存在】，则认为是本地 Actor；否则为远程 Actor。
+//
+//	unique id = nodeID + actorKey。
+//
+// 不采用字符串拼接而使用结构体表示，
+// 一是字符串拼接拆解消耗，二是必须强行规定字符串格式，容易出错。
+// 比如nodeID和actorKey如果用"-"连接，需要强行规定nodeID和actorKey里不能含"-"，否则就会解析出错。
 type LucencyActorID struct {
-	nodeID   string // 节点ID，【英文字母、数字、下划线("_")、中划线("-")】组合，如 "game_1"、"game-router"。为空表示本地Actor。
-	actorKey string // actor 标识，【英文字母、数字、下划线("_")、中划线("-")】组合，如 "ccgame_main"、"gate-router"
+	// 节点ID。为空表示本地Actor。
+	nodeID string
+	// actor 标识，节点内唯一。
+	actorKey string
 }
 
 // NodeID 返回逻辑节点 ID。

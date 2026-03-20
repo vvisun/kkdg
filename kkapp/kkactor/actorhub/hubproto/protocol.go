@@ -24,62 +24,57 @@ var HubMessagePacket = kkpacket.NewFullPacket(
 )
 
 const (
-	MsgIDRegisterNodeReq uint16 = 1 + iota
-	MsgIDRegisterNodeResp
-	MsgIDRegisterActorReq
+	MsgIDRegisterActorReq uint16 = 1 + iota
 	MsgIDRegisterActorResp
 	MsgIDFindActorReq
 	MsgIDFindActorResp
 	MsgIDGetAllActorsOfNodeReq
 	MsgIDGetAllActorsOfNodeResp
+	MsgIDErrorResp
 )
 
 type (
-	// RegisterNodeReq 注册|更新|注销节点请求
-	// 相当于作为discovery的MemberInfo。
-	// 作为连接hub server的第一个请求，只有Password鉴权通过的节点才能继续后续的协议通信。
-	RegisterNodeReq struct {
-		OpCode     int                    `json:"opCode"`     // 操作码，1表示注册，2表示更新，3表示注销。
-		Password   string                 `json:"password"`   // 鉴权密码，用于中心服鉴权。需要与hub server的鉴权密码相同才能通过注册。
-		MemberInfo kkdiscovery.MemberInfo `json:"memberInfo"` // 节点信息，用于注册或更新。
-	}
-	// RegisterNodeResp 注册节点响应
-	RegisterNodeResp struct {
-		Code    int    `json:"code"`    // 错误码，0表示成功，其他表示失败
+	// 统一错误响应
+	//  比如RegisterActorReq请求处理失败，则返回ErrorResp，
+	//  其中ReqID为RegisterActorReq中的ReqID，Code为错误码，Message为错误信息。
+	//  其他请求类似。
+	ErrorResp struct {
+		ReqID   uint64 `json:"reqID"`   // 各请求里带过来的ReqID
+		Code    int    `json:"code"`    // 错误码
 		Message string `json:"message"` // 错误信息
 	}
 
-	// RegisterActorReq 注册actor请求
+	// RegisterActorReq 请求注册|注销actor
 	RegisterActorReq struct {
+		ReqID   uint64                `json:"reqID"`   // 请求ID，用于请求与响应的匹配。
 		OpCode  int                   `json:"opCode"`  // 操作码，1表示注册，2表示注销。
 		ActorID actorremotes.ActorRef `json:"actorID"` // actor透明ID，用于注册或更新。
 	}
 	RegisterActorResp struct {
-		Code    int                   `json:"code"`    // 错误码，0表示成功，其他表示失败
-		Message string                `json:"message"` // 错误信息
+		ReqID   uint64                `json:"reqID"`   // 请求ID，用于请求与响应的匹配。
+		OpCode  int                   `json:"opCode"`  // 操作码，1表示注册，2表示注销。
 		ActorID actorremotes.ActorRef `json:"actorID"` // RegisterActorRequest中的actorID。
 	}
 
-	// FindActorReq 寻找actor请求
+	// FindActorReq 请求寻找actor
 	FindActorReq struct {
-		OpCode   int    `json:"opCode"`   // 操作码，1表示寻找，2表示注销。
-		ActorKey string `json:"actorKey"` // actor标识，用于寻找。
+		ReqID   uint64                `json:"reqID"`   // 请求ID，用于请求与响应的匹配。
+		ActorID actorremotes.ActorRef `json:"actorID"` // 与 LucencyActorID 一致。
 	}
 	FindActorResp struct {
-		Code     int                    `json:"code"`     // 错误码，0表示成功，其他表示失败
-		Message  string                 `json:"message"`  // 错误信息
+		ReqID    uint64                 `json:"reqID"`    // 请求ID，用于请求与响应的匹配。
 		ActorID  actorremotes.ActorRef  `json:"actorID"`  // 找到的actorID。
 		NodeInfo kkdiscovery.MemberInfo `json:"nodeInfo"` // 找到的actor所在节点信息。
 	}
 
-	// GetAllActorsOfNodeReq 获取某个节点上的所有actor列表请求
+	// GetAllActorsOfNodeReq 请求获取某个节点上的所有actor列表
 	GetAllActorsOfNodeReq struct {
+		ReqID  uint64 `json:"reqID"`  // 请求ID，用于请求与响应的匹配。
 		NodeID string `json:"nodeID"` // 节点ID，用于获取。
 	}
 	GetAllActorsOfNodeResp struct {
-		Code    int                      `json:"code"`    // 错误码，0表示成功，其他表示失败
-		Message string                   `json:"message"` // 错误信息
-		NodeID  string                   `json:"nodeID"`  // 节点ID。
-		Actors  []*actorremotes.ActorRef `json:"actors"`  // 节点上的所有actor列表。
+		ReqID  uint64                   `json:"reqID"`  // 请求ID，用于请求与响应的匹配。
+		NodeID string                   `json:"nodeID"` // 节点ID。
+		Actors []*actorremotes.ActorRef `json:"actors"` // 节点上的所有actor列表。
 	}
 )
