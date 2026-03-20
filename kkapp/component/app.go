@@ -141,7 +141,7 @@ func (slf *Application) curStateName() string {
 }
 
 func (slf *Application) GetCompPID(compName string) *actor.PID {
-	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), compName)
+	id, err := kkactor.NewLucencyID(slf.GetNodeId(), compName)
 	if err != nil {
 		kklog.Debugf("%s get component %s pid error: %v", slf.logTag(), compName, err)
 		return nil
@@ -185,7 +185,7 @@ func (slf *Application) Start() error {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		kklog.PanicErr(kkerrors.ErrAppSpawnActorFailed)
 	}
-	id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
+	id, err := kkactor.NewLucencyID(slf.GetNodeId(), slf.GetCompName())
 	if err != nil {
 		kklog.Errorf("%s add component %s error: %v", slf.logTag(), slf.GetCompName(), err)
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
@@ -230,7 +230,7 @@ func (slf *Application) Stop() error {
 // 最佳的应用层架构方式应该是，能做到所有组件的启动顺序可以任意调换，不需要考虑启动顺序。
 // 因为组件应该尽量独立，只有在需要通信交互时，才需要也只需要 通过这个组件的actorID，进行消息投递。
 func (slf *Application) AddComponent(comp kkapp.IComponent) error {
-	if _, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName()); err != nil {
+	if _, err := kkactor.NewLucencyID(slf.GetNodeId(), comp.GetCompName()); err != nil {
 		kklog.Errorf("%s add component %s error: %v", slf.logTag(), comp.GetCompName(), err)
 		return err
 	}
@@ -300,7 +300,7 @@ func (slf *Application) onStarted(ctx actor.Context) {
 		slf.pidKeyToCompName[pidKey] = comp.GetCompName()
 		slf.pidKeyMu.Unlock()
 
-		id, err := kkactor.NewLucencyActorID(slf.GetNodeId(), comp.GetCompName())
+		id, err := kkactor.NewLucencyID(slf.GetNodeId(), comp.GetCompName())
 		if err != nil {
 			kklog.Errorf("%s add component %s error: %v", slf.logTag(), comp.GetCompName(), err)
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
@@ -347,7 +347,7 @@ func (slf *Application) onStopped() {
 		slf.faultSub = nil
 	}
 
-	id, _ := kkactor.NewLucencyActorID(slf.GetNodeId(), slf.GetCompName())
+	id, _ := kkactor.NewLucencyID(slf.GetNodeId(), slf.GetCompName())
 	slf.actorFramework.GetLocator().RemoveActor(id)
 	slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
 	slf.mu.Lock()

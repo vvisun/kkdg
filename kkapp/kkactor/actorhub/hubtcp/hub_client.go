@@ -88,7 +88,7 @@ func (slf *HubClient) GetRemoteActorMgr() actorhub.IClientRemoteActorMgr {
 	return slf.remoteActorMgr
 }
 
-func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) error {
+func (slf *HubClient) RegisterActor(actorID kkactor.LucencyID) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
@@ -112,7 +112,7 @@ func (slf *HubClient) RegisterActor(actorID kkactor.LucencyActorID) error {
 	return nil
 }
 
-func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) error {
+func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyID) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
@@ -136,7 +136,7 @@ func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyActorID) error {
 	return nil
 }
 
-func (slf *HubClient) FindActor(actorID kkactor.LucencyActorID) error {
+func (slf *HubClient) FindActor(actorID kkactor.LucencyID) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
@@ -262,7 +262,7 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		if info.NodeInfo == nil || info.NodeInfo.RpcAddress == "" {
 			return
 		}
-		lucId, err := kkactor.NewLucencyActorID(info.ActorID.NodeID, info.ActorID.ActorKey)
+		lucId, err := kkactor.NewLucencyID(info.ActorID.NodeID, info.ActorID.ActorKey)
 		if err != nil {
 			return
 		}
@@ -276,7 +276,7 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			return
 		}
 		for _, actor := range info.Actors {
-			lucId, err := kkactor.NewLucencyActorID(actor.NodeID, actor.ActorKey)
+			lucId, err := kkactor.NewLucencyID(actor.NodeID, actor.ActorKey)
 			if err != nil {
 				return
 			}

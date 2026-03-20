@@ -12,8 +12,8 @@ import (
 // Actor寻址系统
 type ActorLocator struct {
 	mu     sync.RWMutex
-	actors map[LucencyActorID]*actor.PID // LucencyActorID -> *actor.PID 当前进程的所有Actor信息
-	nodes  map[string]*kkapp.NodeInfo    // nodeId -> kkapp.IApplication 当前进程的所有节点信息
+	actors map[LucencyID]*actor.PID   // LucencyActorID -> *actor.PID 当前进程的所有Actor信息
+	nodes  map[string]*kkapp.NodeInfo // nodeId -> kkapp.IApplication 当前进程的所有节点信息
 }
 
 // 创建Actor寻址系统，localNodes为当前进程的本地节点信息。
@@ -33,7 +33,7 @@ func NewActorLocator(localNodes ...*kkapp.NodeInfo) *ActorLocator {
 		nodes[node.GetNodeId()] = node
 	}
 	return &ActorLocator{
-		actors: make(map[LucencyActorID]*actor.PID),
+		actors: make(map[LucencyID]*actor.PID),
 		nodes:  nodes,
 	}
 }
@@ -83,10 +83,10 @@ func (slf *ActorLocator) isLocalNode(nodeId string) bool {
 }
 
 func (slf *ActorLocator) GetLocalActor(nodeID, actorKey string) (*actor.PID, error) {
-	return slf.GetActor(LucencyActorID{nodeID: nodeID, actorKey: actorKey})
+	return slf.GetActor(LucencyID{nodeID: nodeID, actorKey: actorKey})
 }
 
-func (slf *ActorLocator) GetActor(id LucencyActorID) (*actor.PID, error) {
+func (slf *ActorLocator) GetActor(id LucencyID) (*actor.PID, error) {
 	slf.mu.RLock()
 	pid, ok := slf.actors[id]
 	slf.mu.RUnlock()
@@ -96,7 +96,7 @@ func (slf *ActorLocator) GetActor(id LucencyActorID) (*actor.PID, error) {
 	return pid, nil
 }
 
-func (slf *ActorLocator) AddActor(id LucencyActorID, pid *actor.PID) error {
+func (slf *ActorLocator) AddActor(id LucencyID, pid *actor.PID) error {
 	if !kkapp.IsValidActorKey(id.actorKey) {
 		return kkerrors.ErrActorInvalidActorKey
 	}
@@ -122,7 +122,7 @@ func (slf *ActorLocator) AddActorEx(nodeId, actorKey string, pid *actor.PID) err
 	if pid == nil {
 		return kkerrors.ErrActorAddInvalidPID
 	}
-	id := LucencyActorID{
+	id := LucencyID{
 		nodeID:   nodeId,
 		actorKey: actorKey,
 	}
@@ -132,14 +132,14 @@ func (slf *ActorLocator) AddActorEx(nodeId, actorKey string, pid *actor.PID) err
 	return nil
 }
 
-func (slf *ActorLocator) RemoveActor(id LucencyActorID) error {
+func (slf *ActorLocator) RemoveActor(id LucencyID) error {
 	slf.mu.Lock()
 	delete(slf.actors, id)
 	slf.mu.Unlock()
 	return nil
 }
 
-func (slf *ActorLocator) isLocalActor(id LucencyActorID) (bool, error) {
+func (slf *ActorLocator) isLocalActor(id LucencyID) (bool, error) {
 	if !kkapp.IsValidActorNodeId(id.nodeID) {
 		return false, kkerrors.ErrActorInvalidNodeId
 	}
@@ -154,7 +154,7 @@ func (slf *ActorLocator) isLocalActor(id LucencyActorID) (bool, error) {
 }
 
 // 判断Actor是否是本地Actor。
-func (slf *ActorLocator) IsLocalActor(id LucencyActorID) (bool, error) {
+func (slf *ActorLocator) IsLocalActor(id LucencyID) (bool, error) {
 	slf.mu.RLock()
 	ok, err := slf.isLocalActor(id)
 	slf.mu.RUnlock()
@@ -162,7 +162,7 @@ func (slf *ActorLocator) IsLocalActor(id LucencyActorID) (bool, error) {
 }
 
 // 判断Actor是否是远程Actor。
-func (slf *ActorLocator) IsRemoteActor(id LucencyActorID) (bool, error) {
+func (slf *ActorLocator) IsRemoteActor(id LucencyID) (bool, error) {
 	ok, err := slf.IsLocalActor(id)
 	return !ok, err
 }
@@ -179,7 +179,7 @@ func (slf *ActorLocator) ForEachNode(fn func(node *kkapp.NodeInfo) bool) {
 }
 
 // 遍历actors, fn返回false时停止遍历
-func (slf *ActorLocator) ForEachActor(fn func(id LucencyActorID, pid *actor.PID) bool) {
+func (slf *ActorLocator) ForEachActor(fn func(id LucencyID, pid *actor.PID) bool) {
 	slf.mu.RLock()
 	defer slf.mu.RUnlock()
 	for id, pid := range slf.actors {

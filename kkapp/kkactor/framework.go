@@ -17,9 +17,9 @@ type IActorFramework interface {
 	GetActorSystem() *actor.ActorSystem
 	SetRemoteTransport(transport actorremotes.IRemoteActorTransport) error
 	GetRemoteTransport() actorremotes.IRemoteActorTransport
-	Send(target LucencyActorID, msg any) error
-	Request(target LucencyActorID, msg any, timeout time.Duration) (any, error)
-	RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error
+	Send(target LucencyID, msg any) error
+	Request(target LucencyID, msg any, timeout time.Duration) (any, error)
+	RequestAsync(target LucencyID, msg any, timeout time.Duration, callback func(result any, err error)) error
 }
 
 //-------------------------------------------------------------------------
@@ -110,7 +110,7 @@ func (slf *ActorFramework) GetRemoteTransport() actorremotes.IRemoteActorTranspo
 }
 
 // 向指定actor发送消息
-func (slf *ActorFramework) Send(target LucencyActorID, msg any) error {
+func (slf *ActorFramework) Send(target LucencyID, msg any) error {
 	isLocal, err := slf.locator.IsLocalActor(target)
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func (slf *ActorFramework) Send(target LucencyActorID, msg any) error {
 }
 
 // 同步向指定actor发送消息, 等待响应
-func (slf *ActorFramework) Request(target LucencyActorID, msg any, timeout time.Duration) (any, error) {
+func (slf *ActorFramework) Request(target LucencyID, msg any, timeout time.Duration) (any, error) {
 	isLocal, err := slf.locator.IsLocalActor(target)
 	if err != nil {
 		return nil, err
@@ -160,7 +160,7 @@ func (slf *ActorFramework) Request(target LucencyActorID, msg any, timeout time.
 }
 
 // 异步向指定actor发送消息, 不等待响应
-func (slf *ActorFramework) RequestAsync(target LucencyActorID, msg any, timeout time.Duration, callback func(result any, err error)) error {
+func (slf *ActorFramework) RequestAsync(target LucencyID, msg any, timeout time.Duration, callback func(result any, err error)) error {
 	if callback == nil {
 		return kkerrors.ErrActorAsyncCallbackNil
 	}
@@ -195,7 +195,7 @@ func (slf *ActorFramework) RequestAsync(target LucencyActorID, msg any, timeout 
 }
 
 func (slf *ActorFramework) HandleRemoteSend(targetRef actorremotes.ActorRef, msg any) error {
-	target, err := NewLucencyActorID(targetRef.NodeID, targetRef.ActorKey)
+	target, err := NewLucencyID(targetRef.NodeID, targetRef.ActorKey)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (slf *ActorFramework) HandleRemoteSend(targetRef actorremotes.ActorRef, msg
 }
 
 func (slf *ActorFramework) HandleRemoteRequest(targetRef actorremotes.ActorRef, msg any, timeout time.Duration) (any, error) {
-	target, err := NewLucencyActorID(targetRef.NodeID, targetRef.ActorKey)
+	target, err := NewLucencyID(targetRef.NodeID, targetRef.ActorKey)
 	if err != nil {
 		return nil, err
 	}

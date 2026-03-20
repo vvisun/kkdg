@@ -11,14 +11,14 @@ import (
 // actor_id benchmarks
 //------------------------------------------------------------------------------
 
-var mapKKK = make(map[LucencyActorID]int)
+var mapKKK = make(map[LucencyID]int)
 
 // 测试以LucencyActorID为key的map性能
 func BenchmarkMapLucencyActorID(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mapKKK[LucencyActorID{nodeID: "game1", actorKey: "game_player"}] = i
+		mapKKK[LucencyID{nodeID: "game1", actorKey: "game_player"}] = i
 	}
 }
 
@@ -27,7 +27,7 @@ func BenchmarkMapNewLucencyActorID(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		id, _ := NewLucencyActorID("game1", "game_player")
+		id, _ := NewLucencyID("game1", "game_player")
 		mapKKK[id] = i
 		delete(mapKKK, id)
 		_, _ = mapKKK[id]
@@ -38,7 +38,7 @@ func BenchmarkNewLucencyActorID(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = NewLucencyActorID("game1", "game_player")
+		_, _ = NewLucencyID("game1", "game_player")
 	}
 }
 
@@ -70,7 +70,7 @@ func BenchmarkActorLocator_AddActor(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		id, _ := NewLucencyActorID("", "bench_actor")
+		id, _ := NewLucencyID("", "bench_actor")
 		_ = loc.AddActor(id, pids[i%poolSize])
 		// _ = loc.AddActorEx("", "bench_actor", pids[i%poolSize])
 	}
@@ -79,7 +79,7 @@ func BenchmarkActorLocator_AddActor(b *testing.B) {
 func BenchmarkActorLocator_GetActor(b *testing.B) {
 	actorSys := NewSilentActorSystem()
 	loc := NewActorLocator()
-	id, _ := NewLucencyActorID("", "bench_actor")
+	id, _ := NewLucencyID("", "bench_actor")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	defer actorSys.Root.Stop(pid)
 	_ = loc.AddActor(id, pid)
@@ -94,7 +94,7 @@ func BenchmarkActorLocator_GetActor(b *testing.B) {
 func BenchmarkActorLocator_IsLocalActor(b *testing.B) {
 	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
 	loc := NewActorLocator(node1)
-	id, _ := NewLucencyActorID("game1", "game_player")
+	id, _ := NewLucencyID("game1", "game_player")
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -115,7 +115,7 @@ func BenchmarkActorLocator_AddGetRemove(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		id, _ := NewLucencyActorID("", "bench_actor")
+		id, _ := NewLucencyID("", "bench_actor")
 		pid := actorSys.Root.Spawn(echoProps)
 		_ = loc.AddActor(id, pid)
 		_, _ = loc.GetActor(id)

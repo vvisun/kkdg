@@ -67,7 +67,7 @@ type serverHandler struct {
 	hub      *HubServer
 	mu       sync.Mutex
 	authed   map[kknet.CONN_ID]struct{}
-	connRegs map[kknet.CONN_ID]map[kkactor.LucencyActorID]struct{}
+	connRegs map[kknet.CONN_ID]map[kkactor.LucencyID]struct{}
 	// 节点维度的最近一次 Register 上报（用于 Find / List 回填完整 MemberInfo）
 	nodeMeta map[string]kkdiscovery.MemberInfo
 }
@@ -76,7 +76,7 @@ func newServerHandler(hub *HubServer) *serverHandler {
 	return &serverHandler{
 		hub:      hub,
 		authed:   make(map[kknet.CONN_ID]struct{}),
-		connRegs: make(map[kknet.CONN_ID]map[kkactor.LucencyActorID]struct{}),
+		connRegs: make(map[kknet.CONN_ID]map[kkactor.LucencyID]struct{}),
 		nodeMeta: make(map[string]kkdiscovery.MemberInfo),
 	}
 }
@@ -153,7 +153,7 @@ func (h *serverHandler) onRegisterActorReq(connID kknet.CONN_ID, req *hubproto.R
 		return
 	}
 
-	lucID, err := kkactor.NewLucencyActorID(req.ActorID.NodeID, req.ActorID.ActorKey)
+	lucID, err := kkactor.NewLucencyID(req.ActorID.NodeID, req.ActorID.ActorKey)
 	if err != nil {
 		_ = h.replyRegisterErr(connID, req, err.Error())
 		return
@@ -191,7 +191,7 @@ func (h *serverHandler) onRegisterActorReq(connID kknet.CONN_ID, req *hubproto.R
 		}
 		h.mu.Lock()
 		if h.connRegs[connID] == nil {
-			h.connRegs[connID] = make(map[kkactor.LucencyActorID]struct{})
+			h.connRegs[connID] = make(map[kkactor.LucencyID]struct{})
 		}
 		h.connRegs[connID][lucID] = struct{}{}
 		if req.NodeInfo != nil {
@@ -249,7 +249,7 @@ func (h *serverHandler) onFindActorReq(connID kknet.CONN_ID, req *hubproto.FindA
 		})
 		return
 	}
-	lucID, err := kkactor.NewLucencyActorID(req.ActorID.NodeID, req.ActorID.ActorKey)
+	lucID, err := kkactor.NewLucencyID(req.ActorID.NodeID, req.ActorID.ActorKey)
 	if err != nil {
 		_ = h.replyFindErr(connID, req.ReqID, req.ActorID, err.Error())
 		return

@@ -11,11 +11,11 @@ import (
 // framework benchmarks
 //------------------------------------------------------------------------------
 
-func setupBenchFramework(b *testing.B) (*ActorFramework, LucencyActorID, func()) {
+func setupBenchFramework(b *testing.B) (*ActorFramework, LucencyID, func()) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
-	id, _ := NewLucencyActorID("", "echo")
+	id, _ := NewLucencyID("", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())

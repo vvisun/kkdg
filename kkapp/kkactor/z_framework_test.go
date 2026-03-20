@@ -16,7 +16,7 @@ import (
 func TestActorFramework_Send_NotFound(t *testing.T) {
 	af := NewActorFramework()
 
-	id, _ := NewLucencyActorID("", "nonexistent")
+	id, _ := NewLucencyID("", "nonexistent")
 	err := af.Send(id, "hello")
 	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
 		t.Errorf("Send(not found) = %v, want ErrActorNotFound", err)
@@ -26,7 +26,7 @@ func TestActorFramework_Send_NotFound(t *testing.T) {
 func TestActorFramework_Request_NotFound(t *testing.T) {
 	af := NewActorFramework()
 
-	id, _ := NewLucencyActorID("", "nonexistent")
+	id, _ := NewLucencyID("", "nonexistent")
 	_, err := af.Request(id, "hello", time.Second)
 	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
 		t.Errorf("Request(not found) = %v, want ErrActorNotFound", err)
@@ -36,7 +36,7 @@ func TestActorFramework_Request_NotFound(t *testing.T) {
 func TestActorFramework_RequestAsync_NotFound(t *testing.T) {
 	af := NewActorFramework()
 
-	id, _ := NewLucencyActorID("", "nonexistent")
+	id, _ := NewLucencyID("", "nonexistent")
 	err := af.RequestAsync(id, "hello", time.Second, func(result any, err error) {})
 	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
 		t.Errorf("RequestAsync(not found) = %v, want ErrActorNotFound", err)
@@ -48,7 +48,7 @@ func TestActorFramework_RequestAsync_NilCallback(t *testing.T) {
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
 
-	id, _ := NewLucencyActorID("", "echo")
+	id, _ := NewLucencyID("", "echo")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())
@@ -101,7 +101,7 @@ func TestActorFramework_Send_Request_Integration(t *testing.T) {
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
 
-	id, err := NewLucencyActorID("", "echo")
+	id, err := NewLucencyID("", "echo")
 	if err != nil {
 		t.Fatalf("NewLucencyActorID: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestActorFramework_RequestAsync_Integration(t *testing.T) {
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
 
-	id, _ := NewLucencyActorID("", "echo")
+	id, _ := NewLucencyID("", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())
@@ -183,7 +183,7 @@ func TestRequest_RequestAsync_Generic(t *testing.T) {
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
 
-	id, _ := NewLucencyActorID("", "echo")
+	id, _ := NewLucencyID("", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())

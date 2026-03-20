@@ -83,7 +83,7 @@ func TestTransport_SendAndRequest(t *testing.T) {
 	pid := framework2.GetActorSystem().Root.Spawn(props)
 	defer framework2.GetActorSystem().Root.Stop(pid)
 
-	targetID, err := kkactor.NewLucencyActorID("node2", "echo")
+	targetID, err := kkactor.NewLucencyID("node2", "echo")
 	if err != nil {
 		t.Fatalf("NewLucencyActorID: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestTransport_Request_UnregisteredMessage(t *testing.T) {
 	}
 	defer func() { _ = transport.Close() }()
 
-	targetID, err := kkactor.NewLucencyActorID("node2", "echo")
+	targetID, err := kkactor.NewLucencyID("node2", "echo")
 	if err != nil {
 		t.Fatalf("NewLucencyActorID: %v", err)
 	}

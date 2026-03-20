@@ -71,7 +71,7 @@ func TestNewLucencyActorID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := NewLucencyActorID(tt.nodeId, tt.actorKey)
+			id, err := NewLucencyID(tt.nodeId, tt.actorKey)
 			if tt.wantErr != nil {
 				if err == nil || !errors.Is(err, tt.wantErr) {
 					t.Errorf("NewLucencyActorID(%q, %q) = %v, want %v", tt.nodeId, tt.actorKey, err, tt.wantErr)
@@ -113,7 +113,7 @@ func TestActorLocator_AddActor_GetActor_RemoveActor(t *testing.T) {
 	actorSys := NewActorSystem()
 	loc := NewActorLocator()
 
-	id, err := NewLucencyActorID("", "test_actor")
+	id, err := NewLucencyID("", "test_actor")
 	if err != nil {
 		t.Fatalf("NewLucencyActorID: %v", err)
 	}
@@ -166,14 +166,14 @@ func TestActorLocator_AddActor_Invalid(t *testing.T) {
 
 	tests := []struct {
 		name string
-		id   LucencyActorID
+		id   LucencyID
 		pid  *actor.PID
 		want error
 	}{
-		{"invalid_key", LucencyActorID{nodeID: "", actorKey: "a/b"}, pid, kkerrors.ErrActorInvalidActorKey},
-		{"invalid_node", LucencyActorID{nodeID: "a/b", actorKey: "ok"}, pid, kkerrors.ErrActorInvalidNodeId},
-		{"valid_hyphenated_key", LucencyActorID{nodeID: "node-1", actorKey: "ok-key"}, pid, nil},
-		{"nil_pid", LucencyActorID{nodeID: "", actorKey: "ok"}, nil, kkerrors.ErrActorAddInvalidPID},
+		{"invalid_key", LucencyID{nodeID: "", actorKey: "a/b"}, pid, kkerrors.ErrActorInvalidActorKey},
+		{"invalid_node", LucencyID{nodeID: "a/b", actorKey: "ok"}, pid, kkerrors.ErrActorInvalidNodeId},
+		{"valid_hyphenated_key", LucencyID{nodeID: "node-1", actorKey: "ok-key"}, pid, nil},
+		{"nil_pid", LucencyID{nodeID: "", actorKey: "ok"}, nil, kkerrors.ErrActorAddInvalidPID},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -208,7 +208,7 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := NewLucencyActorID(tt.nodeId, tt.actorKey)
+			id, err := NewLucencyID(tt.nodeId, tt.actorKey)
 			if err != nil {
 				t.Fatalf("NewLucencyActorID: %v", err)
 			}
@@ -235,13 +235,13 @@ func TestActorLocator_AddNode_RemoveNode(t *testing.T) {
 	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
 	loc.AddNode(node1)
 
-	local, _ := loc.IsLocalActor(LucencyActorID{nodeID: "game1", actorKey: "x"})
+	local, _ := loc.IsLocalActor(LucencyID{nodeID: "game1", actorKey: "x"})
 	if !local {
 		t.Error("game1 should be local after AddNode")
 	}
 
 	loc.RemoveNode(node1)
-	local, _ = loc.IsLocalActor(LucencyActorID{nodeID: "game1", actorKey: "x"})
+	local, _ = loc.IsLocalActor(LucencyID{nodeID: "game1", actorKey: "x"})
 	if local {
 		t.Error("game1 should be remote after RemoveNode")
 	}
@@ -252,7 +252,7 @@ func TestActorLocator_ForEachNode_ForEachActor(t *testing.T) {
 	loc := NewActorLocator(node1)
 	actorSys := NewActorSystem()
 
-	id, _ := NewLucencyActorID("", "test")
+	id, _ := NewLucencyID("", "test")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	_ = loc.AddActor(id, pid)
 	defer actorSys.Root.Stop(pid)
@@ -267,7 +267,7 @@ func TestActorLocator_ForEachNode_ForEachActor(t *testing.T) {
 	}
 
 	actorCount := 0
-	loc.ForEachActor(func(id LucencyActorID, p *actor.PID) bool {
+	loc.ForEachActor(func(id LucencyID, p *actor.PID) bool {
 		actorCount++
 		return true
 	})
