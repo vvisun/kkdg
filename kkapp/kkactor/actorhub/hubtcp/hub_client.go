@@ -19,15 +19,20 @@ import (
 	"github.com/vvisun/kkdg/utils/kktime"
 )
 
+// clientInfo 单条 Hub 连接：客户端与鉴权状态。
+type clientInfo struct {
+	client   kknet.IClient
+	isAuthed atomic.Bool
+}
+
 // HubClient。基于kktcp实现的注册中心客户端。
 type HubClient struct {
-	clients        []kknet.IClient
+	clientInfos    []clientInfo
 	remoteActorMgr *actorhub.RemoteActorMgr
 	af             *kkactor.ActorFramework
 	opts           Options
 	autoReqId      uint64
 	currentClient  int32
-	authedClients  []atomic.Bool  // 与 clients 同序，该条连接是否已通过 AuthResp
 	reqMap         map[uint64]any // 请求ID -> 请求数据
 	muReqMap       sync.Mutex
 	nodeInfo       *kkdiscovery.MemberInfo
@@ -56,8 +61,7 @@ func (slf *HubClient) Start() error {
 		return errors.New("client count must be greater than 0")
 	}
 	hubproto.InitMsgs()
-	slf.authedClients = make([]atomic.Bool, slf.opts.clientCount)
-	slf.clients = make([]kknet.IClient, 0, slf.opts.clientCount)
+	slf.clientInfos = make([]clientInfo, 0, slf.opts.clientCount)
 	for i := 0; i < slf.opts.clientCount; i++ {
 		handler := newClientHandler(slf, i)
 		client := kktcp.NewClient(slf.opts.Addr, handler, kknet.ApplyOptions(
@@ -65,7 +69,7 @@ func (slf *HubClient) Start() error {
 			kknet.WithStreamTool(hubproto.HubMessagePacket.GetStreamTool()),
 			kknet.WithMsgPacket(hubproto.HubMessagePacket.GetMessageTool()),
 		))
-		slf.clients = append(slf.clients, client)
+		slf.clientInfos = append(slf.clientInfos, clientInfo{client: client})
 		if err := client.Connect(); err != nil {
 			return err
 		}
@@ -74,10 +78,9 @@ func (slf *HubClient) Start() error {
 }
 
 func (slf *HubClient) Stop() error {
-	for _, client := range slf.clients {
-		client.Close()
+	for i := range slf.clientInfos {
+		slf.clientInfos[i].client.Close()
 	}
-	// 鉴权计数由各自连接的 OnClose 成对扣减，这里不再 Store(0)，避免先于 OnClose 清零导致扣成负数。
 	return nil
 }
 
@@ -175,8 +178,8 @@ func (slf *HubClient) GetAllActorsOfNode(nodeID string) error {
 }
 
 func (slf *HubClient) anyConnAuthed() bool {
-	for i := range slf.authedClients {
-		if slf.authedClients[i].Load() {
+	for i := range slf.clientInfos {
+		if slf.clientInfos[i].isAuthed.Load() {
 			return true
 		}
 	}
@@ -187,14 +190,15 @@ func (slf *HubClient) sendRequest(req any) error {
 	if req == nil {
 		return nil
 	}
-	n := len(slf.clients)
+	n := len(slf.clientInfos)
 	if n == 0 {
 		return errors.New("no hub connections")
 	}
 	for try := 0; try < n; try++ {
 		cur := int(atomic.AddInt32(&slf.currentClient, 1)) % n
-		if slf.authedClients[cur].Load() {
-			return slf.clients[cur].SendMsg(req)
+		ci := &slf.clientInfos[cur]
+		if ci.isAuthed.Load() {
+			return ci.client.SendMsg(req)
 		}
 	}
 	return hubproto.ErrNotAuthed
@@ -235,7 +239,7 @@ func (h *clientHandler) OnConnect(c kknet.IConn) {
 }
 
 func (h *clientHandler) OnClose(kknet.IConn, error) {
-	h.hubClient.authedClients[h.idx].Store(false)
+	h.hubClient.clientInfos[h.idx].isAuthed.Store(false)
 }
 
 func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
@@ -249,7 +253,7 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		if info.Code != 0 {
 			return
 		}
-		h.hubClient.authedClients[h.idx].Store(true)
+		h.hubClient.clientInfos[h.idx].isAuthed.Store(true)
 	case *hubproto.FindActorResp:
 		h.hubClient.delReq(info.ReqID)
 		if info.ErrorInfo != nil {
