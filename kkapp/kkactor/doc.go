@@ -13,5 +13,5 @@
 //   - actorremotes：actor远程交互的传输层公共部分，包含协议，和传输抽象接口定义。
 //   - actornats：基于nats的actor远程交互的传输层。
 //   - actorrpc：基于rpc的actor远程交互的传输层。
-//   - actorshard：基于shard的actor远程交互的传输层。
+//   - actorshard：基于独立中心服（Hub）TCP 中转的 actor 远程传输层。
 package kkactor
