@@ -5,6 +5,7 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -75,8 +76,11 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) error {
 }
 
 // GetLocalActor 按 nodeID + actorKey 查找本进程已登记的 PID；参数须满足与 LucencyID 相同的合法性（非空 nodeID 等）。
-func (slf *ActorLocator) GetLocalActor(nodeID, actorKey string) (*actor.PID, error) {
-	return slf.GetActor(LucencyID{nodeID: nodeID, actorKey: actorKey})
+func (slf *ActorLocator) GetLocalActor(actorRef *actorremotes.ActorRef) (*actor.PID, error) {
+	if actorRef == nil {
+		return nil, kkerrors.ErrActorInvalidActorRef
+	}
+	return slf.GetActor(LucencyID{nodeID: actorRef.NodeID, actorKey: actorRef.ActorKey})
 }
 
 func (slf *ActorLocator) GetActor(id LucencyID) (*actor.PID, error) {

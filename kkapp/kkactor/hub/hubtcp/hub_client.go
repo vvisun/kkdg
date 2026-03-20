@@ -296,9 +296,7 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 				return
 			}
 			// 如果本地有这个actor，则重新发送请求
-			if _, err := h.hubClient.af.GetLocator().GetLocalActor(
-				req.(*hubproto.RegisterActorReq).ActorID.NodeID,
-				req.(*hubproto.RegisterActorReq).ActorID.ActorKey); err != nil {
+			if _, err := h.hubClient.af.GetLocator().GetLocalActor(&req.(*hubproto.RegisterActorReq).ActorID); err != nil {
 				return
 			}
 			h.hubClient.sendRequest(req)
