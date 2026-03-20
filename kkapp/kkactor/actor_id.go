@@ -8,7 +8,7 @@ import (
 
 // LucencyID 是 Actor 的唯一标识。
 // 不需要关心 Actor 所在节点，由 ActorLocator 自动判断本地/远程：
-// 如果【NodeID 为空字符串】或【NodeID 在当前进程的任意节点中存在】，则认为是本地 Actor；否则为远程 Actor。
+// 如果【NodeID 在当前进程的任意节点中存在】，则认为是本地 Actor；否则为远程 Actor。
 //
 //	unique id = nodeID + actorKey。
 //
