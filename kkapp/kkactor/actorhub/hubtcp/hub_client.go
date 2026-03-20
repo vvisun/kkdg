@@ -10,7 +10,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub"
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub/hubproto"
-	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"

@@ -2,7 +2,7 @@ package kkactor
 
 import (
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 

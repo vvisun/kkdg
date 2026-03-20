@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vvisun/kkdg/kkapp/kkactor/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
