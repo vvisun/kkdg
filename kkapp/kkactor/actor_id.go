@@ -16,7 +16,7 @@ import (
 // 一是字符串拼接拆解消耗，二是必须强行规定字符串格式，容易出错。
 // 比如nodeID和actorKey如果用"-"连接，需要强行规定nodeID和actorKey里不能含"-"，否则就会解析出错。
 type LucencyID struct {
-	// 节点ID。为空表示本地Actor。
+	// 节点ID。
 	nodeID string
 	// actor 标识，节点内唯一。
 	actorKey string
