@@ -4,8 +4,9 @@ import (
 	"github.com/vvisun/kkdg/kkapp/kkactor/actorhub/hubproto"
 )
 
-// IHub 注册中心接口。
-type IHub interface {
+// IHubServer 注册中心服务端接口。(实现方式可以是tcp服务器集群， nats, etcd等)
+// 收到XXXReq协议，处理后返回XXXResp协议。
+type IHubServer interface {
 	// 启动
 	Start() error
 	// 停止
