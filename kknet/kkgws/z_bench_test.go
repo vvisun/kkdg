@@ -21,7 +21,10 @@ func freePortBench(b *testing.B) string {
 
 func BenchmarkWSConn_SendBuffer(b *testing.B) {
 	addr := freePortBench(b)
-	opts := kknet.ApplyOptions(kknet.WithRawHandler(&noopRawHandler{}))
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithLogger(kklog.Nop()),
+	)
 	srv := NewServer(addr, nil, opts)
 	if err := srv.Start(); err != nil {
 		b.Fatalf("Start: %v", err)
