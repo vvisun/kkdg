@@ -1,4 +1,6 @@
-// Package kkapp 提供应用程序框架。该包主要用于展示如何使用kkdg框架。
+// Package kkapp 提供基于 ProtoActor 的应用程序框架（Application + Component + kkactor）。
+//
+// 与仓库根目录下的 kkmodule 并列：kkmodule 为不依赖 Actor 的模块树架构，二者选其一作为应用层根组织即可，通常不混用。
 //
 // 架构说明:
 //  1. 应用Application = 节点 = 根Actor = 组件容器

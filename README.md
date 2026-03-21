@@ -5,13 +5,13 @@ Go 语言实现的游戏/分布式服务端引擎，提供网络层、集群通�
 ## 模块结构
 
 kkdg/
-├── kkapp/           # 应用框架（ProtoActor + Component）
+├── kkapp/           # 应用框架（ProtoActor：Application + Component + kkactor）
 │   ├── component/   # Application、Component 生命周期
 │   ├── comps/       # ccgate（网关）、ccgame（业务服）
-│   ├── kkactor/     # Actor 寻址、远程传输（actornats、actorshard Hub）
-│   ├── kkmodule/    # 模块树
+│   ├── kkactor/     # Actor 寻址、远程传输（atransnats、atransrelay、registry/hubtcp 等）
 │   ├── transport/   # Gate↔Logic 转发（nats/rpc/shard）
-|   └── msgreceiver/ # 消息分发
+│   └── msgreceiver/ # 消息分发
+├── kkmodule/        # 模块树（非 Actor 的另一套应用层架构，与 kkapp 并列）
 ├── kknet/           # 网络层
 │   ├── kktcp/       # TCP（gnet）
 │   ├── kktcptls/    # TCP TLS
@@ -36,8 +36,9 @@ kkdg/
 三、架构分层
 层级 | 职责 | 实现
 业务层 | 业务逻辑、消息处理 | ccgate、ccgame、MsgReceiver
-应用层 | 节点、组件、生命周期 | Application、Component
-Actor层 | 透明寻址、远程路由 | ActorFramework、ActorLocator
+应用层（Actor） | 节点、组件、生命周期 | kkapp：Application、Component
+应用层（非 Actor） | 模块树、模块生命周期 | kkmodule：IModule、Module
+Actor层 | 透明寻址、远程路由 | kkactor：ActorFramework、ActorLocator
 传输层 | Gate↔Logic 转发 | gatetrans、gametrans
 远程层 | RPC、集群、发现 | kkrpc、kkcluster、kkdiscovery
 网络层 | 连接、封包、处理 | kknet
@@ -98,7 +99,8 @@ go test -bench=. -benchmem ./...
 - **集群**：基于 NATS 的 Publish/Request，支持服务发现与节点类型订阅
 - **存储**：MySQL（kkdb + GORM 引擎与 CRUD）、Redis（kkredis 单机引擎与 Get/Set 等封装）
 - **队列**：BBQueue（环形数组）、NNQueue（链表，内存更省）
-- **应用**：`Application` + `Component` 生命周期管理
+- **应用（Actor 路线）**：`kkapp` — `Application` + `Component` + `kkactor`
+- **应用（非 Actor 路线）**：`kkmodule` — 模块树与 `OnInit` / `OnStop`
 
 ## 运行时全局变量清单
 
