@@ -62,6 +62,12 @@ func TestCheckNodeType(t *testing.T) {
 	}
 }
 
+func TestIsValidNodeType(t *testing.T) {
+	if !IsValidNodeType("gate") || IsValidNodeType("") || IsValidNodeType("type1") {
+		t.Fatalf("IsValidNodeType mismatch with checkNodeType expectations")
+	}
+}
+
 func TestNewNodeInfo_Panic(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {

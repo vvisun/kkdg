@@ -6,10 +6,18 @@ import (
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 )
+
+func mustLucencyID(t *testing.T, nodeID, actorKey string) LucencyID {
+	t.Helper()
+	id, err := NewLucencyID(nodeID, actorKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
 
 type stubRemoteTransport struct {
 	startErr    error
@@ -97,22 +105,66 @@ func TestNewLucencyActorID(t *testing.T) {
 //------------------------------------------------------------------------------
 
 func TestNewActorLocator(t *testing.T) {
-	loc := NewActorLocator()
+	loc := NewLocalActorManager()
 	if loc == nil {
 		t.Fatal("NewActorLocator() returned nil")
 	}
-	// with local nodes
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
-	loc2 := NewActorLocator(node1)
+	loc2 := NewLocalActorManager("game1")
 	if loc2 == nil {
-		t.Fatal("NewActorLocator(node1) returned nil")
+		t.Fatal("NewActorLocator(game1) returned nil")
+	}
+}
+
+func TestActorLocator_AddActor_AutoRegistersLocalNodeID(t *testing.T) {
+	loc := NewLocalActorManager()
+	actorSys := NewActorSystem()
+	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
+	defer actorSys.Root.Stop(pid)
+	id, _ := NewLucencyID("solo", "a")
+	if err := loc.AddActor(id, pid); err != nil {
+		t.Fatalf("AddActor: %v", err)
+	}
+	local, err := loc.IsLocalActor(id)
+	if err != nil || !local {
+		t.Fatalf("IsLocalActor after AddActor-only = %v, %v", local, err)
+	}
+	var seen int
+	loc.ForEachLocalNodeID(func(nodeID string) bool {
+		if nodeID == "solo" {
+			seen++
+		}
+		return true
+	})
+	if seen != 1 {
+		t.Errorf("auto local node id count = %d, want 1", seen)
+	}
+}
+
+func TestActorLocator_AddLocalNode_Idempotent(t *testing.T) {
+	loc := NewLocalActorManager()
+	actorSys := NewActorSystem()
+	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
+	defer actorSys.Root.Stop(pid)
+	id, _ := NewLucencyID("solo", "a")
+	_ = loc.AddActor(id, pid)
+	if err := loc.AddLocalNode("solo"); err != nil {
+		t.Fatalf("AddLocalNode: %v", err)
+	}
+	n := 0
+	loc.ForEachLocalNodeID(func(nodeID string) bool {
+		if nodeID == "solo" {
+			n++
+		}
+		return true
+	})
+	if n != 1 {
+		t.Errorf("local node id entries for solo = %d, want 1", n)
 	}
 }
 
 func TestActorLocator_AddActor_GetActor_RemoveActor(t *testing.T) {
 	actorSys := NewActorSystem()
-	loc := NewActorLocator()
-	loc.AddNode(kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", ""))
+	loc := NewLocalActorManager()
 
 	id, err := NewLucencyID("game1", "test_actor")
 	if err != nil {
@@ -160,7 +212,7 @@ func TestActorLocator_AddActor_GetActor_RemoveActor(t *testing.T) {
 }
 
 func TestActorLocator_AddActor_Invalid(t *testing.T) {
-	loc := NewActorLocator()
+	loc := NewLocalActorManager()
 	actorSys := NewActorSystem()
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	defer actorSys.Root.Stop(pid)
@@ -194,25 +246,23 @@ func TestActorLocator_AddActor_Invalid(t *testing.T) {
 }
 
 func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
-	loc := NewActorLocator(node1)
+	loc := NewLocalActorManager()
+	if err := loc.AddLocalNode("game1"); err != nil {
+		t.Fatalf("AddLocalNode: %v", err)
+	}
 
 	tests := []struct {
 		name       string
-		nodeId     string
-		actorKey   string
+		id         LucencyID
 		wantLocal  bool
 		wantRemote bool
 	}{
-		{"local_same_node", "game1", "game_player", true, false},
-		{"remote_other_node", "game2", "game_player", false, true},
+		{"local_node_registered", mustLucencyID(t, "game1", "game_player"), true, false},
+		{"remote_other_node", mustLucencyID(t, "game2", "game_player"), false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := NewLucencyID(tt.nodeId, tt.actorKey)
-			if err != nil {
-				t.Fatalf("NewLucencyID: %v", err)
-			}
+			id := tt.id
 			local, err := loc.IsLocalActor(id)
 			if err != nil {
 				t.Fatalf("IsLocalActor: %v", err)
@@ -232,8 +282,7 @@ func TestActorLocator_IsLocalActor_IsRemoteActor(t *testing.T) {
 }
 
 func TestActorLocator_IsLocalActor_EmptyNodeID(t *testing.T) {
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
-	loc := NewActorLocator(node1)
+	loc := NewLocalActorManager("game1")
 	id := LucencyID{nodeID: "", actorKey: "game_main"}
 	_, err := loc.IsLocalActor(id)
 	if err == nil || !errors.Is(err, kkerrors.ErrActorInvalidNodeId) {
@@ -245,26 +294,39 @@ func TestActorLocator_IsLocalActor_EmptyNodeID(t *testing.T) {
 	}
 }
 
-func TestActorLocator_AddNode_RemoveNode(t *testing.T) {
-	loc := NewActorLocator()
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
-	loc.AddNode(node1)
+func TestActorLocator_AddLocalNode_RemoveLocalNode(t *testing.T) {
+	loc := NewLocalActorManager()
+	_ = loc.AddLocalNode("game1")
 
-	local, _ := loc.IsLocalActor(LucencyID{nodeID: "game1", actorKey: "x"})
+	idPre, _ := NewLucencyID("game1", "not_spawned_yet")
+	local, _ := loc.IsLocalActor(idPre)
 	if !local {
-		t.Error("game1 should be local after AddNode")
+		t.Error("AddLocalNode alone should make any same-node LucencyID local for routing")
 	}
 
-	loc.RemoveNode(node1)
-	local, _ = loc.IsLocalActor(LucencyID{nodeID: "game1", actorKey: "x"})
+	actorSys := NewActorSystem()
+	id, _ := NewLucencyID("game1", "x")
+	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
+	defer actorSys.Root.Stop(pid)
+	_ = loc.AddActor(id, pid)
+
+	local, _ = loc.IsLocalActor(id)
+	if !local {
+		t.Error("registered actor should be local before RemoveLocalNode")
+	}
+
+	_ = loc.RemoveLocalNode("game1")
+	local, _ = loc.IsLocalActor(id)
 	if local {
-		t.Error("game1 should be remote after RemoveNode")
+		t.Error("actor of removed node should no longer be local")
+	}
+	if _, err := loc.GetActor(id); err == nil {
+		t.Error("GetActor after RemoveLocalNode should fail")
 	}
 }
 
-func TestActorLocator_ForEachNode_ForEachActor(t *testing.T) {
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
-	loc := NewActorLocator(node1)
+func TestActorLocator_ForEachLocalNodeID_ForEachActor(t *testing.T) {
+	loc := NewLocalActorManager("game1")
 	actorSys := NewActorSystem()
 
 	id, _ := NewLucencyID("game1", "test")
@@ -273,12 +335,12 @@ func TestActorLocator_ForEachNode_ForEachActor(t *testing.T) {
 	defer actorSys.Root.Stop(pid)
 
 	nodeCount := 0
-	loc.ForEachNode(func(node *kkapp.NodeInfo) bool {
+	loc.ForEachLocalNodeID(func(nodeID string) bool {
 		nodeCount++
-		return node.GetNodeId() == "game1"
+		return nodeID == "game1"
 	})
 	if nodeCount != 1 {
-		t.Errorf("ForEachNode count = %d, want 1", nodeCount)
+		t.Errorf("ForEachLocalNodeID count = %d, want 1", nodeCount)
 	}
 
 	actorCount := 0

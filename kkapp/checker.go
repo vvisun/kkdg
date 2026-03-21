@@ -48,6 +48,11 @@ func checkNodeType(nodeType string) error {
 	return nil
 }
 
+// IsValidNodeType 报告 nodeType 是否满足与 NewNodeInfo 相同的节点类型规则（非空、仅字母、长度上限）。
+func IsValidNodeType(nodeType string) bool {
+	return checkNodeType(nodeType) == nil
+}
+
 // 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
 func IsValidActorNodeId(nodeId string) bool {
 	return isASCIIAlphaNumericUnderscoreHyphen(nodeId)

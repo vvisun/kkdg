@@ -6,15 +6,16 @@
 //  2. 对外交互使用 LucencyID；
 //     其中 nodeID、actorKey 均须非空且符合 kkapp 命名规则（见 IsValidActorNodeId / IsValidActorKey）。
 //     单进程多节点部署时必须填入真实 nodeID，否则无法区分 actor 属于哪个本地节点。
-//  3. ActorLocator 根据 nodeID 是否在本进程已登记（AddNode）判定本地/远程；
-//     远程传输通过 actortrans.IRemoteActorTransport 注入，可按部署选用 transport/atransnats、transport/atransrelay 等实现。
+//  3. ActorLocator：仅维护本地 nodeID 集合与 PID 表；nodeID 在集合中即本地路由。AddActor 会自动把对应 nodeID 加入集合。
+//     完整 *NodeInfo 不由 Locator 持有，可另设本地 NodeInfo 管理器。
+//     远程目录（如 RemoteActorMgr）由注册/传输侧持有；远程投递通过 actortrans.IRemoteActorTransport 注入。
 //  4. ActorFramework 内 ActorLocator 与 ActorSystem 必须成对：PID 属于哪个 System 就应由哪个 Framework
 //     创建并登记，故 NewActorFramework 不接收外部 Locator 单独注入，避免 locator 与 Spawn 使用的 system 错位。
 //
 // 目录说明：
 //   - actor_id.go：LucencyID 定义与 NewLucencyID 等转换。
 //   - framework.go：ActorFramework 是 Actor 框架门面。
-//   - actor_locator.go：ActorLocator 是 Actor 寻址系统。
+//   - actor_locator.go：ActorLocator 是本进程本地 Actor（PID）登记与查询。
 //   - transport: actor远程传输实现。
 //     其他进程内远程通道可自行实现 actortrans.IRemoteActorTransport 并交给 ActorFramework.SetRemoteTransport。
 //     1. transport/actortrans：IRemoteActorTransport / IRemoteActorReceiver 抽象。

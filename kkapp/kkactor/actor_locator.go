@@ -10,111 +10,100 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// ActorLocator 本进程内 Actor 寻址：已登记节点（nodes）与已注册 PID（actors）。
+// LocalActorManager 本进程内本地 Actor 管理：已注册 PID（actors）与本进程承载的本地 nodeID 集合（localNodes）。
 //
-//	注意：先调用AddNode，再调用AddActor。
-type ActorLocator struct {
-	mu     sync.RWMutex
-	actors map[LucencyID]*actor.PID   // LucencyID -> *actor.PID，本进程内由 AddActor 登记的实例
-	nodes  map[string]*kkapp.NodeInfo // nodeId -> NodeInfo，本进程内视为「本地节点」的集合（可多个，支持单机多节点）
+// 本地 / 远程（供 ActorFramework 路由）：LucencyID 的 nodeID 已在 localNodes 中即为本地。
+// AddActor 时若该 nodeID 尚未在 localNodes 中，会自动加入（仅占位，无 NodeType 等元数据）。
+//
+// 完整 *kkapp.NodeInfo（类型、地址、RPC 等）不由 Locator 持有；需要时可由应用侧单独的本地 NodeInfo 管理器维护。
+//
+// 远程 Actor 目录由 registry/actorhub.RemoteActorMgr 等在传输或注册侧维护，不挂在 Locator 上。
+type LocalActorManager struct {
+	mu         sync.RWMutex
+	actors     map[LucencyID]*actor.PID
+	localNodes map[string]struct{} // 本进程视为本地的 nodeID 集合
 }
 
-// 创建Actor寻址系统，localNodes为当前进程的本地节点信息。
-// 这里之所以允许传入多个localNode，是因为单机部署时，可以直接在同一个进程里启动多个节点。
-// 在单机部署的情况下，直接本地寻址，性能更好。
-func NewActorLocator(localNodes ...*kkapp.NodeInfo) *ActorLocator {
-	nodes := make(map[string]*kkapp.NodeInfo)
-	for _, node := range localNodes {
-		if node == nil {
-			kklog.Warnf("new actor locator with nil node: %v", node)
-			continue
-		}
-		if !kkapp.IsValidActorNodeId(node.GetNodeId()) {
-			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
+// NewLocalActorManager 可选传入初始本地 nodeID（须通过 IsValidActorNodeId）。
+func NewLocalActorManager(localNodeIDs ...string) *LocalActorManager {
+	localNodes := make(map[string]struct{})
+	for _, id := range localNodeIDs {
+		if !kkapp.IsValidActorNodeId(id) {
 			kklog.PanicLog("invalid node id")
 		}
-		nodes[node.GetNodeId()] = node
+		localNodes[id] = struct{}{}
 	}
-	return &ActorLocator{
-		actors: make(map[LucencyID]*actor.PID),
-		nodes:  nodes,
+	return &LocalActorManager{
+		actors:     make(map[LucencyID]*actor.PID),
+		localNodes: localNodes,
 	}
 }
 
-func (slf *ActorLocator) AddNode(node *kkapp.NodeInfo) error {
-	if node == nil {
-		return kkerrors.ErrActorAddInvalidNode
-	}
-	if !kkapp.IsValidActorNodeId(node.GetNodeId()) {
+// AddLocalNode 将 nodeID 记入本进程本地节点集合（仅路由语义，不含 NodeInfo）。
+func (slf *LocalActorManager) AddLocalNode(nodeID string) error {
+	if !kkapp.IsValidActorNodeId(nodeID) {
 		return kkerrors.ErrActorInvalidNodeId
 	}
 	slf.mu.Lock()
-	slf.nodes[node.GetNodeId()] = node
+	slf.localNodes[nodeID] = struct{}{}
 	slf.mu.Unlock()
 	return nil
 }
 
-func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) error {
-	if node == nil {
-		return kkerrors.ErrActorAddInvalidNode
+// RemoveLocalNode 从本地节点集合移除 nodeID，并删除该 nodeID 下已登记的所有 Actor。
+func (slf *LocalActorManager) RemoveLocalNode(nodeID string) error {
+	if !kkapp.IsValidActorNodeId(nodeID) {
+		return kkerrors.ErrActorInvalidNodeId
 	}
-	nodeId := node.GetNodeId()
 	slf.mu.Lock()
-	// 如果移除的是本地节点，则需要移除本地Actor。
-	if _, ok := slf.nodes[nodeId]; ok {
-		for id := range slf.actors {
-			ok, err := slf.isLocalActor(id)
-			if err != nil {
-				//非法的actor，删除。理论上不可能，因为AddActor时已经检查了合法性。
-				kklog.Errorf("isLocalActor error: %v", err)
-				delete(slf.actors, id)
-				continue
-			}
-			if id.nodeID == nodeId && ok {
-				delete(slf.actors, id)
-			}
+	for id := range slf.actors {
+		if id.nodeID == nodeID {
+			delete(slf.actors, id)
 		}
 	}
-	delete(slf.nodes, nodeId)
+	delete(slf.localNodes, nodeID)
 	slf.mu.Unlock()
 	return nil
 }
 
-func (slf *ActorLocator) isLocalActor(id LucencyID) (bool, error) {
+func (slf *LocalActorManager) isLocalActor(id LucencyID) (bool, error) {
 	if !kkapp.IsValidActorNodeId(id.nodeID) {
 		return false, kkerrors.ErrActorInvalidNodeId
 	}
 	if !kkapp.IsValidActorKey(id.actorKey) {
 		return false, kkerrors.ErrActorInvalidActorKey
 	}
-	_, ok := slf.nodes[id.nodeID]
-	return ok, nil //如果nodeID在nodes中，则认为是本地Actor
+	_, ok := slf.localNodes[id.nodeID]
+	return ok, nil
 }
 
-// 判断Actor是否是本地Actor。
-func (slf *ActorLocator) IsLocalActor(id LucencyID) (bool, error) {
+// IsLocalActor 当且仅当该 LucencyID 的 nodeID 已在本 Locator 的 localNodes 中。
+func (slf *LocalActorManager) IsLocalActor(id LucencyID) (bool, error) {
 	slf.mu.RLock()
 	ok, err := slf.isLocalActor(id)
 	slf.mu.RUnlock()
 	return ok, err
 }
 
-// 判断Actor是否是远程Actor
-func (slf *ActorLocator) IsRemoteActor(id LucencyID) (bool, error) {
+// IsRemoteActor 在 LucencyID 合法的前提下，等价于 !IsLocalActor。
+func (slf *LocalActorManager) IsRemoteActor(id LucencyID) (bool, error) {
 	ok, err := slf.IsLocalActor(id)
-	return !ok, err
+	if err != nil {
+		return false, err
+	}
+	return !ok, nil
 }
 
-// 查找本进程已登记的 PID
-func (slf *ActorLocator) GetLocalActor(actorRef *actortrans.ActorRef) (*actor.PID, error) {
+// GetLocalActor 查找本进程已登记的 PID。
+func (slf *LocalActorManager) GetLocalActor(actorRef *actortrans.ActorRef) (*actor.PID, error) {
 	if actorRef == nil {
 		return nil, kkerrors.ErrActorInvalidActorRef
 	}
 	return slf.GetActor(LucencyID{nodeID: actorRef.NodeID, actorKey: actorRef.ActorKey})
 }
 
-// 根据LucencyID查找Actor
-func (slf *ActorLocator) GetActor(id LucencyID) (*actor.PID, error) {
+// GetActor 根据 LucencyID 查找本进程已登记的 PID。
+func (slf *LocalActorManager) GetActor(id LucencyID) (*actor.PID, error) {
 	slf.mu.RLock()
 	pid, ok := slf.actors[id]
 	slf.mu.RUnlock()
@@ -124,8 +113,8 @@ func (slf *ActorLocator) GetActor(id LucencyID) (*actor.PID, error) {
 	return pid, nil
 }
 
-// 添加Actor
-func (slf *ActorLocator) AddActor(id LucencyID, pid *actor.PID) error {
+// AddActor 登记本地 Actor；若 nodeID 尚未在 localNodes 中，自动加入该 nodeID。
+func (slf *LocalActorManager) AddActor(id LucencyID, pid *actor.PID) error {
 	if !kkapp.IsValidActorKey(id.actorKey) {
 		return kkerrors.ErrActorInvalidActorKey
 	}
@@ -136,32 +125,33 @@ func (slf *ActorLocator) AddActor(id LucencyID, pid *actor.PID) error {
 		return kkerrors.ErrActorAddInvalidPID
 	}
 	slf.mu.Lock()
+	slf.localNodes[id.nodeID] = struct{}{}
 	slf.actors[id] = pid
 	slf.mu.Unlock()
 	return nil
 }
 
-// 移除Actor
-func (slf *ActorLocator) RemoveActor(id LucencyID) error {
+// RemoveActor 从本 Locator 移除指定 LucencyID 的 PID（不删除 localNodes 中的 nodeID）。
+func (slf *LocalActorManager) RemoveActor(id LucencyID) error {
 	slf.mu.Lock()
 	delete(slf.actors, id)
 	slf.mu.Unlock()
 	return nil
 }
 
-// 遍历nodes, fn返回false时停止遍历
-func (slf *ActorLocator) ForEachNode(fn func(node *kkapp.NodeInfo) bool) {
+// ForEachLocalNodeID 遍历已登记的本地 nodeID；fn 返回 false 时停止。遍历顺序未定义。
+func (slf *LocalActorManager) ForEachLocalNodeID(fn func(nodeID string) bool) {
 	slf.mu.RLock()
 	defer slf.mu.RUnlock()
-	for _, node := range slf.nodes {
-		if !fn(node) {
+	for id := range slf.localNodes {
+		if !fn(id) {
 			break
 		}
 	}
 }
 
-// 遍历actors, fn返回false时停止遍历
-func (slf *ActorLocator) ForEachActor(fn func(id LucencyID, pid *actor.PID) bool) {
+// ForEachActor 遍历已登记 Actor；fn 返回 false 时停止。
+func (slf *LocalActorManager) ForEachActor(fn func(id LucencyID, pid *actor.PID) bool) {
 	slf.mu.RLock()
 	defer slf.mu.RUnlock()
 	for id, pid := range slf.actors {

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/vvisun/kkdg/kkapp"
 )
 
 //------------------------------------------------------------------------------
@@ -48,7 +47,7 @@ func BenchmarkNewLucencyActorID(b *testing.B) {
 
 func BenchmarkActorLocator_AddActor(b *testing.B) {
 	actorSys := NewSilentActorSystem()
-	loc := NewActorLocator()
+	loc := NewLocalActorManager()
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())
@@ -78,8 +77,7 @@ func BenchmarkActorLocator_AddActor(b *testing.B) {
 
 func BenchmarkActorLocator_GetActor(b *testing.B) {
 	actorSys := NewSilentActorSystem()
-	loc := NewActorLocator()
-	loc.AddNode(kkapp.NewNodeInfo("node_bench", "game", "", ""))
+	loc := NewLocalActorManager()
 	id, _ := NewLucencyID("node_bench", "bench_actor")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
 	defer actorSys.Root.Stop(pid)
@@ -93,9 +91,12 @@ func BenchmarkActorLocator_GetActor(b *testing.B) {
 }
 
 func BenchmarkActorLocator_IsLocalActor(b *testing.B) {
-	node1 := kkapp.NewNodeInfo("game1", "game", "127.0.0.1:8080", "")
-	loc := NewActorLocator(node1)
+	actorSys := NewSilentActorSystem()
+	loc := NewLocalActorManager()
 	id, _ := NewLucencyID("game1", "game_player")
+	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {}))
+	defer actorSys.Root.Stop(pid)
+	_ = loc.AddActor(id, pid)
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -106,7 +107,7 @@ func BenchmarkActorLocator_IsLocalActor(b *testing.B) {
 
 func BenchmarkActorLocator_AddGetRemove(b *testing.B) {
 	actorSys := NewSilentActorSystem()
-	loc := NewActorLocator()
+	loc := NewLocalActorManager()
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {
 			ctx.Respond(ctx.Message())

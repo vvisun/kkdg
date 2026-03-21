@@ -43,9 +43,8 @@ func (r *RemoteActor) RpcAddress() string {
 	return r.rpcAddr
 }
 
-// RemoteActorMgr 远程Actor管理器。
-//
-//	hubserver 与 hubclient 可以通过这个管理器缓存远程Actor信息。
+// RemoteActorMgr 远程 Actor 目录缓存（LucencyID → 节点 RPC 等元数据）。
+// 由 Hub 服务端、Hub 客户端或依赖目录的传输实现持有；不参与 ActorFramework 的本地 PID 路由。
 type RemoteActorMgr struct {
 	actors map[kkactor.LucencyID]*RemoteActor
 	mu     sync.RWMutex

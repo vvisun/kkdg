@@ -13,7 +13,7 @@ import (
 
 // IActorFramework 是 Actor 框架门面。
 type IActorFramework interface {
-	GetLocator() *ActorLocator
+	GetLocator() *LocalActorManager
 	GetActorSystem() *actor.ActorSystem
 	SetRemoteTransport(transport actortrans.IRemoteActorTransport) error
 	GetRemoteTransport() actortrans.IRemoteActorTransport
@@ -52,7 +52,7 @@ func NewSilentActorSystem(options ...actor.ConfigOption) *actor.ActorSystem {
 // 会造成找不到 PID 或与错误进程通信。因此二者只在工厂方法内成对创建，保证一一对应。
 func NewActorFramework(options ...actor.ConfigOption) *ActorFramework {
 	return &ActorFramework{
-		locator:  NewActorLocator(),
+		locator:  NewLocalActorManager(),
 		actorSys: NewActorSystem(options...),
 	}
 }
@@ -60,24 +60,23 @@ func NewActorFramework(options ...actor.ConfigOption) *ActorFramework {
 // NewSilentActorFramework 与 NewActorFramework 相同配对关系，仅 ActorSystem 使用静默日志，便于测试/压测。
 func NewSilentActorFramework(options ...actor.ConfigOption) *ActorFramework {
 	return &ActorFramework{
-		locator:  NewActorLocator(),
+		locator:  NewLocalActorManager(),
 		actorSys: NewSilentActorSystem(options...),
 	}
 }
 
 // ActorFramework 是 Actor 框架门面。
 type ActorFramework struct {
-	// locator 与 actorSys 由同一工厂创建并绑定：仅寻址本 ActorSystem 下注册的 PID。
-	// 本地命中时向 actorSys.Root 发消息；否则走 remoteTransport。
-	// 业务 Spawn 后须 GetLocator().AddActor(...) 登记，否则本地无法解析。
-	locator *ActorLocator
+	// locator 与 actorSys 由同一工厂创建并绑定：本地路由以 nodeID 是否在 locator 本地 nodeID 集合为准；PID 来自 AddActor。
+	// 本地且 GetActor 命中则走 actorSys.Root；本地但未登记 PID 返回 ErrActorNotFound；非本地走 remoteTransport。
+	locator *LocalActorManager
 	// Actor系统
 	actorSys *actor.ActorSystem
 	// 远程Actor传输层
 	remoteTransport actortrans.IRemoteActorTransport
 }
 
-func (slf *ActorFramework) GetLocator() *ActorLocator {
+func (slf *ActorFramework) GetLocator() *LocalActorManager {
 	return slf.locator
 }
 

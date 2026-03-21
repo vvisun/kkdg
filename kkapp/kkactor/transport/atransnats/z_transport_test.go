@@ -8,7 +8,6 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/nats-io/nats.go"
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -56,8 +55,6 @@ func TestTransport_SendAndRequest(t *testing.T) {
 
 	framework1 := kkactor.NewActorFramework()
 	framework2 := kkactor.NewActorFramework()
-	framework1.GetLocator().AddNode(kkapp.NewNodeInfo("node1", "game", "", ""))
-	framework2.GetLocator().AddNode(kkapp.NewNodeInfo("node2", "game", "", ""))
 
 	if err := framework1.SetRemoteTransport(transport1); err != nil {
 		t.Fatalf("framework1.SetRemoteTransport: %v", err)
@@ -121,7 +118,6 @@ func TestTransport_Request_UnregisteredMessage(t *testing.T) {
 
 	transport := NewTransport("node1", registry, ApplyNatsOptions(WithURL(natsURL)))
 	framework := kkactor.NewActorFramework()
-	framework.GetLocator().AddNode(kkapp.NewNodeInfo("node1", "game", "", ""))
 	if err := framework.SetRemoteTransport(transport); err != nil {
 		t.Fatalf("SetRemoteTransport: %v", err)
 	}

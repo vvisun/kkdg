@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -14,42 +13,47 @@ import (
 // framework_test
 //------------------------------------------------------------------------------
 
-func TestActorFramework_Send_NotFound(t *testing.T) {
+func TestActorFramework_Send_RemoteWithoutTransport(t *testing.T) {
 	af := NewActorFramework()
-	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
-
 	id, _ := NewLucencyID("aa", "nonexistent")
 	err := af.Send(id, "hello")
-	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
-		t.Errorf("Send(not found) = %v, want ErrActorNotFound", err)
+	if err == nil || !errors.Is(err, kkerrors.ErrActorRemoteTransportNotConfigured) {
+		t.Errorf("Send(unregistered, no transport) = %v, want ErrActorRemoteTransportNotConfigured", err)
 	}
 }
 
-func TestActorFramework_Request_NotFound(t *testing.T) {
+func TestActorFramework_Request_RemoteWithoutTransport(t *testing.T) {
 	af := NewActorFramework()
-	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
-
 	id, _ := NewLucencyID("aa", "nonexistent")
 	_, err := af.Request(id, "hello", time.Second)
-	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
-		t.Errorf("Request(not found) = %v, want ErrActorNotFound", err)
+	if err == nil || !errors.Is(err, kkerrors.ErrActorRemoteTransportNotConfigured) {
+		t.Errorf("Request(unregistered, no transport) = %v, want ErrActorRemoteTransportNotConfigured", err)
 	}
 }
 
-func TestActorFramework_RequestAsync_NotFound(t *testing.T) {
+func TestActorFramework_RequestAsync_RemoteWithoutTransport(t *testing.T) {
 	af := NewActorFramework()
-	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
-
 	id, _ := NewLucencyID("aa", "nonexistent")
 	err := af.RequestAsync(id, "hello", time.Second, func(result any, err error) {})
+	if err == nil || !errors.Is(err, kkerrors.ErrActorRemoteTransportNotConfigured) {
+		t.Errorf("RequestAsync(unregistered, no transport) = %v, want ErrActorRemoteTransportNotConfigured", err)
+	}
+}
+
+func TestActorFramework_Send_LocalNodeActorNotFound(t *testing.T) {
+	af := NewActorFramework()
+	if err := af.GetLocator().AddLocalNode("aa"); err != nil {
+		t.Fatal(err)
+	}
+	id, _ := NewLucencyID("aa", "never_spawned")
+	err := af.Send(id, "hello")
 	if err == nil || !errors.Is(err, kkerrors.ErrActorNotFound) {
-		t.Errorf("RequestAsync(not found) = %v, want ErrActorNotFound", err)
+		t.Errorf("Send(local node, no AddActor) = %v, want ErrActorNotFound", err)
 	}
 }
 
 func TestActorFramework_RequestAsync_NilCallback(t *testing.T) {
 	af := NewActorFramework()
-	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
 
@@ -105,7 +109,6 @@ func TestActorFramework_Send_Request_Integration(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
-	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
 	id, err := NewLucencyID("aa", "echo")
 	if err != nil {
@@ -150,7 +153,6 @@ func TestActorFramework_RequestAsync_Integration(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
-	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
 	id, _ := NewLucencyID("aa", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
@@ -189,7 +191,6 @@ func TestRequest_RequestAsync_Generic(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
 	loc := af.GetLocator()
-	af.GetLocator().AddNode(kkapp.NewNodeInfo("aa", "game", "", ""))
 
 	id, _ := NewLucencyID("aa", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {

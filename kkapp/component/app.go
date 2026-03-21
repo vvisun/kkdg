@@ -31,7 +31,7 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		kklog.PanicLog("actorFramework is nil")
 	}
 	kkapp.CheckOptions(&opts)
-	af.GetLocator().AddNode(nodeInfo)
+	_ = af.GetLocator().AddLocalNode(nodeInfo.GetNodeId())
 	app := &Application{
 		nodeInfo:          nodeInfo,
 		actorFramework:    af,
@@ -349,7 +349,7 @@ func (slf *Application) onStopped() {
 
 	id, _ := kkactor.NewLucencyID(slf.GetNodeId(), slf.GetCompName())
 	slf.actorFramework.GetLocator().RemoveActor(id)
-	slf.actorFramework.GetLocator().RemoveNode(slf.nodeInfo)
+	_ = slf.actorFramework.GetLocator().RemoveLocalNode(slf.GetNodeId())
 	slf.mu.Lock()
 	slf.compList = make([]kkapp.IComponent, 0)
 	slf.mu.Unlock()
