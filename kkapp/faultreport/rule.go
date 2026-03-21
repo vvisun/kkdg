@@ -25,7 +25,7 @@ func (slf *RuleTable) Lock() {
 	slf.locket.Store(true)
 }
 
-func (slf *RuleTable) FromMap(rules map[string]int) {
+func (slf *RuleTable) FromMap(rules map[string]EFaultAction) {
 	if rules == nil {
 		kklog.Errorf("[faultreport] rule map is nil")
 		return
@@ -45,11 +45,11 @@ func (slf *RuleTable) FromMap(rules map[string]int) {
 	}
 
 	for compName, action := range rules {
-		if !IsValidFaultAction(EFaultAction(action)) {
+		if !IsValidFaultAction(action) {
 			kklog.Errorf("[faultreport] rule compName %s action %d is invalid", compName, action)
 			continue
 		}
-		slf.rules[compName] = EFaultAction(action)
+		slf.rules[compName] = action
 	}
 }
 

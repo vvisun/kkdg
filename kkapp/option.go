@@ -19,7 +19,7 @@ type AppOptions struct {
 	// 转发层的消息编解码器。
 	TransportorCodec kkcodec.ICodec
 	// 故障处理规则表。
-	FaultRuleMap map[string]int
+	FaultRuleMap map[string]faultreport.EFaultAction
 }
 
 func DefaultOptions() AppOptions {
@@ -31,7 +31,7 @@ func DefaultOptions() AppOptions {
 			kkpacket.NewMsgRouter(),
 		),
 		TransportorCodec: kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
-		FaultRuleMap:     make(map[string]int),
+		FaultRuleMap:     make(map[string]faultreport.EFaultAction),
 	}
 }
 
@@ -59,13 +59,13 @@ func CheckOptions(opt *AppOptions) {
 
 	if opt.FaultRuleMap == nil {
 		kklog.Warnf("[kkapp] fault rule map is nil, use default map, will stop app when any component fault")
-		opt.FaultRuleMap = make(map[string]int)
+		opt.FaultRuleMap = make(map[string]faultreport.EFaultAction)
 	} else {
 		for compName, action := range opt.FaultRuleMap {
 			if compName == "" {
 				kklog.PanicLog("[kkapp] fault compName is empty")
 			}
-			if !faultreport.IsValidFaultAction(faultreport.EFaultAction(action)) {
+			if !faultreport.IsValidFaultAction(action) {
 				kklog.PanicLog("[kkapp] fault compName %s action %d is invalid", compName, action)
 			}
 		}
@@ -118,9 +118,9 @@ func WithFaultAction(compName string, action faultreport.EFaultAction) func(o *A
 			return
 		}
 		if o.FaultRuleMap == nil {
-			o.FaultRuleMap = make(map[string]int)
+			o.FaultRuleMap = make(map[string]faultreport.EFaultAction)
 		}
-		o.FaultRuleMap[compName] = int(action)
+		o.FaultRuleMap[compName] = action
 	}
 }
 
@@ -130,14 +130,14 @@ func WithFaultActionMap(faultActionMap map[string]faultreport.EFaultAction) func
 			return
 		}
 		if o.FaultRuleMap == nil {
-			o.FaultRuleMap = make(map[string]int)
+			o.FaultRuleMap = make(map[string]faultreport.EFaultAction)
 		}
 		for compName, action := range faultActionMap {
 			if !faultreport.IsValidFaultAction(action) {
 				kklog.Errorf("[kkapp] fault compName %s action %d is invalid", compName, action)
 				continue
 			}
-			o.FaultRuleMap[compName] = int(action)
+			o.FaultRuleMap[compName] = action
 		}
 	}
 }
