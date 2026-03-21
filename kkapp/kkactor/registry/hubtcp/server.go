@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/kkactor"
-	"github.com/vvisun/kkdg/kkapp/kkactor/regist/actorhub"
-	"github.com/vvisun/kkdg/kkapp/kkactor/regist/hubproto"
+	"github.com/vvisun/kkdg/kkapp/kkactor/registry/actorhub"
+	"github.com/vvisun/kkdg/kkapp/kkactor/registry/hubproto"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
