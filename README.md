@@ -11,7 +11,6 @@ kkdg/
 │   ├── kkactor/     # Actor 寻址、远程传输（atransnats、atransrelay、registry/hubtcp 等）
 │   ├── transport/   # Gate↔Logic 转发（nats/rpc/shard）
 │   └── msgreceiver/ # 消息分发
-├── kkmodule/        # 模块树（非 Actor 的另一套应用层架构，与 kkapp 并列）
 ├── kknet/           # 网络层
 │   ├── kktcp/       # TCP（gnet）
 │   ├── kktcptls/    # TCP TLS
