@@ -80,7 +80,7 @@ func (slf *HubClient) GetRemoteActorMgr() actorhub.IClientRemoteActorMgr {
 	return slf.remoteActorMgr
 }
 
-func (slf *HubClient) RegisterActor(actorID kkactor.LucencyID) error {
+func (slf *HubClient) ReqRegisterActor(actorID kkactor.LucencyID) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
@@ -104,7 +104,7 @@ func (slf *HubClient) RegisterActor(actorID kkactor.LucencyID) error {
 	return nil
 }
 
-func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyID) error {
+func (slf *HubClient) ReqUnregisterActor(actorID kkactor.LucencyID) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
@@ -128,7 +128,7 @@ func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyID) error {
 	return nil
 }
 
-func (slf *HubClient) FindActor(actorID kkactor.LucencyID) error {
+func (slf *HubClient) ReqFindActor(actorID kkactor.LucencyID) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
@@ -150,7 +150,7 @@ func (slf *HubClient) FindActor(actorID kkactor.LucencyID) error {
 	return nil
 }
 
-func (slf *HubClient) GetAllActorsOfNode(nodeID string) error {
+func (slf *HubClient) RegGetAllActorsOfNode(nodeID string) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}

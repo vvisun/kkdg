@@ -72,7 +72,7 @@ func TestHubTCP_RegisterFindServerAndClientCache(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := cli.RegisterActor(aid); err != nil {
+	if err := cli.ReqRegisterActor(aid); err != nil {
 		t.Fatalf("RegisterActor: %v", err)
 	}
 	time.Sleep(150 * time.Millisecond)
@@ -81,7 +81,7 @@ func TestHubTCP_RegisterFindServerAndClientCache(t *testing.T) {
 		t.Fatalf("server FindActor after register: %v", err)
 	}
 
-	if err := cli.FindActor(aid); err != nil {
+	if err := cli.ReqFindActor(aid); err != nil {
 		t.Fatalf("FindActor send: %v", err)
 	}
 	time.Sleep(150 * time.Millisecond)
@@ -120,11 +120,11 @@ func TestHubTCP_GetAllActorsOfNode(t *testing.T) {
 
 	a1, _ := kkactor.NewLucencyID("hubnode2", "a1")
 	a2, _ := kkactor.NewLucencyID("hubnode2", "a2")
-	_ = cli.RegisterActor(a1)
-	_ = cli.RegisterActor(a2)
+	_ = cli.ReqRegisterActor(a1)
+	_ = cli.ReqRegisterActor(a2)
 	time.Sleep(200 * time.Millisecond)
 
-	if err := cli.GetAllActorsOfNode("hubnode2"); err != nil {
+	if err := cli.RegGetAllActorsOfNode("hubnode2"); err != nil {
 		t.Fatalf("GetAllActorsOfNode: %v", err)
 	}
 	time.Sleep(200 * time.Millisecond)
@@ -161,7 +161,7 @@ func TestHubTCP_WrongPasswordNotAuthed(t *testing.T) {
 	}
 
 	aid, _ := kkactor.NewLucencyID("hubnode3", "x")
-	err := cli.RegisterActor(aid)
+	err := cli.ReqRegisterActor(aid)
 	if !errors.Is(err, hubproto.ErrNotAuthed) {
 		t.Fatalf("RegisterActor err = %v, want ErrNotAuthed", err)
 	}
@@ -189,7 +189,7 @@ func TestHubTCP_ClientDisconnectUnregistersOnServer(t *testing.T) {
 	waitClientAuthed(t, cli, 3*time.Second)
 
 	aid, _ := kkactor.NewLucencyID("hubnode4", "ephemeral")
-	_ = cli.RegisterActor(aid)
+	_ = cli.ReqRegisterActor(aid)
 	time.Sleep(150 * time.Millisecond)
 	if _, err := serverRemoteMgr(t, srv).FindActor(aid); err != nil {
 		t.Fatalf("before close: %v", err)
