@@ -12,8 +12,8 @@ import (
 type EWpQueueFullAction int
 
 const (
-	EWpQueueFullActionDrop EWpQueueFullAction = iota // 丢弃
-	EWpQueueFullActionRetry                          // 重试
+	EWpQueueFullActionDrop  EWpQueueFullAction = iota // 丢弃
+	EWpQueueFullActionRetry                           // 重试
 )
 
 // 多包合并发送时，限制的包数量。
@@ -29,6 +29,23 @@ type WriteOptions struct {
 	// 发送队列大小。默认 128。
 	// 需配合 SendQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
 	SendQueueSize int
+	// SendQueue full 动作。需配合 SendQueueStrict为 true 使用。
+	// 严格模式下，队列满时才会触发。非严格模式下，队列满时会自动扩容。
+	// 默认 Drop，表示丢弃。
+	SendQueueFullAction EWpQueueFullAction
+	// Retry 模式：重试间隔（默认 2ms）
+	// 需配合 SendQueueStrict为 true 且 SendQueueFullAction为 Retry 使用。
+	SendQueueRetryInterval time.Duration
+	// Retry 模式：最大重试次数（0 表示无限，默认 100）
+	// 需配合 SendQueueStrict为 true 且 SendQueueFullAction为 Retry 使用。
+	SendQueueRetryMaxCount int
+
+	// writeFn 失败时的最大重试次数（0 表示不重试，直接放弃并关闭写协程）
+	WriteFnRetryMaxCount int
+	// writeFn 失败时的重试间隔（默认 5ms）
+	WriteFnRetryInterval time.Duration
+	// writeFn 失败时是否可重试。nil 时使用默认逻辑（连接已关闭等致命错误不重试）
+	WriteFnIsRetryable func(err error) bool
 
 	// 关闭时是否需要等待 flush 完成。
 	// 客户端没必要等待 flush 完成，因为实际中客户端会是web/app/小程序等，
@@ -39,24 +56,9 @@ type WriteOptions struct {
 	// flush 超时回调
 	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration)
 
-	// SendQueue full 动作。严格模式下，队列满时才会触发。非严格模式下，队列满时会自动扩容。
-	// 默认 Drop，表示丢弃。
-	SendQueueFullAction EWpQueueFullAction
-	// Retry 模式：重试间隔（默认 2ms）
-	SendQueueRetryInterval time.Duration
-	// Retry 模式：最大重试次数（0 表示无限，默认 100）
-	SendQueueRetryMaxCount int
-
 	// 多包合并发送时，限制的写入的字节数(<=0 不限制)
 	// 合并时限制的包数量为常量 BatchPacketSize。
 	BatchWriteLimitBytes int
-
-	// writeFn 失败时的最大重试次数（0 表示不重试，直接放弃并关闭写协程）
-	WriteFnRetryMaxCount int
-	// writeFn 失败时的重试间隔（默认 5ms）
-	WriteFnRetryInterval time.Duration
-	// writeFn 失败时是否可重试。nil 时使用默认逻辑（连接已关闭等致命错误不重试）
-	WriteFnIsRetryable func(err error) bool
 }
 
 func DefaultWriteOptions() WriteOptions {

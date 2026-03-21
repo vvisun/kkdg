@@ -7,6 +7,7 @@ import (
 
 type ReadOptions struct {
 	StreamTool kkpacket.IPacket
+
 	//消费函数, data: [length,message], 外部自行用解码器解码（内置的解码器见kkpacket）
 	RawHandler IRawHandler
 	//消费函数, data: [length,message], 如果同步调用已经快过拷贝，可以直接同步消费数据。
@@ -21,8 +22,10 @@ type ReadOptions struct {
 	// 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
 	// 例如，可以在回调里限流/向客户端发送提示“服务器繁忙”等。
 	RecvQueueFullCallback func(conn IConn)
+
 	//当拆包缓冲区 cap 超过该值且当前为空时，会缩容到默认值。防止内存浪费。
 	RecvBufShrinkCap int
+
 	// WorkerQueue 最大并发数。用于TaskReadProcessor。
 	// 默认 1，表示不并发，保证顺序性。大于1时并发，不保证顺序性。
 	// 取值范围会自动归一化到 [1,64]。
@@ -79,8 +82,15 @@ func WithNoneCopyHandler(handler INoneCopyHandler) Option {
 	}
 }
 
+// WithRecvQueueStrict sets recv queue strict.
+func WithRecvQueueStrict(strict bool) Option {
+	return func(o *Options) {
+		o.RpOptions.RecvQueueStrict = strict
+	}
+}
+
 // WithRecvQueueSize sets recv queue size.
-// 默认 256，RecvQueueStrict 为 true 时，会有队列满回调。否则会自动扩容，这里设置的值会忽略。
+// 接收队列大小。默认 256。 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
 func WithRecvQueueSize(size int) Option {
 	return func(o *Options) {
 		if size > 0 {
@@ -89,10 +99,13 @@ func WithRecvQueueSize(size int) Option {
 	}
 }
 
-// WithRecvQueueStrict sets recv queue strict.
-func WithRecvQueueStrict(strict bool) Option {
+// WithRecvQueueFullCallback 设置 RecvQueue 满时的回调。
+// 回调在 Push 因队列满失败时触发，用于统计、限流或踢连接等。
+// 需配合 WithRecvQueueStrict(true) 使用，否则队列会自动扩容不会满。
+// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
+func WithRecvQueueFullCallback(callback func(conn IConn)) Option {
 	return func(o *Options) {
-		o.RpOptions.RecvQueueStrict = strict
+		o.RpOptions.RecvQueueFullCallback = callback
 	}
 }
 
@@ -107,15 +120,5 @@ func WithRecvBufShrinkCap(cap int) Option {
 func WithWorkerQueueMaxConcurrency(concurrency int32) Option {
 	return func(o *Options) {
 		o.RpOptions.WorkerQueueMaxConcurrency = concurrency
-	}
-}
-
-// WithRecvQueueFullCallback 设置 RecvQueue 满时的回调。
-// 回调在 Push 因队列满失败时触发，用于统计、限流或踢连接等。
-// 需配合 WithRecvQueueStrict(true) 使用，否则队列会自动扩容不会满。
-// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
-func WithRecvQueueFullCallback(callback func(conn IConn)) Option {
-	return func(o *Options) {
-		o.RpOptions.RecvQueueFullCallback = callback
 	}
 }
