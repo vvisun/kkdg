@@ -7,9 +7,9 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
-	"github.com/vvisun/kkdg/kkapp/kkactor/hub/actorhub"
-	"github.com/vvisun/kkdg/kkapp/kkactor/hub/hubproto"
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/regist/actorhub"
+	"github.com/vvisun/kkdg/kkapp/kkactor/regist/hubproto"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -87,7 +87,7 @@ func (slf *HubClient) RegisterActor(actorID kkactor.LucencyID) error {
 	req := &hubproto.RegisterActorReq{
 		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
 		OpCode: 1,
-		ActorID: actorremotes.ActorRef{
+		ActorID: actortrans.ActorRef{
 			NodeID:   actorID.NodeID(),
 			ActorKey: actorID.ActorKey(),
 		},
@@ -111,7 +111,7 @@ func (slf *HubClient) UnregisterActor(actorID kkactor.LucencyID) error {
 	req := &hubproto.RegisterActorReq{
 		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
 		OpCode: 2,
-		ActorID: actorremotes.ActorRef{
+		ActorID: actortrans.ActorRef{
 			NodeID:   actorID.NodeID(),
 			ActorKey: actorID.ActorKey(),
 		},
@@ -134,7 +134,7 @@ func (slf *HubClient) FindActor(actorID kkactor.LucencyID) error {
 	}
 	req := &hubproto.FindActorReq{
 		ReqID: atomic.AddUint64(&slf.autoReqId, 1),
-		ActorID: actorremotes.ActorRef{
+		ActorID: actortrans.ActorRef{
 			NodeID:   actorID.NodeID(),
 			ActorKey: actorID.ActorKey(),
 		},

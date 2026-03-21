@@ -4,9 +4,9 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp/kkactor"
-	"github.com/vvisun/kkdg/kkapp/kkactor/hub/actorhub"
-	"github.com/vvisun/kkdg/kkapp/kkactor/hub/hubproto"
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/regist/actorhub"
+	"github.com/vvisun/kkdg/kkapp/kkactor/regist/hubproto"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
@@ -254,7 +254,7 @@ func (h *serverHandler) onFindActorReq(connID kknet.CONN_ID, req *hubproto.FindA
 		_ = h.replyFindErr(connID, req.ReqID, req.ActorID, err.Error())
 		return
 	}
-	ref := actorremotes.ActorRef{NodeID: lucID.NodeID(), ActorKey: lucID.ActorKey()}
+	ref := actortrans.ActorRef{NodeID: lucID.NodeID(), ActorKey: lucID.ActorKey()}
 	ra, err := h.hub.remoteActorMgr.FindActor(lucID)
 	if err != nil {
 		_ = h.replyFindErr(connID, req.ReqID, ref, err.Error())
@@ -269,7 +269,7 @@ func (h *serverHandler) onFindActorReq(connID kknet.CONN_ID, req *hubproto.FindA
 	})
 }
 
-func (h *serverHandler) replyFindErr(connID kknet.CONN_ID, reqID uint64, ref actorremotes.ActorRef, msg string) error {
+func (h *serverHandler) replyFindErr(connID kknet.CONN_ID, reqID uint64, ref actortrans.ActorRef, msg string) error {
 	return h.hub.srv.SendMsg(connID, &hubproto.FindActorResp{
 		ReqID:     reqID,
 		ActorID:   ref,
@@ -289,10 +289,10 @@ func (h *serverHandler) onGetAllActorsOfNodeReq(connID kknet.CONN_ID, req *hubpr
 		return
 	}
 	list := h.hub.remoteActorMgr.GetAllActorsOfNode(req.NodeID)
-	refs := make([]*actorremotes.ActorRef, 0, len(list))
+	refs := make([]*actortrans.ActorRef, 0, len(list))
 	for _, ra := range list {
 		id := ra.LucencyID()
-		ref := actorremotes.ActorRef{NodeID: id.NodeID(), ActorKey: id.ActorKey()}
+		ref := actortrans.ActorRef{NodeID: id.NodeID(), ActorKey: id.ActorKey()}
 		cpy := ref
 		refs = append(refs, &cpy)
 	}

@@ -1,4 +1,4 @@
-package actorremotes
+package actortrans
 
 import (
 	"reflect"

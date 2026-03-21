@@ -1,4 +1,4 @@
-package actorshard
+package atranshub
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
@@ -41,14 +41,14 @@ func (o *Options) stream() kkpacket.IPacket {
 // Transport 通过独立中心服（Hub）中转 Actor 远程消息
 type Transport struct {
 	nodeID   string
-	registry *actorremotes.MessageRegistry
+	registry *actortrans.MessageRegistry
 	opt      Options
 	stream   kkpacket.IPacket
 
 	client  *kktcp.GnetClient
 	handler *clientHandler
 
-	receiver actorremotes.IRemoteActorReceiver
+	receiver actortrans.IRemoteActorReceiver
 	mu       sync.RWMutex
 
 	pending   sync.Map // replyTag -> chan relayWait
@@ -57,10 +57,10 @@ type Transport struct {
 	closedVal int32
 }
 
-var _ actorremotes.IRemoteActorTransport = (*Transport)(nil)
+var _ actortrans.IRemoteActorTransport = (*Transport)(nil)
 
 // NewTransport 创建连接中心服的 Actor 传输层。
-func NewTransport(nodeID string, registry *actorremotes.MessageRegistry, opt Options) *Transport {
+func NewTransport(nodeID string, registry *actortrans.MessageRegistry, opt Options) *Transport {
 	if registry == nil {
 		kklog.PanicLog("MessageRegistry is nil")
 		return nil
@@ -79,7 +79,7 @@ func NewTransport(nodeID string, registry *actorremotes.MessageRegistry, opt Opt
 	return t
 }
 
-func (t *Transport) SetReceiver(receiver actorremotes.IRemoteActorReceiver) {
+func (t *Transport) SetReceiver(receiver actortrans.IRemoteActorReceiver) {
 	t.mu.Lock()
 	t.receiver = receiver
 	t.mu.Unlock()
@@ -161,14 +161,14 @@ func (t *Transport) connected() bool {
 	return atomic.LoadInt32(&t.started) == 1 && t.client != nil && t.client.IsConnected()
 }
 
-func (t *Transport) Send(target actorremotes.ActorRef, msg any) error {
+func (t *Transport) Send(target actortrans.ActorRef, msg any) error {
 	if !t.connected() {
 		return kkerrors.ErrActorRemoteTransportNotConnected
 	}
 	if !target.IsValid() {
 		return kkerrors.ErrActorRemoteInvalidTarget
 	}
-	data, err := actorremotes.EncodeRequestEnvelope(t.registry, target, msg, 0)
+	data, err := actortrans.EncodeRequestEnvelope(t.registry, target, msg, 0)
 	if err != nil {
 		return err
 	}
@@ -183,7 +183,7 @@ func (t *Transport) Send(target actorremotes.ActorRef, msg any) error {
 	return t.client.SendBuffer(bb)
 }
 
-func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.Duration) (any, error) {
+func (t *Transport) Request(target actortrans.ActorRef, msg any, timeout time.Duration) (any, error) {
 	if !t.connected() {
 		return nil, kkerrors.ErrActorRemoteTransportNotConnected
 	}
@@ -193,7 +193,7 @@ func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.
 	if timeout <= 0 {
 		timeout = 5 * time.Second
 	}
-	data, err := actorremotes.EncodeRequestEnvelope(t.registry, target, msg, timeout)
+	data, err := actortrans.EncodeRequestEnvelope(t.registry, target, msg, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -218,13 +218,13 @@ func (t *Transport) Request(target actorremotes.ActorRef, msg any, timeout time.
 		if rw.err != nil {
 			return nil, rw.err
 		}
-		return actorremotes.DecodeResponseEnvelope(t.registry, rw.data)
+		return actortrans.DecodeResponseEnvelope(t.registry, rw.data)
 	case <-time.After(timeout):
 		return nil, fmt.Errorf("actorshard request timeout after %s", timeout)
 	}
 }
 
-func (t *Transport) RequestAsync(target actorremotes.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
+func (t *Transport) RequestAsync(target actortrans.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
 	if !t.connected() {
 		return kkerrors.ErrActorRemoteTransportNotConnected
 	}
@@ -242,7 +242,7 @@ func (t *Transport) nextReplyTag() string {
 	return fmt.Sprintf("%s.%d.%d", t.nodeID, atomic.AddUint64(&t.replySeq, 1), time.Now().UnixNano())
 }
 
-func (t *Transport) getReceiver() (actorremotes.IRemoteActorReceiver, error) {
+func (t *Transport) getReceiver() (actortrans.IRemoteActorReceiver, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if t.receiver == nil {
@@ -270,14 +270,14 @@ func (t *Transport) completeReply(replyTag string, data []byte, err error) {
 }
 
 func (t *Transport) handleInboundRelay(m relayIn) error {
-	env, pl, err := actorremotes.DecodeRequestEnvelope(t.registry, m.Payload)
+	env, pl, err := actortrans.DecodeRequestEnvelope(t.registry, m.Payload)
 	if err != nil {
 		return err
 	}
 	rec, err := t.getReceiver()
 	if err != nil {
 		if m.ReplyTag != "" {
-			raw, encErr := actorremotes.EncodeResponseEnvelope(t.registry, nil, err)
+			raw, encErr := actortrans.EncodeResponseEnvelope(t.registry, nil, err)
 			if encErr == nil {
 				_ = t.sendReply(m.SrcNodeId, m.ReplyTag, raw)
 			}
@@ -292,9 +292,9 @@ func (t *Transport) handleInboundRelay(m relayIn) error {
 		to = 5 * time.Second
 	}
 	res, rerr := rec.HandleRemoteRequest(env.Target, pl, to)
-	raw, encErr := actorremotes.EncodeResponseEnvelope(t.registry, res, rerr)
+	raw, encErr := actortrans.EncodeResponseEnvelope(t.registry, res, rerr)
 	if encErr != nil {
-		raw, _ = actorremotes.EncodeResponseEnvelope(t.registry, nil, encErr)
+		raw, _ = actortrans.EncodeResponseEnvelope(t.registry, nil, encErr)
 	}
 	return t.sendReply(m.SrcNodeId, m.ReplyTag, raw)
 }

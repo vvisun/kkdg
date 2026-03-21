@@ -2,7 +2,7 @@ package kkactor
 
 import (
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -49,7 +49,7 @@ func NewLucencyID(nodeId, actorKey string) (LucencyID, error) {
 }
 
 // ActorRef2LucencyID 将 actorremotes.ActorRef 转换为 LucencyID。
-func ActorRef2LucencyID(actorRef *actorremotes.ActorRef) (LucencyID, error) {
+func ActorRef2LucencyID(actorRef *actortrans.ActorRef) (LucencyID, error) {
 	if actorRef == nil {
 		return LucencyID{}, kkerrors.ErrActorInvalidActorRef
 	}
@@ -63,8 +63,8 @@ func ActorRef2LucencyID(actorRef *actorremotes.ActorRef) (LucencyID, error) {
 }
 
 // LucencyID2ActorRef 将 LucencyID 转换为 actorremotes.ActorRef。
-func LucencyID2ActorRef(lucencyID LucencyID) actorremotes.ActorRef {
-	return actorremotes.ActorRef{
+func LucencyID2ActorRef(lucencyID LucencyID) actortrans.ActorRef {
+	return actortrans.ActorRef{
 		NodeID:   lucencyID.NodeID(),
 		ActorKey: lucencyID.ActorKey(),
 	}

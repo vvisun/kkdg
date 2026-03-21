@@ -1,4 +1,4 @@
-package actorshard
+package atranshub
 
 import (
 	"net"
@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
@@ -31,7 +31,7 @@ type testRecv struct {
 	ch   chan struct{}
 }
 
-func (r *testRecv) HandleRemoteSend(_ actorremotes.ActorRef, msg any) error {
+func (r *testRecv) HandleRemoteSend(_ actortrans.ActorRef, msg any) error {
 	r.mu.Lock()
 	r.last = msg
 	r.mu.Unlock()
@@ -42,16 +42,16 @@ func (r *testRecv) HandleRemoteSend(_ actorremotes.ActorRef, msg any) error {
 	return nil
 }
 
-func (r *testRecv) HandleRemoteRequest(_ actorremotes.ActorRef, msg any, _ time.Duration) (any, error) {
+func (r *testRecv) HandleRemoteRequest(_ actortrans.ActorRef, msg any, _ time.Duration) (any, error) {
 	if m, ok := msg.(*hpMsg); ok && m.S == "req" {
 		return &hpMsg{S: "ack"}, nil
 	}
 	return nil, nil
 }
 
-func testRegistry(t *testing.T) *actorremotes.MessageRegistry {
+func testRegistry(t *testing.T) *actortrans.MessageRegistry {
 	t.Helper()
-	r := actorremotes.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeMsgpack))
+	r := actortrans.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeMsgpack))
 	if err := r.Register(&hpMsg{}); err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestHubTransportSend(t *testing.T) {
 		_ = tr2.Close()
 	}()
 
-	target := actorremotes.ActorRef{NodeID: "nodeB", ActorKey: "actor1"}
+	target := actortrans.ActorRef{NodeID: "nodeB", ActorKey: "actor1"}
 	if err := tr1.Send(target, &hpMsg{S: "hi"}); err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestHubTransportRequest(t *testing.T) {
 		_ = tr2.Close()
 	}()
 
-	target := actorremotes.ActorRef{NodeID: "nodeB", ActorKey: "actor1"}
+	target := actortrans.ActorRef{NodeID: "nodeB", ActorKey: "actor1"}
 	res, err := tr1.Request(target, &hpMsg{S: "req"}, time.Second)
 	if err != nil {
 		t.Fatal(err)

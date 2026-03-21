@@ -14,9 +14,13 @@
 //   - actor_id.go：LucencyID 定义与 NewLucencyID 等转换。
 //   - framework.go：ActorFramework 是 Actor 框架门面。
 //   - actor_locator.go：ActorLocator 是 Actor 寻址系统。
-//   - actorremotes：远程协议（信封、MessageRegistry）与 IRemoteActorTransport / IRemoteActorReceiver 抽象。
-//   - actornats：基于 NATS 的远程传输实现。
-//   - actorshard：基于独立中心服（Hub）TCP 中转的远程传输实现。
+//   - transport: actor远程传输实现。
+//     1. transport/actortrans：IRemoteActorTransport / IRemoteActorReceiver 抽象。
+//     2. transport/atransnats：基于 NATS 的远程传输实现。
+//     3. transport/atranshub：基于独立中心服（Hub）TCP 中转的远程传输实现。
+//   - regist: actor注册中心。
+//     1. regist/hubproto：actor注册中心协议。
+//     2. regist/hubtcp：基于独立中心服（Hub）TCP 的actor注册中心实现。
 //
-// 其他进程内远程通道可自行实现 IRemoteActorTransport 并交给 ActorFramework.SetRemoteTransport。
+// 其他进程内远程通道可自行实现 actortrans.IRemoteActorTransport 并交给 ActorFramework.SetRemoteTransport。
 package kkactor

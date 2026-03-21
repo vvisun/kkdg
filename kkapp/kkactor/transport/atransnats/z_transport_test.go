@@ -1,4 +1,4 @@
-package actornats
+package atransnats
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
@@ -35,9 +35,9 @@ type remotePong struct {
 	Text string
 }
 
-func getTestMessageRegistry(t *testing.T) *actorremotes.MessageRegistry {
+func getTestMessageRegistry(t *testing.T) *actortrans.MessageRegistry {
 	t.Helper()
-	registry := actorremotes.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeMsgpack))
+	registry := actortrans.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeMsgpack))
 	if err := registry.Register(&remotePing{}); err != nil {
 		t.Fatalf("register ping on transport1: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestTransport_Request_UnregisteredMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewLucencyID: %v", err)
 	}
-	targetRef := actorremotes.ActorRef{NodeID: "node2", ActorKey: "echo"}
+	targetRef := actortrans.ActorRef{NodeID: "node2", ActorKey: "echo"}
 	_, err = framework.Request(targetID, &struct{ Text string }{Text: "x"}, time.Second)
 	if err == nil || !errors.Is(err, kkerrors.ErrActorRemoteMsgTypeNotRegistered) {
 		t.Fatalf("Request err = %v, want %v", err, kkerrors.ErrActorRemoteMsgTypeNotRegistered)

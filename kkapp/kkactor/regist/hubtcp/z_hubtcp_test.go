@@ -8,8 +8,8 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
-	"github.com/vvisun/kkdg/kkapp/kkactor/hub/actorhub"
-	"github.com/vvisun/kkdg/kkapp/kkactor/hub/hubproto"
+	"github.com/vvisun/kkdg/kkapp/kkactor/regist/actorhub"
+	"github.com/vvisun/kkdg/kkapp/kkactor/regist/hubproto"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 

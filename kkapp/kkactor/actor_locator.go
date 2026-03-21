@@ -5,7 +5,7 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -75,8 +75,33 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) error {
 	return nil
 }
 
-// GetLocalActor 按 nodeID + actorKey 查找本进程已登记的 PID；参数须满足与 LucencyID 相同的合法性（非空 nodeID 等）。
-func (slf *ActorLocator) GetLocalActor(actorRef *actorremotes.ActorRef) (*actor.PID, error) {
+func (slf *ActorLocator) isLocalActor(id LucencyID) (bool, error) {
+	if !kkapp.IsValidActorNodeId(id.nodeID) {
+		return false, kkerrors.ErrActorInvalidNodeId
+	}
+	if !kkapp.IsValidActorKey(id.actorKey) {
+		return false, kkerrors.ErrActorInvalidActorKey
+	}
+	_, ok := slf.nodes[id.nodeID]
+	return ok, nil //如果nodeID在nodes中，则认为是本地Actor
+}
+
+// 判断Actor是否是本地Actor。
+func (slf *ActorLocator) IsLocalActor(id LucencyID) (bool, error) {
+	slf.mu.RLock()
+	ok, err := slf.isLocalActor(id)
+	slf.mu.RUnlock()
+	return ok, err
+}
+
+// 判断Actor是否是远程Actor。
+func (slf *ActorLocator) IsRemoteActor(id LucencyID) (bool, error) {
+	ok, err := slf.IsLocalActor(id)
+	return !ok, err
+}
+
+// GetLocalActor 查找本进程已登记的 PID；
+func (slf *ActorLocator) GetLocalActor(actorRef *actortrans.ActorRef) (*actor.PID, error) {
 	if actorRef == nil {
 		return nil, kkerrors.ErrActorInvalidActorRef
 	}
@@ -109,56 +134,11 @@ func (slf *ActorLocator) AddActor(id LucencyID, pid *actor.PID) error {
 	return nil
 }
 
-func (slf *ActorLocator) AddActorEx(nodeId, actorKey string, pid *actor.PID) error {
-	if !kkapp.IsValidActorKey(actorKey) {
-		return kkerrors.ErrActorInvalidActorKey
-	}
-	if !kkapp.IsValidActorNodeId(nodeId) {
-		return kkerrors.ErrActorInvalidNodeId
-	}
-	if pid == nil {
-		return kkerrors.ErrActorAddInvalidPID
-	}
-	id := LucencyID{
-		nodeID:   nodeId,
-		actorKey: actorKey,
-	}
-	slf.mu.Lock()
-	slf.actors[id] = pid
-	slf.mu.Unlock()
-	return nil
-}
-
 func (slf *ActorLocator) RemoveActor(id LucencyID) error {
 	slf.mu.Lock()
 	delete(slf.actors, id)
 	slf.mu.Unlock()
 	return nil
-}
-
-func (slf *ActorLocator) isLocalActor(id LucencyID) (bool, error) {
-	if !kkapp.IsValidActorNodeId(id.nodeID) {
-		return false, kkerrors.ErrActorInvalidNodeId
-	}
-	if !kkapp.IsValidActorKey(id.actorKey) {
-		return false, kkerrors.ErrActorInvalidActorKey
-	}
-	_, ok := slf.nodes[id.nodeID]
-	return ok, nil //如果nodeID在nodes中，则认为是本地Actor
-}
-
-// 判断Actor是否是本地Actor。
-func (slf *ActorLocator) IsLocalActor(id LucencyID) (bool, error) {
-	slf.mu.RLock()
-	ok, err := slf.isLocalActor(id)
-	slf.mu.RUnlock()
-	return ok, err
-}
-
-// 判断Actor是否是远程Actor。
-func (slf *ActorLocator) IsRemoteActor(id LucencyID) (bool, error) {
-	ok, err := slf.IsLocalActor(id)
-	return !ok, err
 }
 
 // 遍历nodes, fn返回false时停止遍历

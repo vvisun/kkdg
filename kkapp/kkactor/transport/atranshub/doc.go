@@ -4,4 +4,4 @@
 // 客户端节点：NewTransport(nodeId, registry, Options{HubAddr: "host:port"}).Start()
 //
 // 帧格式与 kktcp 默认流一致：[length][wireType+msgpack(body)]。
-package actorshard
+package atranshub

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -15,8 +15,8 @@ import (
 type IActorFramework interface {
 	GetLocator() *ActorLocator
 	GetActorSystem() *actor.ActorSystem
-	SetRemoteTransport(transport actorremotes.IRemoteActorTransport) error
-	GetRemoteTransport() actorremotes.IRemoteActorTransport
+	SetRemoteTransport(transport actortrans.IRemoteActorTransport) error
+	GetRemoteTransport() actortrans.IRemoteActorTransport
 	Send(target LucencyID, msg any) error
 	Request(target LucencyID, msg any, timeout time.Duration) (any, error)
 	RequestAsync(target LucencyID, msg any, timeout time.Duration, callback func(result any, err error)) error
@@ -74,7 +74,7 @@ type ActorFramework struct {
 	// Actor系统
 	actorSys *actor.ActorSystem
 	// 远程Actor传输层
-	remoteTransport actorremotes.IRemoteActorTransport
+	remoteTransport actortrans.IRemoteActorTransport
 }
 
 func (slf *ActorFramework) GetLocator() *ActorLocator {
@@ -85,7 +85,7 @@ func (slf *ActorFramework) GetActorSystem() *actor.ActorSystem {
 	return slf.actorSys
 }
 
-func (slf *ActorFramework) SetRemoteTransport(transport actorremotes.IRemoteActorTransport) error {
+func (slf *ActorFramework) SetRemoteTransport(transport actortrans.IRemoteActorTransport) error {
 	if transport == nil {
 		if slf.remoteTransport != nil {
 			_ = slf.remoteTransport.Close()
@@ -105,7 +105,7 @@ func (slf *ActorFramework) SetRemoteTransport(transport actorremotes.IRemoteActo
 	return nil
 }
 
-func (slf *ActorFramework) GetRemoteTransport() actorremotes.IRemoteActorTransport {
+func (slf *ActorFramework) GetRemoteTransport() actortrans.IRemoteActorTransport {
 	return slf.remoteTransport
 }
 
@@ -126,7 +126,7 @@ func (slf *ActorFramework) Send(target LucencyID, msg any) error {
 	if slf.remoteTransport == nil {
 		return kkerrors.ErrActorRemoteTransportNotConfigured
 	}
-	return slf.remoteTransport.Send(actorremotes.ActorRef{
+	return slf.remoteTransport.Send(actortrans.ActorRef{
 		NodeID:   target.NodeID(),
 		ActorKey: target.ActorKey(),
 	}, msg)
@@ -153,7 +153,7 @@ func (slf *ActorFramework) Request(target LucencyID, msg any, timeout time.Durat
 	if slf.remoteTransport == nil {
 		return nil, kkerrors.ErrActorRemoteTransportNotConfigured
 	}
-	return slf.remoteTransport.Request(actorremotes.ActorRef{
+	return slf.remoteTransport.Request(actortrans.ActorRef{
 		NodeID:   target.NodeID(),
 		ActorKey: target.ActorKey(),
 	}, msg, timeout)
@@ -172,7 +172,7 @@ func (slf *ActorFramework) RequestAsync(target LucencyID, msg any, timeout time.
 		if slf.remoteTransport == nil {
 			return kkerrors.ErrActorRemoteTransportNotConfigured
 		}
-		return slf.remoteTransport.RequestAsync(actorremotes.ActorRef{
+		return slf.remoteTransport.RequestAsync(actortrans.ActorRef{
 			NodeID:   target.NodeID(),
 			ActorKey: target.ActorKey(),
 		}, msg, timeout, callback)
@@ -194,7 +194,7 @@ func (slf *ActorFramework) RequestAsync(target LucencyID, msg any, timeout time.
 	return nil
 }
 
-func (slf *ActorFramework) HandleRemoteSend(targetRef actorremotes.ActorRef, msg any) error {
+func (slf *ActorFramework) HandleRemoteSend(targetRef actortrans.ActorRef, msg any) error {
 	target, err := NewLucencyID(targetRef.NodeID, targetRef.ActorKey)
 	if err != nil {
 		return err
@@ -207,7 +207,7 @@ func (slf *ActorFramework) HandleRemoteSend(targetRef actorremotes.ActorRef, msg
 	return nil
 }
 
-func (slf *ActorFramework) HandleRemoteRequest(targetRef actorremotes.ActorRef, msg any, timeout time.Duration) (any, error) {
+func (slf *ActorFramework) HandleRemoteRequest(targetRef actortrans.ActorRef, msg any, timeout time.Duration) (any, error) {
 	target, err := NewLucencyID(targetRef.NodeID, targetRef.ActorKey)
 	if err != nil {
 		return nil, err

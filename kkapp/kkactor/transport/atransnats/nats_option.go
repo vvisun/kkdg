@@ -1,4 +1,4 @@
-package actornats
+package atransnats
 
 import (
 	"time"

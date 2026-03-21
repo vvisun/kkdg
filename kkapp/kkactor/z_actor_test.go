@@ -7,7 +7,7 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actorremotes"
+	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -15,8 +15,8 @@ type stubRemoteTransport struct {
 	startErr    error
 	startCalls  int
 	closeCalls  int
-	receiverSet actorremotes.IRemoteActorReceiver
-	registrySet *actorremotes.MessageRegistry
+	receiverSet actortrans.IRemoteActorReceiver
+	registrySet *actortrans.MessageRegistry
 }
 
 func (t *stubRemoteTransport) Start() error {
@@ -29,19 +29,19 @@ func (t *stubRemoteTransport) Close() error {
 	return nil
 }
 
-func (t *stubRemoteTransport) SetReceiver(receiver actorremotes.IRemoteActorReceiver) {
+func (t *stubRemoteTransport) SetReceiver(receiver actortrans.IRemoteActorReceiver) {
 	t.receiverSet = receiver
 }
 
-func (t *stubRemoteTransport) Send(target actorremotes.ActorRef, msg any) error {
+func (t *stubRemoteTransport) Send(target actortrans.ActorRef, msg any) error {
 	return nil
 }
 
-func (t *stubRemoteTransport) Request(target actorremotes.ActorRef, msg any, timeout time.Duration) (any, error) {
+func (t *stubRemoteTransport) Request(target actortrans.ActorRef, msg any, timeout time.Duration) (any, error) {
 	return nil, nil
 }
 
-func (t *stubRemoteTransport) RequestAsync(target actorremotes.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
+func (t *stubRemoteTransport) RequestAsync(target actortrans.ActorRef, msg any, timeout time.Duration, callback func(result any, err error)) error {
 	if callback == nil {
 		return kkerrors.ErrActorAsyncCallbackNil
 	}
