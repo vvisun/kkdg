@@ -11,6 +11,8 @@ import (
 )
 
 // ActorLocator 本进程内 Actor 寻址：已登记节点（nodes）与已注册 PID（actors）。
+//
+//	注意：先调用AddNode，再调用AddActor。
 type ActorLocator struct {
 	mu     sync.RWMutex
 	actors map[LucencyID]*actor.PID   // LucencyID -> *actor.PID，本进程内由 AddActor 登记的实例
@@ -63,6 +65,9 @@ func (slf *ActorLocator) RemoveNode(node *kkapp.NodeInfo) error {
 		for id := range slf.actors {
 			ok, err := slf.isLocalActor(id)
 			if err != nil {
+				//非法的actor，删除。理论上不可能，因为AddActor时已经检查了合法性。
+				kklog.Errorf("isLocalActor error: %v", err)
+				delete(slf.actors, id)
 				continue
 			}
 			if id.nodeID == nodeId && ok {
@@ -94,13 +99,13 @@ func (slf *ActorLocator) IsLocalActor(id LucencyID) (bool, error) {
 	return ok, err
 }
 
-// 判断Actor是否是远程Actor。
+// 判断Actor是否是远程Actor
 func (slf *ActorLocator) IsRemoteActor(id LucencyID) (bool, error) {
 	ok, err := slf.IsLocalActor(id)
 	return !ok, err
 }
 
-// GetLocalActor 查找本进程已登记的 PID；
+// 查找本进程已登记的 PID
 func (slf *ActorLocator) GetLocalActor(actorRef *actortrans.ActorRef) (*actor.PID, error) {
 	if actorRef == nil {
 		return nil, kkerrors.ErrActorInvalidActorRef
@@ -108,6 +113,7 @@ func (slf *ActorLocator) GetLocalActor(actorRef *actortrans.ActorRef) (*actor.PI
 	return slf.GetActor(LucencyID{nodeID: actorRef.NodeID, actorKey: actorRef.ActorKey})
 }
 
+// 根据LucencyID查找Actor
 func (slf *ActorLocator) GetActor(id LucencyID) (*actor.PID, error) {
 	slf.mu.RLock()
 	pid, ok := slf.actors[id]
@@ -118,6 +124,7 @@ func (slf *ActorLocator) GetActor(id LucencyID) (*actor.PID, error) {
 	return pid, nil
 }
 
+// 添加Actor
 func (slf *ActorLocator) AddActor(id LucencyID, pid *actor.PID) error {
 	if !kkapp.IsValidActorKey(id.actorKey) {
 		return kkerrors.ErrActorInvalidActorKey
@@ -134,6 +141,7 @@ func (slf *ActorLocator) AddActor(id LucencyID, pid *actor.PID) error {
 	return nil
 }
 
+// 移除Actor
 func (slf *ActorLocator) RemoveActor(id LucencyID) error {
 	slf.mu.Lock()
 	delete(slf.actors, id)
