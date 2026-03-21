@@ -14,6 +14,8 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/other/examples/examapp"
 	"github.com/vvisun/kkdg/other/examples/examapp/ptoexam"
+	"github.com/vvisun/kkdg/remotes/kkcluster"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -45,9 +47,13 @@ func runGate() *component.Application {
 		TCPAddr:         examapp.GateTCPAddr,
 		WSAddr:          examapp.GateWSAddr,
 		TransServerAddr: examapp.RpcAddr,
-		DiscoveryUrl:    examapp.NatsURL,
-		ClusterUrl:      examapp.NatsURL,
-		TransType:       examapp.UseTransType,
+		DiscoveryOpts: kkdiscovery.ApplyOptions(
+			kkdiscovery.WithUrl(examapp.NatsURL),
+		),
+		ClusterOpts: kkcluster.ApplyOptions(
+			kkcluster.WithUrl(examapp.NatsURL),
+		),
+		TransType: examapp.UseTransType,
 	}
 	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())
 	if err := gateApp.AddComponent(gate); err != nil {

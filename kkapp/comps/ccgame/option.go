@@ -6,6 +6,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type Options struct {
@@ -14,10 +15,8 @@ type Options struct {
 	// 转发层服务器地址。TransType为TransTypeRpc或TransTypeShard时有效。
 	TransServerAddr string
 	// 发现服务器URL。TransType为TransTypeNats时必须设置。
-	DiscoveryUrl  string
 	DiscoveryOpts kkdiscovery.DiscoveryOption
 	// 集群服务器URL。TransType为TransTypeNats时可选设置。
-	ClusterUrl  string
 	ClusterOpts kkcluster.ClusterOption
 }
 
@@ -28,10 +27,10 @@ func validateOption(opt *Options) error {
 		}
 	}
 	if opt.TransType == transport.TransTypeNats {
-		if opt.DiscoveryUrl == "" {
-			return errors.New("DiscoveryUrl is required")
+		if opt.DiscoveryOpts.Url == "" {
+			kklog.Warn("DiscoveryUrl is required") //非必需。
 		}
-		if opt.ClusterUrl == "" {
+		if opt.ClusterOpts.Url == "" {
 			return errors.New("ClusterUrl is required")
 		}
 	}
@@ -64,14 +63,14 @@ func WithTransServerAddr(transServerAddr string) func(o *Options) {
 	}
 }
 
-func WithDiscoveryURL(natsURL string) func(o *Options) {
+func WithDiscoveryOpts(opts kkdiscovery.DiscoveryOption) func(o *Options) {
 	return func(o *Options) {
-		o.DiscoveryUrl = natsURL
+		o.DiscoveryOpts = opts
 	}
 }
 
-func WithClusterURL(clusterURL string) func(o *Options) {
+func WithClusterOpts(opts kkcluster.ClusterOption) func(o *Options) {
 	return func(o *Options) {
-		o.ClusterUrl = clusterURL
+		o.ClusterOpts = opts
 	}
 }

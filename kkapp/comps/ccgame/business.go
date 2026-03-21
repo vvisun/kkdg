@@ -18,6 +18,7 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/kkoption"
 	"github.com/vvisun/kkdg/utils/xos"
 )
 
@@ -60,12 +61,10 @@ func (slf *gameComponent) Receive(ctx actor.Context) {
 
 func (slf *gameComponent) OnInit() error {
 	// 初始化 discovery
-	if slf.opt.DiscoveryUrl != "" {
+	if slf.opt.DiscoveryOpts.Url != "" {
 		slf.discovery = dnats.NewNatsDiscovery(
 			slf.GetApplication().GetNodeInfo(),
-			kkdiscovery.ApplyOptions(
-				kkdiscovery.WithUrl(slf.opt.DiscoveryUrl),
-			),
+			slf.opt.DiscoveryOpts,
 		)
 		slf.discoverySubID = kkdiscovery.GlobalEventMgr.Subscribe(kkdiscovery.EventDiscoveryStats, func(e *kkdiscovery.DiscoveryStatsEvent) {
 			e.OnlineCount = slf.sessionManager.OnlineCount()
@@ -74,14 +73,17 @@ func (slf *gameComponent) OnInit() error {
 	}
 
 	// 初始化 cluster
-	if slf.opt.ClusterUrl != "" {
+	if slf.opt.ClusterOpts.Url != "" {
+		clusterOpts := slf.opt.ClusterOpts
+		if slf.discovery != nil {
+			kkoption.ApplyOptionsTo(&clusterOpts,
+				kkcluster.WithDiscovery(slf.discovery),
+			)
+		}
 		slf.cluster = cnats.NewNatsCluster(
 			slf.GetApplication().GetNodeId(),
 			slf.GetApplication().GetNodeType(),
-			kkcluster.ApplyOptions(
-				kkcluster.WithUrl(slf.opt.ClusterUrl),
-				kkcluster.WithDiscovery(slf.discovery),
-			),
+			clusterOpts,
 		)
 	}
 

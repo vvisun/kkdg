@@ -18,6 +18,8 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
+	"github.com/vvisun/kkdg/remotes/kkcluster"
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
@@ -132,9 +134,13 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 	gateOpt := ccgate.Options{
 		TCPAddr:         tcpAddr,
 		TransServerAddr: rpcAddr,
-		DiscoveryUrl:    natsURL,
-		ClusterUrl:      natsURL,
-		TransType:       transType,
+		DiscoveryOpts: kkdiscovery.ApplyOptions(
+			kkdiscovery.WithUrl(natsURL),
+		),
+		ClusterOpts: kkcluster.ApplyOptions(
+			kkcluster.WithUrl(natsURL),
+		),
+		TransType: transType,
 	}
 	gate := ccgate.NewGateComponent(gateOpt, kknet.DefaultOptions())
 	if err := gateApp.AddComponent(gate); err != nil {
@@ -166,8 +172,12 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 	game := ccgame.NewGameComponent(ccgame.Options{
 		TransType:       transType,
 		TransServerAddr: rpcAddr,
-		DiscoveryUrl:    natsURL,
-		ClusterUrl:      natsURL,
+		DiscoveryOpts: kkdiscovery.ApplyOptions(
+			kkdiscovery.WithUrl(natsURL),
+		),
+		ClusterOpts: kkcluster.ApplyOptions(
+			kkcluster.WithUrl(natsURL),
+		),
 	})
 
 	if err := gameApp.AddComponent(game); err != nil {

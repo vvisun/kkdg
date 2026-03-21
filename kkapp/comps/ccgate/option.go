@@ -22,10 +22,8 @@ type Options struct {
 	TransServerAddr string
 
 	// 发现服务器URL。
-	DiscoveryUrl  string
 	DiscoveryOpts kkdiscovery.DiscoveryOption
 	// 集群服务器URL。
-	ClusterUrl  string
 	ClusterOpts kkcluster.ClusterOption
 }
 
@@ -43,10 +41,10 @@ func validateOption(opt *Options) error {
 		}
 	}
 	if opt.TransType == transport.TransTypeNats {
-		if opt.DiscoveryUrl == "" {
-			return errors.New("DiscoveryUrl is required")
+		if opt.DiscoveryOpts.Url == "" {
+			kklog.Warn("DiscoveryUrl is required") //非必需。
 		}
-		if opt.ClusterUrl == "" {
+		if opt.ClusterOpts.Url == "" {
 			return errors.New("ClusterUrl is required")
 		}
 	}
@@ -89,15 +87,15 @@ func WithWSAddr(wsAddr string) func(o *Options) {
 	}
 }
 
-func WithDiscoveryURL(natsURL string) func(o *Options) {
+func WithDiscoveryOpts(opts kkdiscovery.DiscoveryOption) func(o *Options) {
 	return func(o *Options) {
-		o.DiscoveryUrl = natsURL
+		o.DiscoveryOpts = opts
 	}
 }
 
-func WithClusterURL(clusterURL string) func(o *Options) {
+func WithClusterOpts(opts kkcluster.ClusterOption) func(o *Options) {
 	return func(o *Options) {
-		o.ClusterUrl = clusterURL
+		o.ClusterOpts = opts
 	}
 }
 

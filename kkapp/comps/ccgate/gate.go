@@ -128,22 +128,27 @@ func (slf *gateComponent) OnInit() error {
 	slf.handler = newGateHandler(slf)
 
 	// 初始化 discovery
-	slf.discovery = dnats.NewNatsDiscovery(
-		slf.GetApplication().GetNodeInfo(),
-		kkdiscovery.ApplyOptions(
-			kkdiscovery.WithUrl(slf.gateOpt.DiscoveryUrl),
-		),
-	)
+	if slf.gateOpt.DiscoveryOpts.Url != "" {
+		slf.discovery = dnats.NewNatsDiscovery(
+			slf.GetApplication().GetNodeInfo(),
+			slf.gateOpt.DiscoveryOpts,
+		)
+	}
 
 	// 初始化 cluster（用于 gate <-> logic 转发）
-	slf.cluster = cnats.NewNatsCluster(
-		slf.GetApplication().GetNodeId(),
-		slf.GetApplication().GetNodeType(),
-		kkcluster.ApplyOptions(
-			kkcluster.WithUrl(slf.gateOpt.ClusterUrl),
-			kkcluster.WithDiscovery(slf.discovery),
-		),
-	)
+	if slf.gateOpt.ClusterOpts.Url != "" {
+		clusterOpts := slf.gateOpt.ClusterOpts
+		if slf.discovery != nil {
+			kkoption.ApplyOptionsTo(&clusterOpts,
+				kkcluster.WithDiscovery(slf.discovery),
+			)
+		}
+		slf.cluster = cnats.NewNatsCluster(
+			slf.GetApplication().GetNodeId(),
+			slf.GetApplication().GetNodeType(),
+			clusterOpts,
+		)
+	}
 
 	appOpts := slf.GetApplication().GetOptions()
 	nodeInfo := slf.GetApplication().GetNodeInfo()
