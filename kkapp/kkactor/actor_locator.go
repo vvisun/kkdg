@@ -66,23 +66,18 @@ func (slf *LocalActorManager) RemoveLocalNode(nodeID string) error {
 	return nil
 }
 
-func (slf *LocalActorManager) isLocalActor(id LucencyID) (bool, error) {
+// IsLocalActor 当且仅当该 LucencyID 的 nodeID 已在本 Locator 的 localNodes 中。
+func (slf *LocalActorManager) IsLocalActor(id LucencyID) (bool, error) {
 	if !kkapp.IsValidActorNodeId(id.nodeID) {
 		return false, kkerrors.ErrActorInvalidNodeId
 	}
 	if !kkapp.IsValidActorKey(id.actorKey) {
 		return false, kkerrors.ErrActorInvalidActorKey
 	}
-	_, ok := slf.localNodes[id.nodeID]
-	return ok, nil
-}
-
-// IsLocalActor 当且仅当该 LucencyID 的 nodeID 已在本 Locator 的 localNodes 中。
-func (slf *LocalActorManager) IsLocalActor(id LucencyID) (bool, error) {
 	slf.mu.RLock()
-	ok, err := slf.isLocalActor(id)
+	_, ok := slf.localNodes[id.nodeID]
 	slf.mu.RUnlock()
-	return ok, err
+	return ok, nil
 }
 
 // IsRemoteActor 在 LucencyID 合法的前提下，等价于 !IsLocalActor。
