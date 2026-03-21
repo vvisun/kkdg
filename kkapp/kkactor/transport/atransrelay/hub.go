@@ -25,13 +25,10 @@ type Hub struct {
 }
 
 // NewHub 创建中心服。listenAddr 为 TCP 监听地址，例如 ":9100"。
-func NewHub(listenAddr string, stream kkpacket.IPacket) *Hub {
-	if stream == nil {
-		stream = kkpacket.DefaultStreamPacket()
-	}
+func NewHub(listenAddr string) *Hub {
 	return &Hub{
 		addr:   listenAddr,
-		stream: stream,
+		stream: kkpacket.DefaultStreamPacket(),
 		nodes:  make(map[string]*peerSession),
 	}
 }

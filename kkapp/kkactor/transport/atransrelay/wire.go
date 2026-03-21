@@ -16,36 +16,39 @@ const (
 	wireErr      byte = 4
 )
 
-type regBody struct {
-	NodeId   string `msgpack:"i"`
-	NodeType string `msgpack:"t,omitempty"`
-}
+type (
+	// 将节点注册到中心服
+	regBody struct {
+		NodeId   string `msgpack:"i"`
+		NodeType string `msgpack:"t,omitempty"`
+	}
 
-// relayOut 节点发往中心服（不含 Src，防伪造）。
-type relayOut struct {
-	DestNodeId string `msgpack:"d"`
-	ReplyTag   string `msgpack:"r,omitempty"`
-	Payload    []byte `msgpack:"p"`
-}
+	// relayOut 节点发往中心服（不含 Src，防伪造）。
+	relayOut struct {
+		DestNodeId string `msgpack:"d"`
+		ReplyTag   string `msgpack:"r,omitempty"`
+		Payload    []byte `msgpack:"p"`
+	}
 
-// relayIn 中心服下发到节点（含真实 SrcNodeId）。
-type relayIn struct {
-	SrcNodeId  string `msgpack:"s"`
-	DestNodeId string `msgpack:"d"`
-	ReplyTag   string `msgpack:"r,omitempty"`
-	Payload    []byte `msgpack:"p"`
-}
+	// relayIn 中心服下发到节点（含真实 SrcNodeId）。
+	relayIn struct {
+		SrcNodeId  string `msgpack:"s"`
+		DestNodeId string `msgpack:"d"`
+		ReplyTag   string `msgpack:"r,omitempty"`
+		Payload    []byte `msgpack:"p"`
+	}
 
-type replyBody struct {
-	DestNodeId string `msgpack:"d"`
-	ReplyTag   string `msgpack:"r"`
-	Payload    []byte `msgpack:"p"`
-}
+	replyBody struct {
+		DestNodeId string `msgpack:"d"`
+		ReplyTag   string `msgpack:"r"`
+		Payload    []byte `msgpack:"p"`
+	}
 
-type errBody struct {
-	ReplyTag string `msgpack:"r,omitempty"`
-	Message  string `msgpack:"m"`
-}
+	errBody struct {
+		ReplyTag string `msgpack:"r,omitempty"`
+		Message  string `msgpack:"m"`
+	}
+)
 
 func packFrame(stream kkpacket.IPacket, wireType byte, body []byte) (*kkbuffer.ByteBuffer, error) {
 	if len(body) > 1<<20 {

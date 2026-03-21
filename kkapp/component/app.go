@@ -99,7 +99,7 @@ func (slf *Application) logTag() string {
 }
 
 func (slf *Application) curStateName() string {
-	return GetStateName(atomic.LoadInt64(&slf.state))
+	return getStateName(atomic.LoadInt64(&slf.state))
 }
 
 func (slf *Application) GetCompPID(compName string) *actor.PID {

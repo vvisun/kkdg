@@ -9,8 +9,7 @@ import "time"
 //   - transport/atransrelay：经独立 TCP Hub 中继转发；
 //   - 其它自定义总线。
 //
-// 组件和业务代码只依赖该接口，而不关心底层是 NATS、TCP 还是其它实现，从而做到类似 TransType(nats/tcp)
-// 那样可插拔替换。
+// 组件和业务代码只依赖该接口，而不关心底层是 NATS、TCP 还是其它实现，可插拔替换。
 //
 // 运行阶段：
 //  transport.SetReceiver(receiver)

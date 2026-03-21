@@ -434,6 +434,6 @@ func TestApplication_FaultEvent_ActionFromOptions_DoesNotStopAppWhenStopComp(t *
 	// Give enough time to observe whether stop-app action was incorrectly triggered.
 	time.Sleep(700 * time.Millisecond)
 	if atomic.LoadInt64(&app.state) != ComponentStateStarted {
-		t.Fatalf("application state=%s, want %s", GetStateName(atomic.LoadInt64(&app.state)), GetStateName(ComponentStateStarted))
+		t.Fatalf("application state=%s, want %s", getStateName(atomic.LoadInt64(&app.state)), getStateName(ComponentStateStarted))
 	}
 }

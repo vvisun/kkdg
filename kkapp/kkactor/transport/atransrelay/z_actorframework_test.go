@@ -11,7 +11,7 @@ import (
 // TestActorFramework_HubRemoteSendAndRequest 验证 ActorFramework + actorshard 中心服
 // 与 actornats/z_transport_test.go 中 TestTransport_SendAndRequest 场景一致。
 func TestActorFramework_HubRemoteSendAndRequest(t *testing.T) {
-	hub := NewHub(freeTCPAddr(t), nil)
+	hub := NewHub(freeTCPAddr(t))
 	if err := hub.Start(); err != nil {
 		t.Fatal(err)
 	}

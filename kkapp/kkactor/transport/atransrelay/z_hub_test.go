@@ -59,7 +59,7 @@ func testRegistry(t *testing.T) *actortrans.MessageRegistry {
 }
 
 func TestHubTransportSend(t *testing.T) {
-	hub := NewHub(freeTCPAddr(t), nil)
+	hub := NewHub(freeTCPAddr(t))
 	if err := hub.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestHubTransportSend(t *testing.T) {
 }
 
 func TestHubTransportRequest(t *testing.T) {
-	hub := NewHub(freeTCPAddr(t), nil)
+	hub := NewHub(freeTCPAddr(t))
 	if err := hub.Start(); err != nil {
 		t.Fatal(err)
 	}

@@ -18,6 +18,6 @@ var stateNameMap = map[ComponentState]string{
 	ComponentStateStopped:  "stopped",
 }
 
-func GetStateName(state ComponentState) string {
+func getStateName(state ComponentState) string {
 	return stateNameMap[state]
 }
