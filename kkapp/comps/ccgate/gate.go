@@ -217,14 +217,18 @@ func (slf *gateComponent) OnStart() error {
 	}
 
 	// 启动 discovery
-	if err := slf.discovery.Start(); err != nil {
-		return err
+	if slf.discovery != nil {
+		if err := slf.discovery.Start(); err != nil {
+			return err
+		}
 	}
 
 	// 启动 cluster
 	if slf.cluster != nil {
-		if err := slf.cluster.Start(); err != nil {
-			return err
+		if slf.cluster != nil {
+			if err := slf.cluster.Start(); err != nil {
+				return err
+			}
 		}
 	}
 

@@ -13,10 +13,10 @@ type Options struct {
 	TransType transport.TransType
 	// 转发层服务器地址。TransType为TransTypeRpc或TransTypeShard时有效。
 	TransServerAddr string
-	// 发现服务器URL。
+	// 发现服务器URL。TransType为TransTypeNats时必须设置。
 	DiscoveryUrl  string
 	DiscoveryOpts kkdiscovery.DiscoveryOption
-	// 集群服务器URL。
+	// 集群服务器URL。TransType为TransTypeNats时可选设置。
 	ClusterUrl  string
 	ClusterOpts kkcluster.ClusterOption
 }
@@ -24,14 +24,16 @@ type Options struct {
 func validateOption(opt *Options) error {
 	if opt.TransType == transport.TransTypeRpc || opt.TransType == transport.TransTypeShard {
 		if opt.TransServerAddr == "" {
-			return errors.New("rpc addr is required")
+			return errors.New("TransServerAddr is required")
 		}
 	}
-	if opt.DiscoveryUrl == "" {
-		return errors.New("discovery url is required")
-	}
-	if opt.ClusterUrl == "" {
-		return errors.New("cluster url is required")
+	if opt.TransType == transport.TransTypeNats {
+		if opt.DiscoveryUrl == "" {
+			return errors.New("DiscoveryUrl is required")
+		}
+		if opt.ClusterUrl == "" {
+			return errors.New("ClusterUrl is required")
+		}
 	}
 	return nil
 }

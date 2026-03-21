@@ -35,21 +35,23 @@ func validateOption(opt *Options) error {
 		kklog.Warn("max conn count is required, set to 50000")
 	}
 	if opt.TCPAddr == "" && opt.WSAddr == "" {
-		return errors.New("tcp addr or ws addr is required")
+		return errors.New("TCPAddr or WSAddr is required")
 	}
 	if opt.TransType == transport.TransTypeRpc || opt.TransType == transport.TransTypeShard {
 		if opt.TransServerAddr == "" {
-			return errors.New("rpc addr is required")
+			return errors.New("TransServerAddr is required")
 		}
 	}
-	if opt.DiscoveryUrl == "" {
-		return errors.New("discovery url is required")
-	}
-	if opt.ClusterUrl == "" {
-		return errors.New("cluster url is required")
+	if opt.TransType == transport.TransTypeNats {
+		if opt.DiscoveryUrl == "" {
+			return errors.New("DiscoveryUrl is required")
+		}
+		if opt.ClusterUrl == "" {
+			return errors.New("ClusterUrl is required")
+		}
 	}
 	if opt.TCPAddr == opt.WSAddr || opt.TCPAddr == opt.TransServerAddr || opt.WSAddr == opt.TransServerAddr {
-		return errors.New("tcp addr, ws addr and rpc addr cannot be the same")
+		return errors.New("TCPAddr, WSAddr and TransServerAddr cannot be the same")
 	}
 	return nil
 }

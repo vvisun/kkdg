@@ -60,26 +60,30 @@ func (slf *gameComponent) Receive(ctx actor.Context) {
 
 func (slf *gameComponent) OnInit() error {
 	// 初始化 discovery
-	slf.discovery = dnats.NewNatsDiscovery(
-		slf.GetApplication().GetNodeInfo(),
-		kkdiscovery.ApplyOptions(
-			kkdiscovery.WithUrl(slf.opt.DiscoveryUrl),
-		),
-	)
-	slf.discoverySubID = kkdiscovery.GlobalEventMgr.Subscribe(kkdiscovery.EventDiscoveryStats, func(e *kkdiscovery.DiscoveryStatsEvent) {
-		e.OnlineCount = slf.sessionManager.OnlineCount()
-		e.Status = kkdiscovery.NodeStatusOnline
-	})
+	if slf.opt.DiscoveryUrl != "" {
+		slf.discovery = dnats.NewNatsDiscovery(
+			slf.GetApplication().GetNodeInfo(),
+			kkdiscovery.ApplyOptions(
+				kkdiscovery.WithUrl(slf.opt.DiscoveryUrl),
+			),
+		)
+		slf.discoverySubID = kkdiscovery.GlobalEventMgr.Subscribe(kkdiscovery.EventDiscoveryStats, func(e *kkdiscovery.DiscoveryStatsEvent) {
+			e.OnlineCount = slf.sessionManager.OnlineCount()
+			e.Status = kkdiscovery.NodeStatusOnline
+		})
+	}
 
 	// 初始化 cluster
-	slf.cluster = cnats.NewNatsCluster(
-		slf.GetApplication().GetNodeId(),
-		slf.GetApplication().GetNodeType(),
-		kkcluster.ApplyOptions(
-			kkcluster.WithUrl(slf.opt.ClusterUrl),
-			kkcluster.WithDiscovery(slf.discovery),
-		),
-	)
+	if slf.opt.ClusterUrl != "" {
+		slf.cluster = cnats.NewNatsCluster(
+			slf.GetApplication().GetNodeId(),
+			slf.GetApplication().GetNodeType(),
+			kkcluster.ApplyOptions(
+				kkcluster.WithUrl(slf.opt.ClusterUrl),
+				kkcluster.WithDiscovery(slf.discovery),
+			),
+		)
+	}
 
 	appOpts := slf.GetApplication().GetOptions()
 	packetTool := kkpacket.NewFullPacket(appOpts.StreamTool, appOpts.ClientMsgPacket)
@@ -109,19 +113,6 @@ func (slf *gameComponent) OnInit() error {
 			return err
 		}
 		slf.transportor = transportor
-	case transport.TransTypeRpc:
-		transportor, err := gametransrpc.NewTransportorRpc(
-			slf.sessionManager,
-			slf.msgReceiver,
-			slf.GetApplication().GetNodeInfo(),
-			slf.opt.TransServerAddr,
-			appOpts.ClientMsgPacket,
-			appOpts.StreamTool,
-		)
-		if err != nil {
-			return err
-		}
-		slf.transportor = transportor
 	case transport.TransTypeShard:
 		transportor, err := gametransshard.NewTransportorShard(
 			slf.sessionManager,
@@ -131,6 +122,19 @@ func (slf *gameComponent) OnInit() error {
 			transMsgPacket,
 			appOpts.ClientMsgPacket,
 			appOpts.StreamTool,
+			appOpts.StreamTool,
+		)
+		if err != nil {
+			return err
+		}
+		slf.transportor = transportor
+	case transport.TransTypeRpc:
+		transportor, err := gametransrpc.NewTransportorRpc(
+			slf.sessionManager,
+			slf.msgReceiver,
+			slf.GetApplication().GetNodeInfo(),
+			slf.opt.TransServerAddr,
+			appOpts.ClientMsgPacket,
 			appOpts.StreamTool,
 		)
 		if err != nil {
