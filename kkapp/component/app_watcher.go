@@ -23,6 +23,7 @@ func getPIDKey(pid *actor.PID) string {
 	return fmt.Sprintf("%s|%s", pid.Address, pid.Id)
 }
 
+// appWatcher is responsible for watching component actors and handling their faults.
 type appWatcher struct {
 	app *Application
 
