@@ -1,13 +1,15 @@
 package kkcluster
 
 import (
+	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type ClusterOption struct {
-	MsgCodec kkcodec.ICodec
-	Url      string
+	Discovery kkdiscovery.IDiscovery
+	MsgCodec  kkcodec.ICodec
+	Url       string
 }
 
 func DefaultClusterOption() ClusterOption {
@@ -54,5 +56,11 @@ func WithUrl(url string) func(o *ClusterOption) {
 			return
 		}
 		o.Url = url
+	}
+}
+
+func WithDiscovery(discovery kkdiscovery.IDiscovery) func(o *ClusterOption) {
+	return func(o *ClusterOption) {
+		o.Discovery = discovery
 	}
 }

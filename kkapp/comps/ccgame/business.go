@@ -75,9 +75,9 @@ func (slf *gameComponent) OnInit() error {
 	slf.cluster = cnats.NewNatsCluster(
 		slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeType(),
-		slf.discovery,
 		kkcluster.ApplyOptions(
 			kkcluster.WithUrl(slf.opt.ClusterUrl),
+			kkcluster.WithDiscovery(slf.discovery),
 		),
 	)
 

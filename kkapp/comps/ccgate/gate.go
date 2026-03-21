@@ -139,9 +139,9 @@ func (slf *gateComponent) OnInit() error {
 	slf.cluster = cnats.NewNatsCluster(
 		slf.GetApplication().GetNodeId(),
 		slf.GetApplication().GetNodeType(),
-		slf.discovery,
 		kkcluster.ApplyOptions(
 			kkcluster.WithUrl(slf.gateOpt.ClusterUrl),
+			kkcluster.WithDiscovery(slf.discovery),
 		),
 	)
 

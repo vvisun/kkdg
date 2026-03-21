@@ -74,13 +74,13 @@ var asyncReqPool = sync.Pool{
 }
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, nodeType string, discovery kkdiscovery.IDiscovery, clusterOpt kkcluster.ClusterOption) kkcluster.ICluster {
+func NewNatsCluster(nodeID string, nodeType string, clusterOpt kkcluster.ClusterOption) kkcluster.ICluster {
 	natsOpts := FromClusterOption(clusterOpt)
 	kkcluster.CheckClusterOption(&clusterOpt)
 	return &NatsCluster{
 		nodeID:      nodeID,
 		nodeType:    nodeType,
-		discovery:   discovery,
+		discovery:   clusterOpt.Discovery,
 		requestMap:  make(map[string]chan *kkcluster.ClusterResponse),
 		reqMap:      make(map[string]*asyncReq),
 		stopCh:      make(chan struct{}),
@@ -233,9 +233,11 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 	}
 
 	// 检查目标节点是否存在
-	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
-	if !found {
-		return kkerrors.ErrClusterMemberNotFound
+	if c.discovery != nil {
+		_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
+		if !found {
+			return kkerrors.ErrClusterMemberNotFound
+		}
 	}
 
 	// 设置源节点ID
@@ -277,8 +279,10 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	}
 
 	// 检查该类型是否有节点（可选，用于提前验证）
-	if c.discovery.GetMemberMgr().CountOfType(nodeType) == 0 {
-		return kkerrors.ErrClusterNoMemberOfType
+	if c.discovery != nil {
+		if c.discovery.GetMemberMgr().CountOfType(nodeType) == 0 {
+			return kkerrors.ErrClusterNoMemberOfType
+		}
 	}
 
 	// 设置源节点ID
@@ -320,9 +324,11 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 		return kkerrors.ErrClusterNotConnected
 	}
 
-	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
-	if !found {
-		return kkerrors.ErrClusterMemberNotFound
+	if c.discovery != nil {
+		_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
+		if !found {
+			return kkerrors.ErrClusterMemberNotFound
+		}
 	}
 
 	reqTimeout := defaultRequestTimeout
@@ -415,9 +421,11 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 	}
 
 	// 检查目标节点是否存在
-	_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
-	if !found {
-		return nil, kkcluster.ClusterErrorCodeMemberNotFound
+	if c.discovery != nil {
+		_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
+		if !found {
+			return nil, kkcluster.ClusterErrorCodeMemberNotFound
+		}
 	}
 
 	// 设置超时
