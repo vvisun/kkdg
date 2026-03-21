@@ -14,7 +14,7 @@ import (
 func setupBenchFramework(b *testing.B) (*ActorFramework, LucencyID, func()) {
 	af := NewSilentActorFramework()
 	actorSys := af.GetActorSystem()
-	loc := af.GetLocator()
+	loc := af.GetLocalActorMgr()
 	id, _ := NewLucencyID("game1", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
 		if ctx.Sender() != nil {

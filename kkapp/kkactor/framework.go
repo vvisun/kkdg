@@ -76,7 +76,9 @@ type ActorFramework struct {
 	remoteTransport actortrans.IRemoteActorTransport
 }
 
-func (slf *ActorFramework) GetLocator() *LocalActorManager {
+var _ IActorFramework = (*ActorFramework)(nil)
+
+func (slf *ActorFramework) GetLocalActorMgr() *LocalActorManager {
 	return slf.locator
 }
 

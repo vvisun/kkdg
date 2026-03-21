@@ -84,7 +84,7 @@ func TestTransport_SendAndRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewLucencyID: %v", err)
 	}
-	if err := framework2.GetLocator().AddActor(targetID, pid); err != nil {
+	if err := framework2.GetLocalActorMgr().AddActor(targetID, pid); err != nil {
 		t.Fatalf("AddActor: %v", err)
 	}
 	if err := framework1.Send(targetID, &remotePing{Text: "hello"}); err != nil {

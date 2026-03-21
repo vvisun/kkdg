@@ -31,7 +31,7 @@ func NewApplication(nodeInfo *kkapp.NodeInfo, af *kkactor.ActorFramework, opts k
 		kklog.PanicLog("actorFramework is nil")
 	}
 	kkapp.CheckOptions(&opts)
-	_ = af.GetLocator().AddLocalNode(nodeInfo.GetNodeId())
+	_ = af.GetLocalActorMgr().AddLocalNode(nodeInfo.GetNodeId())
 	app := &Application{
 		nodeInfo:          nodeInfo,
 		actorFramework:    af,
@@ -146,7 +146,7 @@ func (slf *Application) GetCompPID(compName string) *actor.PID {
 		kklog.Debugf("%s get component %s pid error: %v", slf.logTag(), compName, err)
 		return nil
 	}
-	pid, err := slf.actorFramework.GetLocator().GetActor(id)
+	pid, err := slf.actorFramework.GetLocalActorMgr().GetActor(id)
 	if err != nil {
 		kklog.Debugf("%s get component %s pid error: %v", slf.logTag(), compName, err)
 		return nil
@@ -191,7 +191,7 @@ func (slf *Application) Start() error {
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 		kklog.PanicErr(err)
 	}
-	err = slf.actorFramework.GetLocator().AddActor(id, slf.pid)
+	err = slf.actorFramework.GetLocalActorMgr().AddActor(id, slf.pid)
 	if err != nil {
 		kklog.Errorf("%s add component %s error: %v", slf.logTag(), slf.GetCompName(), err)
 		// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
@@ -306,7 +306,7 @@ func (slf *Application) onStarted(ctx actor.Context) {
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
 			kklog.PanicErr(err)
 		}
-		err = slf.actorFramework.GetLocator().AddActor(id, pid)
+		err = slf.actorFramework.GetLocalActorMgr().AddActor(id, pid)
 		if err != nil {
 			kklog.Errorf("%s add component %s error: %v", slf.logTag(), comp.GetCompName(), err)
 			// 启动期间的异常装配直接panic，不然反而将隐含问题带到了运行期间，造成不可预测的错误
@@ -348,8 +348,8 @@ func (slf *Application) onStopped() {
 	}
 
 	id, _ := kkactor.NewLucencyID(slf.GetNodeId(), slf.GetCompName())
-	slf.actorFramework.GetLocator().RemoveActor(id)
-	_ = slf.actorFramework.GetLocator().RemoveLocalNode(slf.GetNodeId())
+	slf.actorFramework.GetLocalActorMgr().RemoveActor(id)
+	_ = slf.actorFramework.GetLocalActorMgr().RemoveLocalNode(slf.GetNodeId())
 	slf.mu.Lock()
 	slf.compList = make([]kkapp.IComponent, 0)
 	slf.mu.Unlock()

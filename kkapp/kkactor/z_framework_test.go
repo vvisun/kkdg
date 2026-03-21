@@ -42,7 +42,7 @@ func TestActorFramework_RequestAsync_RemoteWithoutTransport(t *testing.T) {
 
 func TestActorFramework_Send_LocalNodeActorNotFound(t *testing.T) {
 	af := NewActorFramework()
-	if err := af.GetLocator().AddLocalNode("aa"); err != nil {
+	if err := af.GetLocalActorMgr().AddLocalNode("aa"); err != nil {
 		t.Fatal(err)
 	}
 	id, _ := NewLucencyID("aa", "never_spawned")
@@ -55,7 +55,7 @@ func TestActorFramework_Send_LocalNodeActorNotFound(t *testing.T) {
 func TestActorFramework_RequestAsync_NilCallback(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
-	loc := af.GetLocator()
+	loc := af.GetLocalActorMgr()
 
 	id, _ := NewLucencyID("aa", "echo")
 	pid := actorSys.Root.Spawn(actor.PropsFromFunc(func(ctx actor.Context) {
@@ -108,7 +108,7 @@ func TestActorFramework_SetRemoteTransport_RollbackOnStartError(t *testing.T) {
 func TestActorFramework_Send_Request_Integration(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
-	loc := af.GetLocator()
+	loc := af.GetLocalActorMgr()
 
 	id, err := NewLucencyID("aa", "echo")
 	if err != nil {
@@ -152,7 +152,7 @@ func TestActorFramework_Send_Request_Integration(t *testing.T) {
 func TestActorFramework_RequestAsync_Integration(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
-	loc := af.GetLocator()
+	loc := af.GetLocalActorMgr()
 
 	id, _ := NewLucencyID("aa", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
@@ -190,7 +190,7 @@ func TestActorFramework_RequestAsync_Integration(t *testing.T) {
 func TestRequest_RequestAsync_Generic(t *testing.T) {
 	af := NewActorFramework()
 	actorSys := af.GetActorSystem()
-	loc := af.GetLocator()
+	loc := af.GetLocalActorMgr()
 
 	id, _ := NewLucencyID("aa", "echo")
 	echoProps := actor.PropsFromFunc(func(ctx actor.Context) {
