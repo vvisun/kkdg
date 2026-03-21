@@ -176,6 +176,41 @@ func BenchmarkRequestRemote(b *testing.B) {
 	}
 }
 
+// BenchmarkRequest_NATSRequest 与 BenchmarkRequestRemote 对照：本路径使用 conn.Request + msg.Respond（无 kkcluster.response 与本地 chan）。
+// 建议：go test ./remotes/kkcluster/cnats/... -bench='BenchmarkRequestRemote|BenchmarkRequest_NATSRequest' -benchmem -count=5
+func BenchmarkRequest_NATSRequest(b *testing.B) {
+	cluster1, cluster2, cleanup := setupBenchCluster(b)
+	defer func() { b.StopTimer(); cleanup() }()
+
+	nc1, ok := cluster1.(*NatsCluster)
+	if !ok {
+		b.Fatal("cluster1 is not *NatsCluster")
+	}
+
+	cluster2.SetRequestHandler(func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeSuccess),
+			Data:      []byte("ok"),
+		}, nil
+	})
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		packet := kkcluster.NewClusterPacket()
+		packet.FuncName = "test"
+		packet.ArgBytes = []byte("bench")
+		data, code := nc1.request("node2", packet, 5*time.Second)
+		if code != kkcluster.ClusterErrorCodeSuccess {
+			b.Fatalf("request code = %v, want Success", code)
+		}
+		if string(data) != "ok" {
+			b.Fatalf("request data = %q, want ok", string(data))
+		}
+	}
+}
+
 // BenchmarkRequestRemoteAsync 测量异步请求往返。建议加 -benchtime=5s 获得更多迭代与稳定 ns/op。
 func BenchmarkRequestRemoteAsync(b *testing.B) {
 	cluster1, cluster2, cleanup := setupBenchCluster(b)
@@ -294,6 +329,41 @@ func BenchmarkRequestRemoteParallel(b *testing.B) {
 			_, code := cluster1.RequestRemote("node2", packet, 5*time.Second)
 			if code != kkcluster.ClusterErrorCodeSuccess {
 				b.Errorf("RequestRemote code = %v", code)
+			}
+		}
+	})
+}
+
+func BenchmarkRequest_NATSRequestParallel(b *testing.B) {
+	cluster1, cluster2, cleanup := setupBenchCluster(b)
+	defer func() { b.StopTimer(); cleanup() }()
+
+	nc1, ok := cluster1.(*NatsCluster)
+	if !ok {
+		b.Fatal("cluster1 is not *NatsCluster")
+	}
+
+	var mu sync.Mutex
+	cluster2.SetRequestHandler(func(req *kkcluster.ClusterRequest) (*kkcluster.ClusterResponse, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		return &kkcluster.ClusterResponse{
+			RequestID: req.RequestID,
+			Code:      int32(kkcluster.ClusterErrorCodeSuccess),
+			Data:      []byte("ok"),
+		}, nil
+	})
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			packet := kkcluster.NewClusterPacket()
+			packet.FuncName = "test"
+			packet.ArgBytes = []byte("bench")
+			_, code := nc1.request("node2", packet, 5*time.Second)
+			if code != kkcluster.ClusterErrorCodeSuccess {
+				b.Errorf("request code = %v", code)
 			}
 		}
 	})

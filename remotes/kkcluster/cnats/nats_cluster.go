@@ -411,6 +411,65 @@ func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.Cluste
 	return nil
 }
 
+// request 使用 NATS 原生 Request/Reply（服务端 handleRequest 在 msg.Reply 非空时走 msg.Respond）。
+// 与 RequestRemote（自定义 kkcluster.response.* + channel 等待）相对，用于性能对比或可切换路径。
+func (c *NatsCluster) request(nodeID string, packet *kkcluster.ClusterPacket, timeout ...time.Duration) ([]byte, kkcluster.ClusterErrorCode) {
+	if packet == nil {
+		return nil, kkcluster.ClusterErrorCodeInvalidRequest
+	}
+	if !c.IsConnected() {
+		return nil, kkcluster.ClusterErrorCodeNotConnected
+	}
+	if c.discovery != nil {
+		_, found := c.discovery.GetMemberMgr().GetMember(nodeID)
+		if !found {
+			return nil, kkcluster.ClusterErrorCodeMemberNotFound
+		}
+	}
+
+	reqTimeout := defaultRequestTimeout
+	if len(timeout) > 0 && timeout[0] > 0 {
+		reqTimeout = timeout[0]
+	}
+	packet.Timeout = int64(reqTimeout.Milliseconds())
+	requestID := c.generateRequestID()
+
+	reqMsg := &kkcluster.ClusterRequest{
+		RequestID:    requestID,
+		SourceNodeID: c.nodeID,
+		Packet:       packet,
+	}
+	data, err := c.msgCodec.Marshal(reqMsg)
+	kkcluster.PutClusterPacket(packet)
+	if err != nil {
+		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) marshal request failed: requestID=%s targetNode=%s err=%v", c.nodeID, requestID, nodeID, err)
+		return nil, kkcluster.ClusterErrorCodeMarshalFailed
+	}
+
+	requestSubject := c.getRequestSubjectForNode(nodeID)
+	msg, err := c.conn.Request(requestSubject, data, reqTimeout)
+	if err != nil {
+		c.stats.AddError()
+		if errors.Is(err, nats.ErrTimeout) || errors.Is(err, nats.ErrNoResponders) {
+			return nil, kkcluster.ClusterErrorCodeTimeout
+		}
+		kklog.Errorf("NatsCluster(%s) nats.Request failed: subject=%s err=%v", c.nodeID, requestSubject, err)
+		return nil, kkcluster.ClusterErrorCodePublishFailed
+	}
+
+	c.stats.AddRequestSent(len(data))
+
+	var resp kkcluster.ClusterResponse
+	if err := c.msgCodec.Unmarshal(msg.Data, &resp); err != nil {
+		c.stats.AddError()
+		kklog.Errorf("NatsCluster(%s) unmarshal nats reply failed: %v", c.nodeID, err)
+		return nil, kkcluster.ClusterErrorCodeInvalidResponse
+	}
+	c.stats.AddResponseReceived(len(resp.Data))
+	return resp.Data, kkcluster.ClusterErrorCode(resp.Code)
+}
+
 // RequestRemote 请求消息（带响应）
 func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPacket, timeout ...time.Duration) ([]byte, kkcluster.ClusterErrorCode) {
 	if packet == nil {
@@ -684,21 +743,31 @@ func (c *NatsCluster) handleRequest(msg *nats.Msg) {
 		}()
 	}
 
-	// 发送响应
-	responseSubject := c.getResponseSubject(req.RequestID)
-	data, err := c.msgCodec.Marshal(response)
+	respBytes, err := c.msgCodec.Marshal(response)
 	if err != nil {
 		kklog.Errorf("NatsCluster(%s) marshal response failed: %v", c.nodeID, err)
 		c.stats.AddError()
 		return
 	}
 
-	if err := c.conn.Publish(responseSubject, data); err != nil {
+	// NATS Request 路径：直接 Reply 到客户端 inbox（与 conn.Request 配对）
+	if msg.Reply != "" {
+		if err := msg.Respond(respBytes); err != nil {
+			kklog.Errorf("NatsCluster(%s) respond failed: %v", c.nodeID, err)
+			c.stats.AddError()
+			return
+		}
+		c.stats.AddResponseSent(len(respBytes))
+		return
+	}
+
+	// 异步/兼容路径：仍发往 kkcluster.response.<requestID>
+	responseSubject := c.getResponseSubject(req.RequestID)
+	if err := c.conn.Publish(responseSubject, respBytes); err != nil {
 		kklog.Errorf("NatsCluster(%s) publish response failed: %v", c.nodeID, err)
 		c.stats.AddError()
 	} else {
-		// 记录发送响应统计
-		c.stats.AddResponseSent(len(data))
+		c.stats.AddResponseSent(len(respBytes))
 	}
 }
 
