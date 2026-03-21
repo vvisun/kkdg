@@ -65,12 +65,6 @@ func float64v() float64 {
 	return v
 }
 
-func shuffle(n int, swap func(i, j int)) {
-	globalRandMu.Lock()
-	globalRand.Shuffle(n, swap)
-	globalRandMu.Unlock()
-}
-
 // Str 生成指定长度的字符串
 func Str(seed string, length int) (str string) {
 	if length <= 0 {
@@ -247,11 +241,4 @@ func Weight(fn func(v any) float64, list ...any) int {
 	}
 
 	return Int(1, len(list))
-}
-
-// Shuffle 打乱数组
-func Shuffle(list []any) {
-	shuffle(len(list), func(i, j int) {
-		list[i], list[j] = list[j], list[i]
-	})
 }

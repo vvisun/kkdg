@@ -45,8 +45,8 @@ Actor层 | 透明寻址、远程路由 | kkactor：ActorFramework、LocalActorMa
 
 ## 其他非框架目录 [other]
 
-other/examples 示例
-other/test 白盒测试
+zothers/examples 示例
+zothers/test 白盒测试
 
 ## 架构概览
 
@@ -67,22 +67,22 @@ other/test 白盒测试
 
 ```bash
 # 集群示例（需先启动 NATS）
-cd other/examples/examcluster && go run main.go
+cd zothers/examples/examcluster && go run main.go
 
 # 服务发现示例（需先启动 NATS）
-cd other/examples/examdiscovery && go run main.go
+cd zothers/examples/examdiscovery && go run main.go
 
 # WebSocket Echo 示例
-cd other/examples/examws && go run main.go
+cd zothers/examples/examws && go run main.go
 
 # TCP Echo 示例
-cd other/examples/examtcp && go run main.go
+cd zothers/examples/examtcp && go run main.go
 
 # TCP TLS Echo 示例（使用自签名证书）
-cd other/examples/examtcptls && go run main.go
+cd zothers/examples/examtcptls && go run main.go
 
 # RPC 示例（请求响应 + 单向 + 异步）
-cd other/examples/examrpc && go run main.go
+cd zothers/examples/examrpc && go run main.go
 ```
 
 ### 测试

@@ -3,7 +3,7 @@ package main
 // 该工具用于生成消息ID与消息类型的映射关系。
 // 读取指定 proto 目录下的所有 .proto 文件，根据 route_cfg.json 文件生成消息ID与消息类型的映射关系，输出到指定文件。
 // 用法示例:
-//   msdid ./other/examples/examapp/ptoexam
+//   msdid ./zothers/examples/examapp/ptoexam
 //
 // 在 ptoexam 目录中:
 //   - route_cfg.json:
@@ -64,7 +64,7 @@ func printUsage() {
 	}
 	fmt.Fprintf(os.Stderr, "用法: %s <proto目录>\n", exe)
 	fmt.Fprintln(os.Stderr, "示例:")
-	fmt.Fprintf(os.Stderr, "  %s ./other/examples/examapp/ptoexam\n", exe)
+	fmt.Fprintf(os.Stderr, "  %s ./zothers/examples/examapp/ptoexam\n", exe)
 }
 
 func run(dir string) error {
@@ -150,9 +150,9 @@ func loadRouteCfg(path string) (map[string]routeCfg, error) {
 }
 
 // detectGoPackage 尝试从配置的 proto 文件中推断 Go 包名:
-//   1) option go_package = "xxx;pkg" -> 取分号后的 pkg。
-//   2) package ptoexam;              -> 取该值。
-//   3) 以上都没有时，使用目录名。
+//  1. option go_package = "xxx;pkg" -> 取分号后的 pkg。
+//  2. package ptoexam;              -> 取该值。
+//  3. 以上都没有时，使用目录名。
 func detectGoPackage(dir string, cfgMap map[string]routeCfg) (string, error) {
 	for protoFile := range cfgMap {
 		full := filepath.Join(dir, protoFile)
