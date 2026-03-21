@@ -10,6 +10,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/internal"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -31,7 +32,7 @@ var _ kknet.IConn = (*tlsConn)(nil)
 func newTLSConn(conn net.Conn, opts *kknet.Options, stats *kknet.Stats) *tlsConn {
 	kknet.CheckOptions(opts)
 	c := &tlsConn{
-		id:    kknet.NextConnID(),
+		id:    internal.NextConnID(),
 		conn:  conn,
 		opts:  opts,
 		stats: stats,

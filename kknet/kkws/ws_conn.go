@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/internal"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kktime"
@@ -40,7 +41,7 @@ var _ kknet.IConn = (*wsConn)(nil)
 func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *wsConn {
 	kknet.CheckOptions(opts)
 	c := &wsConn{
-		id:    kknet.NextConnID(),
+		id:    internal.NextConnID(),
 		conn:  conn,
 		opts:  opts,
 		stats: stats,

@@ -8,6 +8,7 @@ import (
 	"github.com/panjf2000/gnet/v2"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/internal"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 )
@@ -33,7 +34,7 @@ var _ kknet.IConn = (*gnetClientConn)(nil)
 func newGnetClientConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetClientConn {
 	kknet.CheckOptions(opts)
 	cc := &gnetClientConn{
-		id:    kknet.NextConnID(),
+		id:    internal.NextConnID(),
 		conn:  c,
 		opts:  opts,
 		stats: stats,

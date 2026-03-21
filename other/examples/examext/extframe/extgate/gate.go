@@ -11,8 +11,24 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/queues/kkmpsc"
+	"github.com/vvisun/kkdg/utils/queues/kkspsc"
 )
+
+// counter for connection ID. unique id for the connection.
+var connIDCounter atomic.Uint64
+
+const maxUint64 = ^uint64(0)
+
+// nextConnID returns a unique connection ID.
+func nextConnID() kknet.CONN_ID {
+	// 如果超过uint64最大值，则重置为0。理论上不可能，但以防万一。
+	// 基本上达到uint64最大值，即使每秒1000万个连接，也需要几十年，
+	// 这时候1~几亿的connId基本上必然已经断开逻辑也已经清理了，不存在逻辑向死亡的connId发消息的情况。
+	if connIDCounter.Load() >= maxUint64 {
+		connIDCounter.Store(0)
+	}
+	return connIDCounter.Add(1)
+}
 
 //设计思路：
 // 客户端与网关之间建立WebSocket连接，每条连接一个读携程 + WriteGroupCnt个分组写携程。
@@ -52,7 +68,7 @@ var (
 
 	// 开启WriteGroupCnt个写协程，每个协程负责一个写队列。
 	// 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
-	writeGroup [WriteGroupCnt]*kkmpsc.Queue[writeTask]
+	writeGroup [WriteGroupCnt]*kkspsc.Queue[writeTask]
 )
 
 // 初始化WriteGroupCnt个写协程, 负责将writeTask写入客户端。
@@ -61,7 +77,7 @@ func initWriteGroups() {
 		return
 	}
 	for i := 0; i < WriteGroupCnt; i++ {
-		writeGroup[i] = kkmpsc.NewQueue[writeTask]()
+		writeGroup[i] = kkspsc.NewQueue[writeTask]()
 		// 写协程从写队列中取出writeTask，然后调用ws.WriteMessage写入客户端。
 		go writeLoop(i)
 	}

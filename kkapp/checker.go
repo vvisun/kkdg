@@ -91,16 +91,3 @@ func isASCIIAlpha(s string) bool {
 	}
 	return true
 }
-
-func isASCIIAlphaNumeric(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, ch := range s {
-		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') {
-			continue
-		}
-		return false
-	}
-	return true
-}

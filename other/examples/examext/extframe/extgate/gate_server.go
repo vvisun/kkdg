@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
-	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/other/examples/examext/extframe/extmsg"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -48,7 +47,7 @@ func onLogicConnClose(shardConn *ShardConn, err error) {
 func onNewConn(conn net.Conn) {
 	shardConn := &ShardConn{
 		conn:     conn,
-		connId:   kknet.NextConnID(),
+		connId:   nextConnID(),
 		shardIdx: -1,
 		nodeId:   "",
 	}

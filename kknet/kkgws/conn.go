@@ -9,6 +9,7 @@ import (
 	"github.com/lxzan/gws"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/kknet/internal"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kktime"
@@ -41,7 +42,7 @@ var _ kknet.IConn = (*gwsConn)(nil)
 func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsConn {
 	kknet.CheckOptions(opts)
 	c := &gwsConn{
-		id:     kknet.NextConnID(),
+		id:     internal.NextConnID(),
 		socket: socket,
 		opts:   opts,
 		stats:  stats,

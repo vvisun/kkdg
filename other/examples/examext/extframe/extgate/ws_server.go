@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/lxzan/gws"
-	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/other/examples/examext/extframe/extmsg"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
@@ -17,7 +16,7 @@ const sessionKeyClientConn = "clientConn"
 type WsHandler struct{}
 
 func (h *WsHandler) OnOpen(s *gws.Conn) {
-	connID := kknet.NextConnID()
+	connID := nextConnID()
 	c := &ClientConn{
 		ws:         s,
 		connID:     connID,
