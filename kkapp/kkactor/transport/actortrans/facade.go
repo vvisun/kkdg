@@ -5,8 +5,8 @@ import "time"
 // IRemoteActorTransport 抽象跨节点的 actor 消息路由能力。
 //
 // 典型实现可以基于：
-//   - kkcluster（NATS）：使用 subject = "actor.<nodeId>.<actorKey>" 做 pub/sub；
-//   - kknet：基于TCP连接中转消息
+//   - transport/atransnats：NATS pub/sub，按节点订阅 kkactor.send.<nodeId> / kkactor.request.<nodeId>；
+//   - transport/atransrelay：经独立 TCP Hub 中继转发；
 //   - 其它自定义总线。
 //
 // 组件和业务代码只依赖该接口，而不关心底层是 NATS、TCP 还是其它实现，从而做到类似 TransType(nats/tcp)

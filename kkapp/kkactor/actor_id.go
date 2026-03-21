@@ -48,7 +48,7 @@ func NewLucencyID(nodeId, actorKey string) (LucencyID, error) {
 	return id, nil
 }
 
-// ActorRef2LucencyID 将 actorremotes.ActorRef 转换为 LucencyID。
+// ActorRef2LucencyID 将 actortrans.ActorRef 转换为 LucencyID。
 func ActorRef2LucencyID(actorRef *actortrans.ActorRef) (LucencyID, error) {
 	if actorRef == nil {
 		return LucencyID{}, kkerrors.ErrActorInvalidActorRef
@@ -62,7 +62,7 @@ func ActorRef2LucencyID(actorRef *actortrans.ActorRef) (LucencyID, error) {
 	return NewLucencyID(actorRef.NodeID, actorRef.ActorKey)
 }
 
-// LucencyID2ActorRef 将 LucencyID 转换为 actorremotes.ActorRef。
+// LucencyID2ActorRef 将 LucencyID 转换为 actortrans.ActorRef。
 func LucencyID2ActorRef(lucencyID LucencyID) actortrans.ActorRef {
 	return actortrans.ActorRef{
 		NodeID:   lucencyID.NodeID(),

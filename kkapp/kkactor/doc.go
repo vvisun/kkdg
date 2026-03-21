@@ -7,7 +7,7 @@
 //     其中 nodeID、actorKey 均须非空且符合 kkapp 命名规则（见 IsValidActorNodeId / IsValidActorKey）。
 //     单进程多节点部署时必须填入真实 nodeID，否则无法区分 actor 属于哪个本地节点。
 //  3. ActorLocator 根据 nodeID 是否在本进程已登记（AddNode）判定本地/远程；
-//     远程传输通过 actortrans.IRemoteActorTransport注入，可按部署选用 NATS、atranshub等实现。
+//     远程传输通过 actortrans.IRemoteActorTransport 注入，可按部署选用 transport/atransnats、transport/atransrelay 等实现。
 //  4. ActorFramework 内 ActorLocator 与 ActorSystem 必须成对：PID 属于哪个 System 就应由哪个 Framework
 //     创建并登记，故 NewActorFramework 不接收外部 Locator 单独注入，避免 locator 与 Spawn 使用的 system 错位。
 //
@@ -19,7 +19,7 @@
 //     其他进程内远程通道可自行实现 actortrans.IRemoteActorTransport 并交给 ActorFramework.SetRemoteTransport。
 //     1. transport/actortrans：IRemoteActorTransport / IRemoteActorReceiver 抽象。
 //     2. transport/atransnats：基于 NATS 的远程传输实现。
-//     3. transport/atransrelay：基于独立中心服的远程传输实现(以tcp中心服为中继转发）。
+//     3. transport/atransrelay：基于独立 TCP 中心服（Hub）中继转发的远程传输实现。
 //   - registry: actor注册中心。用于Actor的全网寻址，自动发现与注册。
 //     其他注册中心可自行实现。
 //     1. registry/hubproto：actor注册中心协议。
