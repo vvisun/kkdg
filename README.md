@@ -38,7 +38,7 @@ kkdg/
 业务层 | 业务逻辑、消息处理 | ccgate、ccgame、MsgReceiver
 应用层（Actor） | 节点、组件、生命周期 | kkapp：Application、Component
 应用层（非 Actor） | 模块树、模块生命周期 | kkmodule：IModule、Module
-Actor层 | 透明寻址、远程路由 | kkactor：ActorFramework、ActorLocator
+Actor层 | 透明寻址、远程路由 | kkactor：ActorFramework、LocalActorManager
 传输层 | Gate↔Logic 转发 | gatetrans、gametrans
 远程层 | RPC、集群、发现 | kkrpc、kkcluster、kkdiscovery
 网络层 | 连接、封包、处理 | kknet

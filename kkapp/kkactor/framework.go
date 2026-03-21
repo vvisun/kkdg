@@ -13,7 +13,7 @@ import (
 
 // IActorFramework 是 Actor 框架门面。
 type IActorFramework interface {
-	GetLocator() *LocalActorManager
+	GetLocalActorMgr() *LocalActorManager
 	GetActorSystem() *actor.ActorSystem
 	SetRemoteTransport(transport actortrans.IRemoteActorTransport) error
 	GetRemoteTransport() actortrans.IRemoteActorTransport

@@ -9,7 +9,7 @@ import (
 // LucencyID 是 Actor 的逻辑唯一标识：nodeID（节点内路由）+ actorKey（节点内唯一）。
 //
 // nodeID 与 actorKey 均须通过 kkapp 校验（非空、字符集等）；不允许空 nodeID，以便单进程多节点时能稳定归属。
-// ActorLocator 判断本地/远程：若该 LucencyID 的 nodeID 已在当前进程本地 nodeID 集合中登记，则为本地，否则视为远程（走 IRemoteActorTransport）。
+// LocalActorManager 判断本地/远程：若该 LucencyID 的 nodeID 已在当前进程本地 nodeID 集合中登记，则为本地，否则视为远程（走 IRemoteActorTransport）。
 //
 //	unique id = (nodeID, actorKey)。
 //
