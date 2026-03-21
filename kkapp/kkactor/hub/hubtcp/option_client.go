@@ -1,16 +1,14 @@
 package hubtcp
 
 type ClientOptions struct {
-	Addr        string
-	Password    string
-	clientCount int
+	Addr     string
+	Password string
 }
 
 func DefaultClientOptions() ClientOptions {
 	return ClientOptions{
-		Addr:        "0.0.0.0:8080",
-		Password:    "123456",
-		clientCount: 1,
+		Addr:     "0.0.0.0:8080",
+		Password: "123456",
 	}
 }
 
@@ -31,11 +29,5 @@ func WithAddr(addr string) func(o *ClientOptions) {
 func WithPassword(password string) func(o *ClientOptions) {
 	return func(o *ClientOptions) {
 		o.Password = password
-	}
-}
-
-func WithClientCount(clientCount int) func(o *ClientOptions) {
-	return func(o *ClientOptions) {
-		o.clientCount = clientCount
 	}
 }

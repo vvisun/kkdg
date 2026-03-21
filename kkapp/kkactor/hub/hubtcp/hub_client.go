@@ -1,7 +1,6 @@
 package hubtcp
 
 import (
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -56,9 +55,6 @@ func NewHubClient(opts ClientOptions, af *kkactor.ActorFramework, nodeInfo *kkap
 }
 
 func (slf *HubClient) Start() error {
-	if slf.opts.clientCount <= 0 {
-		return errors.New("client count must be greater than 0")
-	}
 	hubproto.InitMsgs()
 
 	handler := newClientHandler(slf)

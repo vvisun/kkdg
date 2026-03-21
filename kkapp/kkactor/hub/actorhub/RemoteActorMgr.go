@@ -13,6 +13,10 @@ type IServerRemoteActorMgr interface {
 	RegisterActor(actorID kkactor.LucencyID, rpcAddr string) error
 	// 注销actor
 	UnregisterActor(actorID kkactor.LucencyID) error
+	// 寻找actor
+	FindActor(actorID kkactor.LucencyID) (*RemoteActor, error)
+	// 获取某个节点上的所有actor列表
+	GetAllActorsOfNode(nodeID string) []*RemoteActor
 }
 
 // IClientRemoteActorMgr 客户端远程Actor管理器接口。
