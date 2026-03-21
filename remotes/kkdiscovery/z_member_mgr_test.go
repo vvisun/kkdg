@@ -2,6 +2,7 @@ package kkdiscovery
 
 import (
 	"fmt"
+	"strconv"
 	"sync/atomic"
 	"testing"
 
@@ -161,5 +162,18 @@ func BenchmarkMemberMgr_AddMember(b *testing.B) {
 		id := fmt.Sprintf("node-%d", base+i%1024) // 控制总成员数量，模拟热点更新
 		info := newTestMemberInfo(id, "logic", "addr", 1, NodeStatusOnline)
 		_, _ = mgr.AddMember(info)
+	}
+}
+
+// benchmark member mgr get member
+func BenchmarkMemberMgr_GetMember(b *testing.B) {
+	mgr := NewMemberMgr()
+	for i := 0; i < 10000; i++ {
+		mgr.AddMember(newTestMemberInfo(fmt.Sprintf("n%d", i), "logic", fmt.Sprintf("addr%d", i), 1, NodeStatusOnline))
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mgr.GetMember("n" + strconv.Itoa(i))
 	}
 }
