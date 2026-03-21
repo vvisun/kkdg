@@ -82,7 +82,6 @@ func (h *MsgHooker) Notify(msgId kkpacket.MSGID, data any) {
 		h.muListeners.RUnlock()
 		return
 	}
-
 	// 在 RLock 保护下持有当前监听器列表引用
 	// 因为是 COW，订阅/取消订阅会替换 map 中的 slice 指针，而我们持有的引用是稳定的
 	listeners := h.listeners

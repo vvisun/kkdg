@@ -87,6 +87,7 @@ func (slf *transportorRpc) Stop() error {
 		return nil
 	}
 	slf.stopped = true
+	slf.msgHooker.RemoveAllListeners()
 	return slf.rpcSvr.Stop()
 }
 

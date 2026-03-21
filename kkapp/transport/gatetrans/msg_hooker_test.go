@@ -1,7 +1,6 @@
 package gatetrans
 
 import (
-	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -150,6 +149,18 @@ func BenchmarkMsgHooker_Notify_ManyListeners(b *testing.B) {
 	}
 }
 
+// Benchmark AddListener / RemoveListener 的基本性能。
+func BenchmarkMsgHooker_AddRemove(b *testing.B) {
+	h := NewMsgHooker()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		l := func(msgId kkpacket.MSGID, data any) {}
+		h.AddListener(l)
+		h.RemoveListener(l)
+	}
+}
+
 // Benchmark 在高并发场景下频繁 Notify 的性能。
 func BenchmarkMsgHooker_Notify_Parallel(b *testing.B) {
 	h := NewMsgHooker()
@@ -166,34 +177,3 @@ func BenchmarkMsgHooker_Notify_Parallel(b *testing.B) {
 		}
 	})
 }
-
-// Benchmark AddListener / RemoveListener 的基本性能。
-func BenchmarkMsgHooker_AddRemove(b *testing.B) {
-	h := NewMsgHooker()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		l := func(msgId kkpacket.MSGID, data any) {}
-		h.AddListener(l)
-		h.RemoveListener(l)
-	}
-}
-
-// BenchmarkMsgHooker_AddListener_Parallel 模拟并发注册监听的场景。
-func BenchmarkMsgHooker_AddListener_Parallel(b *testing.B) {
-	h := NewMsgHooker()
-
-	var wg sync.WaitGroup
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			l := func(msgId kkpacket.MSGID, data any) {}
-			h.AddListener(l)
-		}(i)
-	}
-	wg.Wait()
-}
-

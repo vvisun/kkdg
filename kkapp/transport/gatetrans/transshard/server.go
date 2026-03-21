@@ -77,6 +77,7 @@ func (slf *transportorShard) Stop() error {
 		return nil
 	}
 	slf.stopped = true
+	slf.msgHooker.RemoveAllListeners()
 	return slf.server.Stop()
 }
 

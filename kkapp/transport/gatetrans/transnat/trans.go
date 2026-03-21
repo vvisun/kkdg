@@ -48,6 +48,7 @@ func (slf *transportorNats) Stop() error {
 		return nil
 	}
 	slf.stopped = true
+	slf.msgHooker.RemoveAllListeners()
 	slf.cluster.Stop()
 	return nil
 }
