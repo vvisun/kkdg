@@ -23,6 +23,7 @@ const (
 	dataTypeBytes
 	dataTypeStringList
 	dataTypeBytesList
+	dataTypeBool // 1 byte: 1 = true, 0 = false
 )
 
 type fieldInfo struct {
@@ -168,6 +169,16 @@ func (si *structInfo) marshal(valueList []any, offset int) (*kkbuffer.ByteBuffer
 				bb.B = byteorder.AppendUint16(bb.B, uint16(len(v)))
 				bb.B = append(bb.B, v...)
 			}
+		case dataTypeBool:
+			v, ok := value.(bool)
+			if !ok {
+				return nil, fmt.Errorf("field %q: want bool, got %T", field.name, value)
+			}
+			if v {
+				bb.B = append(bb.B, 1)
+			} else {
+				bb.B = append(bb.B, 0)
+			}
 		default:
 			return nil, fmt.Errorf("invalid data type: %d", field.dataType)
 		}
@@ -262,6 +273,12 @@ func (si *structInfo) unmarshal(data []byte) ([]any, error) {
 				offset += elen
 			}
 			valueList[field.index] = bytesList
+		case dataTypeBool:
+			if offset+1 > n {
+				return nil, errTruncated(offset, 1, n)
+			}
+			valueList[field.index] = data[offset] != 0
+			offset += 1
 		default:
 			return nil, fmt.Errorf("invalid data type: %d", field.dataType)
 		}
