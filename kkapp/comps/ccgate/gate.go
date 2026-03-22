@@ -8,7 +8,6 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps/user"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans/transnat"
@@ -23,7 +22,6 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster/cnats"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
-	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
 	"github.com/vvisun/kkdg/utils/xcall"
@@ -230,10 +228,8 @@ func (slf *gateComponent) OnStart() error {
 
 	// 启动 cluster
 	if slf.cluster != nil {
-		if slf.cluster != nil {
-			if err := slf.cluster.Start(); err != nil {
-				return err
-			}
+		if err := slf.cluster.Start(); err != nil {
+			return err
 		}
 	}
 
@@ -325,157 +321,6 @@ func (slf *gateComponent) startWSServer() error {
 
 //------------------------------------------------------------
 
-func (slf *gateComponent) onNewClientConn(c kknet.IConn) {
-	sid := getSessionId(c.ID(), slf.GetApplication().GetNodeId())
-	slf.sessionMgr.AddConn(sid, c)
-	slf.clientMgr.addClient(c.ID(), sid)
-}
-
-func (slf *gateComponent) onClientConnClose(c kknet.IConn) {
-	cid := c.ID()
-	sid := getSessionId(cid, slf.GetApplication().GetNodeId())
-
-	// 通知所有已绑定的逻辑服，网关处该客户端连接已断开
-	bindTbl := slf.logicBindMgr.getSessionBindTable(sid)
-	if bindTbl != nil {
-		bindTbl.rangeLogicItems(func(nodeType string, logicItem *clientLogicItem) bool {
-			if logicItem.nodeId != "" {
-				logicNodeId := logicItem.nodeId
-				xcall.AntsSafeGo(func() {
-					if slf.transportor != nil {
-						slf.transportor.NotifyClientDisconnect(sid, logicNodeId, cid)
-					}
-				})
-			}
-			return true
-		})
-	}
-
-	slf.sessionMgr.RemoveConn(sid)
-	slf.clientMgr.removeClient(cid)
-	slf.userMgr.onSessionDisconnect(sid)
-	slf.logicBindMgr.onSessionDisconnect(sid)
-	slf.feedLimit.Remove(cid)
-}
-
-func (slf *gateComponent) loginHook(msg *ptotrans.RpcClientLoginLogout) {
-	if msg.IsLogin {
-		kklog.Debugf("[ccgate]客户端登录逻辑服成功: %#v", msg)
-
-		slf.logicBindMgr.userBind(user.USER_ID(msg.UserId), msg.NodeType, msg.NodeId)
-
-		kickList := slf.userMgr.onUserLogin(user.USER_ID(msg.UserId), msg.ClientId)
-		if slf.errCallback != nil && len(kickList) > 0 {
-			for _, kick := range kickList {
-				if conn, err := slf.sessionMgr.GetConn(kick.sessionId); err == nil {
-					// 从客户端管理器中移除，不再接收被踢连接的消息。
-					slf.clientMgr.removeClient(conn.ID())
-					// 通知业务层，用户被顶号/被踢出会话。
-					slf.feedCallback(conn.ID(), ERR_USER_KICKED)
-				}
-			}
-		}
-	} else {
-		kklog.Debugf("[ccgate]客户端登出逻辑服成功: %#v", msg)
-		slf.logicBindMgr.userUnbind(user.USER_ID(msg.UserId), msg.NodeType)
-		slf.localDis.onUnbindLogicNode(msg.ClientId, msg.NodeType, msg.NodeId)
-		slf.userMgr.onUserLogout(user.USER_ID(msg.UserId))
-	}
-}
-
-// 为客户端(connID)分配一个nodeType类型的逻辑节点
-func (slf *gateComponent) allocLogicNode(connID kknet.CONN_ID, nodeType string) *clientLogicItem {
-	if nodeType == "" {
-		return nil //无效的nodeType，不分配逻辑节点
-	}
-
-	sessionID := slf.clientMgr.getSessionByConnId(connID)
-	if sessionID == "" {
-		return nil //客户端不存在|已被踢出会话，不分配逻辑节点
-	}
-
-	// 如果已分配，则返回已分配的逻辑节点信息
-	if oldLogicItem := slf.logicBindMgr.getLogicItemBySessionId(sessionID, nodeType); oldLogicItem != nil {
-		return oldLogicItem
-	}
-
-	// 选择逻辑节点
-	chooseNodeId, found := slf.chooseLogicNode(nodeType)
-	if !found {
-		return nil //没有找到合适的逻辑节点
-	}
-
-	// 分配逻辑节点
-	logicItem := slf.logicBindMgr.sessionBind(sessionID, nodeType, chooseNodeId)
-	slf.localDis.onBindLogicNode(sessionID, nodeType, chooseNodeId)
-	return logicItem
-}
-
-// 选择逻辑节点的唯一入口。
-func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
-	if slf.gateOpt.TransType == transport.TransTypeShard || slf.gateOpt.TransType == transport.TransTypeRpc {
-		return slf.chooseFromShardOrRpc(nodeType)
-	}
-	return slf.chooseFromDiscovery(nodeType)
-}
-
-// 从shard中选择权重最小的逻辑节点. return nodeId, found
-func (slf *gateComponent) chooseFromShardOrRpc(nodeType string) (string, bool) {
-	memberMgr := slf.transportor.(gatetrans.IMemberMgrGetter).GetMemberMgr()
-	lodalDis := slf.localDis
-
-	var chooseNode gatetrans.IMember = nil
-	finded := false
-	memberMgr.Range(func(nodeId string, member gatetrans.IMember) bool {
-		if member.GetNodeType() != nodeType {
-			return true
-		}
-		if chooseNode == nil {
-			chooseNode = member
-			finded = true
-			return true
-		}
-		if lodalDis.getMemberWeight(member.GetNodeID()) < lodalDis.getMemberWeight(chooseNode.GetNodeID()) {
-			chooseNode = member
-			finded = true
-		}
-		return true
-	})
-	if finded {
-		return chooseNode.GetNodeID(), true
-	}
-	return "", false
-}
-
-// 从discovery中选择权重最小的逻辑节点. return nodeId, found
-func (slf *gateComponent) chooseFromDiscovery(nodeType string) (string, bool) {
-	if slf.discovery == nil {
-		return "", false
-	}
-	if slf.discovery.GetMemberMgr().CountOfType(nodeType) == 0 {
-		return "", false
-	}
-
-	var chooseNode kkdiscovery.IMember = nil
-	finded := false
-	slf.discovery.GetMemberMgr().RangeType(nodeType, func(nodeID string, member kkdiscovery.IMember) bool {
-		if chooseNode == nil {
-			chooseNode = member
-			finded = true
-			return true
-		}
-		if member.GetWeight() < chooseNode.GetWeight() {
-			chooseNode = member
-			finded = true
-		}
-		return true
-	})
-	if finded {
-		return chooseNode.GetNodeID(), true
-	}
-	return "", false
-}
-
 // 设置错误回调。非线程安全，一般在初始化时设置即可。
 func (slf *gateComponent) SetErrCallback(fn ErrCallback) {
 	slf.errCallback = fn
@@ -496,82 +341,4 @@ func (slf *gateComponent) feedCallback(connId kknet.CONN_ID, errCode GateErrorCo
 			slf.errCallback(conn, errCode)
 		}
 	})
-}
-
-//------------------------------------------------------------
-
-type gateHandler struct {
-	gate       *gateComponent
-	gateNodeId string
-}
-
-var _ kknet.IConnLifecycleHandler = (*gateHandler)(nil)
-var _ kknet.IRawHandler = (*gateHandler)(nil)
-
-func newGateHandler(gate *gateComponent) *gateHandler {
-	return &gateHandler{
-		gate:       gate,
-		gateNodeId: gate.GetApplication().GetNodeId(),
-	}
-}
-
-func (h *gateHandler) OnConnect(c kknet.IConn) {
-	//kklog.Debugf("[ccgate] client connected: connID=%d, remoteAddr=%s", c.ID(), c.RemoteAddr())
-	if h.gate.server.GetConnManager().GetCount() >= h.gate.gateOpt.MaxConnCount {
-		kklog.Debugf("[ccgate] max conn count reached, reject: remoteAddr=%s", c.RemoteAddr())
-		c.Close()
-		return
-	}
-	h.gate.onNewClientConn(c)
-}
-
-func (h *gateHandler) OnClose(c kknet.IConn, err error) {
-	//kklog.Debugf("[ccgate] client disconnected: connID=%d, remoteAddr=%s, err=%v", c.ID(), c.RemoteAddr(), err)
-	h.gate.onClientConnClose(c)
-}
-
-// OnRaw 收到客户端消息，转发给逻辑节点
-func (h *gateHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
-	if data == nil || len(data.Bytes()) == 0 {
-		return
-	}
-	defer kkbuffer.Put(data)
-
-	sessionID := h.gate.clientMgr.getSessionByConnId(connID)
-	if sessionID == "" {
-		return // 客户端已断开|已被踢出会话
-	}
-
-	// 解析消息，应该路由到哪类逻辑服
-	appOpts := h.gate.GetApplication().GetOptions()
-	msgBytes, err := appOpts.StreamTool.MessageBytes(data.B)
-	if err != nil {
-		h.gate.feedCallback(connID, ERR_CLIENT_INVALID_PACKET)
-		return
-	}
-	msgID, err := appOpts.ClientMsgPacket.GetMsgID(msgBytes)
-	if err != nil {
-		h.gate.feedCallback(connID, ERR_CLIENT_INVALID_PACKET)
-		return
-	}
-	route, err := appOpts.ClientMsgPacket.GetRouter().GetMsgRoute(msgID)
-	if err != nil {
-		h.gate.feedCallback(connID, ERR_CLIENT_INVALID_PACKET)
-		return
-	}
-
-	// 先为client选择一个逻辑服
-	logicNode := h.gate.allocLogicNode(connID, route)
-	if logicNode == nil {
-		// 通知客户端分配逻辑服失败
-		h.gate.feedCallback(connID, ERR_ALLOC_LOGIC_NODE_FAILED)
-		return
-	}
-
-	// 将客户端消息原样转发给逻辑服
-	streamBytes := data.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
-	if err := h.gate.transportor.ForwardToLogic(sessionID, streamBytes, logicNode.nodeId); err != nil {
-		// 通知业务层，转发逻辑服失败。一般是逻辑服已断线或网络异常，直接当成服务器繁忙反馈。
-		h.gate.feedCallback(connID, ERR_RECV_QUEUE_FULL)
-	}
 }
