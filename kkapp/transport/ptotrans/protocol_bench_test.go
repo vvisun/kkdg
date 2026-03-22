@@ -17,49 +17,6 @@ var testMsg = RpcS2Clients{
 	Payload: []byte("test message"),
 }
 
-func BenchmarkProtocol_Marshal_Codec(b *testing.B) {
-	msg := testMsg
-	si := structInfo{}
-	si.AddField(dataTypeStringList, "ClientIds")
-	si.AddField(dataTypeBytes, "Payload")
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		bb, err := si.Marshal([]any{msg.ClientIds, msg.Payload}, 0)
-		if err != nil {
-			b.Fatal(err)
-		}
-		kkbuffer.Put(bb)
-	}
-}
-
-func BenchmarkProtocol_UnMarshal_Codec(b *testing.B) {
-	msg := testMsg
-	si := structInfo{}
-	si.AddField(dataTypeStringList, "ClientIds")
-	si.AddField(dataTypeBytes, "Payload")
-
-	bb, err := si.Marshal([]any{msg.ClientIds, msg.Payload}, 0)
-	if err != nil {
-		b.Fatal(err)
-	}
-	encoded := append([]byte(nil), bb.B...)
-	kkbuffer.Put(bb)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		valueList, err := si.Unmarshal(encoded)
-		if err != nil {
-			b.Fatal(err)
-		}
-		var got RpcS2Clients
-		got.ClientIds = valueList[0].([]string)
-		got.Payload = valueList[1].([]byte)
-	}
-}
-
 func BenchmarkProtocol_Marshal(b *testing.B) {
 	msg := testMsg
 	for i := 0; i < b.N; i++ {
