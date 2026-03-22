@@ -182,8 +182,8 @@ func (slf *gameComponent) OnStop() error {
 	return nil
 }
 
-func (slf *gameComponent) GetMsgReceiver() *msgreceiver.MsgReceiver[string] {
-	return slf.msgReceiver.(*msgreceiver.MsgReceiver[string])
+func (slf *gameComponent) GetMsgReceiver() *msgreceiver.SessionMsgReceiver[string] {
+	return slf.msgReceiver.(*msgreceiver.SessionMsgReceiver[string])
 }
 
 func (slf *gameComponent) GetSessionManager() *gametrans.SessionManager {

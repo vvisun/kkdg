@@ -62,8 +62,8 @@ func runGame() *component.Application {
 		transportor: game.GetTransportor(),
 		nodeInfo:    gameApp.GetNodeInfo(),
 	}
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsg1Req)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginReq)
+	msgreceiver.RegisterSessionMsgHandler(msgReceiver, gh.onMsg1Req)
+	msgreceiver.RegisterSessionMsgHandler(msgReceiver, gh.onLoginReq)
 
 	return gameApp
 }

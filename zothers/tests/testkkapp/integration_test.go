@@ -189,9 +189,9 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 
 	msgReceiver := game.GetMsgReceiver()
 	gh := &gameHandler{transportor: game.GetTransportor()}
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginReq)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onLoginResp)
-	msgreceiver.RegisterMsgHandler(msgReceiver, gh.onMsgCounter)
+	msgreceiver.RegisterSessionMsgHandler(msgReceiver, gh.onLoginReq)
+	msgreceiver.RegisterSessionMsgHandler(msgReceiver, gh.onLoginResp)
+	msgreceiver.RegisterSessionMsgHandler(msgReceiver, gh.onMsgCounter)
 
 	t.Cleanup(func() { _ = gameApp.Stop() })
 

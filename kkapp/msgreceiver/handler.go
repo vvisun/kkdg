@@ -74,3 +74,14 @@ func RegisterMsgHandler[T any, K any](receiver *MsgReceiver[K], call MsgHandlerF
 	h := newMsgHandler[T, K](msgID, receiver.packetTool.GetMessageTool().GetBodyCodec(), call)
 	receiver.hdMap[msgID] = h
 }
+
+func RegisterSessionMsgHandler[T any, K any](receiver *SessionMsgReceiver[K], call MsgHandlerFunc[T, K]) {
+	var v T
+	msgID := receiver.packetTool.GetMessageTool().GetRouter().GetMsgID(&v)
+	if msgID == 0 {
+		kklog.Error("message type not registered")
+		return
+	}
+	h := newMsgHandler[T, K](msgID, receiver.packetTool.GetMessageTool().GetBodyCodec(), call)
+	receiver.hdMap[msgID] = h
+}
