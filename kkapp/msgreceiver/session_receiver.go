@@ -32,6 +32,9 @@ func parseMsgInfo(packet []byte, packetTool *kkpacket.FullPacket) (kkpacket.MSGI
 
 // NewSessionMsgReceiver 创建会话消息接收器
 func NewSessionMsgReceiver[K any](packetTool *kkpacket.FullPacket, workersCount int) *SessionMsgReceiver[K] {
+	if workersCount <= 0 {
+		workersCount = 1
+	}
 	decodeWorkers := make([]*taskqueue.WorkerQueue, workersCount)
 	for i := 0; i < workersCount; i++ {
 		decodeWorkers[i] = taskqueue.NewWorkerQueue(1)
