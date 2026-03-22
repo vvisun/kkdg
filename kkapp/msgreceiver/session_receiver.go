@@ -5,6 +5,7 @@ import (
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/taskqueue"
 )
 
@@ -36,7 +37,7 @@ func parseMsgInfo(packet []byte, packetTool *kkpacket.FullPacket) (kkpacket.MSGI
 //	@param packetTool *kkpacket.FullPacket 完整包工具
 //	@param sessionManager *gametrans.SessionManager 会话管理器。
 //	因为decodeWorkers需要和sessionManager的工作线程数量一致，所以这里要求传入sessionManager，语义清晰些。
-//	@return *SessionMsgReceiver[K] 会话消息接收器
+//	@return *SessionMsgReceiver 会话消息接收器
 func NewSessionMsgReceiver(
 	packetTool *kkpacket.FullPacket,
 	sessionMgr *gametrans.SessionManager,
@@ -53,6 +54,19 @@ func NewSessionMsgReceiver(
 		decodeWorkers:       decodeWorkers,
 		decodeErrorCallback: decodeErrorCallback,
 	}
+}
+
+func RegisterSessionMsgHandler[T any](receiver *SessionMsgReceiver, call MsgHandlerFunc[string, T]) {
+	router := receiver.packetTool.GetMessageTool().GetRouter()
+	bodyCodec := receiver.packetTool.GetMessageTool().GetBodyCodec()
+	var v T
+	msgID := router.GetMsgID(&v)
+	if msgID == 0 {
+		kklog.Error("message type not registered")
+		return
+	}
+	h := newMsgHandler(msgID, bodyCodec, call)
+	receiver.hdMap[msgID] = h
 }
 
 // SessionMsgReceiver 会话消息接收器

@@ -5,6 +5,7 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // NewMsgReceiver 创建消息接收器
@@ -14,6 +15,21 @@ func NewMsgReceiver(packetTool *kkpacket.FullPacket, decodeErrorCallback kkapp.D
 		hdMap:               make(map[kkpacket.MSGID]IMsgHandler[kknet.CONN_ID]),
 		decodeErrorCallback: decodeErrorCallback,
 	}
+}
+
+// RegisterMsgHandler 注册消息处理器
+// 非线程安全，一般在初始化时调用，故不考虑线程安全
+func RegisterMsgHandler[T any](receiver *MsgReceiver, call MsgHandlerFunc[kknet.CONN_ID, T]) {
+	router := receiver.packetTool.GetMessageTool().GetRouter()
+	bodyCodec := receiver.packetTool.GetMessageTool().GetBodyCodec()
+	var v T
+	msgID := router.GetMsgID(&v)
+	if msgID == 0 {
+		kklog.Error("message type not registered")
+		return
+	}
+	h := newMsgHandler(msgID, bodyCodec, call)
+	receiver.hdMap[msgID] = h
 }
 
 // MsgReceiver 消息接收器

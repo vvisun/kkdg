@@ -1,11 +1,9 @@
 package msgreceiver
 
 import (
-	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/kkcodec"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // 消息回调函数。外部注册进来的消息处理函数
@@ -64,28 +62,4 @@ func newMsgHandler[K comparable, T any](msgID kkpacket.MSGID, codec kkcodec.ICod
 	handler.msgID = msgID
 	handler.codec = codec
 	return &handler
-}
-
-// RegisterMsgHandler 注册消息处理器
-// 非线程安全，一般在初始化时调用，故不考虑线程安全
-func RegisterMsgHandler[T any](receiver *MsgReceiver, call MsgHandlerFunc[kknet.CONN_ID, T]) {
-	var v T
-	msgID := receiver.packetTool.GetMessageTool().GetRouter().GetMsgID(&v)
-	if msgID == 0 {
-		kklog.Error("message type not registered")
-		return
-	}
-	h := newMsgHandler[kknet.CONN_ID, T](msgID, receiver.packetTool.GetMessageTool().GetBodyCodec(), call)
-	receiver.hdMap[msgID] = h
-}
-
-func RegisterSessionMsgHandler[T any](receiver *SessionMsgReceiver, call MsgHandlerFunc[string, T]) {
-	var v T
-	msgID := receiver.packetTool.GetMessageTool().GetRouter().GetMsgID(&v)
-	if msgID == 0 {
-		kklog.Error("message type not registered")
-		return
-	}
-	h := newMsgHandler[string, T](msgID, receiver.packetTool.GetMessageTool().GetBodyCodec(), call)
-	receiver.hdMap[msgID] = h
 }
