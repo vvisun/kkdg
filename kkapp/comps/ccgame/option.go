@@ -22,9 +22,11 @@ type Options struct {
 	ClusterOpts kkcluster.ClusterOption
 	// 会话管理器工作线程数量。会创建多个工作线程来解码消息。
 	SessionManagerWorkersCount int
+	// 用于game服的会话消息接收器中。gametrans.ISessionMsgReceiver.OnSession中使用。
 	// 解码错误或消息ID不存在时，是否抛给上层处理。
 	// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 	DecodeErrorCallback kkapp.DecodeErrorCallback
+	// 用于客户端消息接收器中。网关并不对消息进行完整解码（只关心消息ID和消息路由），所以该回调可以不设置。
 	// 解码错误或消息ID不存在时，是否抛给上层处理。
 	// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 	DecodeErrorCallbackOnRaw kkapp.DecodeErrorCallbackOnRaw
