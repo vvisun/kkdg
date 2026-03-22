@@ -421,14 +421,11 @@ func (slf *gateComponent) chooseLogicNode(nodeType string) (string, bool) {
 
 // 从shard中选择权重最小的逻辑节点. return nodeId, found
 func (slf *gateComponent) chooseFromShardOrRpc(nodeType string) (string, bool) {
-	trans := slf.transportor.(gatetrans.IMemberMgrGetter)
-	if trans == nil {
-		return "", false
-	}
+	memberMgr := slf.transportor.(gatetrans.IMemberMgrGetter).GetMemberMgr()
+	lodalDis := slf.localDis
+
 	var chooseNode gatetrans.IMember = nil
 	finded := false
-	memberMgr := trans.GetMemberMgr()
-	lodalDis := slf.localDis
 	memberMgr.Range(func(nodeId string, member gatetrans.IMember) bool {
 		if member.GetNodeType() != nodeType {
 			return true
