@@ -90,7 +90,7 @@ func (h *gatewayHandler) OnConnect(conn kknet.IConn) {
 // 将自己注册到网关
 func (h *gatewayHandler) sendRpcMsgRegister() error {
 	msg := ptotrans.RpcMsgRegister{
-		ShardIdx: h.shardIdx,
+		ShardIdx: int32(h.shardIdx),
 		NodeId:   h.cli.trans.nodeId,
 		NodeType: h.cli.trans.nodeType,
 	}

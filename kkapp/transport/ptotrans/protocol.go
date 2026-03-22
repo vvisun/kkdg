@@ -17,7 +17,7 @@ type (
 	// MsgID: MsgIDRpcMsgRegister
 	// 逻辑服注册到网关: 逻辑服->网关->逻辑服
 	RpcMsgRegister struct {
-		ShardIdx int
+		ShardIdx int32
 		NodeId   string
 		NodeType string
 	}
