@@ -3,8 +3,9 @@
 // 架构说明:
 //  1. 应用Application = 节点 = 根Actor = 组件容器
 //  2. 组件Component = Application的子Actor
-//  3. 节点之间通过ActorFramework通信
-//  4. 组件Component之间通过ActorFramework通信
+//  3. 节点之间通过ActorFramework通信，组件Component之间通过ActorFramework通信，节点与组件之间也可以通过ActorFramework通信。
+//  4. 网关与业务服直接通过transportor进行消息转发，transportor以接口形式抽象，可插拔替换。
+//     目前提供3种实现，后续考虑以注入的形式提供，方便业务层实现自定义。
 //
 // 一、kkactor是透明化通信框架，这是整个架构的核心。
 //
