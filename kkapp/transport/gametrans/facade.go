@@ -25,3 +25,8 @@ type ITransportor interface {
 	// 获取会话管理器。
 	GetSessionManager() *SessionManager
 }
+
+// 消息接收器接口
+type ISessionMsgReceiver interface {
+	OnSession(sessionID string, packet []byte, threadIdx int)
+}

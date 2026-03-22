@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
@@ -19,7 +18,7 @@ type transportorShard struct {
 	muConns sync.RWMutex
 
 	sessionMgr       *gametrans.SessionManager
-	msgReceiver      *msgreceiver.MsgReceiver[string]
+	msgReceiver      gametrans.ISessionMsgReceiver
 	gatewayAddr      string
 	nodeId           string
 	nodeType         string
@@ -32,7 +31,7 @@ type transportorShard struct {
 
 func NewTransportorShard(
 	sessionMgr *gametrans.SessionManager,
-	msgReceiver *msgreceiver.MsgReceiver[string],
+	msgReceiver gametrans.ISessionMsgReceiver,
 	gatewayAddr string,
 	nodeInfo kkapp.INodeIdentity,
 	transMsgPacket *kkpacket.MessagePacket,

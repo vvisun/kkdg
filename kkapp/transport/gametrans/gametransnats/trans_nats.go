@@ -2,7 +2,6 @@ package gametransnats
 
 import (
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -16,7 +15,7 @@ import (
 type transportorNats struct {
 	cluster          kkcluster.ICluster // cluster for forwarding messages to client
 	sessionMgr       *gametrans.SessionManager
-	msgReceiver      *msgreceiver.MsgReceiver[string]
+	msgReceiver      gametrans.ISessionMsgReceiver
 	stopped          bool
 	nodeInfo         kkapp.INodeIdentity
 	transMsgPacket   *kkpacket.MessagePacket
@@ -27,7 +26,7 @@ type transportorNats struct {
 
 func NewTransportorNats(
 	cluster kkcluster.ICluster,
-	msgReceiver *msgreceiver.MsgReceiver[string],
+	msgReceiver gametrans.ISessionMsgReceiver,
 	sessionManager *gametrans.SessionManager,
 	nodeInfo kkapp.INodeIdentity,
 	transMsgPacket *kkpacket.MessagePacket,

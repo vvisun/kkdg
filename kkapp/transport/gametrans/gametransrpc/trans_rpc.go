@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
 	"github.com/vvisun/kkdg/kkerrors"
@@ -20,7 +19,7 @@ import (
 type transportorRpc struct {
 	rpcClient        *kkrpc.Client
 	sessionMgr       *gametrans.SessionManager
-	msgReceiver      *msgreceiver.MsgReceiver[string]
+	msgReceiver      gametrans.ISessionMsgReceiver
 	stopped          bool
 	nodeInfo         kkapp.INodeIdentity
 	clientMsgPacket  *kkpacket.MessagePacket
@@ -40,7 +39,7 @@ var (
 
 func NewTransportorRpc(
 	sessionMgr *gametrans.SessionManager,
-	msgReceiver *msgreceiver.MsgReceiver[string],
+	msgReceiver gametrans.ISessionMsgReceiver,
 	node kkapp.INodeIdentity,
 	rpcAddr string,
 	clientMsgPacket *kkpacket.MessagePacket,

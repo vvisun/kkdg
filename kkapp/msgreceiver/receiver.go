@@ -1,6 +1,7 @@
 package msgreceiver
 
 import (
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
@@ -8,19 +9,32 @@ import (
 	"github.com/vvisun/kkdg/utils/queues/taskqueue"
 )
 
-// MsgReceiver 消息接收器
-type MsgReceiver[K any] struct {
-	packetTool    *kkpacket.FullPacket
-	hdMap         map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
-	decodeWorkers []*taskqueue.WorkerQueue
-}
-
 // NewMsgReceiver 创建消息接收器
 func NewMsgReceiver[K any](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
 	return &MsgReceiver[K]{
 		packetTool: packetTool,
 		hdMap:      make(map[kkpacket.MSGID]IMsgHandler[K]),
 	}
+}
+
+// NewSessionMsgReceiver 创建会话消息接收器
+func NewSessionMsgReceiver[K any](packetTool *kkpacket.FullPacket, workersCount int) *MsgReceiver[K] {
+	decodeWorkers := make([]*taskqueue.WorkerQueue, workersCount)
+	for i := 0; i < workersCount; i++ {
+		decodeWorkers[i] = taskqueue.NewWorkerQueue(1)
+	}
+	return &MsgReceiver[K]{
+		packetTool:    packetTool,
+		hdMap:         make(map[kkpacket.MSGID]IMsgHandler[K]),
+		decodeWorkers: decodeWorkers,
+	}
+}
+
+// MsgReceiver 消息接收器
+type MsgReceiver[K any] struct {
+	packetTool    *kkpacket.FullPacket
+	hdMap         map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
+	decodeWorkers []*taskqueue.WorkerQueue          // 解码工作队列, 并行解码消息。用于游戏服的会话消息接收器。
 }
 
 /** 解析完整包数据[length,message]。
@@ -46,8 +60,9 @@ func (r *MsgReceiver[K]) parseMsgInfo(packet []byte) (kkpacket.MSGID, []byte, er
 }
 
 var _ kknet.IRawHandler = (*MsgReceiver[kknet.CONN_ID])(nil)
+var _ gametrans.ISessionMsgReceiver = (*MsgReceiver[string])(nil)
 
-// OnRaw 接收原始数据并分发到消息处理器。实现kknet.IRawHandler接口。
+// OnRaw 实现kknet.IRawHandler接口。接收原始数据并分发到消息处理器。
 //
 //	用法1：直接将MsgReceiver当做IRawHandler作为kknet.Options的RawHandler选项。
 //	用法2：自己创建IRawHandler实现，将MsgReceiver作为自定义IRawHandler的成员，在OnRaw方法中调用msgReceiver.OnRaw。
@@ -71,7 +86,7 @@ func (r *MsgReceiver[K]) OnRaw(connId K, bbPacket *kkbuffer.ByteBuffer) {
 	kkbuffer.Put(bbPacket)
 }
 
-// OnSession 接收来自会话的消息并分发到消息处理器。
+// OnSession 实现gametrans.ISessionMsgReceiver接口。接收来自会话的消息并分发到消息处理器。
 //
 //	@param sessionID 会话ID
 //	@param packet 整包数据[length,message]。不得保存 packet 引用，如需保存，请自行拷贝。
@@ -89,16 +104,7 @@ func (r *MsgReceiver[K]) OnSession(sessionID K, packet []byte, threadIdx int) {
 	bodyCopy := byteslice.GetWithLenCap(len(bodyBytes), len(bodyBytes))
 	copy(bodyCopy, bodyBytes)
 
-	r.getDecodeWorker(threadIdx).Push(func() {
+	r.decodeWorkers[threadIdx].Push(func() {
 		h.OnMessage(sessionID, bodyCopy)
 	})
-}
-
-func (r *MsgReceiver[K]) getDecodeWorker(threadIdx int) *taskqueue.WorkerQueue {
-	if threadIdx >= len(r.decodeWorkers) {
-		for i := len(r.decodeWorkers); i <= threadIdx; i++ {
-			r.decodeWorkers = append(r.decodeWorkers, taskqueue.NewWorkerQueue(1))
-		}
-	}
-	return r.decodeWorkers[threadIdx]
 }

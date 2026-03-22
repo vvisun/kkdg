@@ -37,7 +37,7 @@ type gameComponent struct {
 	component.Component
 	discovery      kkdiscovery.IDiscovery
 	cluster        kkcluster.ICluster
-	msgReceiver    *msgreceiver.MsgReceiver[string]
+	msgReceiver    gametrans.ISessionMsgReceiver
 	sessionManager *gametrans.SessionManager
 	transportor    gametrans.ITransportor
 	opt            Options
@@ -89,7 +89,7 @@ func (slf *gameComponent) OnInit() error {
 
 	appOpts := slf.GetApplication().GetOptions()
 	packetTool := kkpacket.NewFullPacket(appOpts.StreamTool, appOpts.ClientMsgPacket)
-	msgReceiver := msgreceiver.NewMsgReceiver[string](packetTool)
+	msgReceiver := msgreceiver.NewSessionMsgReceiver[string](packetTool, slf.sessionManager.GetWorkersCount())
 	slf.msgReceiver = msgReceiver
 
 	transMsgPacket := kkpacket.NewMessagePacket(
@@ -183,7 +183,7 @@ func (slf *gameComponent) OnStop() error {
 }
 
 func (slf *gameComponent) GetMsgReceiver() *msgreceiver.MsgReceiver[string] {
-	return slf.msgReceiver
+	return slf.msgReceiver.(*msgreceiver.MsgReceiver[string])
 }
 
 func (slf *gameComponent) GetSessionManager() *gametrans.SessionManager {

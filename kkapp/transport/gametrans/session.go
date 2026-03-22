@@ -100,6 +100,10 @@ func NewSessionManager(workersCount int) *SessionManager {
 	return &SessionManager{workersCount: workersCount}
 }
 
+func (slf *SessionManager) GetWorkersCount() int {
+	return slf.workersCount
+}
+
 func (slf *SessionManager) AddSession(sessionID string, gateNodeID string) *SessionInfo {
 	return slf.AddSessionWithShard(sessionID, gateNodeID, -1)
 }
