@@ -1,7 +1,6 @@
 package msgreceiver
 
 import (
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
@@ -41,7 +40,7 @@ func parseMsgInfo(packet []byte, packetTool *kkpacket.FullPacket) (kkpacket.MSGI
 func NewSessionMsgReceiver(
 	packetTool *kkpacket.FullPacket,
 	sessionMgr *gametrans.SessionManager,
-	decodeErrorCallback kkapp.DecodeErrorCallback,
+	decodeErrorCallback DecodeErrorCallback,
 ) *SessionMsgReceiver {
 	workersCount := sessionMgr.GetWorkersCount()
 	decodeWorkers := make([]*taskqueue.WorkerQueue, workersCount)
@@ -74,7 +73,7 @@ type SessionMsgReceiver struct {
 	packetTool          *kkpacket.FullPacket
 	hdMap               map[kkpacket.MSGID]IMsgHandler[string] // 消息ID到消息处理器的映射
 	decodeWorkers       []*taskqueue.WorkerQueue               // 解码工作队列, 并行解码消息。用于游戏服的会话消息接收器。
-	decodeErrorCallback kkapp.DecodeErrorCallback
+	decodeErrorCallback DecodeErrorCallback
 }
 
 var _ gametrans.ISessionMsgReceiver = (*SessionMsgReceiver)(nil)
@@ -89,7 +88,7 @@ func (r *SessionMsgReceiver) OnSession(sessionID string, packet []byte, threadId
 		// 解码错误，抛给上层处理，一般是客户端发来非法数据，可能是客户端版本过低，也可能是异常攻击。
 		// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 		if r.decodeErrorCallback != nil {
-			r.decodeErrorCallback(sessionID, kkapp.GameErrorCodeDecodeError)
+			r.decodeErrorCallback(sessionID, GameErrorCodeDecodeError)
 		}
 		return
 	}
@@ -99,7 +98,7 @@ func (r *SessionMsgReceiver) OnSession(sessionID string, packet []byte, threadId
 		// 消息ID不存在，抛给上层处理，一般是客户端发来非法数据，可能是客户端版本过低，也可能是异常攻击。
 		// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 		if r.decodeErrorCallback != nil {
-			r.decodeErrorCallback(sessionID, kkapp.GameErrorCodeMsgIDNotFound)
+			r.decodeErrorCallback(sessionID, GameErrorCodeMsgIDNotFound)
 		}
 		return
 	}
@@ -112,7 +111,7 @@ func (r *SessionMsgReceiver) OnSession(sessionID string, packet []byte, threadId
 			// 解码错误，抛给上层处理，一般是客户端发来非法数据，可能是客户端版本过低，也可能是异常攻击。
 			// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 			if r.decodeErrorCallback != nil {
-				r.decodeErrorCallback(sessionID, kkapp.GameErrorCodeDecodeError)
+				r.decodeErrorCallback(sessionID, GameErrorCodeDecodeError)
 			}
 		}
 	})

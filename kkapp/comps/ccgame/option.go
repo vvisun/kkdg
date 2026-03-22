@@ -3,7 +3,7 @@ package ccgame
 import (
 	"errors"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/comps/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
@@ -28,7 +28,7 @@ type Options struct {
 	// 用于game服的会话消息接收器中。gametrans.ISessionMsgReceiver.OnSession中使用。
 	// 解码错误或消息ID不存在时，是否抛给上层处理。
 	// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
-	DecodeErrorCallback kkapp.DecodeErrorCallback
+	DecodeErrorCallback msgreceiver.DecodeErrorCallback
 }
 
 func validateOption(opt *Options) error {
@@ -90,7 +90,7 @@ func WithClusterOpts(opts kkcluster.ClusterOption) func(o *Options) {
 	}
 }
 
-func WithDecodeErrorCallback(callback kkapp.DecodeErrorCallback) func(o *Options) {
+func WithDecodeErrorCallback(callback msgreceiver.DecodeErrorCallback) func(o *Options) {
 	return func(o *Options) {
 		o.DecodeErrorCallback = callback
 	}

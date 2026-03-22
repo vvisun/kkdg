@@ -8,6 +8,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
+	"github.com/vvisun/kkdg/kkapp/comps"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkmetrics"
@@ -40,7 +41,7 @@ func main() {
 
 func runGate() *component.Application {
 	af := kkactor.NewActorFramework()
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, "", "")
+	gateNode := kkapp.NewNodeInfo("gate1", comps.NodeTypeGate, "", "")
 	gateApp := component.NewApplication(gateNode, af, kkapp.ApplyOptions())
 	ptoexam.InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
 	gateOpt := ccgate.Options{

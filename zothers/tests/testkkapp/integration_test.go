@@ -9,6 +9,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
+	"github.com/vvisun/kkdg/kkapp/comps"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
 	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kkapp/comps/msgreceiver"
@@ -128,7 +129,7 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 	//----------------------------- gate -----------------------------
 
 	// gate 节点
-	gateNode := kkapp.NewNodeInfo("gate1", kkapp.NodeTypeGate, tcpAddr, "")
+	gateNode := kkapp.NewNodeInfo("gate1", comps.NodeTypeGate, tcpAddr, "")
 	afGate := kkactor.NewActorFramework()
 	gateApp := component.NewApplication(gateNode, afGate, appOpts)
 	InitMsgs(gateApp.GetOptions().ClientMsgPacket.GetRouter())
@@ -166,7 +167,7 @@ func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
 	//----------------------------- game -----------------------------
 
 	// game 节点（nodeType 必须为 logic 以匹配 gate 的 LogicNodeType）
-	gameNode := kkapp.NewNodeInfo("game1", kkapp.NodeTypeLogic, "127.0.0.1:0", "")
+	gameNode := kkapp.NewNodeInfo("game1", comps.NodeTypeLogic, "127.0.0.1:0", "")
 	afGame := kkactor.NewActorFramework()
 	gameApp := component.NewApplication(gameNode, afGame, appOpts)
 	InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())

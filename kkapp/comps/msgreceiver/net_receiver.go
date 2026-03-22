@@ -1,7 +1,6 @@
 package msgreceiver
 
 import (
-	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -9,7 +8,7 @@ import (
 )
 
 // NewMsgReceiver 创建消息接收器
-func NewMsgReceiver(packetTool *kkpacket.FullPacket, decodeErrorCallback kkapp.DecodeErrorCallbackOnRaw) *MsgReceiver {
+func NewMsgReceiver(packetTool *kkpacket.FullPacket, decodeErrorCallback DecodeErrorCallbackOnRaw) *MsgReceiver {
 	return &MsgReceiver{
 		packetTool:          packetTool,
 		hdMap:               make(map[kkpacket.MSGID]IMsgHandler[kknet.CONN_ID]),
@@ -36,7 +35,7 @@ func RegisterMsgHandler[T any](receiver *MsgReceiver, call MsgHandlerFunc[kknet.
 type MsgReceiver struct {
 	packetTool          *kkpacket.FullPacket
 	hdMap               map[kkpacket.MSGID]IMsgHandler[kknet.CONN_ID] // 消息ID到消息处理器的映射
-	decodeErrorCallback kkapp.DecodeErrorCallbackOnRaw
+	decodeErrorCallback DecodeErrorCallbackOnRaw
 }
 
 var _ kknet.IRawHandler = (*MsgReceiver)(nil)
@@ -55,7 +54,7 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, bbPacket *kkbuffer.ByteBuffer)
 		// 解码错误，抛给上层处理，一般是客户端发来非法数据，可能是客户端版本过低，也可能是异常攻击。
 		// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 		if r.decodeErrorCallback != nil {
-			r.decodeErrorCallback(connId, kkapp.GameErrorCodeDecodeError)
+			r.decodeErrorCallback(connId, GameErrorCodeDecodeError)
 		}
 		return
 	}
@@ -66,7 +65,7 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, bbPacket *kkbuffer.ByteBuffer)
 		// 消息ID不存在，抛给上层处理，一般是客户端发来非法数据，可能是客户端版本过低，也可能是异常攻击。
 		// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 		if r.decodeErrorCallback != nil {
-			r.decodeErrorCallback(connId, kkapp.GameErrorCodeMsgIDNotFound)
+			r.decodeErrorCallback(connId, GameErrorCodeMsgIDNotFound)
 		}
 		return
 	}
@@ -78,7 +77,7 @@ func (r *MsgReceiver) OnRaw(connId kknet.CONN_ID, bbPacket *kkbuffer.ByteBuffer)
 		// 解码错误，抛给上层处理，一般是客户端发来非法数据，可能是客户端版本过低，也可能是异常攻击。
 		// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 		if r.decodeErrorCallback != nil {
-			r.decodeErrorCallback(connId, kkapp.GameErrorCodeDecodeError)
+			r.decodeErrorCallback(connId, GameErrorCodeDecodeError)
 		}
 	}
 }
