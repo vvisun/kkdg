@@ -1,6 +1,6 @@
 syntax = "proto3";
-package ptotrans;
-option go_package = ".;ptotrans";
+package pbgate;
+option go_package = ".;pbgate";
 
 // 逻辑服注册到网关: 逻辑服->网关->逻辑服
 message RpcMsgRegister {

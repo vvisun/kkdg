@@ -19,7 +19,7 @@ var (
 	// rpc用的流编码器
 	gStreamTool = kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	// rpc用的编码器
-	gFrameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
+	gFrameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	// rpc消息里的Data字段编码器
 	gPayloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 )

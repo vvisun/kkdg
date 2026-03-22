@@ -13,8 +13,9 @@ var testMsg = RpcS2Clients{
 	ClientIds: []string{
 		"1234567890", "1234567891", "1234567892", "1234567893", "1234567894",
 		"1234567895", "1234567896", "1234567897", "1234567898", "1234567899",
+		"1234567890", "1234567891", "1234567892", "1234567893", "1234567894",
 	},
-	Payload: []byte("test message"),
+	Payload: []byte("test message 123456789612345678961234567896123456789612345678961234567896123456789612345678961234567896123456789612345678961234567896123456789612345678961234567896"),
 }
 
 func BenchmarkProtocol_Marshal(b *testing.B) {
@@ -38,7 +39,7 @@ func BenchmarkProtocol_Unmarshal(b *testing.B) {
 func BenchmarkProtocol_MarshalAppend(b *testing.B) {
 	msg := testMsg
 	for i := 0; i < b.N; i++ {
-		bb, err := useCodec.MarshalAppend(&msg, 0)
+		bb, err := useCodec.MarshalAppend(&msg, 8)
 		kkbuffer.Put(bb)
 		if err != nil {
 			b.Fatal(err)

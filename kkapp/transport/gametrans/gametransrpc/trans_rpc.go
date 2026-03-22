@@ -47,7 +47,7 @@ func NewTransportorRpc(
 	clientStreamTool kkpacket.IPacket,
 ) (gametrans.ITransportor, error) {
 	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
-	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeFlatBuffer)
+	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 	methodMgr := kkrpc.NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	ptotrans.InitRpcMsgs(methodMgr)
