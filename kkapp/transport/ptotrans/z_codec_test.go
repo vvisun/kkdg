@@ -12,6 +12,8 @@ func TestStructInfo_Roundtrip_AllFieldKinds(t *testing.T) {
 	si.AddField(dataTypeUint16, "u16")
 	si.AddField(dataTypeUint32, "u32")
 	si.AddField(dataTypeUint64, "u64")
+	si.AddField(dataTypeUint8, "u8")
+	si.AddField(dataTypeBool, "flag")
 	si.AddField(dataTypeString, "s")
 	si.AddField(dataTypeBytes, "b")
 	si.AddField(dataTypeStringList, "sl")
@@ -21,6 +23,8 @@ func TestStructInfo_Roundtrip_AllFieldKinds(t *testing.T) {
 		uint16(0x1234),
 		uint32(0x89abcdef),
 		uint64(0x1122334455667788),
+		uint8(0xfe),
+		true,
 		"hello 世界",
 		[]byte{1, 2, 3, 0xff},
 		[]string{"", "a", "bc"},
@@ -98,12 +102,91 @@ func TestStructInfo_Marshal_WrongTypeError(t *testing.T) {
 	}
 }
 
+func TestStructInfo_Marshal_BoolWrongTypeError(t *testing.T) {
+	var si structInfo
+	si.AddField(dataTypeBool, "b")
+	_, err := si.Marshal([]any{uint8(1)}, 0)
+	if err == nil {
+		t.Fatal("expected type error for bool field")
+	}
+}
+
+func TestStructInfo_Marshal_Uint8WrongTypeError(t *testing.T) {
+	var si structInfo
+	si.AddField(dataTypeUint8, "u8")
+	_, err := si.Marshal([]any{uint16(1)}, 0)
+	if err == nil {
+		t.Fatal("expected type error for uint8 field")
+	}
+}
+
+func TestStructInfo_Roundtrip_Uint8(t *testing.T) {
+	var si structInfo
+	si.AddField(dataTypeUint8, "x")
+	bb, err := si.Marshal([]any{uint8(0)}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer kkbuffer.Put(bb)
+	got, err := si.Unmarshal(bb.B)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertValuesEqual(t, []any{uint8(0)}, got)
+}
+
+func TestStructInfo_Unmarshal_Uint8Truncated(t *testing.T) {
+	var si structInfo
+	si.AddField(dataTypeUint8, "u8")
+	_, err := si.Unmarshal(nil)
+	if err == nil {
+		t.Fatal("expected truncated error for uint8")
+	}
+}
+
+func TestStructInfo_Roundtrip_BoolFalse(t *testing.T) {
+	var si structInfo
+	si.AddField(dataTypeBool, "f")
+	bb, err := si.Marshal([]any{false}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer kkbuffer.Put(bb)
+	got, err := si.Unmarshal(bb.B)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertValuesEqual(t, []any{false}, got)
+}
+
+// 解码端：非 0 字节均视为 true（与 unmarshal 中 != 0 一致）。
+func TestStructInfo_Unmarshal_BoolNonZeroAsTrue(t *testing.T) {
+	var si structInfo
+	si.AddField(dataTypeBool, "b")
+	got, err := si.Unmarshal([]byte{7})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, ok := got[0].(bool); !ok || !v {
+		t.Fatalf("got %v (%T) want true", got[0], got[0])
+	}
+}
+
 func TestStructInfo_Unmarshal_Truncated(t *testing.T) {
 	var si structInfo
 	si.AddField(dataTypeUint32, "u32")
 	_, err := si.Unmarshal([]byte{1, 2}) // need 4 bytes
 	if err == nil {
 		t.Fatal("expected truncated error")
+	}
+}
+
+func TestStructInfo_Unmarshal_BoolTruncated(t *testing.T) {
+	var si structInfo
+	si.AddField(dataTypeBool, "b")
+	_, err := si.Unmarshal(nil)
+	if err == nil {
+		t.Fatal("expected truncated error for bool")
 	}
 }
 
@@ -128,6 +211,16 @@ func assertValuesEqual(t *testing.T, want, got []any) {
 			g, ok := got[i].(int64)
 			if !ok || int64(w) != g {
 				t.Fatalf("[%d] uint64: got %v (%T) want %v", i, got[i], got[i], w)
+			}
+		case uint8:
+			g, ok := got[i].(uint8)
+			if !ok || g != w {
+				t.Fatalf("[%d] uint8: got %v (%T) want %v", i, got[i], got[i], w)
+			}
+		case bool:
+			g, ok := got[i].(bool)
+			if !ok || g != w {
+				t.Fatalf("[%d] bool: got %v (%T) want %v", i, got[i], got[i], w)
 			}
 		case string:
 			g, ok := got[i].(string)

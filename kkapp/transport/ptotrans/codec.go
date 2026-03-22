@@ -23,7 +23,8 @@ const (
 	dataTypeBytes
 	dataTypeStringList
 	dataTypeBytesList
-	dataTypeBool // 1 byte: 1 = true, 0 = false
+	dataTypeBool  // 1 byte: 1 = true, 0 = false
+	dataTypeUint8 // 1 byte: 0-255
 )
 
 type fieldInfo struct {
@@ -179,6 +180,12 @@ func (si *structInfo) marshal(valueList []any, offset int) (*kkbuffer.ByteBuffer
 			} else {
 				bb.B = append(bb.B, 0)
 			}
+		case dataTypeUint8:
+			v, ok := value.(uint8)
+			if !ok {
+				return nil, fmt.Errorf("field %q: want uint8, got %T", field.name, value)
+			}
+			bb.B = append(bb.B, v)
 		default:
 			return nil, fmt.Errorf("invalid data type: %d", field.dataType)
 		}
@@ -278,6 +285,12 @@ func (si *structInfo) unmarshal(data []byte) ([]any, error) {
 				return nil, errTruncated(offset, 1, n)
 			}
 			valueList[field.index] = data[offset] != 0
+			offset += 1
+		case dataTypeUint8:
+			if offset+1 > n {
+				return nil, errTruncated(offset, 1, n)
+			}
+			valueList[field.index] = uint8(data[offset])
 			offset += 1
 		default:
 			return nil, fmt.Errorf("invalid data type: %d", field.dataType)

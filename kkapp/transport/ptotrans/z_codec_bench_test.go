@@ -10,6 +10,8 @@ func benchStructInfoAllKinds() (si structInfo, values []any) {
 	si.AddField(dataTypeUint16, "u16")
 	si.AddField(dataTypeUint32, "u32")
 	si.AddField(dataTypeUint64, "u64")
+	si.AddField(dataTypeUint8, "u8")
+	si.AddField(dataTypeBool, "flag")
 	si.AddField(dataTypeString, "s")
 	si.AddField(dataTypeBytes, "b")
 	si.AddField(dataTypeStringList, "sl")
@@ -18,6 +20,8 @@ func benchStructInfoAllKinds() (si structInfo, values []any) {
 		uint16(0x1234),
 		uint32(0x89abcdef),
 		uint64(0x1122334455667788),
+		uint8(0xfe),
+		true,
 		"hello 世界",
 		[]byte{1, 2, 3, 0xff},
 		[]string{"", "a", "bc"},
@@ -30,7 +34,8 @@ func benchStructInfoScalarsOnly() (si structInfo, values []any) {
 	si.AddField(dataTypeUint16, "u16")
 	si.AddField(dataTypeUint32, "u32")
 	si.AddField(dataTypeUint64, "u64")
-	values = []any{uint16(1), uint32(2), uint64(3)}
+	si.AddField(dataTypeUint8, "u8")
+	values = []any{uint16(1), uint32(2), uint64(3), uint8(4)}
 	return si, values
 }
 
