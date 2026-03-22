@@ -44,6 +44,53 @@ func (si *structInfo) addField(dataType fieldType, name string) {
 // @param offset 偏移量（offset前的数据一般用于存放消息头）
 // @return *kkbuffer.ByteBuffer 编码后的数据
 // @return error 错误
+func (si *structInfo) Marshal(valueList []any, offset int) (*kkbuffer.ByteBuffer, error) {
+	//panic时返回error，避免panic导致程序退出。
+	var panicErr error
+	defer func() {
+		if r := recover(); r != nil {
+			panicErr = fmt.Errorf("panic: %v", r)
+		}
+	}()
+	bb, err := si.marshal(valueList, offset)
+	if panicErr != nil {
+		kkbuffer.Put(bb)
+		return nil, panicErr
+	}
+	if err != nil {
+		kkbuffer.Put(bb)
+		return nil, err
+	}
+	return bb, err
+}
+
+// 解码
+// @param data 数据
+// @return []any 解码后的数据
+// @return error 错误
+func (si *structInfo) Unmarshal(data []byte) ([]any, error) {
+	//panic时返回error，避免panic导致程序退出。
+	var panicErr error
+	defer func() {
+		if r := recover(); r != nil {
+			panicErr = fmt.Errorf("panic: %v", r)
+		}
+	}()
+	valueList, err := si.unmarshal(data)
+	if panicErr != nil {
+		return nil, panicErr
+	}
+	if err != nil {
+		return nil, err
+	}
+	return valueList, err
+}
+
+// 编码
+// @param valueList 值列表
+// @param offset 偏移量（offset前的数据一般用于存放消息头）
+// @return *kkbuffer.ByteBuffer 编码后的数据
+// @return error 错误
 func (si *structInfo) marshal(valueList []any, offset int) (*kkbuffer.ByteBuffer, error) {
 	if offset < 0 {
 		return nil, fmt.Errorf("offset is less than 0")
