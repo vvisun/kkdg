@@ -6,7 +6,7 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/msgreceiver"
+	"github.com/vvisun/kkdg/kkapp/comps/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans/gametransnats"

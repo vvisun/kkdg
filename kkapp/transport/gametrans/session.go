@@ -6,8 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
-	"github.com/vvisun/kkdg/kkapp/user"
-	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 // 使用稳定哈希将任意 sessionID 均匀映射到 [0, workersCount) 区间。
@@ -20,12 +18,11 @@ func sessionIdToThreadIdx(sessionID string, workersCount int) int {
 
 // SessionInfo 客户端会话信息
 type SessionInfo struct {
-	isInPool   atomic.Bool  //标志是否在池中，防止重复入池
-	sessionID  string       // 会话ID
-	gateNodeID string       // 网关节点ID
-	shardIdx   int          // 分片索引
-	threadIdx  int          // 线程索引
-	userID     user.USER_ID // 用户ID
+	isInPool   atomic.Bool //标志是否在池中，防止重复入池
+	sessionID  string      // 会话ID
+	gateNodeID string      // 网关节点ID
+	shardIdx   int         // 分片索引
+	threadIdx  int         // 线程索引
 }
 
 func (si *SessionInfo) GetSessionID() string {
@@ -38,10 +35,6 @@ func (si *SessionInfo) GetGateNodeID() string {
 
 func (si *SessionInfo) GetShardIdx() int {
 	return si.shardIdx
-}
-
-func (si *SessionInfo) GetUserID() user.USER_ID {
-	return si.userID
 }
 
 func (si *SessionInfo) GetThreadIdx() int {
@@ -71,7 +64,6 @@ func putSessionInfo(si *SessionInfo) {
 	si.gateNodeID = ""
 	si.shardIdx = -1
 	si.threadIdx = -1
-	si.userID = user.NULL_USER_ID
 	sessionInfoPool.Put(si)
 }
 
@@ -87,9 +79,7 @@ func getAutoShardIdx() int {
 // 用于管理客户端会话信息【会话ID、用户ID、网关节点ID、分片索引】
 type SessionManager struct {
 	sessionMap   sync.Map // map[sessionID]*SessionInfo
-	userMap      sync.Map // map[userID]*SessionInfo
 	onlineCount  int32
-	userCount    int32
 	workersCount int
 }
 
@@ -137,19 +127,7 @@ func (slf *SessionManager) RemoveSession(sessionID string) {
 		return
 	}
 	atomic.AddInt32(&slf.onlineCount, -1)
-	userID := si.(*SessionInfo).userID
-	if userID != user.NULL_USER_ID {
-		slf.userMap.Delete(userID)
-		atomic.AddInt32(&slf.userCount, -1)
-	}
 	putSessionInfo(si.(*SessionInfo))
-}
-
-func (slf *SessionManager) RemoveSessionByUserID(userID user.USER_ID) {
-	si, ok := slf.userMap.Load(userID)
-	if ok {
-		slf.RemoveSession(si.(*SessionInfo).sessionID)
-	}
 }
 
 func (slf *SessionManager) GetSession(sessionID string) *SessionInfo {
@@ -160,65 +138,6 @@ func (slf *SessionManager) GetSession(sessionID string) *SessionInfo {
 	return si.(*SessionInfo)
 }
 
-func (slf *SessionManager) GetSessionByUserID(userID user.USER_ID) *SessionInfo {
-	si, ok := slf.userMap.Load(userID)
-	if !ok {
-		return nil
-	}
-	return si.(*SessionInfo)
-}
-
-// CheckKickOutUser 检查是否需要踢出旧用户。
-//
-//	如果需要踢出，则返回需要踢出的会话ID。
-//	如果不需要踢出，则返回空字符串。
-func (slf *SessionManager) CheckKickOutUser(sessionID string, userID user.USER_ID) string {
-	si := slf.GetSession(sessionID)
-	if si != nil {
-		if si.userID != user.NULL_USER_ID && (si.userID != userID || si.sessionID != sessionID) {
-			return si.sessionID
-		}
-	}
-	otherSi := slf.GetSessionByUserID(userID)
-	if otherSi != nil {
-		if otherSi.userID != user.NULL_USER_ID && (otherSi.userID != userID || otherSi.sessionID != sessionID) {
-			return otherSi.sessionID
-		}
-	}
-	return ""
-}
-
-// Login 登录客户端。
-//
-//	如果登录成功，则返回 true。
-//	如果登录失败，则返回 false。
-func (slf *SessionManager) Login(sessionID string, userID user.USER_ID, kickFunc func(sessionID string)) bool {
-	if userID == user.NULL_USER_ID {
-		return false
-	}
-	si := slf.GetSession(sessionID)
-	if si == nil {
-		return false
-	}
-	kickOutSessionID := slf.CheckKickOutUser(sessionID, userID)
-	if kickOutSessionID != "" {
-		if kickFunc != nil {
-			kickFunc(kickOutSessionID)
-		} else {
-			kklog.Warnf("kick out user %v from session %v, but kickFunc is nil", userID, kickOutSessionID)
-		}
-		slf.RemoveSession(kickOutSessionID) // 踢出旧用户
-	}
-	si.userID = userID
-	slf.userMap.Store(userID, si)
-	atomic.AddInt32(&slf.userCount, 1)
-	return true
-}
-
 func (slf *SessionManager) OnlineCount() int {
 	return int(atomic.LoadInt32(&slf.onlineCount))
-}
-
-func (slf *SessionManager) UserCount() int {
-	return int(atomic.LoadInt32(&slf.userCount))
 }

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/msgreceiver"
+	"github.com/vvisun/kkdg/kkapp/comps/msgreceiver"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"

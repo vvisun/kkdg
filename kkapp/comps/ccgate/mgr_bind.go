@@ -3,7 +3,7 @@ package ccgate
 import (
 	"sync"
 
-	"github.com/vvisun/kkdg/kkapp/user"
+	"github.com/vvisun/kkdg/kkapp/comps/user"
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
