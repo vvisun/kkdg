@@ -10,20 +10,27 @@ import (
 )
 
 type testMsg struct {
-	ID   int
-	Data string
+	ID       int
+	StrData  string
+	ByteList []byte
+}
+
+func newTestMsg() *testMsg {
+	msg := &testMsg{
+		ID:      1,
+		StrData: "testaaaaaaaaatestaaaaaaaaatestaaaaaaaaatesaaaaaaa",
+	}
+	msg.ByteList = make([]byte, 656)
+	return msg
 }
 
 func TestMsgHandler_OnRaw(t *testing.T) {
-	handler := newMsgHandler[testMsg](1, kkcodec.GetCodec(kkcodec.CodecTypeJson), func(connId kknet.CONN_ID, msg *testMsg) error {
+	handler := newMsgHandler(1, kkcodec.GetCodec(kkcodec.CodecTypeJson), func(connId kknet.CONN_ID, msg *testMsg) error {
 		fmt.Println(msg)
 		return nil
 	})
 
-	bodyBytes, err := kkcodec.GetCodec(kkcodec.CodecTypeJson).Marshal(&testMsg{
-		ID:   1,
-		Data: "test",
-	})
+	bodyBytes, err := kkcodec.GetCodec(kkcodec.CodecTypeJson).Marshal(newTestMsg())
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -49,10 +56,7 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 	})
 
 	stream := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
-	bb, err := kkpacket.EncodeStream(&testMsg{
-		ID:   1,
-		Data: "test",
-	}, stream, messageTool)
+	bb, err := kkpacket.EncodeStream(newTestMsg(), stream, messageTool)
 	if err != nil {
 		t.Fatalf("encode stream: %v", err)
 	}
@@ -73,15 +77,12 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 	})
 
 	stream := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
+	msg := newTestMsg()
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		msg := testMsg{
-			ID:   1,
-			Data: "test",
-		}
-		bb, err := kkpacket.EncodeStream(&msg, stream, messageTool)
+		bb, err := kkpacket.EncodeStream(msg, stream, messageTool)
 		if err != nil {
 			b.Fatalf("encode stream: %v", err)
 		}
