@@ -5,7 +5,7 @@
 //  2. 组件Component = Application的子Actor
 //  3. 节点之间通过ActorFramework通信，组件Component之间通过ActorFramework通信，节点与组件之间也可以通过ActorFramework通信。
 //  4. 网关与业务服直接通过transportor进行消息转发，transportor以接口形式抽象，可插拔替换。
-//     目前提供3种实现，后续考虑以注入的形式提供，方便业务层实现自定义。
+//     comps模板中以TransType参数的形式提供3种内置的选择，业务层如需自定义实现，可以改为以comp参数或Option.provider()等形式自行注入。
 //
 // 一、kkactor是透明化通信框架，这是整个架构的核心。
 //
