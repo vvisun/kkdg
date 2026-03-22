@@ -26,10 +26,6 @@ type Options struct {
 	// 解码错误或消息ID不存在时，是否抛给上层处理。
 	// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
 	DecodeErrorCallback kkapp.DecodeErrorCallback
-	// 用于客户端消息接收器中。网关并不对消息进行完整解码（只关心消息ID和消息路由），所以该回调可以不设置。
-	// 解码错误或消息ID不存在时，是否抛给上层处理。
-	// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
-	DecodeErrorCallbackOnRaw kkapp.DecodeErrorCallbackOnRaw
 }
 
 func validateOption(opt *Options) error {
@@ -94,11 +90,5 @@ func WithClusterOpts(opts kkcluster.ClusterOption) func(o *Options) {
 func WithDecodeErrorCallback(callback kkapp.DecodeErrorCallback) func(o *Options) {
 	return func(o *Options) {
 		o.DecodeErrorCallback = callback
-	}
-}
-
-func WithDecodeErrorCallbackOnRaw(callback kkapp.DecodeErrorCallbackOnRaw) func(o *Options) {
-	return func(o *Options) {
-		o.DecodeErrorCallbackOnRaw = callback
 	}
 }
