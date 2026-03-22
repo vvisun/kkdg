@@ -73,15 +73,14 @@ type gameHandler struct {
 	nodeInfo    *kkapp.NodeInfo
 }
 
-func (h *gameHandler) onMsg1Req(sessionID string, msg *ptoexam.Msg1Req) error {
+func (h *gameHandler) onMsg1Req(sessionID string, msg *ptoexam.Msg1Req) {
 	if msg.ID%10000 == 0 {
 		kklog.Debugf("onMsg1Req: sessionID=%s, msg=%v", sessionID, msg)
 	}
 	h.transportor.SendToClient(sessionID, &ptoexam.Msg1Resp{ID: msg.ID, Name: "hello"})
-	return nil
 }
 
-func (h *gameHandler) onLoginReq(sessionID string, msg *ptoexam.LoginReq) error {
+func (h *gameHandler) onLoginReq(sessionID string, msg *ptoexam.LoginReq) {
 	kklog.Debugf("onLoginReq: sessionID=%s, msg=%v", sessionID, msg)
 
 	h.transportor.NotifyClientLoginLogout(sessionID, msg.UserID, true)
@@ -93,6 +92,4 @@ func (h *gameHandler) onLoginReq(sessionID string, msg *ptoexam.LoginReq) error 
 		UserData:  "userData",
 	}
 	h.transportor.SendToClient(sessionID, resp)
-
-	return nil
 }

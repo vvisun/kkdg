@@ -8,7 +8,7 @@ import (
 )
 
 // 消息回调函数。外部注册进来的消息处理函数
-type MsgHandlerFunc[K comparable, T any] func(connKey K, msg *T) error
+type MsgHandlerFunc[K comparable, T any] func(connKey K, msg *T)
 
 // 消息接收器
 type IMsgHandler[K comparable] interface {
@@ -50,10 +50,7 @@ func (h *MsgHandler[K, T]) OnMessage(connKey K, bodyBytes []byte, needRelease bo
 		byteslice.Put(bodyBytes)
 	}
 	// 调用消息回调. 外部注册进来的消息处理函数
-	err := h.call(connKey, &data)
-	if err != nil {
-		return err
-	}
+	h.call(connKey, &data)
 	return nil
 }
 

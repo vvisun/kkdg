@@ -26,9 +26,8 @@ func newTestMsg() *testMsg {
 }
 
 func TestMsgHandler_OnRaw(t *testing.T) {
-	handler := newMsgHandler(1, kkcodec.GetCodec(kkcodec.CodecTypeJson), func(connId kknet.CONN_ID, msg *testMsg) error {
+	handler := newMsgHandler(1, kkcodec.GetCodec(kkcodec.CodecTypeJson), func(connId kknet.CONN_ID, msg *testMsg) {
 		fmt.Println(msg)
-		return nil
 	})
 
 	bodyBytes, err := kkcodec.GetCodec(kkcodec.CodecTypeJson).Marshal(newTestMsg())
@@ -51,9 +50,8 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 	streamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	receiver := NewMsgReceiver[kknet.CONN_ID](packetTool)
-	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
+	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) {
 		fmt.Println(msg)
-		return nil
 	})
 
 	stream := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
@@ -72,9 +70,8 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 	streamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
 	receiver := NewMsgReceiver[kknet.CONN_ID](packetTool)
-	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) error {
+	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) {
 		// fmt.Println(msg)
-		return nil
 	})
 
 	stream := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)

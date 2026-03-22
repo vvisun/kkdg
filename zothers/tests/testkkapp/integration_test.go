@@ -78,7 +78,7 @@ type gameHandler struct {
 	transportor gametrans.ITransportor
 }
 
-func (h *gameHandler) onLoginReq(sessionID string, msg *LoginReq) error {
+func (h *gameHandler) onLoginReq(sessionID string, msg *LoginReq) {
 	kklog.Infof("逻辑服收到消息: type = %T, data = %v", msg, msg)
 	resp := &LoginResp{
 		UserId:   msg.UserId,
@@ -86,22 +86,19 @@ func (h *gameHandler) onLoginReq(sessionID string, msg *LoginReq) error {
 	}
 	h.transportor.NotifyClientLoginLogout(sessionID, msg.UserId, true)
 	h.transportor.SendToClient(sessionID, resp)
-	return nil
 }
 
-func (h *gameHandler) onLoginResp(sessionID string, msg *LoginResp) error {
+func (h *gameHandler) onLoginResp(sessionID string, msg *LoginResp) {
 	kklog.Infof("逻辑服收到消息: type = %T, data = %v", msg, msg)
-	return nil
 }
 
-func (h *gameHandler) onMsgCounter(sessionID string, msg *MsgCounter) error {
+func (h *gameHandler) onMsgCounter(sessionID string, msg *MsgCounter) {
 	kklog.Infof("逻辑服收到消息: type = %T, data = %v", msg, msg)
 	resp := &MsgCounter{
 		Seq:  msg.Seq + 1,
 		Data: msg.Data,
 	}
 	h.transportor.SendToClient(sessionID, resp)
-	return nil
 }
 
 func TestIntegration_GateGame_Echo_Shard(t *testing.T) {
