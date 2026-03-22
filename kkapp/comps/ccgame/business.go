@@ -19,7 +19,6 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
-	"github.com/vvisun/kkdg/utils/xos"
 )
 
 func NewGameComponent(opt Options) *gameComponent {
@@ -27,7 +26,7 @@ func NewGameComponent(opt Options) *gameComponent {
 		kklog.PanicErr(err)
 	}
 	return &gameComponent{
-		sessionManager: gametrans.NewSessionManager(xos.NumCPU() * 2),
+		sessionManager: gametrans.NewSessionManager(opt.SessionManagerWorkersCount),
 		opt:            opt,
 	}
 }

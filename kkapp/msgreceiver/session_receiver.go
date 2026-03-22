@@ -36,7 +36,7 @@ func parseMsgInfo(packet []byte, packetTool *kkpacket.FullPacket) (kkpacket.MSGI
 //	@param sessionManager *gametrans.SessionManager 会话管理器。
 //	因为decodeWorkers需要和sessionManager的工作线程数量一致，所以这里要求传入sessionManager，语义清晰些。
 //	@return *SessionMsgReceiver[K] 会话消息接收器
-func NewSessionMsgReceiver[K any](packetTool *kkpacket.FullPacket, sessionMgr *gametrans.SessionManager) *SessionMsgReceiver[K] {
+func NewSessionMsgReceiver[K comparable](packetTool *kkpacket.FullPacket, sessionMgr *gametrans.SessionManager) *SessionMsgReceiver[K] {
 	workersCount := sessionMgr.GetWorkersCount()
 	decodeWorkers := make([]*taskqueue.WorkerQueue, workersCount)
 	for i := 0; i < workersCount; i++ {
@@ -50,7 +50,7 @@ func NewSessionMsgReceiver[K any](packetTool *kkpacket.FullPacket, sessionMgr *g
 }
 
 // SessionMsgReceiver 会话消息接收器
-type SessionMsgReceiver[K any] struct {
+type SessionMsgReceiver[K comparable] struct {
 	packetTool    *kkpacket.FullPacket
 	hdMap         map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
 	decodeWorkers []*taskqueue.WorkerQueue          // 解码工作队列, 并行解码消息。用于游戏服的会话消息接收器。
@@ -77,6 +77,6 @@ func (r *SessionMsgReceiver[K]) OnSession(sessionID K, packet []byte, threadIdx 
 	copy(bodyCopy, bodyBytes)
 
 	r.decodeWorkers[threadIdx].Push(func() {
-		h.OnMessage(sessionID, bodyCopy)
+		h.OnMessage(sessionID, bodyCopy, true)
 	})
 }

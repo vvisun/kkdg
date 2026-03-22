@@ -24,10 +24,17 @@ var defaultPool = NewBFPool(128)
 //
 // Prefer this over Get when the expected size is known, to avoid
 // reallocations on the first Write/Set/SetString.
+//  @param capacity 期望的bb.B的容量。
+//  @return *ByteBuffer 字节缓冲区 bb.B长度为0，容量为capacity。
 func GetWithCapacity(capacity int) *ByteBuffer {
 	return defaultPool.GetWithCap(capacity)
 }
 
+// GetWithLenCap returns a buffer with at least the specified length and capacity.
+// Use when the expected size is known to reduce reallocations.
+//  @param len 期望的bb.B的长度。
+//  @param capacity 期望的bb.B的容量。
+//  @return *ByteBuffer 字节缓冲区 bb.B长度为len，容量为capacity。
 func GetWithLenCap(len int, capacity int) *ByteBuffer {
 	bb := defaultPool.GetWithCap(capacity)
 	bb.B = bb.B[:len]

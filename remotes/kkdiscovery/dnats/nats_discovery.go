@@ -152,7 +152,7 @@ func (d *NatsDiscovery) Stop() error {
 		defer cancel()
 		_, err := d.conn.RequestWithContext(ctx, subjectOffline, []byte(""))
 		if err != nil {
-			kklog.Errorf("NatsDiscovery(%s) send offline notification failed: %v", d.nodeInfo.GetNodeId(), err)
+			kklog.Warnf("NatsDiscovery(%s) send offline notification failed: %v", d.nodeInfo.GetNodeId(), err)
 		}
 	}
 

@@ -7,7 +7,7 @@ import (
 )
 
 // NewMsgReceiver 创建消息接收器
-func NewMsgReceiver[K any](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
+func NewMsgReceiver[K comparable](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
 	return &MsgReceiver[K]{
 		packetTool: packetTool,
 		hdMap:      make(map[kkpacket.MSGID]IMsgHandler[K]),
@@ -15,7 +15,7 @@ func NewMsgReceiver[K any](packetTool *kkpacket.FullPacket) *MsgReceiver[K] {
 }
 
 // MsgReceiver 消息接收器
-type MsgReceiver[K any] struct {
+type MsgReceiver[K comparable] struct {
 	packetTool *kkpacket.FullPacket
 	hdMap      map[kkpacket.MSGID]IMsgHandler[K] // 消息ID到消息处理器的映射
 }
@@ -42,6 +42,6 @@ func (r *MsgReceiver[K]) OnRaw(connId K, bbPacket *kkbuffer.ByteBuffer) {
 		return
 	}
 
-	h.OnMessage(connId, bodyBytes)
+	h.OnMessage(connId, bodyBytes, false)
 	kkbuffer.Put(bbPacket)
 }

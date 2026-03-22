@@ -118,9 +118,13 @@ func TestIntegration_GateGame_Echo_Nats(t *testing.T) {
 
 // runIntegration_GateGame_Echo 集成测试：gate + game 节点，客户端连 gate 发消息，经 game 回显，验证收到
 func runIntegration_GateGame_Echo(t *testing.T, transType transport.TransType) {
-	natsURL := requireNATS(t)
+	natsURL := ""
 	tcpAddr := freePort(t)
 	rpcAddr := freePort(t)
+
+	if transType == transport.TransTypeNats {
+		natsURL = requireNATS(t)
+	}
 
 	appOpts := kkapp.ApplyOptions()
 

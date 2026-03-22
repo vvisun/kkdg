@@ -53,6 +53,9 @@ func (p *bfPool) Get() *ByteBuffer {
 
 // GetWithCap returns a buffer with at least the specified capacity.
 // Use when the expected size is known to reduce reallocations.
+//
+//	@param capacity 期望的bb.B的容量。
+//	@return *ByteBuffer 字节缓冲区 bb.B长度为0，容量为capacity。
 func (p *bfPool) GetWithCap(capacity int) *ByteBuffer {
 	v := p.pool.Get()
 	if v != nil {

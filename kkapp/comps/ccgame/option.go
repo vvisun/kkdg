@@ -7,6 +7,7 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/utils/xos"
 )
 
 type Options struct {
@@ -18,6 +19,8 @@ type Options struct {
 	DiscoveryOpts kkdiscovery.DiscoveryOption
 	// 集群服务器URL。TransType为TransTypeNats时可选设置。
 	ClusterOpts kkcluster.ClusterOption
+	// 会话管理器工作线程数量。会创建多个工作线程来解码消息。
+	SessionManagerWorkersCount int
 }
 
 func validateOption(opt *Options) error {
@@ -34,12 +37,16 @@ func validateOption(opt *Options) error {
 			return errors.New("ClusterUrl is required")
 		}
 	}
+	if opt.SessionManagerWorkersCount <= 0 {
+		opt.SessionManagerWorkersCount = xos.NumCPU() * 4
+	}
 	return nil
 }
 
 func DefaultOptions() Options {
 	return Options{
-		TransType: transport.TransTypeShard,
+		TransType:                  transport.TransTypeShard,
+		SessionManagerWorkersCount: xos.NumCPU() * 4,
 	}
 }
 

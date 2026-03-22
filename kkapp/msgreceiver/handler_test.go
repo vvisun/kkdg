@@ -6,6 +6,7 @@ import (
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
+	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
@@ -35,7 +36,7 @@ func TestMsgHandler_OnRaw(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	err = handler.OnMessage(1, bodyBytes)
+	err = handler.OnMessage(1, bodyBytes, false)
 	if err != nil {
 		t.Fatalf("on raw: %v", err)
 	}
@@ -78,15 +79,16 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 
 	stream := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	msg := newTestMsg()
+	bb, err := kkpacket.EncodeStream(msg, stream, messageTool)
+	if err != nil {
+		b.Fatalf("encode stream: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		bb, err := kkpacket.EncodeStream(msg, stream, messageTool)
-		if err != nil {
-			b.Fatalf("encode stream: %v", err)
-		}
-
-		receiver.OnRaw(1, bb)
+		bbCopy := kkbuffer.GetWithLenCap(len(bb.B), len(bb.B))
+		copy(bbCopy.B, bb.B)
+		receiver.OnRaw(1, bbCopy)
 	}
 }
