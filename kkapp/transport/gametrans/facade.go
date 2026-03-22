@@ -28,5 +28,10 @@ type ITransportor interface {
 
 // 消息接收器接口
 type ISessionMsgReceiver interface {
+	// receives a message from a session.
+	// 接收来自会话的消息。
+	//  @param sessionID 会话ID
+	//  @param packet 整包数据[length,message]。不得保存 packet 引用，如需保存，请自行拷贝。
+	//  @param threadIdx 线程索引。注意decodeWorkers需要和SessionManager的工作线程数量一致，否则会越界panic。
 	OnSession(sessionID string, packet []byte, threadIdx int)
 }
