@@ -9,6 +9,10 @@ import (
 
 var byteorder = binary.BigEndian
 
+func errTruncated(off, needN, dataLen int) error {
+	return fmt.Errorf("ptotrans: truncated data (need %d bytes at offset %d, len=%d)", needN, off, dataLen)
+}
+
 type fieldType uint8
 
 const (
@@ -65,7 +69,10 @@ func (si *structInfo) Marshal(valueList []any, offset int) (*kkbuffer.ByteBuffer
 }
 
 // 解码
-// @param data 数据
+//
+// @param data 输入缓冲区。[]byte / [][]byte 字段为 data 的子切片视图；在仍使用返回的 []any 期间勿修改 data 对应区间。
+// string 字段为拷贝，不依赖 data 生命周期。
+//
 // @return []any 解码后的数据
 // @return error 错误
 func (si *structInfo) Unmarshal(data []byte) ([]any, error) {
@@ -101,13 +108,10 @@ func (si *structInfo) marshal(valueList []any, offset int) (*kkbuffer.ByteBuffer
 
 	bb := kkbuffer.GetWithLenCap(0, 1024)
 
-	// 先预留offset偏移量的空间，valueList的值将写入offset偏移量后的位置。
+	// 先预留 offset 字节（通常给消息头）；后续字段直接 append 到 bb.B。
 	if offset > 0 {
 		bb.B = append(bb.B, make([]byte, offset)...)
 	}
-
-	tmpBuf := [64]byte{}  // 临时缓冲区，用于编码。
-	tmpSlice := tmpBuf[:] // 临时缓冲区，用于编码。
 
 	for _, field := range si.fields {
 		value := valueList[field.index]
@@ -117,82 +121,52 @@ func (si *structInfo) marshal(valueList []any, offset int) (*kkbuffer.ByteBuffer
 			if !ok {
 				return nil, fmt.Errorf("field %q: want uint16, got %T", field.name, value)
 			}
-			byteorder.PutUint16(tmpSlice, v)
-			bb.B = append(bb.B, tmpSlice[:2]...)
-			offset += 2
+			bb.B = byteorder.AppendUint16(bb.B, v)
 		case dataTypeUint32:
 			v, ok := value.(uint32)
 			if !ok {
 				return nil, fmt.Errorf("field %q: want uint32, got %T", field.name, value)
 			}
-			byteorder.PutUint32(tmpSlice, v)
-			bb.B = append(bb.B, tmpSlice[:4]...)
-			offset += 4
+			bb.B = byteorder.AppendUint32(bb.B, v)
 		case dataTypeUint64:
 			v, ok := value.(uint64)
 			if !ok {
 				return nil, fmt.Errorf("field %q: want uint64, got %T", field.name, value)
 			}
-			byteorder.PutUint64(tmpSlice, v)
-			bb.B = append(bb.B, tmpSlice[:8]...)
-			offset += 8
+			bb.B = byteorder.AppendUint64(bb.B, v)
 		case dataTypeString:
 			str, ok := value.(string)
 			if !ok {
 				return nil, fmt.Errorf("field %q: want string, got %T", field.name, value)
 			}
-			// 先写入长度
-			byteorder.PutUint16(tmpSlice, uint16(len(str)))
-			bb.B = append(bb.B, tmpSlice[:2]...)
-			offset += 2
-			// 然后写入string
+			bb.B = byteorder.AppendUint16(bb.B, uint16(len(str)))
 			bb.B = append(bb.B, str...)
-			offset += len(str)
 		case dataTypeBytes:
 			bytes, ok := value.([]byte)
 			if !ok {
 				return nil, fmt.Errorf("field %q: want []byte, got %T", field.name, value)
 			}
-			// 先写入长度
-			byteorder.PutUint16(tmpSlice, uint16(len(bytes)))
-			bb.B = append(bb.B, tmpSlice[:2]...)
-			offset += 2
-			// 然后写入[]byte
+			bb.B = byteorder.AppendUint16(bb.B, uint16(len(bytes)))
 			bb.B = append(bb.B, bytes...)
-			offset += len(bytes)
 		case dataTypeStringList:
 			strList, ok := value.([]string)
 			if !ok {
 				return nil, fmt.Errorf("field %q: want []string, got %T", field.name, value)
 			}
-			// 先计算[]string的总长度
-			byteorder.PutUint16(tmpSlice, uint16(len(strList)))
-			bb.B = append(bb.B, tmpSlice[:2]...)
-			offset += 2
-			// 然后依次写入每个string
+			bb.B = byteorder.AppendUint16(bb.B, uint16(len(strList)))
 			for _, v := range strList {
-				byteorder.PutUint16(tmpSlice, uint16(len(v)))
-				bb.B = append(bb.B, tmpSlice[:2]...)
-				offset += 2
+				bb.B = byteorder.AppendUint16(bb.B, uint16(len(v)))
 				bb.B = append(bb.B, v...)
-				offset += len(v)
 			}
 		case dataTypeBytesList:
 			bytesList, ok := value.([][]byte)
 			if !ok {
 				return nil, fmt.Errorf("field %q: want [][]byte, got %T", field.name, value)
 			}
-			// 先计算[][]byte的总长度
-			byteorder.PutUint16(tmpSlice, uint16(len(bytesList)))
-			bb.B = append(bb.B, tmpSlice[:2]...)
-			offset += 2
-			// 然后依次写入每个[]byte
+			bb.B = byteorder.AppendUint16(bb.B, uint16(len(bytesList)))
 			for _, v := range bytesList {
-				byteorder.PutUint16(tmpSlice, uint16(len(v)))
-				bb.B = append(bb.B, tmpSlice[:2]...)
-				offset += 2
+				bb.B = byteorder.AppendUint16(bb.B, uint16(len(v)))
 				bb.B = append(bb.B, v...)
-				offset += len(v)
 			}
 		default:
 			return nil, fmt.Errorf("invalid data type: %d", field.dataType)
@@ -205,89 +179,84 @@ func (si *structInfo) marshal(valueList []any, offset int) (*kkbuffer.ByteBuffer
 func (si *structInfo) unmarshal(data []byte) ([]any, error) {
 	valueList := make([]any, len(si.fields))
 	offset := 0
-	need := func(n int) error {
-		if offset+n > len(data) {
-			return fmt.Errorf("ptotrans: truncated data (need %d bytes at offset %d, len=%d)", n, offset, len(data))
-		}
-		return nil
-	}
+	n := len(data)
 	for _, field := range si.fields {
 		switch field.dataType {
 		case dataTypeUint16:
-			if err := need(2); err != nil {
-				return nil, err
+			if offset+2 > n {
+				return nil, errTruncated(offset, 2, n)
 			}
 			valueList[field.index] = int16(byteorder.Uint16(data[offset : offset+2]))
 			offset += 2
 		case dataTypeUint32:
-			if err := need(4); err != nil {
-				return nil, err
+			if offset+4 > n {
+				return nil, errTruncated(offset, 4, n)
 			}
 			valueList[field.index] = int32(byteorder.Uint32(data[offset : offset+4]))
 			offset += 4
 		case dataTypeUint64:
-			if err := need(8); err != nil {
-				return nil, err
+			if offset+8 > n {
+				return nil, errTruncated(offset, 8, n)
 			}
 			valueList[field.index] = int64(byteorder.Uint64(data[offset : offset+8]))
 			offset += 8
 		case dataTypeString:
-			if err := need(2); err != nil {
-				return nil, err
+			if offset+2 > n {
+				return nil, errTruncated(offset, 2, n)
 			}
 			slen := int(byteorder.Uint16(data[offset : offset+2]))
 			offset += 2
-			if err := need(slen); err != nil {
-				return nil, err
+			if offset+slen > n {
+				return nil, errTruncated(offset, slen, n)
 			}
 			valueList[field.index] = string(data[offset : offset+slen])
 			offset += slen
 		case dataTypeBytes:
-			if err := need(2); err != nil {
-				return nil, err
+			if offset+2 > n {
+				return nil, errTruncated(offset, 2, n)
 			}
 			blen := int(byteorder.Uint16(data[offset : offset+2]))
 			offset += 2
-			if err := need(blen); err != nil {
-				return nil, err
+			if offset+blen > n {
+				return nil, errTruncated(offset, blen, n)
 			}
 			valueList[field.index] = data[offset : offset+blen]
 			offset += blen
 		case dataTypeStringList:
-			if err := need(2); err != nil {
-				return nil, err
+			if offset+2 > n {
+				return nil, errTruncated(offset, 2, n)
 			}
-			n := int(byteorder.Uint16(data[offset : offset+2]))
+			cnt := int(byteorder.Uint16(data[offset : offset+2]))
 			offset += 2
-			strList := make([]string, n)
-			for i := 0; i < n; i++ {
-				if err := need(2); err != nil {
-					return nil, err
+			strList := make([]string, cnt)
+			for i := 0; i < cnt; i++ {
+				if offset+2 > n {
+					return nil, errTruncated(offset, 2, n)
 				}
 				elen := int(byteorder.Uint16(data[offset : offset+2]))
 				offset += 2
-				if err := need(elen); err != nil {
-					return nil, err
+				if offset+elen > n {
+					return nil, errTruncated(offset, elen, n)
 				}
 				strList[i] = string(data[offset : offset+elen])
 				offset += elen
 			}
 			valueList[field.index] = strList
 		case dataTypeBytesList:
-			if err := need(2); err != nil {
-				return nil, err
+			if offset+2 > n {
+				return nil, errTruncated(offset, 2, n)
 			}
-			n := int(byteorder.Uint16(data[offset : offset+2]))
+			cnt := int(byteorder.Uint16(data[offset : offset+2]))
 			offset += 2
-			bytesList := make([][]byte, n)
-			for i := 0; i < n; i++ {
-				if err := need(2); err != nil {
-					return nil, err
+			bytesList := make([][]byte, cnt)
+			for i := 0; i < cnt; i++ {
+				if offset+2 > n {
+					return nil, errTruncated(offset, 2, n)
 				}
 				elen := int(byteorder.Uint16(data[offset : offset+2]))
 				offset += 2
-				if err := need(elen); err != nil {
-					return nil, err
+				if offset+elen > n {
+					return nil, errTruncated(offset, elen, n)
 				}
 				bytesList[i] = data[offset : offset+elen]
 				offset += elen
