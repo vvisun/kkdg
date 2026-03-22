@@ -34,7 +34,7 @@ type structInfo struct {
 }
 
 // 添加字段
-func (si *structInfo) addField(dataType fieldType, name string) {
+func (si *structInfo) AddField(dataType fieldType, name string) {
 	index := len(si.fields)
 	si.fields = append(si.fields, fieldInfo{dataType: dataType, index: index, name: name})
 }

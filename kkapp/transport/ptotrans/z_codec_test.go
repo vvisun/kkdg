@@ -9,13 +9,13 @@ import (
 
 func TestStructInfo_Roundtrip_AllFieldKinds(t *testing.T) {
 	var si structInfo
-	si.addField(dataTypeUint16, "u16")
-	si.addField(dataTypeUint32, "u32")
-	si.addField(dataTypeUint64, "u64")
-	si.addField(dataTypeString, "s")
-	si.addField(dataTypeBytes, "b")
-	si.addField(dataTypeStringList, "sl")
-	si.addField(dataTypeBytesList, "bl")
+	si.AddField(dataTypeUint16, "u16")
+	si.AddField(dataTypeUint32, "u32")
+	si.AddField(dataTypeUint64, "u64")
+	si.AddField(dataTypeString, "s")
+	si.AddField(dataTypeBytes, "b")
+	si.AddField(dataTypeStringList, "sl")
+	si.AddField(dataTypeBytesList, "bl")
 
 	values := []any{
 		uint16(0x1234),
@@ -42,7 +42,7 @@ func TestStructInfo_Roundtrip_AllFieldKinds(t *testing.T) {
 
 func TestStructInfo_Roundtrip_WithOffset(t *testing.T) {
 	var si structInfo
-	si.addField(dataTypeString, "s")
+	si.AddField(dataTypeString, "s")
 	offset := 16
 	wantPrefix := make([]byte, offset)
 
@@ -72,7 +72,7 @@ func min(a, b int) int {
 
 func TestStructInfo_Marshal_OffsetNegative(t *testing.T) {
 	var si structInfo
-	si.addField(dataTypeUint16, "x")
+	si.AddField(dataTypeUint16, "x")
 	_, err := si.Marshal([]any{uint16(1)}, -1)
 	if err == nil {
 		t.Fatal("expected error for negative offset")
@@ -81,8 +81,8 @@ func TestStructInfo_Marshal_OffsetNegative(t *testing.T) {
 
 func TestStructInfo_Marshal_ValueListLengthMismatch(t *testing.T) {
 	var si structInfo
-	si.addField(dataTypeUint16, "a")
-	si.addField(dataTypeUint16, "b")
+	si.AddField(dataTypeUint16, "a")
+	si.AddField(dataTypeUint16, "b")
 	_, err := si.Marshal([]any{uint16(1)}, 0)
 	if err == nil {
 		t.Fatal("expected length mismatch error")
@@ -91,7 +91,7 @@ func TestStructInfo_Marshal_ValueListLengthMismatch(t *testing.T) {
 
 func TestStructInfo_Marshal_WrongTypeError(t *testing.T) {
 	var si structInfo
-	si.addField(dataTypeUint16, "a")
+	si.AddField(dataTypeUint16, "a")
 	_, err := si.Marshal([]any{"not-a-uint16"}, 0)
 	if err == nil {
 		t.Fatal("expected type error")
@@ -100,7 +100,7 @@ func TestStructInfo_Marshal_WrongTypeError(t *testing.T) {
 
 func TestStructInfo_Unmarshal_Truncated(t *testing.T) {
 	var si structInfo
-	si.addField(dataTypeUint32, "u32")
+	si.AddField(dataTypeUint32, "u32")
 	_, err := si.Unmarshal([]byte{1, 2}) // need 4 bytes
 	if err == nil {
 		t.Fatal("expected truncated error")
