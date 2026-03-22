@@ -35,7 +35,7 @@ func (m *MemberMgr) SetLogger(logger kklog.ILogger) {
 	m.logger = logger
 }
 
-// 添加|更新成员，true时为新增，false时为更新
+// 添加|更新成员，返回true时为新增，返回false时为更新
 func (m *MemberMgr) AddMember(info *MemberInfo) (IMember, bool) {
 	m.membersMu.Lock()
 	member, existed := m.members[info.NodeID]
@@ -86,7 +86,7 @@ func (m *MemberMgr) AddMember(info *MemberInfo) (IMember, bool) {
 	return member, !existed
 }
 
-// 删除成员，true时成员存在，false时成员不存在
+// 删除成员，返回true时成员存在，返回false时成员不存在
 func (m *MemberMgr) RemoveMember(nodeID string) bool {
 	m.membersMu.Lock()
 	member, existed := m.members[nodeID]

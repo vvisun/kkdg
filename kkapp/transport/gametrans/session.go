@@ -24,8 +24,8 @@ type SessionInfo struct {
 	sessionID  string       // 会话ID
 	gateNodeID string       // 网关节点ID
 	shardIdx   int          // 分片索引
-	userID     user.USER_ID // 用户ID
 	threadIdx  int          // 线程索引
+	userID     user.USER_ID // 用户ID
 }
 
 func (si *SessionInfo) GetSessionID() string {
@@ -70,6 +70,7 @@ func putSessionInfo(si *SessionInfo) {
 	si.sessionID = ""
 	si.gateNodeID = ""
 	si.shardIdx = -1
+	si.threadIdx = -1
 	si.userID = user.NULL_USER_ID
 	sessionInfoPool.Put(si)
 }
