@@ -3,6 +3,7 @@ package ccgame
 import (
 	"errors"
 
+	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
@@ -21,6 +22,12 @@ type Options struct {
 	ClusterOpts kkcluster.ClusterOption
 	// 会话管理器工作线程数量。会创建多个工作线程来解码消息。
 	SessionManagerWorkersCount int
+	// 解码错误或消息ID不存在时，是否抛给上层处理。
+	// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
+	DecodeErrorCallback kkapp.DecodeErrorCallback
+	// 解码错误或消息ID不存在时，是否抛给上层处理。
+	// 上层可以返回一个错误码给客户端，然后关闭连接，这样即对客户端友好，又能防止恶意攻击。
+	DecodeErrorCallbackOnRaw kkapp.DecodeErrorCallbackOnRaw
 }
 
 func validateOption(opt *Options) error {
@@ -79,5 +86,17 @@ func WithDiscoveryOpts(opts kkdiscovery.DiscoveryOption) func(o *Options) {
 func WithClusterOpts(opts kkcluster.ClusterOption) func(o *Options) {
 	return func(o *Options) {
 		o.ClusterOpts = opts
+	}
+}
+
+func WithDecodeErrorCallback(callback kkapp.DecodeErrorCallback) func(o *Options) {
+	return func(o *Options) {
+		o.DecodeErrorCallback = callback
+	}
+}
+
+func WithDecodeErrorCallbackOnRaw(callback kkapp.DecodeErrorCallbackOnRaw) func(o *Options) {
+	return func(o *Options) {
+		o.DecodeErrorCallbackOnRaw = callback
 	}
 }

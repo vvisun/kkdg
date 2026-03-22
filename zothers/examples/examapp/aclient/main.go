@@ -67,7 +67,7 @@ func runOneClient() kknet.IClient {
 	streamTool := appOpts.StreamTool
 	messageTool := appOpts.ClientMsgPacket
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
-	msgReceiver := msgreceiver.NewMsgReceiver[kknet.CONN_ID](packetTool)
+	msgReceiver := msgreceiver.NewMsgReceiver(packetTool, nil)
 	ptoexam.InitMsgs(appOpts.ClientMsgPacket.GetRouter())
 
 	index := int(atomic.LoadInt64(&autoUserId))

@@ -1,5 +1,7 @@
 package kkapp
 
+import "github.com/vvisun/kkdg/kknet"
+
 const (
 	NodeTypeGate    = "gate"    // 网关服
 	NodeTypeLogic   = "logic"   // 业务服|游戏服
@@ -12,3 +14,15 @@ const (
 	NodeTypeEconomy = "economy" // 经济服
 	NodeTypeAdmin   = "admin"   // 管理服|后台
 )
+
+type GameErrorCode = uint8
+
+const (
+	// 解码错误
+	GameErrorCodeDecodeError GameErrorCode = 1 + iota
+	// 消息ID不存在
+	GameErrorCodeMsgIDNotFound
+)
+
+type DecodeErrorCallback func(sessionID string, errCode GameErrorCode)
+type DecodeErrorCallbackOnRaw func(connID kknet.CONN_ID, errCode GameErrorCode)

@@ -49,7 +49,7 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 	messageTool := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
 	streamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
-	receiver := NewMsgReceiver[kknet.CONN_ID](packetTool)
+	receiver := NewMsgReceiver(packetTool, nil)
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) {
 		fmt.Println(msg)
 	})
@@ -69,7 +69,7 @@ func BenchmarkMsgReceiver_OnRaw(b *testing.B) {
 	messageTool := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
 	streamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
-	receiver := NewMsgReceiver[kknet.CONN_ID](packetTool)
+	receiver := NewMsgReceiver(packetTool, nil)
 	RegisterMsgHandler(receiver, func(connId kknet.CONN_ID, msg *testMsg) {
 		// fmt.Println(msg)
 	})

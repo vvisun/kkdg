@@ -26,8 +26,8 @@ func NewGameComponent(opt Options) *gameComponent {
 		kklog.PanicErr(err)
 	}
 	return &gameComponent{
-		sessionManager: gametrans.NewSessionManager(opt.SessionManagerWorkersCount),
-		opt:            opt,
+		sessionMgr: gametrans.NewSessionManager(opt.SessionManagerWorkersCount),
+		opt:        opt,
 	}
 }
 
@@ -37,7 +37,7 @@ type gameComponent struct {
 	discovery      kkdiscovery.IDiscovery
 	cluster        kkcluster.ICluster
 	msgReceiver    gametrans.ISessionMsgReceiver
-	sessionManager *gametrans.SessionManager
+	sessionMgr     *gametrans.SessionManager
 	transportor    gametrans.ITransportor
 	opt            Options
 	discoverySubID uint64
@@ -66,7 +66,7 @@ func (slf *gameComponent) OnInit() error {
 			slf.opt.DiscoveryOpts,
 		)
 		slf.discoverySubID = kkdiscovery.GlobalEventMgr.Subscribe(kkdiscovery.EventDiscoveryStats, func(e *kkdiscovery.DiscoveryStatsEvent) {
-			e.OnlineCount = slf.sessionManager.OnlineCount()
+			e.OnlineCount = slf.sessionMgr.OnlineCount()
 			e.Status = kkdiscovery.NodeStatusOnline
 		})
 	}
@@ -88,7 +88,7 @@ func (slf *gameComponent) OnInit() error {
 
 	appOpts := slf.GetApplication().GetOptions()
 	packetTool := kkpacket.NewFullPacket(appOpts.StreamTool, appOpts.ClientMsgPacket)
-	slf.msgReceiver = msgreceiver.NewSessionMsgReceiver[string](packetTool, slf.sessionManager)
+	slf.msgReceiver = msgreceiver.NewSessionMsgReceiver(packetTool, slf.sessionMgr, slf.opt.DecodeErrorCallback)
 
 	transMsgPacket := kkpacket.NewMessagePacket(
 		kkpacket.NewPacketHead(&kkpacket.PartUint32{}),
@@ -102,7 +102,7 @@ func (slf *gameComponent) OnInit() error {
 		transportor, err := gametransnats.NewTransportorNats(
 			slf.cluster,
 			slf.msgReceiver,
-			slf.sessionManager,
+			slf.sessionMgr,
 			slf.GetApplication().GetNodeInfo(),
 			transMsgPacket,
 			appOpts.ClientMsgPacket,
@@ -115,7 +115,7 @@ func (slf *gameComponent) OnInit() error {
 		slf.transportor = transportor
 	case transport.TransTypeShard:
 		transportor, err := gametransshard.NewTransportorShard(
-			slf.sessionManager,
+			slf.sessionMgr,
 			slf.msgReceiver,
 			slf.opt.TransServerAddr,
 			slf.GetApplication().GetNodeInfo(),
@@ -130,7 +130,7 @@ func (slf *gameComponent) OnInit() error {
 		slf.transportor = transportor
 	case transport.TransTypeRpc:
 		transportor, err := gametransrpc.NewTransportorRpc(
-			slf.sessionManager,
+			slf.sessionMgr,
 			slf.msgReceiver,
 			slf.GetApplication().GetNodeInfo(),
 			slf.opt.TransServerAddr,
@@ -180,12 +180,12 @@ func (slf *gameComponent) OnStop() error {
 	return nil
 }
 
-func (slf *gameComponent) GetMsgReceiver() *msgreceiver.SessionMsgReceiver[string] {
-	return slf.msgReceiver.(*msgreceiver.SessionMsgReceiver[string])
+func (slf *gameComponent) GetMsgReceiver() *msgreceiver.SessionMsgReceiver {
+	return slf.msgReceiver.(*msgreceiver.SessionMsgReceiver)
 }
 
 func (slf *gameComponent) GetSessionManager() *gametrans.SessionManager {
-	return slf.sessionManager
+	return slf.sessionMgr
 }
 
 func (slf *gameComponent) GetTransportor() gametrans.ITransportor {
