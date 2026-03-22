@@ -61,7 +61,14 @@ var _ kkdiscovery.IDiscovery = (*NatsDiscovery)(nil)
 
 // NewNatsDiscovery 创建新的NATS服务发现
 func NewNatsDiscovery(nodeInfo *kkapp.NodeInfo, discoveryOpt kkdiscovery.DiscoveryOption) kkdiscovery.IDiscovery {
+	kkdiscovery.CheckDiscoveryOption(&discoveryOpt)
 	natsOpts := FromDiscoveryOption(discoveryOpt)
+
+	if natsOpts.Url == "" {
+		kklog.Warnf("NatsDiscovery(%s) nats url is empty, will not start discovery", nodeInfo.GetNodeId())
+		return nil
+	}
+
 	d := &NatsDiscovery{
 		nodeInfo:     nodeInfo,
 		memberMgr:    kkdiscovery.NewMemberMgr(),

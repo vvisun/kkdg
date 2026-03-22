@@ -14,7 +14,7 @@ const (
 
 func defaultNatsOptions() nats.Options {
 	opts := nats.GetDefaultOptions()
-	opts.Url = "nats://127.0.0.1:4222"
+	opts.Url = "" // nats://127.0.0.1:4222
 	opts.RetryOnFailedConnect = true
 	opts.AllowReconnect = true
 	opts.MaxReconnect = -1

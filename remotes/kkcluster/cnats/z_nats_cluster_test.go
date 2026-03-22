@@ -13,8 +13,14 @@ import (
 
 // TestNatsCluster_New 测试创建NatsCluster
 func TestNatsCluster_New(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Skipf("NATS not available: %v", err)
+	}
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions())
+	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl(natsURL),
+	))
 	cluster := NewNatsCluster("node1", "typea", kkcluster.ApplyOptions(
 		kkcluster.WithDiscovery(discovery),
 	))

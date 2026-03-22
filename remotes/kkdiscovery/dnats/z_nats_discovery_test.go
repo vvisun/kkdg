@@ -12,7 +12,9 @@ import (
 func newTestDiscovery(t *testing.T) *NatsDiscovery {
 	t.Helper()
 	nodeInfo := kkapp.NewNodeInfo("node1", kkapp.NodeTypeGate, "127.0.0.1:8000", "")
-	d := NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions())
+	d := NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl("nats://127.0.0.1:4222"),
+	))
 	nd, ok := d.(*NatsDiscovery)
 	if !ok || nd == nil {
 		t.Fatalf("NewNatsDiscovery returned %T, want *NatsDiscovery", d)

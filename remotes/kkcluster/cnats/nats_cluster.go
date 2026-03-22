@@ -74,8 +74,14 @@ var asyncReqPool = sync.Pool{
 
 // NewNatsCluster 创建新的NATS集群
 func NewNatsCluster(nodeID string, nodeType string, clusterOpt kkcluster.ClusterOption) kkcluster.ICluster {
-	natsOpts := FromClusterOption(clusterOpt)
 	kkcluster.CheckClusterOption(&clusterOpt)
+	natsOpts := FromClusterOption(clusterOpt)
+
+	if natsOpts.Url == "" {
+		kklog.Warnf("NatsCluster(%s) nats url is empty, will not start cluster", nodeID)
+		return nil
+	}
+
 	return &NatsCluster{
 		nodeID:      nodeID,
 		nodeType:    nodeType,

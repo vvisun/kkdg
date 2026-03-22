@@ -15,7 +15,7 @@ type ClusterOption struct {
 func DefaultClusterOption() ClusterOption {
 	return ClusterOption{
 		MsgCodec: kkcodec.GetCodec(kkcodec.CodecTypeJson),
-		Url:      "nats://127.0.0.1:4222",
+		Url:      "",
 	}
 }
 
@@ -25,7 +25,7 @@ func CheckClusterOption(opt *ClusterOption) {
 		opt.MsgCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 	if opt.Url == "" {
-		opt.Url = "nats://127.0.0.1:4222"
+		kklog.Warn("[kkcluster] ClusterUrl is empty, will not start cluster")
 	}
 }
 
@@ -52,9 +52,6 @@ func WithMsgCodec(codec kkcodec.ICodec) func(o *ClusterOption) {
 
 func WithUrl(url string) func(o *ClusterOption) {
 	return func(o *ClusterOption) {
-		if url == "" {
-			return
-		}
 		o.Url = url
 	}
 }
