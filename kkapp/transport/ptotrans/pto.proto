@@ -1,0 +1,57 @@
+syntax = "proto3";
+package ptotrans;
+option go_package = ".;ptotrans";
+
+// 逻辑服注册到网关: 逻辑服->网关->逻辑服
+message RpcMsgRegister {
+	int32 ShardIdx = 1;
+	string NodeId = 2;
+	string NodeType = 3;
+}
+
+// 网关转发消息到客户端: 逻辑服->网关->客户端
+message RpcS2Client {
+    string ClientId = 1;
+    bytes Payload = 2;
+}
+
+// 网关转发消息到多个客户端: 逻辑服->网关->多个客户端
+message RpcS2Clients {
+    repeated string ClientIds = 1;
+    bytes Payload = 2;
+}
+
+// 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
+message RpcC2S {
+    string ClientId = 1;
+    string GateNodeId = 2;
+    bytes Payload = 3;
+}
+
+// 网关 -> 逻辑服：客户端断开事件。
+// 逻辑服的视角相当于连接到本逻辑服的某个客户端断开连接。
+message RpcClientDisconnect {
+    string ClientId = 1;
+    repeated string ClientIds = 2;
+}
+
+// 网关 -> 逻辑服：分配客户端到本逻辑服。
+// 逻辑服的视角相当于某个客户端连接到本逻辑服。
+message RpcAllocClient {
+    string ClientId = 1;
+}
+
+// 逻辑服 -> 网关：客户端登入登出事件
+message RpcClientLoginLogout {
+    int64 UserId = 1;
+    bool IsLogin = 2;
+    string ClientId = 3;
+    string NodeType = 4;
+    string NodeId = 5;
+    string GateNodeId = 6;
+}
+
+// 逻辑服 -> 网关：逻辑服注销事件
+message RpcUnregister {
+    string NodeId = 1;
+}
