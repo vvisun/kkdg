@@ -11,7 +11,7 @@ import (
 // GenOptions 生成选项
 type GenOptions struct {
 	Package      string // Go 包名，默认取 schema namespace
-	FlatcImport  string // flatc 生成代码的 import 路径，如 github.com/xxx/proto/pbbase/fbbase。非空则用其前缀调用 flatc 函数
+	FlatcImport  string // flatc 生成代码的 import 路径，如 github.com/xxx/proto/ptoflats/pbgate/fbgate。非空则用其前缀调用 flatc 函数
 }
 
 // Generate 根据 fbs Schema 生成 Go struct 代码

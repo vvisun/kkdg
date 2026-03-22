@@ -3,7 +3,7 @@ package fbtrpc
 
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
-	fb "github.com/vvisun/kkdg/proto/pbrpc/fbrpc"
+	fb "github.com/vvisun/kkdg/proto/ptoflats/pbrpc/fbrpc"
 )
 
 // Frame 对应 table Frame，用于 flatbuffer 编解码

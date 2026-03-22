@@ -6,7 +6,38 @@ import (
 	"strings"
 )
 
-// FBSFileToProto 将 .fbs 文件转为 .proto 文件，输出到同目录，仅替换扩展名
+// flatProtoDomains 与 proto/ptoflats/<name> 下的 .fbs 一一对应，.proto 仍在 proto/<name>/。
+var flatProtoDomains = map[string]struct{}{
+	"pbgate": {}, "pbcluster": {}, "pbrpc": {},
+}
+
+func protoPathForFBSOutput(fbsPath string) string {
+	dir := filepath.Clean(filepath.Dir(fbsPath))
+	parent := filepath.Dir(dir)
+	grand := filepath.Dir(parent)
+	leaf := filepath.Base(dir)
+	if filepath.Base(parent) == "ptoflats" {
+		if _, ok := flatProtoDomains[leaf]; ok {
+			protoDir := filepath.Join(grand, leaf)
+			base := strings.TrimSuffix(filepath.Base(fbsPath), ".fbs") + ".proto"
+			return filepath.Join(protoDir, base)
+		}
+	}
+	return strings.TrimSuffix(fbsPath, ".fbs") + ".proto"
+}
+
+func fbsPathForProtoOutput(protoPath string) string {
+	dir := filepath.Clean(filepath.Dir(protoPath))
+	leaf := filepath.Base(dir)
+	if _, ok := flatProtoDomains[leaf]; ok {
+		ptoflatsDir := filepath.Join(filepath.Dir(dir), "ptoflats", leaf)
+		base := strings.TrimSuffix(filepath.Base(protoPath), ".proto") + ".fbs"
+		return filepath.Join(ptoflatsDir, base)
+	}
+	return strings.TrimSuffix(protoPath, ".proto") + ".fbs"
+}
+
+// FBSFileToProto 将 .fbs 文件转为 .proto 文件；ptoflats 下各域的 schema 输出到 proto/<域>/，其余为同目录仅替换扩展名
 func FBSFileToProto(fbsPath string) (string, error) {
 	data, err := os.ReadFile(fbsPath)
 	if err != nil {
@@ -16,7 +47,10 @@ func FBSFileToProto(fbsPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	protoPath := strings.TrimSuffix(fbsPath, ".fbs") + ".proto"
+	protoPath := protoPathForFBSOutput(fbsPath)
+	if err := os.MkdirAll(filepath.Dir(protoPath), 0o755); err != nil {
+		return "", err
+	}
 	f, err := os.Create(protoPath)
 	if err != nil {
 		return "", err
@@ -29,7 +63,7 @@ func FBSFileToProto(fbsPath string) (string, error) {
 	return protoPath, nil
 }
 
-// ProtoFileToFBS 将 .proto 文件转为 .fbs 文件，输出到同目录
+// ProtoFileToFBS 将 .proto 文件转为 .fbs 文件；pbgate/pbcluster/pbrpc 的 .proto 输出到 proto/ptoflats/<域>/，其余为同目录
 func ProtoFileToFBS(protoPath string) (string, error) {
 	data, err := os.ReadFile(protoPath)
 	if err != nil {
@@ -39,7 +73,10 @@ func ProtoFileToFBS(protoPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fbsPath := strings.TrimSuffix(protoPath, ".proto") + ".fbs"
+	fbsPath := fbsPathForProtoOutput(protoPath)
+	if err := os.MkdirAll(filepath.Dir(fbsPath), 0o755); err != nil {
+		return "", err
+	}
 	f, err := os.Create(fbsPath)
 	if err != nil {
 		return "", err

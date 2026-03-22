@@ -3,7 +3,7 @@ package fbtgate
 
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
-	fb "github.com/vvisun/kkdg/proto/pbgate/fbgate"
+	fb "github.com/vvisun/kkdg/proto/ptoflats/pbgate/fbgate"
 )
 
 // RpcMsgRegister 对应 table RpcMsgRegister，用于 flatbuffer 编解码

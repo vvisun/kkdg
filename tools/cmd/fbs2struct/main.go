@@ -2,7 +2,7 @@
 //
 // 用法:
 //
-//	fbs2struct -o ./proto/pbrpc/fbrpc -pkg fbrpc ./proto/pbrpc/rpc.fbs
+//	fbs2struct -o ./proto/ptoflats/pbrpc/fbtrpc -pkg fbtrpc -flatc-import github.com/vvisun/kkdg/proto/ptoflats/pbrpc/fbrpc ./proto/ptoflats/pbrpc/rpc.fbs
 package main
 
 import (
@@ -19,7 +19,7 @@ import (
 func main() {
 	outDir := flag.String("o", ".", "输出目录")
 	pkg := flag.String("pkg", "", "Go 包名，默认取 fbs namespace")
-	flatcImport := flag.String("flatc-import", "", "flatc 生成代码的 import 路径，如 github.com/xxx/proto/pbbase/fbbase")
+	flatcImport := flag.String("flatc-import", "", "flatc 生成代码的 import 路径，如 github.com/xxx/proto/ptoflats/pbrpc/fbrpc")
 	flag.Parse()
 	args := flag.Args()
 	if len(args) == 0 {

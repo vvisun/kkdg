@@ -3,7 +3,7 @@ package fbtcluster
 
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
-	fb "github.com/vvisun/kkdg/proto/pbcluster/fbcluster"
+	fb "github.com/vvisun/kkdg/proto/ptoflats/pbcluster/fbcluster"
 )
 
 // MapSettingsEntry 对应 table MapSettingsEntry，用于 flatbuffer 编解码
