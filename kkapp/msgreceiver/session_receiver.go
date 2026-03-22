@@ -31,10 +31,13 @@ func parseMsgInfo(packet []byte, packetTool *kkpacket.FullPacket) (kkpacket.MSGI
 }
 
 // NewSessionMsgReceiver 创建会话消息接收器
-func NewSessionMsgReceiver[K any](packetTool *kkpacket.FullPacket, workersCount int) *SessionMsgReceiver[K] {
-	if workersCount <= 0 {
-		workersCount = 1
-	}
+//
+//	@param packetTool *kkpacket.FullPacket 完整包工具
+//	@param sessionManager *gametrans.SessionManager 会话管理器。
+//	因为decodeWorkers需要和sessionManager的工作线程数量一致，所以这里要求传入sessionManager，语义清晰些。
+//	@return *SessionMsgReceiver[K] 会话消息接收器
+func NewSessionMsgReceiver[K any](packetTool *kkpacket.FullPacket, sessionMgr *gametrans.SessionManager) *SessionMsgReceiver[K] {
+	workersCount := sessionMgr.GetWorkersCount()
 	decodeWorkers := make([]*taskqueue.WorkerQueue, workersCount)
 	for i := 0; i < workersCount; i++ {
 		decodeWorkers[i] = taskqueue.NewWorkerQueue(1)

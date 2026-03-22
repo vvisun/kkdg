@@ -89,7 +89,7 @@ func (slf *gameComponent) OnInit() error {
 
 	appOpts := slf.GetApplication().GetOptions()
 	packetTool := kkpacket.NewFullPacket(appOpts.StreamTool, appOpts.ClientMsgPacket)
-	msgReceiver := msgreceiver.NewSessionMsgReceiver[string](packetTool, slf.sessionManager.GetWorkersCount())
+	msgReceiver := msgreceiver.NewSessionMsgReceiver[string](packetTool, slf.sessionManager)
 	slf.msgReceiver = msgReceiver
 
 	transMsgPacket := kkpacket.NewMessagePacket(
