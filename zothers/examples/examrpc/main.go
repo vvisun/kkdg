@@ -46,7 +46,7 @@ type PingReq struct {
 func runRpcDemo(addr string) {
 	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
-	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	methodMgr := kkrpc.NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	kkrpc.RegisterReqRspMethod[EchoReq, EchoRsp](methodMgr)
 	kkrpc.RegisterOneWayMethod[PingReq](methodMgr)

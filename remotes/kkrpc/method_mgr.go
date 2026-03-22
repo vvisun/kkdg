@@ -77,12 +77,12 @@ func NewMethodManager(streamTool kkpacket.IPacket, frameCodec kkcodec.ICodec, pa
 		streamTool = kkpacket.DefaultStreamPacket()
 	}
 	if frameCodec == nil {
-		kklog.Errorf("frameCodec is nil, use default frameCodec: %s", "msgpack")
-		frameCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+		kklog.Errorf("frameCodec is nil, use default frameCodec: %s", "json")
+		frameCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 	if payloadCodec == nil {
-		kklog.Errorf("payloadCodec is nil, use default payloadCodec: %s", "msgpack")
-		payloadCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+		kklog.Errorf("payloadCodec is nil, use default payloadCodec: %s", "json")
+		payloadCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 	return &MethodManager{
 		streamTool:        streamTool,

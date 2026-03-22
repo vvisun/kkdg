@@ -30,7 +30,7 @@ func DefaultOptions() AppOptions {
 			kkcodec.GetCodec(kkcodec.CodecTypeJson),
 			kkpacket.NewMsgRouter(),
 		),
-		TransportorCodec: kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		TransportorCodec: kkcodec.GetCodec(kkcodec.CodecTypeJson),
 		FaultRuleMap:     make(map[string]faultreport.EFaultAction),
 	}
 }

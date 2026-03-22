@@ -51,7 +51,7 @@ func (r *testRecv) HandleRemoteRequest(_ actortrans.ActorRef, msg any, _ time.Du
 
 func testRegistry(t *testing.T) *actortrans.MessageRegistry {
 	t.Helper()
-	r := actortrans.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeMsgpack))
+	r := actortrans.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
 	if err := r.Register(&hpMsg{}); err != nil {
 		t.Fatal(err)
 	}

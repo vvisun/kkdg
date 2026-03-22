@@ -16,7 +16,7 @@ type protoRsp struct {
 	Value string
 }
 
-var defaultMessageRegistry = NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeMsgpack))
+var defaultMessageRegistry = NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
 
 func getDefaultMessageRegistry() *MessageRegistry {
 	return defaultMessageRegistry

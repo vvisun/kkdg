@@ -21,5 +21,5 @@ var (
 	// rpc用的编码器
 	gFrameCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	// rpc消息里的Data字段编码器
-	gPayloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	gPayloadCodec kkcodec.ICodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 )

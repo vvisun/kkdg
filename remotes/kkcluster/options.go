@@ -14,15 +14,15 @@ type ClusterOption struct {
 
 func DefaultClusterOption() ClusterOption {
 	return ClusterOption{
-		MsgCodec: kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		MsgCodec: kkcodec.GetCodec(kkcodec.CodecTypeJson),
 		Url:      "nats://127.0.0.1:4222",
 	}
 }
 
 func CheckClusterOption(opt *ClusterOption) {
 	if opt.MsgCodec == nil {
-		kklog.Warnf("[kkcluster] msg codec is nil, use default codec: %s", "msgpack")
-		opt.MsgCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+		kklog.Warnf("[kkcluster] msg codec is nil, use default codec: %s", "json")
+		opt.MsgCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 	if opt.Url == "" {
 		opt.Url = "nats://127.0.0.1:4222"
@@ -43,8 +43,8 @@ func ApplyOptions(opts ...func(o *ClusterOption)) ClusterOption {
 func WithMsgCodec(codec kkcodec.ICodec) func(o *ClusterOption) {
 	return func(o *ClusterOption) {
 		if codec == nil {
-			kklog.Warnf("[kkcluster] msg codec is nil, use default codec: %s", "msgpack")
-			codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+			kklog.Warnf("[kkcluster] msg codec is nil, use default codec: %s", "json")
+			codec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 		}
 		o.MsgCodec = codec
 	}

@@ -42,7 +42,7 @@ var _ gatetrans.IMemberMgrGetter = (*transportorRpc)(nil)
 func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, rpcAddr string) (gatetrans.ITransportor, error) {
 	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
-	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	methodMgr := kkrpc.NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	ptotrans.InitRpcMsgs(methodMgr)
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)

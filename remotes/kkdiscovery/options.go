@@ -15,7 +15,7 @@ type DiscoveryOption struct {
 
 func DefaultDiscoveryOption() DiscoveryOption {
 	return DiscoveryOption{
-		MsgCodec:       kkcodec.GetCodec(kkcodec.CodecTypeMsgpack),
+		MsgCodec:       kkcodec.GetCodec(kkcodec.CodecTypeJson),
 		OfflineTimeout: 3 * time.Second,
 		Url:            "nats://127.0.0.1:4222",
 	}
@@ -23,8 +23,8 @@ func DefaultDiscoveryOption() DiscoveryOption {
 
 func CheckDiscoveryOption(opt *DiscoveryOption) {
 	if opt.MsgCodec == nil {
-		kklog.Warnf("[kkdiscovery] msg codec is nil, use default codec: %s", "msgpack")
-		opt.MsgCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+		kklog.Warnf("[kkdiscovery] msg codec is nil, use default codec: %s", "json")
+		opt.MsgCodec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 	if opt.OfflineTimeout <= 0 {
 		opt.OfflineTimeout = 3 * time.Second
@@ -48,8 +48,8 @@ func ApplyOptions(opts ...func(o *DiscoveryOption)) DiscoveryOption {
 func WithMsgCodec(codec kkcodec.ICodec) func(o *DiscoveryOption) {
 	return func(o *DiscoveryOption) {
 		if codec == nil {
-			kklog.Warnf("[kkdiscovery] msg codec is nil, use default codec: %s", "msgpack")
-			codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+			kklog.Warnf("[kkdiscovery] msg codec is nil, use default codec: %s", "json")
+			codec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 		}
 		o.MsgCodec = codec
 	}

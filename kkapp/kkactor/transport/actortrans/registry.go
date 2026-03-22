@@ -37,8 +37,8 @@ func (r *MessageRegistry) Register(msg any) error {
 
 func NewMessageRegistry(codec kkcodec.ICodec) *MessageRegistry {
 	if codec == nil {
-		kklog.Warn("[actortrans] codec is nil, use default codec: %s", "msgpack")
-		codec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
+		kklog.Warn("[actortrans] codec is nil, use default codec: %s", "json")
+		codec = kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	}
 	return &MessageRegistry{
 		codec:      codec,

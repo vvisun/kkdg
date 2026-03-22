@@ -36,7 +36,7 @@ type remotePong struct {
 
 func getTestMessageRegistry(t *testing.T) *actortrans.MessageRegistry {
 	t.Helper()
-	registry := actortrans.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeMsgpack))
+	registry := actortrans.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
 	if err := registry.Register(&remotePing{}); err != nil {
 		t.Fatalf("register ping on transport1: %v", err)
 	}
