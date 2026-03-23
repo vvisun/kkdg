@@ -28,7 +28,7 @@ func putNNNode(node *nnNode) {
 }
 
 type NNQueue struct {
-	head     *nnNode
+	head     *nnNode // sentinel node; first element is head.next
 	tail     *nnNode
 	free     *nnNode // per-queue freelist (LIFO)
 	count    int     // 队列元素个数
@@ -55,9 +55,10 @@ func NewNNQueue(size int, isStrict bool) *NNQueue {
 	if freeMax > 256 {
 		freeMax = 256
 	}
+	sentinel := &nnNode{}
 	return &NNQueue{
-		head:     nil,
-		tail:     nil,
+		head:     sentinel,
+		tail:     sentinel,
 		free:     nil,
 		count:    0,
 		maxCount: size,
@@ -110,29 +111,24 @@ func (q *NNQueue) Push(data *kkbuffer.ByteBuffer) bool {
 	node := q.acquireNode()
 	node.data = data
 	node.next = nil
-	if q.head == nil {
-		q.head = node
-		q.tail = node
-	} else {
-		q.tail.next = node
-		q.tail = node
-	}
+	q.tail.next = node
+	q.tail = node
 	q.count++
 	return true
 }
 
 func (q *NNQueue) Pop() *kkbuffer.ByteBuffer {
-	if q.head == nil {
+	first := q.head.next
+	if first == nil {
 		return nil
 	}
-	node := q.head
-	q.head = node.next
-	if q.head == nil {
-		q.tail = nil
+	q.head.next = first.next
+	if q.head.next == nil {
+		q.tail = q.head
 	}
 	q.count--
-	bb := node.data
-	q.recycleNode(node)
+	bb := first.data
+	q.recycleNode(first)
 	return bb
 }
 
@@ -160,7 +156,7 @@ func (q *NNQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int
 	totalBytes := 0
 
 	// Batch detach nodes from head, avoid per-item Pop() overhead.
-	node := q.head
+	node := q.head.next
 	for written < count && node != nil {
 		if limitBytes > 0 && written > 0 {
 			willPop := node.data
@@ -187,9 +183,9 @@ func (q *NNQueue) PopMany(count int, recv []*kkbuffer.ByteBuffer, limitBytes int
 		}
 	}
 
-	q.head = node
-	if q.head == nil {
-		q.tail = nil
+	q.head.next = node
+	if q.head.next == nil {
+		q.tail = q.head
 	}
 
 	return written

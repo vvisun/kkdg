@@ -2,6 +2,7 @@ package bbqueue
 
 import "github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 
+// FIFO queue interface.
 type IFiFoQueue interface {
 	// return the number of items in the queue.
 	Len() int
