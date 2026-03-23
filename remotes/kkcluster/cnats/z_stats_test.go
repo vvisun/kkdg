@@ -15,7 +15,9 @@ import (
 func TestStats(t *testing.T) {
 	// 创建服务发现
 	nodeInfo := kkapp.NewNodeInfo("node1", "typea", "127.0.0.1:8080", "")
-	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions())
+	discovery := dnats.NewNatsDiscovery(nodeInfo, kkdiscovery.ApplyOptions(
+		kkdiscovery.WithUrl("nats://127.0.0.1:4222"),
+	))
 
 	// 启动服务发现
 	if err := discovery.Start(); err != nil {
@@ -27,7 +29,10 @@ func TestStats(t *testing.T) {
 	// 创建集群
 	cluster := NewNatsCluster("node1", "typea", kkcluster.ApplyOptions(
 		kkcluster.WithDiscovery(discovery),
+		kkcluster.WithUrl("nats://127.0.0.1:4222"),
 	))
+
+	// 启动集群
 	if err := cluster.Start(); err != nil {
 		fmt.Printf("Failed to init cluster: %v\n", err)
 		return

@@ -23,6 +23,7 @@ func TestNatsCluster_New(t *testing.T) {
 	))
 	cluster := NewNatsCluster("node1", "typea", kkcluster.ApplyOptions(
 		kkcluster.WithDiscovery(discovery),
+		kkcluster.WithUrl(natsURL),
 	))
 
 	if cluster == nil {
