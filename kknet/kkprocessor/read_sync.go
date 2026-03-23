@@ -2,6 +2,7 @@ package kkprocessor
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
@@ -27,6 +28,8 @@ type SyncReadProcessor struct {
 	splitBuf [kknet.BatchPacketSize][]byte //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 
 	mu sync.Mutex // 仅保护 Handler 串行调用（与 EnqueuePacket 互斥）
+
+	recvQueueSize int64 // 接收队列大小
 }
 
 var _ kknet.IReadProcessor = (*SyncReadProcessor)(nil)
@@ -56,15 +59,36 @@ func (rp *SyncReadProcessor) Stop() {
 	rp.conn = nil
 }
 
+func (rp *SyncReadProcessor) checkRecvQueue() bool {
+	if rp.opts.RecvQueueStrict && atomic.LoadInt64(&rp.recvQueueSize) >= int64(rp.opts.RecvQueueSize) {
+		if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+			conn := rp.conn
+			xcall.SafeCall(func() {
+				cb(conn)
+			})
+			return true
+		}
+	}
+	return false
+}
+
 func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) {
 	if len(packet) == 0 {
 		return
 	}
+	if rp.checkRecvQueue() {
+		return
+	}
+
+	atomic.AddInt64(&rp.recvQueueSize, 1)
+
 	rp.mu.Lock()
 	xcall.SafeCall(func() {
 		rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 	})
 	rp.mu.Unlock()
+
+	atomic.AddInt64(&rp.recvQueueSize, -1)
 }
 
 func (rp *SyncReadProcessor) reRecvBuf(capacity int) {
@@ -117,6 +141,12 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		return nil
 	}
 
+	if rp.checkRecvQueue() {
+		return nil
+	}
+
+	atomic.AddInt64(&rp.recvQueueSize, 1)
+
 	// Handler 串行调用（与 EnqueuePacket 互斥）
 	rp.mu.Lock()
 	xcall.SafeCall(func() {
@@ -125,6 +155,8 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		}
 	})
 	rp.mu.Unlock()
+
+	atomic.AddInt64(&rp.recvQueueSize, -1)
 
 	return nil
 }
