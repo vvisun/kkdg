@@ -15,6 +15,8 @@ type PacketHead struct {
 	endian   binary.ByteOrder // 字节序
 }
 
+var _ IPacketHead = (*PacketHead)(nil)
+
 func NewPacketHead(parts ...IHeadPart) *PacketHead {
 	if len(parts) > maxHeadPathCount {
 		kklog.Errorf("[head] parts count is too many, max is %d", maxHeadPathCount)

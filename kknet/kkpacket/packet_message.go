@@ -14,6 +14,8 @@ type MessagePacket struct {
 	router    *MsgRouter     //消息路由
 }
 
+var _ IMessagePacket = (*MessagePacket)(nil)
+
 func NewMessagePacket(head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRouter) *MessagePacket {
 	if head == nil {
 		kklog.PanicLog("head is nil")
@@ -31,7 +33,7 @@ func NewMessagePacket(head *PacketHead, bodyCodec kkcodec.ICodec, router *MsgRou
 	}
 }
 
-func (p *MessagePacket) GetHead() *PacketHead {
+func (p *MessagePacket) GetHead() IPacketHead {
 	return p.head
 }
 

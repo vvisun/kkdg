@@ -1,8 +1,6 @@
 package kkpacket
 
 import (
-	"encoding/binary"
-
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kkcodec"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -98,13 +96,13 @@ type IPacket interface {
 // [head] 编码解码器。用于编码解码[head]部分。
 type IPacketHead interface {
 	// 将value编码到data中
-	Marshal(data []byte, endian binary.ByteOrder, valueList ...int) error
+	Marshal(data []byte, valueList ...int) error
 	// 从data中解析出value，并返回value
-	Unmarshal(data []byte, endian binary.ByteOrder) ([]int, error)
+	Unmarshal(data []byte) ([]int, error)
 	// 从data中解析出value，并写入valueList
-	UnmarshalTo(data []byte, endian binary.ByteOrder, valueList []int) ([]int, error)
+	UnmarshalTo(data []byte, valueList []int) ([]int, error)
 	// 读取指定名称的value，并返回value
-	ReadValueByName(data []byte, endian binary.ByteOrder, name string) (int, error)
+	ReadValueByName(data []byte, name string) (int, error)
 	// 获取[head]的总字节数
 	GetSize() int
 	// 获取[head]的part数量
