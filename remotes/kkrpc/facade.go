@@ -23,6 +23,7 @@ type ISender interface {
 
 var req_id uint64 = 0
 
+// 进程内全局唯一，这样可以保证多套rpc连接并存下，requestId也不会重复。
 func genReqId() uint64 {
 	return atomic.AddUint64(&req_id, 1)
 }
