@@ -94,11 +94,17 @@ func BenchmarkNNQueue_PopMany(b *testing.B) {
 	q := NewNNQueue(10000, false)
 	recv := make([]*kkbuffer.ByteBuffer, 32)
 	batchCnt := 8
+	for j := 0; j < batchCnt*2; j++ {
+		q.Push(kkbuffer.GetWithCapacity(128))
+	}
+
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < batchCnt; j++ {
-			recv[j] = kkbuffer.GetWithCapacity(128)
+		if i%batchCnt == 0 {
+			for j := 0; j < batchCnt; j++ {
+				q.Push(kkbuffer.GetWithCapacity(128))
+			}
 		}
 		_ = q.PopMany(batchCnt, recv, 0)
 	}

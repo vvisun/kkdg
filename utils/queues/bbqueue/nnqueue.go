@@ -52,8 +52,8 @@ func NewNNQueue(size int, isStrict bool) *NNQueue {
 	if freeMax < 64 {
 		freeMax = 64
 	}
-	if freeMax > 4096 {
-		freeMax = 4096
+	if freeMax > 256 {
+		freeMax = 256
 	}
 	return &NNQueue{
 		head:     nil,
