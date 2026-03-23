@@ -72,7 +72,7 @@ func (rp *WorkerReadProcessor) Stop() {
 }
 
 func (rp *WorkerReadProcessor) checkRecvQueueFull() bool {
-	if rp.opts.RecvQueueFullCallback != nil {
+	if rp.opts.RecvQueueStrict && rp.opts.RecvQueueFullCallback != nil {
 		if rp.workQueue.Len() >= rp.opts.RecvQueueSize {
 			cb := rp.opts.RecvQueueFullCallback
 			conn := rp.conn
