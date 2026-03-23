@@ -454,3 +454,278 @@ func TestStress_ManyConns_ConnectDisconnect_TLS(t *testing.T) {
 	kklog.Debugf("kktcptls connect/disconnect: %d rounds × %d conns = %d total in %v, ≈ %.0f conn/s",
 		rounds, connsPerRound, totalConns, elapsed, float64(totalConns)/elapsed.Seconds())
 }
+
+// ---------------- no-tls stress tests ----------------
+
+// TestStress_ServerToSingleClient_NoTLS: 服务器向单个客户端发送大量消息（纯 TCP）。
+func TestStress_ServerToSingleClient_NoTLS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	runStressServerToClientsNoTLS(t, 1, 1024*4, 18888)
+}
+
+// TestStress_ServerToFourClients_NoTLS: 服务器向多客户端发送大量消息（纯 TCP）。
+func TestStress_ServerToFourClients_NoTLS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	runStressServerToClientsNoTLS(t, 8, 1024*8, 8888)
+}
+
+func runStressServerToClientsNoTLS(t *testing.T, numClients int, batchSize int, totalMsgs int) {
+	payload := make([]byte, 1024)
+	for i := range payload {
+		payload[i] = 0x02
+	}
+	addr := freePortStress(t)
+	clientRecv := &stressRecvHandler{target: int64(totalMsgs), ch: make(chan struct{})}
+
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithSendQueueNeedFlushOver(true),
+		kknet.WithSendQueueTimeoutFlushOver(5*time.Second),
+	)
+	srv := NewServer(addr, nil, srvOpts)
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer srv.Stop()
+	waitTCPReady(t, addr, 2*time.Second)
+
+	cliOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithRawHandler(clientRecv),
+		kknet.WithNoneCopyHandler(clientRecv),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithIsNeedReconnect(false),
+	)
+	clients := make([]*Client, numClients)
+	for i := 0; i < numClients; i++ {
+		clients[i] = NewClient(addr, nil, cliOpts)
+		if err := connectWithRetryTLS(clients[i], 30, 10*time.Millisecond); err != nil {
+			t.Fatalf("client[%d] Connect: %v", i, err)
+		}
+		defer clients[i].Close()
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	connIDs := make([]kknet.CONN_ID, 0, numClients)
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		mgr := srv.GetConnManager()
+		connIDs = connIDs[:0]
+		mgr.RangeAllConns(func(id kknet.CONN_ID, _ kknet.IConn) bool {
+			if mgr.GetConn(id) != nil {
+				connIDs = append(connIDs, id)
+			}
+			return true
+		})
+		if len(connIDs) >= numClients {
+			connIDs = connIDs[:numClients]
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(connIDs) < numClients {
+		t.Fatalf("timeout: got %d connections, want %d", len(connIDs), numClients)
+	}
+
+	start := time.Now()
+	for i := 0; i < totalMsgs; i++ {
+		bb, err := srvOpts.StreamTool.Pack(payload)
+		if err != nil {
+			t.Fatalf("Pack: %v", err)
+		}
+		connID := connIDs[i%numClients]
+		if err := srv.SendBuffer(connID, bb); err != nil {
+			t.Fatalf("SendBuffer: %v", err)
+		}
+		if (i+1)%batchSize == 0 {
+			time.Sleep(1 * time.Millisecond)
+		}
+	}
+	sendDone := time.Since(start)
+
+	select {
+	case <-clientRecv.ch:
+	case <-time.After(15 * time.Second):
+		got := clientRecv.Count()
+		t.Fatalf("timeout: clients received %d/%d", got, totalMsgs)
+	}
+	got := clientRecv.Count()
+	elapsed := time.Since(start)
+	kklog.Debugf("kktcptls(no-tls) server->%d clients: sent %d, clients received %d, send done in %v, all in %v, recv/s ≈ %.0f",
+		numClients, totalMsgs, got, sendDone, elapsed, float64(got)/elapsed.Seconds())
+	if got != int64(totalMsgs) {
+		t.Errorf("clients received %d, want %d", got, totalMsgs)
+	}
+}
+
+// TestStress_ManyConns_ManyMessages_NoTLS: 多连接并发，每连接发送多条消息（纯 TCP）。
+func TestStress_ManyConns_ManyMessages_NoTLS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	numConns := 222
+	msgsPerConn := 1111
+	payload := make([]byte, 1024)
+
+	totalMsgs := int64(numConns * msgsPerConn)
+
+	addr := freePortStress(t)
+
+	svrHandler := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRawHandler(svrHandler),
+		kknet.WithRpProvider(kkprocessor.NewWorkerReadProcessor),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
+		kknet.WithRecvQueueSize(64),
+		kknet.WithWorkerQueueMaxConcurrency(1),
+		kknet.WithBufferSizes(2*1024, 2*1024),
+	)
+	srv := NewServer(addr, nil, srvOpts)
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer srv.Stop()
+	waitTCPReady(t, addr, 2*time.Second)
+
+	for i := range payload {
+		payload[i] = 0x01
+	}
+
+	start := time.Now()
+	var wg sync.WaitGroup
+	errCh := make(chan error, numConns)
+	var clientsMu sync.Mutex
+	clients := make([]*Client, 0, numConns)
+
+	connSem := make(chan struct{}, 50)
+	for i := 0; i < numConns; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			connSem <- struct{}{}
+			defer func() { <-connSem }()
+
+			cliOpts := kknet.ApplyOptions(
+				kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+				kknet.WithNoneCopyHandler(&clientHandler{}),
+				kknet.WithSendQueueNeedFlushOver(true),
+				kknet.WithSendQueueTimeoutFlushOver(5*time.Second),
+				kknet.WithBufferSizes(2*1024, 2*1024),
+				kknet.WithRecvQueueSize(64),
+				kknet.WithIsNeedReconnect(false),
+			)
+			client := NewClient(addr, nil, cliOpts)
+			if err := connectWithRetryTLS(client, 80, 30*time.Millisecond); err != nil {
+				errCh <- err
+				return
+			}
+			for j := 0; j < msgsPerConn; j++ {
+				bb, err := cliOpts.StreamTool.Pack(payload)
+				if err != nil {
+					errCh <- err
+					return
+				}
+				if err := client.SendBuffer(bb); err != nil {
+					errCh <- err
+					return
+				}
+				if (j+1)%128 == 0 {
+					time.Sleep(1 * time.Millisecond)
+				}
+			}
+			clientsMu.Lock()
+			clients = append(clients, client)
+			clientsMu.Unlock()
+		}()
+	}
+	wg.Wait()
+
+	sendDone := time.Since(start)
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("no-tls stress send error: %v", err)
+		}
+	}
+
+	select {
+	case <-svrHandler.ch:
+	case <-time.After(15 * time.Second):
+		got := svrHandler.Count()
+		kklog.Debugf("kktcptls(no-tls) stress: timeout %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
+	}
+
+	clientsMu.Lock()
+	for _, c := range clients {
+		_ = c.Close()
+	}
+	clientsMu.Unlock()
+
+	got := svrHandler.Count()
+	elapsed := time.Since(start)
+	kklog.Debugf("kktcptls(no-tls) server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
+	kklog.Debugf("kktcptls(no-tls) stress: send done in %v, all done in %v, recv/s ≈ %.0f",
+		sendDone, elapsed, float64(got)/elapsed.Seconds())
+}
+
+// TestStress_ManyConns_ConnectDisconnect_NoTLS: 快速建连/断连，压测纯 TCP 连接生命周期。
+func TestStress_ManyConns_ConnectDisconnect_NoTLS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping stress test in short mode")
+	}
+	rounds := 50
+	connsPerRound := 20
+
+	addr := freePortStress(t)
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithLogger(kklog.Nop()),
+		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithNoneCopyHandler(&clientHandler{}),
+	)
+	srv := NewServer(addr, nil, srvOpts)
+	if err := srv.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer srv.Stop()
+	waitTCPReady(t, addr, 2*time.Second)
+
+	start := time.Now()
+	for r := 0; r < rounds; r++ {
+		var wg sync.WaitGroup
+		for i := 0; i < connsPerRound; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cliOpts := kknet.ApplyOptions(
+					kknet.WithIsNeedReconnect(false),
+					kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+					kknet.WithNoneCopyHandler(&clientHandler{}),
+					kknet.WithIsNeedReconnect(false),
+				)
+				client := NewClient(addr, nil, cliOpts)
+				_ = client.Connect()
+				time.Sleep(5 * time.Millisecond)
+				_ = client.Close()
+			}()
+		}
+		wg.Wait()
+	}
+	elapsed := time.Since(start)
+	totalConns := rounds * connsPerRound
+	kklog.Debugf("kktcptls(no-tls) connect/disconnect: %d rounds × %d conns = %d total in %v, ≈ %.0f conn/s",
+		rounds, connsPerRound, totalConns, elapsed, float64(totalConns)/elapsed.Seconds())
+}
