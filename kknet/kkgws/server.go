@@ -250,7 +250,7 @@ func (h *gwsEventHandler) OnOpen(socket *gws.Conn) {
 	_ = socket.SetNoDelay(true)
 
 	s := h.server
-	c := newGwsConn(socket, &s.opts, &s.stats)
+	c := newGwsConn(socket, &s.opts, &s.stats, s.handler)
 	socket.Session().Store(sessionKeyConn, c)
 
 	s.connMgr.AddConn(c)

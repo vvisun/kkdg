@@ -128,8 +128,8 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping stress test in short mode")
 	}
-	numConns := 222    //连接数
-	msgsPerConn := 555 //每个连接发送的消息数
+	numConns := 222     //连接数
+	msgsPerConn := 1222 //每个连接发送的消息数
 	payload := make([]byte, 1024)
 
 	totalMsgs := int64(numConns * msgsPerConn)
@@ -137,9 +137,9 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	addr := freePortStress(t)
 	svrHandler := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
-		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
-		//kknet.WithRawHandler(recv),
-		kknet.WithNoneCopyHandler(svrHandler),
+		kknet.WithRpProvider(kkprocessor.NewReadProcessor),
+		kknet.WithRawHandler(svrHandler),
+		//kknet.WithNoneCopyHandler(svrHandler),
 		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(512),
 		kknet.WithLogger(kklog.Nop()),

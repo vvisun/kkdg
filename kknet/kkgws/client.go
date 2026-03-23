@@ -136,14 +136,14 @@ func (c *Client) Close() error {
 	conn := c.conn
 	c.conn = nil
 	c.connMu.Unlock()
+	if conn == nil {
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
+		return kkerrors.ErrNetClientNotConnected
+	}
 	select {
 	case <-c.stopCh:
 	default:
 		close(c.stopCh)
-	}
-	if conn == nil {
-		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
-		return kkerrors.ErrNetClientNotConnected
 	}
 	err := conn.Close()
 	kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
@@ -181,7 +181,7 @@ func (c *Client) dialAndStart() (*gwsConn, <-chan struct{}, error) {
 	}
 
 	socket.SetNoDelay(true)
-	gc := newGwsConn(socket, &c.opts, &c.stats)
+	gc := newGwsConn(socket, &c.opts, &c.stats, c.handler)
 	socket.Session().Store(sessionKeyConn, gc)
 
 	c.connMu.Lock()
@@ -255,6 +255,7 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			}
 			c.opts.Logger.Warnf("kkgws client reconnect failed. attempts exceeded. err: %v", err)
 			reportFirst(err)
+			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			return
 		}
 
@@ -298,6 +299,7 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			if maxRetries > 0 && attempts >= maxRetries {
 				c.opts.Logger.Warnf("kkgws client reconnect failed. attempts exceeded. err: %v", err)
 				reportFirst(err)
+				kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 				return
 			}
 		}

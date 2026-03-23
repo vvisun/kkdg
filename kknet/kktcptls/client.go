@@ -115,14 +115,14 @@ func (c *Client) Close() error {
 	conn := c.conn
 	c.conn = nil
 	c.connMu.Unlock()
+	if conn == nil {
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
+		return kkerrors.ErrNetClientNotConnected
+	}
 	select {
 	case <-c.stopCh:
 	default:
 		close(c.stopCh)
-	}
-	if conn == nil {
-		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
-		return kkerrors.ErrNetClientNotConnected
 	}
 	err := conn.Close()
 	kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
@@ -259,6 +259,7 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			}
 			c.opts.Logger.Warnf("kktcptls client reconnect failed. attempts exceeded. err: %v", err)
 			reportFirst(err)
+			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			return
 		}
 
@@ -302,6 +303,7 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			if maxRetries > 0 && attempts >= maxRetries {
 				c.opts.Logger.Warnf("kktcptls client reconnect failed. attempts exceeded. err: %v", err)
 				reportFirst(err)
+				kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 				return
 			}
 		}

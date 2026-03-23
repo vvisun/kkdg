@@ -19,10 +19,11 @@ import (
 const sessionKeyConn = "_kkgws"
 
 type gwsConn struct {
-	id     kknet.CONN_ID
-	socket *gws.Conn
-	opts   *kknet.Options
-	stats  *kknet.Stats
+	id      kknet.CONN_ID
+	socket  *gws.Conn
+	opts    *kknet.Options
+	stats   *kknet.Stats
+	handler kknet.IConnLifecycleHandler
 
 	closeOnce sync.Once
 	closing   atomic.Bool
@@ -39,13 +40,14 @@ type gwsConn struct {
 
 var _ kknet.IConn = (*gwsConn)(nil)
 
-func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats) *gwsConn {
+func newGwsConn(socket *gws.Conn, opts *kknet.Options, stats *kknet.Stats, handler kknet.IConnLifecycleHandler) *gwsConn {
 	kknet.CheckOptions(opts)
 	c := &gwsConn{
-		id:     internal.NextConnID(),
-		socket: socket,
-		opts:   opts,
-		stats:  stats,
+		id:      internal.NextConnID(),
+		socket:  socket,
+		opts:    opts,
+		stats:   stats,
+		handler: handler,
 	}
 	c.closeCond = sync.NewCond(&c.closeMu)
 
@@ -122,7 +124,7 @@ func (c *gwsConn) Close() error {
 		_ = c.socket.WriteClose(1000, nil)
 	}
 
-	c.doClose(nil, nil)
+	c.doClose(c.handler, nil)
 	return nil
 }
 
