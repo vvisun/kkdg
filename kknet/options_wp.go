@@ -56,7 +56,7 @@ type WriteOptions struct {
 	// flush 超时回调
 	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration)
 
-	// 多包合并发送时，限制的写入的字节数(<=0 不限制)
+	// 多包合并发送时，限制的写入的字节数（传参 <=0 时修正为512B，>4096B 时修正为4096B）
 	// 合并时限制的包数量为常量 BatchPacketSize。
 	BatchWriteLimitBytes int
 }

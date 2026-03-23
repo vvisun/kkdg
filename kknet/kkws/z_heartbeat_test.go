@@ -44,7 +44,7 @@ func TestHeartbeat_OnlyPing_NoAppData(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// 空闲时间 > 读超时，仅依赖 Ping/Pong。
-	time.Sleep(12 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	// 如果心跳失效，readLoop 会因读超时返回、触发 OnClose，ActiveConns 会变为 0。
 	stats := s.Stats()

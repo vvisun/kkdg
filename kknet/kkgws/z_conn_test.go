@@ -1,12 +1,15 @@
 package kkgws
 
 import (
+	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
 // orderRecvHandler 按序接收消息并写入 channel。
@@ -70,5 +73,48 @@ func TestConn_SendBuffer_Order(t *testing.T) {
 		case <-time.After(2 * time.Second):
 			t.Fatalf("timeout waiting for message %d", i)
 		}
+	}
+}
+
+func TestConn_HandleWriteError_ClosesAndDropsQueue(t *testing.T) {
+	opts := kknet.ApplyOptions()
+	closedCh := make(chan error, 1)
+	handler := &testHandler{
+		onClose: func(c kknet.IConn, err error) {
+			closedCh <- err
+		},
+	}
+	c := &gwsConn{
+		opts:      &opts,
+		handler:   handler,
+		sendQueue: bbqueue.NewBBQueue(8, false),
+	}
+	c.closeCond = sync.NewCond(&c.closeMu)
+
+	for i := 0; i < 3; i++ {
+		bb := kkbuffer.GetWithCapacity(8)
+		bb.B = append(bb.B, byte(i))
+		if !c.sendQueue.Push(bb) {
+			t.Fatalf("push %d failed", i)
+		}
+	}
+
+	writeErr := errors.New("write failed")
+	c.handleWriteError(writeErr)
+
+	if !c.closing.Load() {
+		t.Fatal("closing should be true after write error")
+	}
+	if got := c.sendQueue.Len(); got != 0 {
+		t.Fatalf("sendQueue.Len() = %d, want 0", got)
+	}
+
+	select {
+	case err := <-closedCh:
+		if !errors.Is(err, writeErr) {
+			t.Fatalf("OnClose err = %v, want %v", err, writeErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for OnClose")
 	}
 }
