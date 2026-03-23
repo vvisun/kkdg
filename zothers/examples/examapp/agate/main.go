@@ -47,7 +47,7 @@ func runGate() *component.Application {
 	gateOpt := ccgate.Options{
 		TCPAddr:         examapp.GateTCPAddr,
 		WSAddr:          examapp.GateWSAddr,
-		TransServerAddr: examapp.RpcAddr,
+		TransServerAddr: examapp.TransAddr,
 		DiscoveryOpts: kkdiscovery.ApplyOptions(
 			kkdiscovery.WithUrl(examapp.NatsURL),
 		),

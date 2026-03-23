@@ -5,5 +5,5 @@ setlocal
 cd /d "%~dp0"
 cd ..\..\..
 
-go run ./zothers/examples/examapp/aserver -node-id=game2 -trans=shard -nats-url=nats://127.0.0.1:4222 -gate-tcp=127.0.0.1:19090 -gate-ws=127.0.0.1:19091 -rpc-addr=127.0.0.1:19011
+go run ./zothers/examples/examapp/aserver -node-id=game2 -trans=shard -nats-url=nats://127.0.0.1:4222 -gate-tcp=127.0.0.1:19090 -gate-ws=127.0.0.1:19091 -trans-addr=127.0.0.1:19011
 endlocal

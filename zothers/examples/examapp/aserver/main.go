@@ -42,7 +42,7 @@ func runGame() *component.Application {
 	ptoexam.InitMsgs(gameApp.GetOptions().ClientMsgPacket.GetRouter())
 	game := ccgame.NewGameComponent(ccgame.Options{
 		TransType:       examapp.UseTransType,
-		TransServerAddr: examapp.RpcAddr,
+		TransServerAddr: examapp.TransAddr,
 		DiscoveryOpts: kkdiscovery.ApplyOptions(
 			kkdiscovery.WithUrl(examapp.NatsURL),
 		),
