@@ -242,11 +242,11 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 		}
 	}
 
+	timedOut := false
 	select {
 	case <-svrHandler.ch:
 	case <-time.After(10 * time.Second):
-		got := svrHandler.Count()
-		kklog.Debugf("stress: timeout %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
+		timedOut = true
 	}
 
 	clientsMu.Lock()
@@ -260,6 +260,12 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	kklog.Debugf("tcp server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
 	kklog.Debugf("tcp stress: send done in %v, all done in %v, recv/s ≈ %.0f",
 		sendDone, elapsed, float64(got)/elapsed.Seconds())
+	if timedOut {
+		t.Fatalf("stress timeout: server received %d/%d", got, totalMsgs)
+	}
+	if got != totalMsgs {
+		t.Fatalf("server received %d, want %d", got, totalMsgs)
+	}
 }
 
 // TestStress_ServerToSingleClient: 服务器向单个客户端发送大量消息。

@@ -379,11 +379,11 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 		}
 	}
 
+	timedOut := false
 	select {
 	case <-svrHandler.ch:
 	case <-time.After(15 * time.Second):
-		got := svrHandler.Count()
-		kklog.Debugf("kktcptls stress: timeout %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
+		timedOut = true
 	}
 
 	clientsMu.Lock()
@@ -397,6 +397,12 @@ func TestStress_ManyConns_ManyMessages_TLS(t *testing.T) {
 	kklog.Debugf("kktcptls server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
 	kklog.Debugf("kktcptls stress: send done in %v, all done in %v, recv/s ≈ %.0f",
 		sendDone, elapsed, float64(got)/elapsed.Seconds())
+	if timedOut {
+		t.Fatalf("stress timeout: server received %d/%d", got, totalMsgs)
+	}
+	if got != totalMsgs {
+		t.Fatalf("server received %d, want %d", got, totalMsgs)
+	}
 }
 
 // TestStress_ManyConns_ConnectDisconnect_TLS: 快速建连/断连，压测 TLS 连接生命周期。
@@ -662,11 +668,11 @@ func TestStress_ManyConns_ManyMessages_NoTLS(t *testing.T) {
 		}
 	}
 
+	timedOut := false
 	select {
 	case <-svrHandler.ch:
 	case <-time.After(15 * time.Second):
-		got := svrHandler.Count()
-		kklog.Debugf("kktcptls(no-tls) stress: timeout %d/%d received, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
+		timedOut = true
 	}
 
 	clientsMu.Lock()
@@ -680,6 +686,12 @@ func TestStress_ManyConns_ManyMessages_NoTLS(t *testing.T) {
 	kklog.Debugf("kktcptls(no-tls) server received %d, total: %d, rate: %f", got, totalMsgs, float64(got)/float64(totalMsgs))
 	kklog.Debugf("kktcptls(no-tls) stress: send done in %v, all done in %v, recv/s ≈ %.0f",
 		sendDone, elapsed, float64(got)/elapsed.Seconds())
+	if timedOut {
+		t.Fatalf("stress timeout: server received %d/%d", got, totalMsgs)
+	}
+	if got != totalMsgs {
+		t.Fatalf("server received %d, want %d", got, totalMsgs)
+	}
 }
 
 // TestStress_ManyConns_ConnectDisconnect_NoTLS: 快速建连/断连，压测纯 TCP 连接生命周期。
