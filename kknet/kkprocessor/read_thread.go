@@ -95,28 +95,24 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 	if len(packet) == 0 {
 		return
 	}
-	rp.mu.Lock()
-	wasEmpty := rp.recvQueue.IsEmpty()
 
 	bb := kkbuffer.GetWithCapacity(len(packet))
 	bb.B = bb.B[:len(packet)]
 	copy(bb.B, packet)
+
+	rp.mu.Lock()
+	wasEmpty := rp.recvQueue.IsEmpty()
 	ok := rp.recvQueue.Push(bb)
 	if !ok {
 		kkbuffer.Put(bb)
-		// RecvQueue full：丢弃并回调通知（如统计、限流、踢连接等）
-		// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
 		if cb := rp.opts.RecvQueueFullCallback; cb != nil {
 			conn := rp.conn
 			xcall.SafeCall(func() { cb(conn) })
 		}
 	}
-
 	nowEmpty := rp.recvQueue.IsEmpty()
-
 	rp.mu.Unlock()
 
-	// 唤醒消费携程，消费recvQueue中的数据。
 	if wasEmpty && !nowEmpty {
 		rp.wakeConsumer()
 	}
@@ -132,35 +128,30 @@ func (rp *ReadProcessor) reRecvBuf(capacity int) {
 	rp.recvBuf = byteslice.GetZero(capacity)
 }
 
-// 收到数据时（生产者生产数据）
+// 收到数据时（生产者生产数据）。
+// recvBuf/splitBuf 仅由网络读协程访问（单生产者），无需加锁；mu 仅保护 recvQueue。
 func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
 
-	rp.mu.Lock()
-
-	wasEmpty := rp.recvQueue.IsEmpty()
+	// --- Phase 1: 拆包（单生产者，无锁） ---
 
 	buf := data
 	if len(rp.recvBuf) > 0 {
-		// 有残包，则将数据拼接到残包后面
 		rp.recvBuf = append(rp.recvBuf, data...)
 		buf = rp.recvBuf
 	}
 
-	// Parse [length,message][length,message]...
 	stream := rp.opts.StreamTool
 	packets, leftData, err := stream.Split(buf, rp.splitBuf[:0])
 	if err != nil {
 		if rp.recvBuf != nil {
 			rp.recvBuf = rp.recvBuf[:0]
 		}
-		rp.mu.Unlock()
 		return err
 	}
 
-	// 存下残包，下次收到数据时拼接到后面。
 	if len(leftData) > 0 {
 		leftLen := len(leftData)
 		rp.reRecvBuf(defaultRecvBufSize + leftLen)
@@ -168,34 +159,49 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		copy(rp.recvBuf, leftData)
 	}
 
-	// shrink: if empty and cap too big, shrink to default.
 	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
 		byteslice.Put(rp.recvBuf)
 		rp.recvBuf = nil
 	}
 
-	// 异步消费，包入队后在异步消费携程中消费。
-	for _, packet := range packets {
+	n := len(packets)
+	if n == 0 {
+		return nil
+	}
+
+	// --- Phase 2: 分配 ByteBuffer 并拷贝（无锁） ---
+
+	var stackBuf [kknet.BatchPacketSize]*kkbuffer.ByteBuffer
+	var prepared []*kkbuffer.ByteBuffer
+	if n <= kknet.BatchPacketSize {
+		prepared = stackBuf[:n]
+	} else {
+		prepared = make([]*kkbuffer.ByteBuffer, n)
+	}
+	for i, packet := range packets {
 		bb := kkbuffer.GetWithCapacity(len(packet))
 		bb.B = bb.B[:len(packet)]
 		copy(bb.B, packet)
-		ok := rp.recvQueue.Push(bb)
+		prepared[i] = bb
+	}
+
+	// --- Phase 3: 入队（短锁，仅队列操作） ---
+
+	rp.mu.Lock()
+	wasEmpty := rp.recvQueue.IsEmpty()
+	for i := 0; i < n; i++ {
+		ok := rp.recvQueue.Push(prepared[i])
 		if !ok {
-			kkbuffer.Put(bb)
-			// RecvQueue full：丢弃并回调通知（如统计、限流、踢连接等）
-			// 提示：“服务器繁忙” 或 “客户端发送过于频繁”
+			kkbuffer.Put(prepared[i])
 			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
 				conn := rp.conn
 				xcall.SafeCall(func() { cb(conn) })
 			}
 		}
 	}
-
 	nowEmpty := rp.recvQueue.IsEmpty()
-
 	rp.mu.Unlock()
 
-	// 唤醒消费携程，消费recvQueue中的数据。
 	if wasEmpty && !nowEmpty {
 		rp.wakeConsumer()
 	}

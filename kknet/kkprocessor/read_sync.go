@@ -26,7 +26,7 @@ type SyncReadProcessor struct {
 	recvBuf  []byte                        //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
 	splitBuf [kknet.BatchPacketSize][]byte //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 
-	mu sync.Mutex
+	mu sync.Mutex // 仅保护 Handler 串行调用（与 EnqueuePacket 互斥）
 }
 
 var _ kknet.IReadProcessor = (*SyncReadProcessor)(nil)
@@ -77,23 +77,19 @@ func (rp *SyncReadProcessor) reRecvBuf(capacity int) {
 	rp.recvBuf = byteslice.GetZero(capacity)
 }
 
+// recvBuf/splitBuf 仅由网络读协程访问（单生产者），无需加锁；mu 仅保护 Handler 串行调用。
 func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
 
-	rp.mu.Lock()
-	defer rp.mu.Unlock()
-
+	// 拆包（单生产者，无锁）
 	buf := data
-
 	if len(rp.recvBuf) > 0 {
-		// 有残包，则将数据拼接到残包后面
 		rp.recvBuf = append(rp.recvBuf, data...)
 		buf = rp.recvBuf
 	}
 
-	// Parse [length,message][length,message]...
 	stream := rp.opts.StreamTool
 	packets, leftData, err := stream.Split(buf, rp.splitBuf[:0])
 	if err != nil {
@@ -103,7 +99,6 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		return err
 	}
 
-	// 存下残包，下次收到数据时拼接到后面。
 	if len(leftData) > 0 {
 		leftLen := len(leftData)
 		rp.reRecvBuf(defaultRecvBufSize + leftLen)
@@ -111,18 +106,23 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		copy(rp.recvBuf, leftData)
 	}
 
-	// shrink: if empty and cap too big, shrink to default.
 	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
 		byteslice.Put(rp.recvBuf)
 		rp.recvBuf = nil
 	}
 
-	// 同步消费数据，实现0拷贝优化。
+	if len(packets) == 0 {
+		return nil
+	}
+
+	// Handler 串行调用（与 EnqueuePacket 互斥）
+	rp.mu.Lock()
 	xcall.SafeCall(func() {
 		for _, packet := range packets {
 			rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 		}
 	})
+	rp.mu.Unlock()
 
 	return nil
 }

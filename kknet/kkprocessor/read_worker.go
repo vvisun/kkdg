@@ -1,7 +1,6 @@
 package kkprocessor
 
 import (
-	"sync"
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
@@ -21,6 +20,8 @@ import (
 //   - workerQueue并发数大于1时，和ReadProcessor区别较大，WorkerReadProcessor不再保证顺序性。
 //
 // 主动关闭Server或Client后，只消费，不再接受数据入队。
+//
+// recvBuf/splitBuf 仅由网络读协程访问（单生产者），无需加锁；submitTask 内部线程安全。
 type WorkerReadProcessor struct {
 	conn   kknet.IConn
 	connID kknet.CONN_ID
@@ -29,7 +30,6 @@ type WorkerReadProcessor struct {
 	recvBuf  []byte                        // 残包缓冲区
 	splitBuf [kknet.BatchPacketSize][]byte // 拆包缓冲区
 
-	mu      sync.Mutex
 	closing atomic.Bool
 
 	workQueue *taskqueue.WorkerQueue
@@ -71,9 +71,27 @@ func (rp *WorkerReadProcessor) Stop() {
 	rp.closing.Store(true)
 }
 
+func (rp *WorkerReadProcessor) checkRecvQueueFull() bool {
+	if rp.opts.RecvQueueFullCallback != nil {
+		if rp.workQueue.Len() >= rp.opts.RecvQueueSize {
+			cb := rp.opts.RecvQueueFullCallback
+			conn := rp.conn
+			xcall.SafeCall(func() {
+				cb(conn)
+			})
+			return true
+		}
+	}
+	return false
+}
+
 // EnqueuePacket 适用于上层已完成切包的场景（如 gnet SplitSR 得到完整 [length,message]）。
 func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) {
 	if len(packet) == 0 {
+		return
+	}
+
+	if rp.checkRecvQueueFull() {
 		return
 	}
 
@@ -86,17 +104,14 @@ func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) {
 }
 
 // OnRecvBytes 负责从字节流中拆出 [length,message] 帧，并将每帧封装为 task 投递到 workerQueue。
+// recvBuf/splitBuf 仅由网络读协程访问（单生产者），无需加锁。
 func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
 
-	rp.mu.Lock()
-	defer rp.mu.Unlock()
-
 	buf := data
 	if len(rp.recvBuf) > 0 {
-		// 有残包，则将数据拼接到残包后面
 		rp.recvBuf = append(rp.recvBuf, data...)
 		buf = rp.recvBuf
 	}
@@ -109,7 +124,6 @@ func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 		return err
 	}
 
-	// 存下残包，下次收到数据时拼接到后面。
 	if len(leftData) > 0 {
 		leftLen := len(leftData)
 		rp.reRecvBuf(defaultRecvBufSize + leftLen)
@@ -117,16 +131,17 @@ func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 		copy(rp.recvBuf, leftData)
 	}
 
-	// shrink: if empty and cap too big, shrink to default.
 	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
 		byteslice.Put(rp.recvBuf)
 		rp.recvBuf = nil
 	}
 
-	// 将每个完整包封装为 task；拷贝在锁内完成，避免 data 生命周期问题。
 	for _, packet := range packets {
 		if len(packet) == 0 {
 			continue
+		}
+		if rp.checkRecvQueueFull() {
+			return nil
 		}
 		bb := kkbuffer.GetWithCapacity(len(packet))
 		bb.B = bb.B[:len(packet)]
