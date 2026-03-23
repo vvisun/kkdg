@@ -5,7 +5,7 @@ import "sync"
 // sessionId + nodeType -> bool
 type session2nodeType map[string]bool
 
-// 实时统计每个逻辑节点上的会话数量，用于负载均衡。
+// 实时统计经由本网关的每个逻辑节点上的会话数量，用于负载均衡。
 // 相当于本地简易版discovery。
 type localDiscovery struct {
 	mu        sync.RWMutex

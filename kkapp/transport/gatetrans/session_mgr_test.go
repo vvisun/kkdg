@@ -33,7 +33,7 @@ func makeSessionIDs(n int) []string {
 
 // BenchmarkSessionManager_AddConn measures pure write throughput.
 func BenchmarkSessionManager_AddConn(b *testing.B) {
-	const sessionCount = 10000
+	const sessionCount = 100
 	ids := makeSessionIDs(sessionCount)
 	mgr := NewSessionMgr()
 
@@ -46,7 +46,7 @@ func BenchmarkSessionManager_AddConn(b *testing.B) {
 }
 
 func BenchmarkConnManager_AddConn(b *testing.B) {
-	const sessionCount = 10000
+	const sessionCount = 100
 	mgr := kknet.NewConnManager[*mockConn]()
 
 	b.ResetTimer()

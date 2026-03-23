@@ -209,16 +209,6 @@ func (slf *gateComponent) OnInit() error {
 }
 
 func (slf *gateComponent) OnStart() error {
-	if slf.gateOpt.WSAddr != "" {
-		if err := slf.startWSServer(); err != nil {
-			return err
-		}
-	} else if slf.gateOpt.TCPAddr != "" {
-		if err := slf.startTCPServer(); err != nil {
-			return err
-		}
-	}
-
 	// 启动 discovery
 	if slf.discovery != nil {
 		if err := slf.discovery.Start(); err != nil {
@@ -233,10 +223,28 @@ func (slf *gateComponent) OnStart() error {
 		}
 	}
 
+	// 启动客户端监听服务器（WebSocket 或 TCP）
+	if slf.gateOpt.WSAddr != "" {
+		if err := slf.startWSServer(); err != nil {
+			return err
+		}
+	} else if slf.gateOpt.TCPAddr != "" {
+		if err := slf.startTCPServer(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (slf *gateComponent) OnStop() error {
+	// 停止客户端监听服务器（WebSocket 或 TCP）
+	if slf.server != nil {
+		if err := slf.server.Stop(); err != nil {
+			kklog.Errorf("[ccgate] stop tcp server error: %v", err)
+		}
+	}
+
 	// 停止 cluster
 	if slf.cluster != nil {
 		slf.cluster.Stop()
@@ -246,13 +254,6 @@ func (slf *gateComponent) OnStop() error {
 	if slf.discovery != nil {
 		if err := slf.discovery.Stop(); err != nil {
 			kklog.Errorf("[ccgate] stop discovery error: %v", err)
-		}
-	}
-
-	// 停止服务器
-	if slf.server != nil {
-		if err := slf.server.Stop(); err != nil {
-			kklog.Errorf("[ccgate] stop tcp server error: %v", err)
 		}
 	}
 
