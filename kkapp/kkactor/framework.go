@@ -1,7 +1,6 @@
 package kkactor
 
 import (
-	"fmt"
 	"io"
 	"log/slog"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 // IActorFramework 是 Actor 框架门面。
@@ -182,16 +182,11 @@ func (slf *ActorFramework) RequestAsync(target LucencyID, msg any, timeout time.
 	if err != nil {
 		return err
 	}
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				callback(nil, fmt.Errorf("panic: %v", r))
-			}
-		}()
+	xcall.AntsSafeGo(func() {
 		future := slf.actorSys.Root.RequestFuture(pid, msg, timeout)
 		result, err := future.Result()
 		callback(result, err)
-	}()
+	})
 	return nil
 }
 
