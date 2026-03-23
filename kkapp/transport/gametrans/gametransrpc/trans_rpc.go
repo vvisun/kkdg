@@ -24,9 +24,10 @@ type transportorRpc struct {
 	nodeInfo         kkapp.INodeIdentity
 	clientMsgPacket  *kkpacket.MessagePacket
 	clientStreamTool kkpacket.IPacket
+	invokers         *onewayInvokers
 }
 
-var (
+type onewayInvokers struct {
 	onewayMsgRegister       kkrpc.OneWayInvoker[ptotrans.RpcMsgRegister]
 	onewayS2Client          kkrpc.OneWayInvoker[ptotrans.RpcS2Client]
 	onewayS2Clients         kkrpc.OneWayInvoker[ptotrans.RpcS2Clients]
@@ -36,7 +37,23 @@ var (
 	onewayClientLoginLogout kkrpc.OneWayInvoker[ptotrans.RpcClientLoginLogout]
 	onewayUnregister        kkrpc.OneWayInvoker[ptotrans.RpcUnregister]
 	onewayCloseClient       kkrpc.OneWayInvoker[ptotrans.RpcCloseClient]
-)
+}
+
+func newOnewayInvokers(rpcClient *kkrpc.Client) (*onewayInvokers, error) {
+	invokers := &onewayInvokers{}
+
+	invokers.onewayMsgRegister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient)
+	invokers.onewayS2Client, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcClient)
+	invokers.onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcClient)
+	invokers.onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcClient)
+	invokers.onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcClient)
+	invokers.onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcClient)
+	invokers.onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcClient)
+	invokers.onewayUnregister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcClient)
+	invokers.onewayCloseClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcCloseClient](rpcClient)
+
+	return invokers, nil
+}
 
 func NewTransportorRpc(
 	sessionMgr *gametrans.SessionManager,
@@ -52,9 +69,6 @@ func NewTransportorRpc(
 	methodMgr := kkrpc.NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	ptotrans.InitRpcMsgs(methodMgr)
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
-	rpcProcessor := &rpcHandler{}
-	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onC2S)
-	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onClientDisconnect)
 
 	rpcClient := kkrpc.NewClient(rpcAddr, kknet.DefaultOptions(), rpcRouter)
 	if err := rpcClient.Start(); err != nil {
@@ -63,15 +77,10 @@ func NewTransportorRpc(
 		return nil, err
 	}
 
-	onewayMsgRegister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcClient)
-	onewayS2Client, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcClient)
-	onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcClient)
-	onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcClient)
-	onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcClient)
-	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcClient)
-	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcClient)
-	onewayUnregister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcClient)
-	onewayCloseClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcCloseClient](rpcClient)
+	invokers, err := newOnewayInvokers(rpcClient)
+	if err != nil {
+		return nil, err
+	}
 
 	trans := &transportorRpc{
 		sessionMgr:       sessionMgr,
@@ -80,8 +89,13 @@ func NewTransportorRpc(
 		nodeInfo:         node,
 		clientMsgPacket:  clientMsgPacket,
 		clientStreamTool: clientStreamTool,
+		invokers:         invokers,
 	}
-	rpcProcessor.trans = trans
+	rpcProcessor := &rpcHandler{
+		trans: trans,
+	}
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onC2S)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onClientDisconnect)
 
 	// 注册到网关
 	trans.registerToGateway(node)
@@ -94,7 +108,7 @@ func (slf *transportorRpc) Stop() error {
 		return nil
 	}
 
-	onewayUnregister.InvokeNR(context.Background(), &ptotrans.RpcUnregister{
+	slf.invokers.onewayUnregister.InvokeNR(context.Background(), &ptotrans.RpcUnregister{
 		NodeId: slf.nodeInfo.GetNodeId(),
 	}, kkrpc.CallConfig{})
 
@@ -110,7 +124,7 @@ func (slf *transportorRpc) registerToGateway(node kkapp.INodeIdentity) {
 				kklog.Warnf("[gametransrpc] rpc client stopped, stop register to gateway loop")
 				return
 			}
-			err := onewayMsgRegister.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
+			err := slf.invokers.onewayMsgRegister.InvokeNR(context.Background(), &ptotrans.RpcMsgRegister{
 				NodeId:   node.GetNodeId(),
 				NodeType: node.GetNodeType(),
 			}, kkrpc.CallConfig{})
@@ -132,7 +146,7 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 	if len(packet) == 0 {
 		return kkerrors.ErrAppEmptyMsgBytes
 	}
-	err := onewayS2Client.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
+	err := slf.invokers.onewayS2Client.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
 		Payload:  packet,
 	}, kkrpc.CallConfig{})
@@ -150,7 +164,7 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 	if len(packet) == 0 {
 		return kkerrors.ErrAppEmptyMsgBytes
 	}
-	err := onewayS2Clients.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
+	err := slf.invokers.onewayS2Clients.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,
 		Payload:   packet,
 	}, kkrpc.CallConfig{})
@@ -184,7 +198,7 @@ func (slf *transportorRpc) SendToClient(sessionID string, msg any) error {
 
 	streamBytes := bb.B
 
-	err = onewayS2Client.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
+	err = slf.invokers.onewayS2Client.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
 		Payload:  streamBytes,
 	}, kkrpc.CallConfig{})
@@ -214,7 +228,7 @@ func (slf *transportorRpc) SendToClients(sessionIDs []string, msg any) error {
 
 	streamBytes := bb.B
 
-	err = onewayS2Clients.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
+	err = slf.invokers.onewayS2Clients.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,
 		Payload:   streamBytes,
 	}, kkrpc.CallConfig{})
@@ -243,7 +257,7 @@ func (slf *transportorRpc) NotifyClientLoginLogout(sessionID string, userId int6
 	msg.NodeType = slf.nodeInfo.GetNodeType()
 	msg.NodeId = slf.nodeInfo.GetNodeId()
 	msg.GateNodeId = sessionInfo.GetGateNodeID()
-	return onewayClientLoginLogout.InvokeNR(context.Background(), &msg, kkrpc.CallConfig{})
+	return slf.invokers.onewayClientLoginLogout.InvokeNR(context.Background(), &msg, kkrpc.CallConfig{})
 }
 
 func (slf *transportorRpc) CloseClient(sessionID string, reason string) error {
@@ -257,7 +271,7 @@ func (slf *transportorRpc) CloseClient(sessionID string, reason string) error {
 	if sessionInfo == nil {
 		return kkerrors.ErrAppSessionNotFound
 	}
-	return onewayCloseClient.InvokeNR(context.Background(), &ptotrans.RpcCloseClient{
+	return slf.invokers.onewayCloseClient.InvokeNR(context.Background(), &ptotrans.RpcCloseClient{
 		ClientId:   sessionID,
 		Reason:     reason,
 		GateNodeId: sessionInfo.GetGateNodeID(),

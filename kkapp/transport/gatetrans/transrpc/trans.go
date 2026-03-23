@@ -23,9 +23,10 @@ type transportorRpc struct {
 	gateNodeId   string
 	stopped      bool
 	msgHooker    *gatetrans.MsgHooker
+	invokers     *onewayInvokers
 }
 
-var (
+type onewayInvokers struct {
 	onewayMsgRegister       kkrpc.OneWayInvoker[ptotrans.RpcMsgRegister]
 	onewayS2C               kkrpc.OneWayInvoker[ptotrans.RpcS2Client]
 	onewayS2Clients         kkrpc.OneWayInvoker[ptotrans.RpcS2Clients]
@@ -35,7 +36,23 @@ var (
 	onewayClientLoginLogout kkrpc.OneWayInvoker[ptotrans.RpcClientLoginLogout]
 	onewayUnregister        kkrpc.OneWayInvoker[ptotrans.RpcUnregister]
 	onewayCloseClient       kkrpc.OneWayInvoker[ptotrans.RpcCloseClient]
-)
+}
+
+func newOnewayInvokers(rpcSvr *kkrpc.Server) (*onewayInvokers, error) {
+	invokers := &onewayInvokers{}
+
+	invokers.onewayMsgRegister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcSvr)
+	invokers.onewayS2C, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcSvr)
+	invokers.onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcSvr)
+	invokers.onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcSvr)
+	invokers.onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr)
+	invokers.onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcSvr)
+	invokers.onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcSvr)
+	invokers.onewayUnregister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcSvr)
+	invokers.onewayCloseClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcCloseClient](rpcSvr)
+
+	return invokers, nil
+}
 
 var _ gatetrans.ITransportor = (*transportorRpc)(nil)
 var _ gatetrans.IMemberMgrGetter = (*transportorRpc)(nil)
@@ -47,7 +64,29 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	methodMgr := kkrpc.NewMethodManager(gStreamTool, gFrameCodec, gPayloadCodec)
 	ptotrans.InitRpcMsgs(methodMgr)
 	rpcRouter := kkrpc.NewRpcReceiver(kkrpc.ApplyOptions(), methodMgr)
-	rpcProcessor := &rpcHandler{}
+
+	rpcSvr := kkrpc.NewServer(rpcAddr, kknet.DefaultOptions(), rpcRouter)
+	if err := rpcSvr.Start(); err != nil {
+		kklog.Errorf("[transrpc] 启动rpc服务器失败: %v", err)
+		return nil, err
+	}
+
+	invokers, err := newOnewayInvokers(rpcSvr)
+	if err != nil {
+		return nil, err
+	}
+
+	trans := &transportorRpc{
+		sessionMgr:   sessionMgr,
+		logicNodeMgr: newLogicNodeMgr(),
+		gateNodeId:   gateNodeId,
+		rpcSvr:       rpcSvr,
+		msgHooker:    gatetrans.NewMsgHooker(),
+		invokers:     invokers,
+	}
+	rpcProcessor := &rpcHandler{
+		trans: trans,
+	}
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onS2C)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onS2Clients)
@@ -56,30 +95,6 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onUnregister)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onCloseClient)
 
-	rpcSvr := kkrpc.NewServer(rpcAddr, kknet.DefaultOptions(), rpcRouter)
-	if err := rpcSvr.Start(); err != nil {
-		kklog.Errorf("[transrpc] 启动rpc服务器失败: %v", err)
-		return nil, err
-	}
-
-	onewayMsgRegister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcSvr)
-	onewayS2C, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcSvr)
-	onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcSvr)
-	onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcSvr)
-	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr)
-	onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcSvr)
-	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcSvr)
-	onewayUnregister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcSvr)
-	onewayCloseClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcCloseClient](rpcSvr)
-
-	trans := &transportorRpc{
-		sessionMgr:   sessionMgr,
-		logicNodeMgr: newLogicNodeMgr(),
-		gateNodeId:   gateNodeId,
-		rpcSvr:       rpcSvr,
-		msgHooker:    gatetrans.NewMsgHooker(),
-	}
-	rpcProcessor.trans = trans
 	rpcSvr.SetLifeCycleHandler(trans)
 
 	return trans, nil
@@ -121,7 +136,7 @@ func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, log
 	// 这里无需复制，因为InvokeNR会编码自动复制一次。
 	streamBytes := msgBytes
 
-	err = onewayC2S.InvokeNR(context.Background(), &ptotrans.RpcC2S{
+	err = slf.invokers.onewayC2S.InvokeNR(context.Background(), &ptotrans.RpcC2S{
 		ClientId:   sessionID,
 		GateNodeId: slf.gateNodeId,
 		Payload:    streamBytes,
@@ -204,7 +219,7 @@ func (slf *transportorRpc) NotifyClientDisconnect(sessionID string, logicNodeId 
 	if memberInfo == nil {
 		return ErrLogicNodeNotRegistered //逻辑节点未注册
 	}
-	err := onewayClientDisconnect.InvokeNR(context.Background(), &ptotrans.RpcClientDisconnect{
+	err := slf.invokers.onewayClientDisconnect.InvokeNR(context.Background(), &ptotrans.RpcClientDisconnect{
 		ClientId: sessionID,
 	}, kkrpc.CallConfig{ConnId: memberInfo.connId})
 	if err != nil {
@@ -221,7 +236,7 @@ func (slf *transportorRpc) NotifyClientConnect(sessionID string, logicNodeId str
 	if memberInfo == nil {
 		return ErrLogicNodeNotRegistered //逻辑节点未注册
 	}
-	err := onewayAllocClient.InvokeNR(context.Background(), &ptotrans.RpcAllocClient{
+	err := slf.invokers.onewayAllocClient.InvokeNR(context.Background(), &ptotrans.RpcAllocClient{
 		ClientId: sessionID,
 	}, kkrpc.CallConfig{ConnId: memberInfo.connId})
 	if err != nil {
