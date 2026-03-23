@@ -51,6 +51,7 @@ type (
 		@param bbPacket *kkbuffer.ByteBuffer 原始数据[length,message]
 		@note 外部需记得释放buffer！！！否则buffer得不到回收，性能反而更低！！！
 		@note 外部自行用解码器解码（内置的解码器见kkpacket）
+		@note 由于处理过程中连接可能已经关闭，IConn可能已经为nil，外部可以通过connId从IConnManager中获取连接，nil情况自行处理。
 		*/
 		OnRaw(connId CONN_ID, bbPacket *kkbuffer.ByteBuffer)
 	}
@@ -61,6 +62,7 @@ type (
 		如果同步调用已经快过拷贝，可以直接同步消费数据，实现0拷贝优化。
 		@param connId CONN_ID 连接ID
 		@param packet 整包数据[length,message]。不得保存 packet 引用，如需保存，请自行拷贝。
+		@note 由于处理过程中连接可能已经关闭，IConn可能已经为nil，外部可以通过connId从IConnManager中获取连接，nil情况自行处理。
 		*/
 		OnNoneCopy(connId CONN_ID, packet []byte)
 	}
