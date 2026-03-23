@@ -450,3 +450,72 @@ func TestWriteProcessor_FlushTimeout(t *testing.T) {
 
 	<-done
 }
+
+func TestWorkerWriteProcessor_FlushTimeout_ReturnsWithoutWaitingDone(t *testing.T) {
+	opts := kknet.WriteOptions{
+		SendQueueSize:             4,
+		SendQueueStrict:           false,
+		SendQueueNeedFlushOver:    true,
+		SendQueueTimeoutFlushOver: 500 * time.Millisecond,
+		BatchWriteLimitBytes:      1024,
+	}
+	flushTimeoutCh := make(chan time.Duration, 1)
+	opts.SendQueueFlushTimeoutCallback = func(conn kknet.IConn, timeout time.Duration) {
+		select {
+		case flushTimeoutCh <- timeout:
+		default:
+		}
+	}
+	wp := NewWorkerWriteProcessor(opts).(*WorkerWriteProcessor)
+
+	blockWrite := make(chan struct{})
+	writeFn := func(batch []*kkbuffer.ByteBuffer, n int) error {
+		<-blockWrite
+		for i := 0; i < n; i++ {
+			if batch[i] != nil {
+				kkbuffer.Put(batch[i])
+				batch[i] = nil
+			}
+		}
+		return nil
+	}
+	conn := &mockConn{id: 2}
+	wp.Start(conn, writeFn, nil, nil)
+
+	for i := 0; i < 2; i++ {
+		bb := kkbuffer.GetWithCapacity(8)
+		bb.B = bb.B[:8]
+		if err := wp.SendBuffer(bb); err != nil {
+			t.Fatalf("SendBuffer: %v", err)
+		}
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wp.Stop(nil)
+		close(done)
+	}()
+
+	select {
+	case to := <-flushTimeoutCh:
+		if to < 500*time.Millisecond {
+			t.Errorf("flush timeout callback: got %v, want >= 500ms", to)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("flush timeout callback should be invoked")
+	}
+
+	select {
+	case <-done:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("WorkerWriteProcessor.Stop should return shortly after flush timeout")
+	}
+
+	close(blockWrite)
+
+	select {
+	case <-wp.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatal("worker writer should finish after blocked write is released")
+	}
+}

@@ -169,6 +169,7 @@ func (wp *WorkerWriteProcessor) Stop(err error) {
 		wp.stopErr = err
 		flush := wp.opts.SendQueueNeedFlushOver && err == nil
 		wp.workQueue.Push(func() { wp.shutdownJob() })
+		timedOut := false
 		if flush {
 			timeout := wp.opts.SendQueueTimeoutFlushOver
 			if timeout <= 0 {
@@ -182,9 +183,12 @@ func (wp *WorkerWriteProcessor) Stop(err error) {
 				if wp.opts.SendQueueFlushTimeoutCallback != nil && wp.conn != nil {
 					wp.opts.SendQueueFlushTimeoutCallback(wp.conn, timeout)
 				}
+				timedOut = true
 			}
 		}
-		<-wp.doneCh
+		if !timedOut {
+			<-wp.doneCh
+		}
 	})
 }
 
