@@ -17,7 +17,7 @@ func (h *gnetClientEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Ac
 	} else {
 		kknet.ChangeConnStatus(&h.client.status, kknet.ConnStatusConnected)
 	}
-	cc := newGnetClientConn(c, &h.client.opts, &h.client.stats)
+	cc := newGnetConn(c, &h.client.opts, &h.client.stats)
 	c.SetContext(cc)
 	h.client.opts.Logger.Infof("kktcp client connect success... connId=%d", cc.id)
 
@@ -43,7 +43,7 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 	if err != nil {
 		h.client.stats.AddError()
 	}
-	if cc, ok := c.Context().(*gnetClientConn); ok {
+	if cc, ok := c.Context().(*gnetConn); ok {
 		cc.closing.Store(true)
 		// Stop read processor asynchronously (drain remaining queue outside event-loop).
 		if cc.rp != nil {
@@ -65,7 +65,7 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 }
 
 func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
-	cc, ok := c.Context().(*gnetClientConn)
+	cc, ok := c.Context().(*gnetConn)
 	if !ok {
 		return gnet.Close
 	}

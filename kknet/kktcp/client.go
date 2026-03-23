@@ -23,10 +23,10 @@ type GnetClient struct {
 	client   *gnet.Client
 
 	connMu sync.Mutex
-	conn   *gnetClientConn
+	conn   *gnetConn
 	openCh chan struct{}
 
-	status  int32      // kknet.ConnStatus — 唯一状态源
+	status  int32       // kknet.ConnStatus — 唯一状态源
 	started atomic.Bool // gnet 引擎生命周期（与连接状态正交）
 	stopCh  chan struct{}
 

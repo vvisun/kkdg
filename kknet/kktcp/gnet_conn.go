@@ -14,7 +14,7 @@ import (
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
-type tcpConn struct {
+type gnetConn struct {
 	id    kknet.CONN_ID
 	conn  gnet.Conn
 	opts  *kknet.Options
@@ -31,11 +31,11 @@ type tcpConn struct {
 	drainBatch [kknet.BatchPacketSize]*kkbuffer.ByteBuffer
 }
 
-var _ kknet.IConn = (*tcpConn)(nil)
+var _ kknet.IConn = (*gnetConn)(nil)
 
-func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
+func newGnetConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetConn {
 	kknet.CheckOptions(opts)
-	tc := &tcpConn{
+	gc := &gnetConn{
 		id:    internal.NextConnID(),
 		conn:  c,
 		opts:  opts,
@@ -45,27 +45,26 @@ func newTCPConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *tcpConn {
 			opts.WpOptions.SendQueueStrict,
 		),
 	}
-	tc.closeCond = sync.NewCond(&tc.closeMu)
-
+	gc.closeCond = sync.NewCond(&gc.closeMu)
 	if opts.RpProvider != nil {
-		tc.rp = opts.RpProvider(opts.RpOptions)
+		gc.rp = opts.RpProvider(opts.RpOptions)
 	} else {
-		tc.rp = defaultRpProvider(opts.RpOptions)
+		gc.rp = defaultRpProvider(opts.RpOptions)
 	}
-	tc.rp.Start(tc)
+	gc.rp.Start(gc)
 
-	return tc
+	return gc
 }
 
-func (c *tcpConn) ID() kknet.CONN_ID {
+func (c *gnetConn) ID() kknet.CONN_ID {
 	return c.id
 }
 
-func (c *tcpConn) RemoteAddr() string {
+func (c *gnetConn) RemoteAddr() string {
 	return c.conn.RemoteAddr().String()
 }
 
-func (c *tcpConn) Close() error {
+func (c *gnetConn) Close() error {
 	if c.closing.Swap(true) {
 		return nil
 	}
@@ -106,7 +105,7 @@ func (c *tcpConn) Close() error {
 	return c.conn.Close()
 }
 
-func (c *tcpConn) SendMsg(msg any) error {
+func (c *gnetConn) SendMsg(msg any) error {
 	if msg == nil {
 		return kkerrors.ErrClusterInvalidPacket
 	}
@@ -121,7 +120,7 @@ func (c *tcpConn) SendMsg(msg any) error {
 	return c.SendBuffer(buffer)
 }
 
-func (c *tcpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
+func (c *gnetConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	if err := c.opts.StreamTool.CheckPacketBuffer(buffer); err != nil {
 		if c.stats != nil {
 			c.stats.AddError()
@@ -139,7 +138,7 @@ func (c *tcpConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	}
 }
 
-func (c *tcpConn) sendBufferDrop(buffer *kkbuffer.ByteBuffer) error {
+func (c *gnetConn) sendBufferDrop(buffer *kkbuffer.ByteBuffer) error {
 	c.closeMu.Lock()
 	if c.closing.Load() {
 		c.closeMu.Unlock()
@@ -163,7 +162,7 @@ func (c *tcpConn) sendBufferDrop(buffer *kkbuffer.ByteBuffer) error {
 	return nil
 }
 
-func (c *tcpConn) sendBufferRetry(buffer *kkbuffer.ByteBuffer) error {
+func (c *gnetConn) sendBufferRetry(buffer *kkbuffer.ByteBuffer) error {
 	interval := c.opts.WpOptions.SendQueueRetryInterval
 	if interval <= 0 {
 		interval = 2 * time.Millisecond
@@ -198,7 +197,7 @@ func (c *tcpConn) sendBufferRetry(buffer *kkbuffer.ByteBuffer) error {
 	}
 }
 
-func (c *tcpConn) startDrain() {
+func (c *gnetConn) startDrain() {
 	c.closeMu.Lock()
 	n := c.sendQueue.PopMany(len(c.drainBatch), c.drainBatch[:], c.opts.WpOptions.BatchWriteLimitBytes)
 	if n <= 0 {
@@ -250,7 +249,7 @@ func (c *tcpConn) startDrain() {
 	}
 }
 
-func (c *tcpConn) releaseDrainedBatch(n int) {
+func (c *gnetConn) releaseDrainedBatch(n int) {
 	for i := 0; i < n; i++ {
 		bb := c.drainBatch[i]
 		c.drainBatch[i] = nil
@@ -260,14 +259,14 @@ func (c *tcpConn) releaseDrainedBatch(n int) {
 	}
 }
 
-func (c *tcpConn) handleWriteError(err error) {
+func (c *gnetConn) handleWriteError(err error) {
 	c.closing.Store(true)
 	c.dropQueuedBuffers()
 	_ = c.conn.Close()
 	_ = err
 }
 
-func (c *tcpConn) dropQueuedBuffers() {
+func (c *gnetConn) dropQueuedBuffers() {
 	c.closeMu.Lock()
 	c.draining = false
 	for {

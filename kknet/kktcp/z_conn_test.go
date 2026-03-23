@@ -27,18 +27,18 @@ type fakeGnetConn struct {
 	asyncWritevHook func(bs [][]byte, callback gnet.AsyncCallback) error
 }
 
-func (c *fakeGnetConn) Read(_ []byte) (int, error)                        { return 0, io.EOF }
-func (c *fakeGnetConn) Write(_ []byte) (int, error)                       { return 0, nil }
-func (c *fakeGnetConn) WriteTo(_ io.Writer) (int64, error)                { return 0, nil }
-func (c *fakeGnetConn) ReadFrom(_ io.Reader) (int64, error)               { return 0, nil }
-func (c *fakeGnetConn) Next(_ int) ([]byte, error)                        { return nil, io.EOF }
-func (c *fakeGnetConn) Peek(_ int) ([]byte, error)                        { return nil, io.EOF }
-func (c *fakeGnetConn) Discard(_ int) (int, error)                        { return 0, nil }
-func (c *fakeGnetConn) InboundBuffered() int                              { return 0 }
-func (c *fakeGnetConn) SendTo(_ []byte, _ net.Addr) (int, error)          { return 0, nil }
-func (c *fakeGnetConn) Writev(_ [][]byte) (int, error)                    { return 0, nil }
-func (c *fakeGnetConn) Flush() error                                      { return nil }
-func (c *fakeGnetConn) OutboundBuffered() int                             { return 0 }
+func (c *fakeGnetConn) Read(_ []byte) (int, error)               { return 0, io.EOF }
+func (c *fakeGnetConn) Write(_ []byte) (int, error)              { return 0, nil }
+func (c *fakeGnetConn) WriteTo(_ io.Writer) (int64, error)       { return 0, nil }
+func (c *fakeGnetConn) ReadFrom(_ io.Reader) (int64, error)      { return 0, nil }
+func (c *fakeGnetConn) Next(_ int) ([]byte, error)               { return nil, io.EOF }
+func (c *fakeGnetConn) Peek(_ int) ([]byte, error)               { return nil, io.EOF }
+func (c *fakeGnetConn) Discard(_ int) (int, error)               { return 0, nil }
+func (c *fakeGnetConn) InboundBuffered() int                     { return 0 }
+func (c *fakeGnetConn) SendTo(_ []byte, _ net.Addr) (int, error) { return 0, nil }
+func (c *fakeGnetConn) Writev(_ [][]byte) (int, error)           { return 0, nil }
+func (c *fakeGnetConn) Flush() error                             { return nil }
+func (c *fakeGnetConn) OutboundBuffered() int                    { return 0 }
 func (c *fakeGnetConn) AsyncWrite(_ []byte, callback gnet.AsyncCallback) error {
 	if callback != nil {
 		return callback(c, nil)
@@ -54,11 +54,11 @@ func (c *fakeGnetConn) AsyncWritev(bs [][]byte, callback gnet.AsyncCallback) err
 	}
 	return nil
 }
-func (c *fakeGnetConn) Context() any                                      { return nil }
-func (c *fakeGnetConn) EventLoop() gnet.EventLoop                         { return nil }
-func (c *fakeGnetConn) SetContext(_ any)                                  {}
-func (c *fakeGnetConn) LocalAddr() net.Addr                               { return fakeAddr("local") }
-func (c *fakeGnetConn) RemoteAddr() net.Addr                              { return fakeAddr("remote") }
+func (c *fakeGnetConn) Context() any              { return nil }
+func (c *fakeGnetConn) EventLoop() gnet.EventLoop { return nil }
+func (c *fakeGnetConn) SetContext(_ any)          {}
+func (c *fakeGnetConn) LocalAddr() net.Addr       { return fakeAddr("local") }
+func (c *fakeGnetConn) RemoteAddr() net.Addr      { return fakeAddr("remote") }
 func (c *fakeGnetConn) Wake(callback gnet.AsyncCallback) error {
 	if callback != nil {
 		return callback(c, nil)
@@ -80,17 +80,17 @@ func (c *fakeGnetConn) Close() error {
 	c.mu.Unlock()
 	return nil
 }
-func (c *fakeGnetConn) SetDeadline(_ time.Time) error                     { return nil }
-func (c *fakeGnetConn) SetReadDeadline(_ time.Time) error                 { return nil }
-func (c *fakeGnetConn) SetWriteDeadline(_ time.Time) error                { return nil }
-func (c *fakeGnetConn) Fd() int                                           { return 0 }
-func (c *fakeGnetConn) Dup() (int, error)                                 { return 0, nil }
-func (c *fakeGnetConn) SetReadBuffer(_ int) error                         { return nil }
-func (c *fakeGnetConn) SetWriteBuffer(_ int) error                        { return nil }
-func (c *fakeGnetConn) SetLinger(_ int) error                             { return nil }
-func (c *fakeGnetConn) SetKeepAlivePeriod(_ time.Duration) error          { return nil }
+func (c *fakeGnetConn) SetDeadline(_ time.Time) error                        { return nil }
+func (c *fakeGnetConn) SetReadDeadline(_ time.Time) error                    { return nil }
+func (c *fakeGnetConn) SetWriteDeadline(_ time.Time) error                   { return nil }
+func (c *fakeGnetConn) Fd() int                                              { return 0 }
+func (c *fakeGnetConn) Dup() (int, error)                                    { return 0, nil }
+func (c *fakeGnetConn) SetReadBuffer(_ int) error                            { return nil }
+func (c *fakeGnetConn) SetWriteBuffer(_ int) error                           { return nil }
+func (c *fakeGnetConn) SetLinger(_ int) error                                { return nil }
+func (c *fakeGnetConn) SetKeepAlivePeriod(_ time.Duration) error             { return nil }
 func (c *fakeGnetConn) SetKeepAlive(_ bool, _, _ time.Duration, _ int) error { return nil }
-func (c *fakeGnetConn) SetNoDelay(_ bool) error                           { return nil }
+func (c *fakeGnetConn) SetNoDelay(_ bool) error                              { return nil }
 
 func (c *fakeGnetConn) isClosed() bool {
 	c.mu.Lock()
@@ -98,10 +98,10 @@ func (c *fakeGnetConn) isClosed() bool {
 	return c.closed
 }
 
-func newTestClientConn(t *testing.T, conn gnet.Conn) (*gnetClientConn, kknet.Options) {
+func newTestClientConn(t *testing.T, conn gnet.Conn) (*gnetConn, kknet.Options) {
 	t.Helper()
 	opts := kknet.ApplyOptions(kknet.WithSendQueueTimeoutFlushOver(200 * time.Millisecond))
-	return &gnetClientConn{
+	return &gnetConn{
 		id:        1,
 		conn:      conn,
 		opts:      &opts,
