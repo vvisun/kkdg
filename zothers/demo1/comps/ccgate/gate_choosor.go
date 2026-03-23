@@ -1,7 +1,6 @@
 package ccgate
 
 import (
-	"github.com/vvisun/kkdg/kkapp/comps/user"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kkapp/transport/ptotrans"
@@ -9,6 +8,7 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xcall"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/user"
 )
 
 func (slf *gateComponent) onNewClientConn(c kknet.IConn) {

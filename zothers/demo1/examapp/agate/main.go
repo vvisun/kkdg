@@ -8,14 +8,14 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkmetrics"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/zothers/demo1/comps"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/ccgate"
 	"github.com/vvisun/kkdg/zothers/demo1/examapp"
 	"github.com/vvisun/kkdg/zothers/demo1/examapp/ptoexam"
 )

@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/vvisun/kkdg/kkapp"
-	"github.com/vvisun/kkdg/kkapp/comps/msgreceiver"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkgws"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/msgreceiver"
 	"github.com/vvisun/kkdg/zothers/demo1/examapp"
 	"github.com/vvisun/kkdg/zothers/demo1/examapp/ptoexam"
 )

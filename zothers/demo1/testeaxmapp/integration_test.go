@@ -1,6 +1,6 @@
 // Package testkkapp 提供 kkapp 的集成测试。
 // 需要本地 NATS 服务 (127.0.0.1:4222)，否则测试会 Skip。
-package testkkapp
+package testeaxmapp
 
 import (
 	"net"
@@ -9,10 +9,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgame"
-	"github.com/vvisun/kkdg/kkapp/comps/ccgate"
-	"github.com/vvisun/kkdg/kkapp/comps/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
@@ -24,6 +20,10 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
+	"github.com/vvisun/kkdg/zothers/demo1/comps"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/ccgame"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/ccgate"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/msgreceiver"
 )
 
 func requireNATS(t *testing.T) string {

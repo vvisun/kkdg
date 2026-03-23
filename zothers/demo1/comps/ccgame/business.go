@@ -6,7 +6,6 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/component"
-	"github.com/vvisun/kkdg/kkapp/comps/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kkapp/transport/gametrans/gametransnats"
@@ -19,6 +18,7 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkdiscovery/dnats"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kkoption"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/msgreceiver"
 )
 
 func NewGameComponent(opt Options) *gameComponent {

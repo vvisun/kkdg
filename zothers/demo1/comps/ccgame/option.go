@@ -3,12 +3,12 @@ package ccgame
 import (
 	"errors"
 
-	"github.com/vvisun/kkdg/kkapp/comps/msgreceiver"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/xos"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/msgreceiver"
 )
 
 type Options struct {

@@ -3,8 +3,8 @@ package ccgate
 import (
 	"sync"
 
-	"github.com/vvisun/kkdg/kkapp/comps/user"
 	"github.com/vvisun/kkdg/utils/xcall"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/user"
 )
 
 // 客户端的逻辑节点绑定信息。

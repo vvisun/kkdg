@@ -3,8 +3,8 @@ package ccgate
 import (
 	"sync"
 
-	"github.com/vvisun/kkdg/kkapp/comps/user"
 	"github.com/vvisun/kkdg/utils/kklog"
+	"github.com/vvisun/kkdg/zothers/demo1/comps/user"
 )
 
 type kickInfo struct {
