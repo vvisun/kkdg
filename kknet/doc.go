@@ -12,4 +12,8 @@
 //   - kktcptls: 基于net.Conn实现的tcp服务器和客户端。支持TLS
 //   - kkprocessor: 消息处理器，提供消息的编码解码、粘包拆包、分发到业务逻辑层。
 //   - kkpacket: 封包拆包工具，编解码。
+//
+// 推荐使用场景：
+//   - 连接数10000以下时，kkws和kktcptls性能和吞吐表现优于kkgws和kktcp。超过时断线比较频繁。
+//   - 连接数10000以上时，kkgws和kktcp性能和吞吐表现优于kkws和kktcptls。超过时断线较少。
 package kknet
