@@ -7,7 +7,6 @@ Go 语言实现的游戏/分布式服务端引擎，提供网络层、集群通�
 kkdg/
 ├── kkapp/           # 应用框架（ProtoActor：Application + Component + kkactor）
 │   ├── component/   # Application、Component 生命周期
-│   ├── comps/       # ccgate（网关）、ccgame（业务服）
 │   ├── kkactor/     # Actor 寻址、远程传输（atransnats、atransrelay、registry/hubtcp 等）
 │   ├── transport/   # Gate↔Logic 转发（nats/rpc/shard）
 │   └── msgreceiver/ # 消息分发
@@ -45,6 +44,7 @@ Actor层 | 透明寻址、远程路由 | kkactor：ActorFramework、LocalActorMa
 
 ## 其他非框架目录 [other]
 
+zothers/demo1 游戏应用完整示例。可以基于此模版，实现自己的游戏应用业务
 zothers/examples 示例
 zothers/test 白盒测试
 
