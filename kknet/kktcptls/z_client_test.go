@@ -2,6 +2,7 @@ package kktcptls
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -43,6 +44,33 @@ type tlsNoopRawHandler struct{}
 
 func (h *tlsNoopRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	kkbuffer.Put(data)
+}
+
+type tlsLifecycleHandler struct {
+	onConnectCount atomic.Int32
+	onCloseCount   atomic.Int32
+	connectCh      chan struct{}
+	closeCh        chan struct{}
+}
+
+func (h *tlsLifecycleHandler) OnConnect(kknet.IConn) {
+	h.onConnectCount.Add(1)
+	if h.connectCh != nil {
+		select {
+		case h.connectCh <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (h *tlsLifecycleHandler) OnClose(kknet.IConn, error) {
+	h.onCloseCount.Add(1)
+	if h.closeCh != nil {
+		select {
+		case h.closeCh <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func TestClient_Connect_Close_TLS(t *testing.T) {
@@ -133,6 +161,197 @@ func TestClient_SendBuffer_Echo(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for echo")
+	}
+}
+
+func TestClient_Connect_Close_NoTLS(t *testing.T) {
+	addr := freePort(t)
+	noop := &tlsNoopRawHandler{}
+
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithRawHandler(noop),
+	)
+	s := NewServer(addr, nil, srvOpts)
+	if err := s.Start(); err != nil {
+		t.Fatalf("Server Start: %v", err)
+	}
+	defer s.Stop()
+
+	cliOpts := kknet.ApplyOptions(
+		kknet.WithRawHandler(noop),
+		kknet.WithIsNeedReconnect(false),
+	)
+	client := NewClient(addr, nil, cliOpts)
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	if !client.IsConnected() {
+		t.Error("IsConnected() should be true")
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if err := client.Close(); err != kkerrors.ErrNetClientNotConnected {
+		t.Errorf("Close when not connected = %v, want ErrClientNotConnected", err)
+	}
+}
+
+func TestClient_SendBuffer_Echo_NoTLS(t *testing.T) {
+	addr := freePort(t)
+	recvCh := make(chan []byte, 16)
+	echoHandler := &tlsEchoHandler{}
+	clientRecv := &tlsRawRecvHandler{ch: recvCh}
+
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithRawHandler(echoHandler),
+	)
+	s := NewServer(addr, echoHandler, srvOpts)
+	echoHandler.server = s
+	if err := s.Start(); err != nil {
+		t.Fatalf("Server Start: %v", err)
+	}
+	defer s.Stop()
+
+	cliOpts := kknet.ApplyOptions(
+		kknet.WithRawHandler(clientRecv),
+		kknet.WithIsNeedReconnect(false),
+	)
+	client := NewClient(addr, clientRecv, cliOpts)
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer client.Close()
+
+	time.Sleep(100 * time.Millisecond)
+
+	payload := []byte("hello plain tcp")
+	bb, err := cliOpts.StreamTool.Pack(payload)
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+	if err := client.SendBuffer(bb); err != nil {
+		t.Fatalf("SendBuffer: %v", err)
+	}
+	select {
+	case got := <-recvCh:
+		msg, err := cliOpts.StreamTool.Unpack(got)
+		if err != nil {
+			t.Fatalf("Unpack: %v", err)
+		}
+		if string(msg) != string(payload) {
+			t.Errorf("got %q, want %q", msg, payload)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for echo")
+	}
+}
+
+func TestClient_Reconnect_NoTLS_ServerRestart(t *testing.T) {
+	addr := freePort(t)
+	recvCh := make(chan []byte, 16)
+	echoHandler := &tlsEchoHandler{}
+	clientRecv := &tlsRawRecvHandler{ch: recvCh}
+	lh := &tlsLifecycleHandler{
+		connectCh: make(chan struct{}, 8),
+		closeCh:   make(chan struct{}, 8),
+	}
+
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithRawHandler(echoHandler),
+	)
+	s := NewServer(addr, echoHandler, srvOpts)
+	echoHandler.server = s
+	if err := s.Start(); err != nil {
+		t.Fatalf("Server Start: %v", err)
+	}
+	defer s.Stop()
+
+	cliOpts := kknet.ApplyOptions(
+		kknet.WithRawHandler(clientRecv),
+		kknet.WithIsNeedReconnect(true),
+		kknet.WithReconnectInterval(500*time.Millisecond, 0),
+		kknet.WithReconnectMaxInterval(500*time.Millisecond),
+	)
+	client := NewClient(addr, lh, cliOpts)
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer client.Close()
+
+	// baseline round trip
+	firstPayload := []byte("first-round")
+	bb, err := cliOpts.StreamTool.Pack(firstPayload)
+	if err != nil {
+		t.Fatalf("Pack first: %v", err)
+	}
+	if err := client.SendBuffer(bb); err != nil {
+		t.Fatalf("SendBuffer first: %v", err)
+	}
+	select {
+	case got := <-recvCh:
+		msg, err := cliOpts.StreamTool.Unpack(got)
+		if err != nil {
+			t.Fatalf("Unpack first: %v", err)
+		}
+		if string(msg) != string(firstPayload) {
+			t.Fatalf("first got %q, want %q", msg, firstPayload)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting first echo")
+	}
+
+	// stop server and wait client OnClose
+	if err := s.Stop(); err != nil {
+		t.Fatalf("Server Stop: %v", err)
+	}
+	select {
+	case <-lh.closeCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting client OnClose after server stop")
+	}
+
+	// restart server on same addr; client should reconnect automatically
+	s = NewServer(addr, echoHandler, srvOpts)
+	echoHandler.server = s
+	if err := s.Start(); err != nil {
+		t.Fatalf("Server Restart Start: %v", err)
+	}
+	defer s.Stop()
+
+	deadline := time.Now().Add(6 * time.Second)
+	for time.Now().Before(deadline) {
+		if client.IsConnected() && lh.onConnectCount.Load() >= 2 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if !client.IsConnected() {
+		t.Fatal("client should reconnect after server restart")
+	}
+	if lh.onConnectCount.Load() < 2 {
+		t.Fatalf("expected OnConnect >= 2, got %d", lh.onConnectCount.Load())
+	}
+
+	// round trip after reconnect
+	secondPayload := []byte("second-round")
+	bb2, err := cliOpts.StreamTool.Pack(secondPayload)
+	if err != nil {
+		t.Fatalf("Pack second: %v", err)
+	}
+	if err := client.SendBuffer(bb2); err != nil {
+		t.Fatalf("SendBuffer second: %v", err)
+	}
+	select {
+	case got := <-recvCh:
+		msg, err := cliOpts.StreamTool.Unpack(got)
+		if err != nil {
+			t.Fatalf("Unpack second: %v", err)
+		}
+		if string(msg) != string(secondPayload) {
+			t.Fatalf("second got %q, want %q", msg, secondPayload)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting second echo")
 	}
 }
 
