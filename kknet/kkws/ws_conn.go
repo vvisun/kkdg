@@ -18,10 +18,11 @@ import (
 )
 
 type wsConn struct {
-	id    kknet.CONN_ID
-	conn  *websocket.Conn
-	opts  *kknet.Options // 配置
-	stats *kknet.Stats   // 统计信息
+	id      kknet.CONN_ID
+	conn    *websocket.Conn
+	opts    *kknet.Options // 配置
+	stats   *kknet.Stats   // 统计信息
+	handler kknet.IConnLifecycleHandler
 
 	closeOnce sync.Once
 	closing   atomic.Bool // 连接关闭标志
@@ -38,13 +39,14 @@ type wsConn struct {
 
 var _ kknet.IConn = (*wsConn)(nil)
 
-func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats) *wsConn {
+func newWSConn(conn *websocket.Conn, opts *kknet.Options, stats *kknet.Stats, handler kknet.IConnLifecycleHandler) *wsConn {
 	kknet.CheckOptions(opts)
 	c := &wsConn{
-		id:    internal.NextConnID(),
-		conn:  conn,
-		opts:  opts,
-		stats: stats,
+		id:      internal.NextConnID(),
+		conn:    conn,
+		opts:    opts,
+		stats:   stats,
+		handler: handler,
 	}
 
 	if c.opts.WpProvider != nil {
@@ -104,14 +106,18 @@ func (c *wsConn) startPingByTimingWheel() {
 		deadline := time.Now().Add(c.opts.PingInterval * 2)
 		// gorilla/websocket 允许 WriteControl 与其他写方法并发调用。
 		if err := c.conn.WriteControl(websocket.PingMessage, nil, deadline); err != nil {
-			c.opts.Logger.Errorf("kkws write ping error, closing connection: %v", err)
-			_ = c.conn.Close()
+			c.handlePingError(err)
 			return
 		}
 	})
 	if t != nil {
 		atomic.StorePointer(&c.pingTimer, unsafe.Pointer(t))
 	}
+}
+
+func (c *wsConn) handlePingError(err error) {
+	c.opts.Logger.Errorf("kkws write ping error, closing connection: %v", err)
+	c.closeWithError(c.handler, err)
 }
 
 func (c *wsConn) stopPingByTimingWheel() {

@@ -183,7 +183,7 @@ func (c *Client) dialAndStart() (*wsConn, <-chan struct{}, error) {
 	}
 	conn.SetReadLimit(int64(c.opts.StreamTool.MaxPacketSize()))
 
-	wsConn := newWSConn(conn, &c.opts, &c.stats)
+	wsConn := newWSConn(conn, &c.opts, &c.stats, c.handler)
 
 	c.connMu.Lock()
 	c.conn = wsConn

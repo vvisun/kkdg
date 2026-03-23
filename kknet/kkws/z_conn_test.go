@@ -1,6 +1,7 @@
 package kkws
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,19 @@ import (
 )
 
 var testStreamTool = kkpacket.DefaultStreamPacket()
+
+type connTestLifecycleHandler struct {
+	closeCh chan error
+}
+
+func (h *connTestLifecycleHandler) OnConnect(kknet.IConn) {}
+
+func (h *connTestLifecycleHandler) OnClose(_ kknet.IConn, err error) {
+	select {
+	case h.closeCh <- err:
+	default:
+	}
+}
 
 func startTestWSServer(t *testing.T) (wsURL string, recv <-chan []byte, closeFn func()) {
 	t.Helper()
@@ -102,7 +116,7 @@ func TestWSConn_AsyncSend_Order(t *testing.T) {
 	opts := kknet.ApplyOptions(
 		kknet.WithStreamTool(testStreamTool),
 	)
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	defer wc.Close()
 
 	const n = 50
@@ -170,7 +184,7 @@ func TestWSConn_SendQueueFullAction_Drop(t *testing.T) {
 	opts.WpOptions.SendQueueStrict = true
 	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionDrop
 	opts.WpOptions.SendQueueNeedFlushOver = false
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	defer wc.Close()
 
 	wc.writeMu.Lock()
@@ -208,7 +222,7 @@ func TestWSConn_SendQueueFullAction_Retry(t *testing.T) {
 	opts.WpOptions.SendQueueRetryMaxCount = 3
 	opts.WpOptions.SendQueueRetryInterval = 2 * time.Millisecond
 	opts.WpOptions.SendQueueNeedFlushOver = false
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	defer wc.Close()
 
 	wc.writeMu.Lock()
@@ -248,7 +262,7 @@ func TestWSConn_SendQueueFullAction_Retry_MaxCount1(t *testing.T) {
 	opts.WpOptions.SendQueueRetryMaxCount = 1
 	opts.WpOptions.SendQueueRetryInterval = 1 * time.Millisecond
 	opts.WpOptions.SendQueueNeedFlushOver = false
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	defer wc.Close()
 
 	wc.writeMu.Lock()
@@ -279,7 +293,7 @@ func TestWSConn_SendQueueStrict_False(t *testing.T) {
 	opts.WpOptions.SendQueueStrict = false
 	opts.WpOptions.SendQueueFullAction = kknet.EWpQueueFullActionRetry
 	opts.WpOptions.SendQueueNeedFlushOver = false
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	defer wc.Close()
 
 	// 快速发送较多消息，非严格模式应全部成功
@@ -329,7 +343,7 @@ func TestWSConn_SendQueueFullAction_AfterClose(t *testing.T) {
 			opts.WpOptions.SendQueueStrict = true
 			opts.WpOptions.SendQueueFullAction = action
 			opts.WpOptions.SendQueueRetryMaxCount = 3
-			wc := newWSConn(c, &opts, nil)
+			wc := newWSConn(c, &opts, nil, nil)
 			_ = wc.Close()
 
 			bb, _ := wc.opts.StreamTool.Pack([]byte("after-close"))
@@ -356,7 +370,7 @@ func TestWSConn_Close_FlushOver(t *testing.T) {
 	)
 	opts.WpOptions.SendQueueNeedFlushOver = true
 	opts.WpOptions.SendQueueTimeoutFlushOver = 2 * time.Second
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 
 	// Block actual writes, enqueue some messages, then ensure Close waits for flush.
 	wc.writeMu.Lock()
@@ -453,7 +467,7 @@ func TestWSConn_WriteError_StopsWriterAndClearsQueue(t *testing.T) {
 		kknet.WithRawHandler(&noopRawHandler{}),
 		kknet.WithStreamTool(testStreamTool),
 	)
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	defer wc.Close()
 
 	// In real usage, a read loop will notice peer close and trigger closeWithError,
@@ -509,7 +523,7 @@ func TestWSConn_Close_NoFlush_ReturnsQuickly(t *testing.T) {
 		kknet.WithStreamTool(testStreamTool),
 	)
 	opts.WpOptions.SendQueueNeedFlushOver = false
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 
 	// enqueue some messages, then close immediately. We only assert it doesn't block.
 	for i := 0; i < 100; i++ {
@@ -553,7 +567,7 @@ func TestWSConn_RemoteAddr(t *testing.T) {
 	opts := kknet.ApplyOptions(
 		kknet.WithStreamTool(testStreamTool),
 	)
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	defer wc.Close()
 
 	addr := wc.RemoteAddr()
@@ -573,7 +587,7 @@ func TestWSConn_SendBuffer_AfterClose(t *testing.T) {
 	opts := kknet.ApplyOptions(
 		kknet.WithStreamTool(testStreamTool),
 	)
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	_ = wc.Close()
 
 	bb, err := wc.opts.StreamTool.Pack([]byte("after close"))
@@ -597,7 +611,7 @@ func TestWSConn_InvalidPacket(t *testing.T) {
 	opts := kknet.ApplyOptions(
 		kknet.WithStreamTool(testStreamTool),
 	)
-	wc := newWSConn(c, &opts, nil)
+	wc := newWSConn(c, &opts, nil, nil)
 	defer wc.Close()
 
 	// buffer too short to be valid packet (length field is 4 bytes)
@@ -606,5 +620,46 @@ func TestWSConn_InvalidPacket(t *testing.T) {
 	err = wc.SendBuffer(invalidBuf)
 	if err == nil {
 		t.Errorf("SendBuffer invalid packet = %v, want error", err)
+	}
+}
+
+func TestWSConn_HandlePingError_UsesCloseWithError(t *testing.T) {
+	wsURL, _, closeSrv := startTestWSServer(t)
+	defer closeSrv()
+
+	c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial error: %v", err)
+	}
+
+	handler := &connTestLifecycleHandler{closeCh: make(chan error, 1)}
+	opts := kknet.ApplyOptions(
+		kknet.WithStreamTool(testStreamTool),
+	)
+	wc := newWSConn(c, &opts, nil, handler)
+
+	pingErr := errors.New("ping failed")
+	wc.handlePingError(pingErr)
+
+	if !wc.closing.Load() {
+		t.Fatal("closing should be true after ping error")
+	}
+
+	select {
+	case err := <-handler.closeCh:
+		if !errors.Is(err, pingErr) {
+			t.Fatalf("OnClose err = %v, want %v", err, pingErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for OnClose after ping error")
+	}
+
+	bb, err := wc.opts.StreamTool.Pack([]byte("after"))
+	if err != nil {
+		t.Fatalf("pack error: %v", err)
+	}
+	err = wc.SendBuffer(bb)
+	if err != kkerrors.ErrNetConnectionClosed {
+		t.Fatalf("SendBuffer after ping error = %v, want ErrConnectionClosed", err)
 	}
 }

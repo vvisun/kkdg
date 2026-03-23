@@ -77,7 +77,7 @@ func (s *Server) Start() error {
 			return
 		}
 
-		wsConn := newWSConn(conn, &s.opts, &s.stats)
+		wsConn := newWSConn(conn, &s.opts, &s.stats, s.handler)
 		wsConn.conn.SetReadLimit(int64(s.opts.StreamTool.MaxPacketSize()))
 
 		// Set read/write timeouts if configured
