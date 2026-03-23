@@ -188,7 +188,9 @@ func (c *gwsConn) startPingByTimingWheel() {
 			return
 		}
 		if err := c.socket.WritePing(nil); err != nil {
-			c.opts.Logger.Errorf("kkgws write ping error: %v", err)
+			c.opts.Logger.Errorf("kkgws write ping error, closing connection: %v", err)
+			_ = c.socket.WriteClose(1011, nil)
+			return
 		}
 	})
 	if t != nil {

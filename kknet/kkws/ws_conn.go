@@ -103,7 +103,8 @@ func (c *wsConn) startPingByTimingWheel() {
 		}
 		deadline := time.Now().Add(c.opts.PingInterval * 2)
 		if err := c.conn.WriteControl(websocket.PingMessage, nil, deadline); err != nil {
-			c.opts.Logger.Errorf("kkws write ping message error: %v", err)
+			c.opts.Logger.Errorf("kkws write ping error, closing connection: %v", err)
+			_ = c.conn.Close()
 			return
 		}
 	})

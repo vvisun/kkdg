@@ -30,6 +30,7 @@ type GnetClient struct {
 	started      atomic.Bool
 	reconnecting atomic.Bool
 	closing      atomic.Bool
+	connecting   atomic.Bool // guards concurrent Connect calls
 	stopCh       chan struct{}
 
 	stats kknet.Stats
@@ -62,10 +63,16 @@ func (c *GnetClient) IsConnected() bool {
 }
 
 // Connect connects to the server and starts the gnet client engine.
+// connected 仅由 OnOpen/OnClose handler 管理，Connect 用 connecting CAS 防并发。
 func (c *GnetClient) Connect() error {
-	if c.connected.Swap(true) {
+	if c.connected.Load() {
 		return nil
 	}
+	if !c.connecting.CompareAndSwap(false, true) {
+		return nil
+	}
+	defer c.connecting.Store(false)
+
 	c.closing.Store(false)
 	select {
 	case <-c.stopCh:
@@ -73,7 +80,6 @@ func (c *GnetClient) Connect() error {
 	default:
 	}
 	if c.opts.TLSConfig != nil {
-		c.connected.Store(false)
 		return errors.New("gnet client does not support TLS")
 	}
 
@@ -91,13 +97,11 @@ func (c *GnetClient) Connect() error {
 		)
 		if err != nil {
 			c.started.Store(false)
-			c.connected.Store(false)
 			c.opts.Logger.Infof("kktcp client start... failed to create client: %v", err)
 			return err
 		}
 		if err := cli.Start(); err != nil {
 			c.started.Store(false)
-			c.connected.Store(false)
 			c.opts.Logger.Infof("kktcp client start... failed to start client: %v", err)
 			return err
 		}
@@ -115,18 +119,19 @@ func (c *GnetClient) Connect() error {
 	cli := c.client
 	c.clientMu.Unlock()
 	if cli == nil {
-		c.connected.Store(false)
 		c.opts.Logger.Infof("kktcp client start... failed to get client: %v", kkerrors.ErrNetClientNotConnected)
 		return kkerrors.ErrNetClientNotConnected
 	}
 
 	if _, err := cli.Dial("tcp", c.addr); err != nil {
-		c.connected.Store(false)
 		c.opts.Logger.Infof("kktcp client start... failed to dial: %v", err)
 		return err
 	}
 
 	<-openCh
+	if c.closing.Load() {
+		return kkerrors.ErrNetConnectionClosed
+	}
 	return nil
 }
 
@@ -167,13 +172,27 @@ func (c *GnetClient) Close() error {
 	c.connMu.Lock()
 	conn := c.conn
 	c.conn = nil
+	openCh := c.openCh
+	c.openCh = nil
 	c.connMu.Unlock()
-	if conn == nil {
-		return kkerrors.ErrNetClientNotConnected
-	}
+
 	c.closing.Store(true)
 	c.connected.Store(false)
 	c.reconnecting.Store(false)
+
+	// unblock any pending Connect waiting on openCh
+	if openCh != nil {
+		select {
+		case <-openCh:
+		default:
+			close(openCh)
+		}
+	}
+
+	if conn == nil {
+		return kkerrors.ErrNetClientNotConnected
+	}
+
 	c.opts.Logger.Infof("kktcp client close... closing connection")
 	select {
 	case <-c.stopCh:
@@ -188,6 +207,7 @@ func (c *GnetClient) Close() error {
 	if cli != nil {
 		_ = cli.Stop()
 	}
+	c.started.Store(false)
 	c.opts.Logger.Infof("kktcp client close... done")
 	return nil
 }

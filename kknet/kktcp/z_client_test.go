@@ -64,8 +64,14 @@ func TestClient_Connect_Close(t *testing.T) {
 	if err := client.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
-	// kktcp 在 Close 后 gnet client 已停止，再次 Connect 会返回 ErrClientNotConnected
-	_ = client.Connect()
+	// Close 后 started 已重置，再次 Connect 应能重建引擎并成功连接
+	if err := client.Connect(); err != nil {
+		t.Fatalf("re-Connect after Close: %v", err)
+	}
+	if err := client.Close(); err != nil {
+		t.Fatalf("second Close: %v", err)
+	}
+	// 第三次 Close：连接已关闭，应返回 ErrNetClientNotConnected
 	if err := client.Close(); err != kkerrors.ErrNetClientNotConnected {
 		t.Errorf("Close when not connected = %v, want ErrClientNotConnected", err)
 	}
