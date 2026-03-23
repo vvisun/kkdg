@@ -10,20 +10,31 @@ import (
 )
 
 type IModule interface {
+	// 获取模块ID
 	GetModuleId() uint32
+	// 获取模块名称
 	GetModuleName() string
+	// 获取模块全名称（父名称.父名称.父名称... .模块名称）
 	FullName() string
 
+	// 添加子模块
 	AddModule(module IModule) (uint32, error)
+	// 释放模块
 	ReleaseModule(moduleId uint32)
 
+	// 根据模块ID获取模块
 	GetModule(moduleId uint32) IModule
+	// 获取始祖模块
 	GetAncestor() IModule
+	// 获取父模块
 	GetParent() IModule
 
+	// 初始化，在添加到父模块时调用
 	OnInit() error
+	// 释放，在释放模块时调用
 	OnStop()
 
+	// 指向自己对应的Module结构体
 	getBaseModule() IModule
 }
 
@@ -40,8 +51,8 @@ type Module struct {
 	parent      IModule            //父亲
 	self        IModule            //自己
 	childs      []IModule          //孩子们
-	ancestor    IModule            //始祖
-	descendants map[uint32]IModule //始祖的后裔们
+	ancestor    IModule            //始祖（根模块）
+	descendants map[uint32]IModule //始祖的后裔们（所有子模块）
 }
 
 var _ IModule = (*Module)(nil)
