@@ -1,6 +1,7 @@
 package kkprocessor
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kknet"
@@ -31,6 +32,7 @@ type WorkerReadProcessor struct {
 	splitBuf [kknet.BatchPacketSize][]byte // 拆包缓冲区
 
 	closing atomic.Bool
+	wg      sync.WaitGroup
 
 	workQueue *taskqueue.WorkerQueue
 }
@@ -66,9 +68,10 @@ func (rp *WorkerReadProcessor) Start(conn kknet.IConn) {
 	rp.connID = conn.ID()
 }
 
-// Stop 标记关闭；已入队但未执行的任务在执行时会检测 closing 标志并安全退出。
+// Stop 标记关闭并等待所有已入队任务完成，确保 RawHandler 不再被调用后才返回。
 func (rp *WorkerReadProcessor) Stop() {
 	rp.closing.Store(true)
+	rp.wg.Wait()
 }
 
 func (rp *WorkerReadProcessor) checkRecvQueueFull() bool {
@@ -170,8 +173,10 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 		return
 	}
 
-	// 如果已经关闭，直接回收 buffer。
+	rp.wg.Add(1)
+
 	if rp.closing.Load() {
+		rp.wg.Done()
 		kkbuffer.Put(bb)
 		return
 	}
@@ -180,9 +185,8 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	rawHandler := rp.opts.RawHandler
 
 	rp.workQueue.Push(func() {
-		// 多线程执行 RawHandler，需要防护 panic
+		defer rp.wg.Done()
 		xcall.SafeCall(func() {
-			// Stop 之后进来的任务在这里二次检查 closing，尽量减少无意义处理。
 			if rp.closing.Load() {
 				kkbuffer.Put(bb)
 				return

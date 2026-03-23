@@ -176,6 +176,8 @@ func (wp *WorkerWriteProcessor) Stop(err error) {
 			}
 			select {
 			case <-wp.drainedCh:
+			case <-wp.doneCh:
+				// shutdownJob 因 writeFn 致命错误提前退出，无需继续等
 			case <-time.After(timeout):
 				if wp.opts.SendQueueFlushTimeoutCallback != nil && wp.conn != nil {
 					wp.opts.SendQueueFlushTimeoutCallback(wp.conn, timeout)

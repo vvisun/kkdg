@@ -125,8 +125,10 @@ func TestStress_ManyConns_ManyMessages(t *testing.T) {
 	addr := freePort(t)
 	svrHandler := &stressRecvHandler{target: totalMsgs, ch: make(chan struct{})}
 	opts := kknet.ApplyOptions(
-		kknet.WithRpProvider(kkprocessor.NewSyncReadProcessor),
+		kknet.WithRpProvider(kkprocessor.NewReadProcessor),
+		kknet.WithRawHandler(svrHandler),
 		kknet.WithNoneCopyHandler(svrHandler),
+		kknet.WithWpProvider(kkprocessor.NewWorkerWriteProcessor),
 		kknet.WithRecvQueueSize(512),
 		kknet.WithLogger(kklog.Nop()),
 		kknet.WithBufferSizes(2*1024, 2*1024),
