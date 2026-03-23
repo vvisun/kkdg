@@ -2,6 +2,7 @@ package kkprocessor
 
 import (
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -250,6 +251,22 @@ func (h *blockingRawHandler) OnRaw(_ kknet.CONN_ID, _ *kkbuffer.ByteBuffer) {
 	<-h.block
 }
 
+type signalBlockingRawHandler struct {
+	entered chan struct{}
+	release chan struct{}
+	count   atomic.Int32
+	once    sync.Once
+}
+
+func (h *signalBlockingRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	h.count.Add(1)
+	h.once.Do(func() { close(h.entered) })
+	<-h.release
+	if data != nil {
+		kkbuffer.Put(data)
+	}
+}
+
 func TestReadProcessor_EnqueuePacket(t *testing.T) {
 	h := &collectingRawHandler{}
 	opts := kknet.ApplyOptions(
@@ -382,6 +399,58 @@ func TestSyncReadProcessor_EnqueuePacket(t *testing.T) {
 	}
 }
 
+type syncBlockingHandler struct {
+	entered chan struct{}
+	release chan struct{}
+	count   atomic.Int32
+	once    sync.Once
+}
+
+func (h *syncBlockingHandler) OnNoneCopy(_ kknet.CONN_ID, _ []byte) {
+	h.count.Add(1)
+	h.once.Do(func() { close(h.entered) })
+	<-h.release
+}
+
+func TestSyncReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T) {
+	h := &syncBlockingHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(1),
+		kknet.WithRecvQueueStrict(true),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
+	rp.Start(&mockConnForRead{id: 8})
+
+	firstDone := make(chan struct{})
+	go func() {
+		rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'})
+		close(firstDone)
+	}()
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("first packet did not enter none-copy handler")
+	}
+
+	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'})
+	close(h.release)
+
+	select {
+	case <-firstDone:
+	case <-time.After(time.Second):
+		t.Fatal("first enqueue did not complete")
+	}
+
+	if got := h.count.Load(); got != 1 {
+		t.Fatalf("handled %d packets, want 1", got)
+	}
+}
+
 func TestReadProcessor_Stop_DrainsRemaining(t *testing.T) {
 	h := &collectingRawHandler{}
 	opts := kknet.ApplyOptions(
@@ -424,6 +493,33 @@ func TestReadProcessor_EnqueuePacket_AfterStop_Ignored(t *testing.T) {
 	}
 }
 
+func TestReadProcessor_OnRecvBytes_AfterStop_Ignored(t *testing.T) {
+	h := &collectingRawHandler{}
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
+	rp.Start(&mockConnForRead{id: 3})
+
+	bb, err := opts.StreamTool.Pack([]byte("late"))
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+	defer kkbuffer.Put(bb)
+
+	rp.Stop()
+	if err := rp.OnRecvBytes(bb.B); err != nil {
+		t.Fatalf("OnRecvBytes after Stop: %v", err)
+	}
+	time.Sleep(20 * time.Millisecond)
+
+	if got := h.count(); got != 0 {
+		t.Fatalf("received %d packets after Stop, want 0", got)
+	}
+}
+
 func TestWorkerReadProcessor_EnqueuePacket_AfterStop_Ignored(t *testing.T) {
 	h := &collectingRawHandler{}
 	opts := kknet.ApplyOptions(
@@ -441,5 +537,44 @@ func TestWorkerReadProcessor_EnqueuePacket_AfterStop_Ignored(t *testing.T) {
 
 	if got := h.count(); got != 0 {
 		t.Fatalf("worker received %d packets after Stop, want 0", got)
+	}
+}
+
+func TestWorkerReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T) {
+	h := &signalBlockingRawHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(1),
+		kknet.WithRecvQueueStrict(true),
+	)
+	opts.RpOptions.WorkerQueueMaxConcurrency = 1
+	rp := NewWorkerReadProcessor(opts.RpOptions).(*WorkerReadProcessor)
+	rp.Start(&mockConnForRead{id: 4})
+
+	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'})
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("first packet did not enter handler")
+	}
+
+	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'})
+	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'c'})
+
+	close(h.release)
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if h.count.Load() >= 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	rp.Stop()
+
+	if got := h.count.Load(); got != 2 {
+		t.Fatalf("handled %d packets, want 2", got)
 	}
 }

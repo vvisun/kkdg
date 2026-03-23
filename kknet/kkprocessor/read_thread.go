@@ -142,6 +142,9 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
+	if rp.closing.Load() {
+		return nil
+	}
 
 	// --- Phase 1: 拆包（单生产者，无锁） ---
 
@@ -199,6 +202,15 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 
 	isQueueFull := false
 	rp.mu.Lock()
+	if rp.closing.Load() {
+		rp.mu.Unlock()
+		for i := 0; i < n; i++ {
+			if prepared[i] != nil {
+				kkbuffer.Put(prepared[i])
+			}
+		}
+		return nil
+	}
 	wasEmpty := rp.recvQueue.IsEmpty()
 	for i := 0; i < n; i++ {
 		ok := rp.recvQueue.Push(prepared[i])

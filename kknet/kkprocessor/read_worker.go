@@ -81,8 +81,8 @@ func (rp *WorkerReadProcessor) checkRecvQueueFull() bool {
 			xcall.SafeCall(func() {
 				cb(conn)
 			})
-			return true
 		}
+		return true
 	}
 	return false
 }

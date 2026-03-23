@@ -66,8 +66,8 @@ func (rp *SyncReadProcessor) checkRecvQueue() bool {
 			xcall.SafeCall(func() {
 				cb(conn)
 			})
-			return true
 		}
+		return true
 	}
 	return false
 }
