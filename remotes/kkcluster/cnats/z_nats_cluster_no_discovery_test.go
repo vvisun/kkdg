@@ -212,3 +212,72 @@ func TestNoDiscovery_PublishRemoteType(t *testing.T) {
 		t.Fatalf("typea handlers want 1 (node2 only), got %d", n)
 	}
 }
+
+func TestNoDiscovery_StartStop_IdempotentAndRestart(t *testing.T) {
+	_, natsURL, err := startTestNatsServer()
+	if err != nil {
+		t.Skipf("NATS not available: %v", err)
+	}
+
+	opt := kkcluster.ApplyOptions(kkcluster.WithUrl(natsURL))
+	c1 := NewNatsCluster("node1", "typea", opt)
+	c2 := NewNatsCluster("node2", "typea", opt)
+
+	if err := c1.Start(); err != nil {
+		t.Fatalf("c1 first Start: %v", err)
+	}
+	if err := c2.Start(); err != nil {
+		c1.Stop()
+		t.Fatalf("c2 first Start: %v", err)
+	}
+
+	// second Start should be idempotent no-op
+	if err := c1.Start(); err != nil {
+		t.Fatalf("c1 second Start: %v", err)
+	}
+	if err := c2.Start(); err != nil {
+		t.Fatalf("c2 second Start: %v", err)
+	}
+
+	// second Stop should be idempotent no-op
+	c1.Stop()
+	c1.Stop()
+	c2.Stop()
+	c2.Stop()
+
+	// restart after Stop should work
+	if err := c1.Start(); err != nil {
+		t.Fatalf("c1 restart Start: %v", err)
+	}
+	if err := c2.Start(); err != nil {
+		c1.Stop()
+		t.Fatalf("c2 restart Start: %v", err)
+	}
+	defer func() {
+		c1.Stop()
+		c2.Stop()
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+
+	received := make(chan string, 1)
+	c2.SetPublishHandler(func(nodeID string, packet *kkcluster.ClusterPacket) {
+		received <- nodeID + "|" + string(packet.ArgBytes)
+	})
+
+	packet := kkcluster.NewClusterPacket()
+	packet.FuncName = "restart-ping"
+	packet.ArgBytes = []byte("ok")
+	if err := c1.PublishRemote("node2", packet); err != nil {
+		t.Fatalf("PublishRemote after restart: %v", err)
+	}
+
+	select {
+	case got := <-received:
+		if got != "node1|ok" {
+			t.Fatalf("handler got %q", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting publish after restart")
+	}
+}

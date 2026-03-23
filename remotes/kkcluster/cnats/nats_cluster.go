@@ -3,6 +3,7 @@ package cnats
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -58,6 +59,9 @@ type NatsCluster struct {
 
 	// 指标监听ID
 	metricsListenerID uint64
+
+	// lifecycle state: 0=init, 1=started, 2=stopped
+	state int32
 }
 
 var _ kkcluster.ICluster = (*NatsCluster)(nil)
@@ -107,15 +111,35 @@ func (c *NatsCluster) SetPublishHandler(handler kkcluster.FunPublishHandler) {
 
 // Start 初始化集群
 func (c *NatsCluster) Start() error {
+	// idempotent start: already started -> no-op
+	if !atomic.CompareAndSwapInt32(&c.state, 0, 1) &&
+		!atomic.CompareAndSwapInt32(&c.state, 2, 1) {
+		return nil
+	}
+
+	// support start after stop by recreating stopCh
+	select {
+	case <-c.stopCh:
+		c.stopCh = make(chan struct{})
+	default:
+	}
+
 	kklog.Infof("NatsCluster(%s) startup, addr=%s", c.nodeID, c.options.Url)
 	if c.options.Url == "" {
+		atomic.StoreInt32(&c.state, 0)
 		return errors.New("nats addr is empty")
 	}
 	c.metricsListenerID = kkmetrics.GlobalEventMgr.Subscribe(kkmetrics.EventClusterMetrics, func(e *kkmetrics.MetricsEventData) {
 		snap := c.Stats()
 		e.Metrics = kkcluster.MetricsFromSnapshot(e.Namespace, snap)
 	})
-	return c.connectAndSubscribe()
+	if err := c.connectAndSubscribe(); err != nil {
+		kkmetrics.GlobalEventMgr.UnsubscribeByID(kkmetrics.EventClusterMetrics, c.metricsListenerID)
+		c.metricsListenerID = 0
+		atomic.StoreInt32(&c.state, 0)
+		return err
+	}
+	return nil
 }
 
 // connectAndSubscribe 连接NATS并订阅主题
@@ -566,6 +590,11 @@ func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPack
 
 // Stop 停止集群
 func (c *NatsCluster) Stop() {
+	// idempotent stop: only transition from started -> stopped executes cleanup
+	if !atomic.CompareAndSwapInt32(&c.state, 1, 2) {
+		return
+	}
+
 	kklog.Infof("NatsCluster(%s) shutdown", c.nodeID)
 
 	kkmetrics.GlobalEventMgr.UnsubscribeByID(kkmetrics.EventClusterMetrics, c.metricsListenerID)
@@ -596,6 +625,7 @@ func (c *NatsCluster) Stop() {
 
 	if c.conn != nil {
 		c.conn.Close()
+		c.conn = nil
 	}
 }
 
