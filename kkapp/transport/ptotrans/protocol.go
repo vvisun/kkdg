@@ -15,7 +15,7 @@ const (
 )
 
 type (
-	// 逻辑服注册到网关: 逻辑服->网关->逻辑服
+	// 逻辑服注册到网关: 逻辑服->网关
 	RpcMsgRegister struct {
 		ShardIdx int32
 		NodeId   string
