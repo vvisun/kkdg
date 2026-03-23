@@ -40,6 +40,7 @@ func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 		h.server.stats.AddError()
 	}
 	if tc, ok := c.Context().(*tcpConn); ok {
+		tc.closing.Store(true)
 		// Stop read processor asynchronously (drain remaining queue outside event-loop).
 		if tc.rp != nil {
 			go tc.rp.Stop()
@@ -62,6 +63,9 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	if !ok {
 		return gnet.Close
 	}
+	if tc.closing.Load() {
+		return gnet.Close
+	}
 	streamTool := tc.opts.StreamTool
 	for {
 		data, ok, err := streamTool.SplitSR(c)
@@ -74,6 +78,9 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		}
 		h.server.stats.AddRecv(len(data))
 		// feed into ReadProcessor; it will copy into pooled buffers and dispatch asynchronously.
+		if tc.closing.Load() {
+			return gnet.Close
+		}
 		if tc.rp != nil {
 			tc.rp.EnqueuePacket(data)
 		}

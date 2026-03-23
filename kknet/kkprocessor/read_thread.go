@@ -95,12 +95,20 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 	if len(packet) == 0 {
 		return
 	}
+	if rp.closing.Load() {
+		return
+	}
 
 	bb := kkbuffer.GetWithCapacity(len(packet))
 	bb.B = bb.B[:len(packet)]
 	copy(bb.B, packet)
 
 	rp.mu.Lock()
+	if rp.closing.Load() {
+		rp.mu.Unlock()
+		kkbuffer.Put(bb)
+		return
+	}
 	wasEmpty := rp.recvQueue.IsEmpty()
 	ok := rp.recvQueue.Push(bb)
 	if !ok {

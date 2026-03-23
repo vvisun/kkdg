@@ -92,6 +92,9 @@ func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) {
 	if len(packet) == 0 {
 		return
 	}
+	if rp.closing.Load() {
+		return
+	}
 
 	if rp.checkRecvQueueFull() {
 		return

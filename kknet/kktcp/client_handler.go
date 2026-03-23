@@ -43,14 +43,17 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 	if err != nil {
 		h.client.stats.AddError()
 	}
-	if cc, ok := c.Context().(*gnetClientConn); ok && h.client.handler != nil {
+	if cc, ok := c.Context().(*gnetClientConn); ok {
+		cc.closing.Store(true)
 		// Stop read processor asynchronously (drain remaining queue outside event-loop).
 		if cc.rp != nil {
 			go cc.rp.Stop()
 		}
-		kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnClose", func() {
-			h.client.handler.OnClose(cc, err)
-		})
+		if h.client.handler != nil {
+			kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnClose", func() {
+				h.client.handler.OnClose(cc, err)
+			})
+		}
 	}
 	h.client.connMu.Lock()
 	h.client.conn = nil
@@ -66,6 +69,9 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	if !ok {
 		return gnet.Close
 	}
+	if cc.closing.Load() {
+		return gnet.Close
+	}
 	streamTool := cc.opts.StreamTool
 	for {
 		data, ok, err := streamTool.SplitSR(c)
@@ -77,6 +83,9 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 			return gnet.None
 		}
 		h.client.stats.AddRecv(len(data))
+		if cc.closing.Load() {
+			return gnet.Close
+		}
 		if cc.rp != nil {
 			cc.rp.EnqueuePacket(data)
 		}

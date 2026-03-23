@@ -404,3 +404,42 @@ func TestReadProcessor_Stop_DrainsRemaining(t *testing.T) {
 		t.Errorf("Stop should drain remaining, got %d packets", len(recvd))
 	}
 }
+
+func TestReadProcessor_EnqueuePacket_AfterStop_Ignored(t *testing.T) {
+	h := &collectingRawHandler{}
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
+	rp.Start(&mockConnForRead{id: 1})
+
+	rp.Stop()
+	rp.EnqueuePacket([]byte{0, 0, 0, 4, 'l', 'a', 't', 'e'})
+	time.Sleep(20 * time.Millisecond)
+
+	if got := h.count(); got != 0 {
+		t.Fatalf("received %d packets after Stop, want 0", got)
+	}
+}
+
+func TestWorkerReadProcessor_EnqueuePacket_AfterStop_Ignored(t *testing.T) {
+	h := &collectingRawHandler{}
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(32),
+		kknet.WithRecvQueueStrict(false),
+	)
+	opts.RpOptions.WorkerQueueMaxConcurrency = 1
+	rp := NewWorkerReadProcessor(opts.RpOptions).(*WorkerReadProcessor)
+	rp.Start(&mockConnForRead{id: 2})
+
+	rp.Stop()
+	rp.EnqueuePacket([]byte{0, 0, 0, 4, 'l', 'a', 't', 'e'})
+	time.Sleep(20 * time.Millisecond)
+
+	if got := h.count(); got != 0 {
+		t.Fatalf("worker received %d packets after Stop, want 0", got)
+	}
+}
