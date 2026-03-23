@@ -33,6 +33,7 @@ type WorkerReadProcessor struct {
 
 	closing atomic.Bool
 	wg      sync.WaitGroup
+	pending atomic.Int64
 
 	workQueue *taskqueue.WorkerQueue
 }
@@ -56,7 +57,7 @@ func NewWorkerReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 }
 
 func (rp *WorkerReadProcessor) Pending() int {
-	return rp.workQueue.Len()
+	return int(rp.pending.Load())
 }
 
 // Start 记录连接信息
@@ -75,17 +76,31 @@ func (rp *WorkerReadProcessor) Stop() {
 	rp.wg.Wait()
 }
 
-func (rp *WorkerReadProcessor) checkRecvQueueFull() bool {
-	if rp.opts.RecvQueueStrict && rp.workQueue.Len() >= rp.opts.RecvQueueSize {
-		if cb := rp.opts.RecvQueueFullCallback; cb != nil {
-			conn := rp.conn
-			xcall.SafeCall(func() {
-				cb(conn)
-			})
-		}
+func (rp *WorkerReadProcessor) tryAcquireRecvSlot() bool {
+	if !rp.opts.RecvQueueStrict {
+		rp.pending.Add(1)
 		return true
 	}
-	return false
+	limit := int64(rp.opts.RecvQueueSize)
+	for {
+		cur := rp.pending.Load()
+		if cur >= limit {
+			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+				conn := rp.conn
+				xcall.SafeCall(func() {
+					cb(conn)
+				})
+			}
+			return false
+		}
+		if rp.pending.CompareAndSwap(cur, cur+1) {
+			return true
+		}
+	}
+}
+
+func (rp *WorkerReadProcessor) releaseRecvSlot() {
+	rp.pending.Add(-1)
 }
 
 // EnqueuePacket 适用于上层已完成切包的场景（如 gnet SplitSR 得到完整 [length,message]）。
@@ -97,7 +112,7 @@ func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) {
 		return
 	}
 
-	if rp.checkRecvQueueFull() {
+	if !rp.tryAcquireRecvSlot() {
 		return
 	}
 
@@ -148,7 +163,7 @@ func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 		if len(packet) == 0 {
 			continue
 		}
-		if rp.checkRecvQueueFull() {
+		if !rp.tryAcquireRecvSlot() {
 			return nil
 		}
 		bb := kkbuffer.GetWithCapacity(len(packet))
@@ -181,6 +196,7 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 
 	if rp.closing.Load() {
 		rp.wg.Done()
+		rp.releaseRecvSlot()
 		kkbuffer.Put(bb)
 		return
 	}
@@ -189,7 +205,10 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	rawHandler := rp.opts.RawHandler
 
 	rp.workQueue.Push(func() {
-		defer rp.wg.Done()
+		defer func() {
+			rp.releaseRecvSlot()
+			rp.wg.Done()
+		}()
 		xcall.SafeCall(func() {
 			rawHandler.OnRaw(connID, bb)
 		})

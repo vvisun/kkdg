@@ -17,7 +17,7 @@ type IReadProcessor interface {
 	Stop()
 	EnqueuePacket(packet []byte)
 	OnRecvBytes(data []byte) error
-	Pending() int //返回当前队列中待接收的数据包数量。即：recvQueue.Len()。
+	Pending() int //返回当前已受理但尚未处理完成的数据包数量（含等待中与执行中）。
 }
 
 type IWriteProcessor interface {

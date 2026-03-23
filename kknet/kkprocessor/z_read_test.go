@@ -628,17 +628,61 @@ func TestWorkerReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T)
 	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'c'})
 
 	close(h.release)
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if h.count.Load() >= 2 {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
 	rp.Stop()
 
-	if got := h.count.Load(); got != 2 {
-		t.Fatalf("handled %d packets, want 2", got)
+	if got := h.count.Load(); got != 1 {
+		t.Fatalf("handled %d packets, want 1", got)
+	}
+}
+
+func TestWorkerReadProcessor_RecvQueueStrict_CountsRunningTasks(t *testing.T) {
+	h := &signalBlockingRawHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(1),
+		kknet.WithRecvQueueStrict(true),
+	)
+	opts.RpOptions.WorkerQueueMaxConcurrency = 4
+	rp := NewWorkerReadProcessor(opts.RpOptions).(*WorkerReadProcessor)
+	rp.Start(&mockConnForRead{id: 6})
+
+	const workers = 16
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			rp.EnqueuePacket([]byte{0, 0, 0, 1, 'x'})
+		}()
+	}
+
+	close(start)
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("no packet entered handler")
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	if got := rp.Pending(); got != 1 {
+		t.Fatalf("Pending() = %d, want 1 while first task is running", got)
+	}
+
+	close(h.release)
+	wg.Wait()
+	rp.Stop()
+
+	if got := h.count.Load(); got != 1 {
+		t.Fatalf("handled %d packets, want 1", got)
+	}
+	if got := rp.Pending(); got != 0 {
+		t.Fatalf("Pending() after drain = %d, want 0", got)
 	}
 }
 
