@@ -21,6 +21,9 @@ type ITransportor interface {
 	// notifies a client login or logout. tell gateway and feedback login success to client.
 	// 客户端登录或登出通知。一是为了告知网关，二是为了反馈登录成功给客户端
 	NotifyClientLoginLogout(sessionID string, userId int64, isLogin bool) error
+	// closes a client.
+	// 关闭客户端连接。
+	CloseClient(sessionID string, reason string) error
 	// gets the session manager.
 	// 获取会话管理器。
 	GetSessionManager() *SessionManager

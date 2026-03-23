@@ -303,6 +303,10 @@ func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 		var msg ptotrans.RpcUnregister
 		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
 		h.transporter.logicServerMgr.removeLogicServer(msg.NodeId)
+	case ptotrans.MsgIDRpcCloseClient: // 逻辑服 -> 网关：关闭客户端连接
+		var msg ptotrans.RpcCloseClient
+		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		h.transporter.sessionMgr.CloseConn(msg.ClientId)
 	default:
 		kklog.Errorf("shard handler on raw unknown message id: %d", msgID)
 	}

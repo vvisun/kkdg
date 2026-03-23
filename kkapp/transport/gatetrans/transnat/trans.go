@@ -73,6 +73,19 @@ func (slf *transportorNats) onPublish(nodeID string, packet *kkcluster.ClusterPa
 			return
 		}
 		slf.msgHooker.Notify(ptotrans.MsgIDRpcClientLoginLogout, msg)
+	case ptotrans.FuncNameCloseClient:
+		msg, err := kkpacket.DecodePacket(packet.ArgBytes, slf.transStreamTool, slf.transMsgPacket)
+		if err != nil {
+			kklog.Errorf("[ccgate] decode close client error: %v", err)
+			return
+		}
+		info := msg.(*ptotrans.RpcCloseClient)
+		if info == nil {
+			kklog.Errorf("[ccgate] close client info is nil, %v", msg)
+			return
+		}
+		slf.sessionMgr.CloseConn(info.ClientId)
+		return
 	}
 }
 

@@ -35,6 +35,7 @@ var (
 	onewayClientDisconnect  kkrpc.OneWayInvoker[ptotrans.RpcClientDisconnect]
 	onewayClientLoginLogout kkrpc.OneWayInvoker[ptotrans.RpcClientLoginLogout]
 	onewayUnregister        kkrpc.OneWayInvoker[ptotrans.RpcUnregister]
+	onewayCloseClient       kkrpc.OneWayInvoker[ptotrans.RpcCloseClient]
 )
 
 func NewTransportorRpc(
@@ -70,6 +71,7 @@ func NewTransportorRpc(
 	onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcClient)
 	onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcClient)
 	onewayUnregister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcClient)
+	onewayCloseClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcCloseClient](rpcClient)
 
 	trans := &transportorRpc{
 		sessionMgr:       sessionMgr,
@@ -242,6 +244,24 @@ func (slf *transportorRpc) NotifyClientLoginLogout(sessionID string, userId int6
 	msg.NodeId = slf.nodeInfo.GetNodeId()
 	msg.GateNodeId = sessionInfo.GetGateNodeID()
 	return onewayClientLoginLogout.InvokeNR(context.Background(), &msg, kkrpc.CallConfig{})
+}
+
+func (slf *transportorRpc) CloseClient(sessionID string, reason string) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	if sessionID == "" {
+		return nil
+	}
+	sessionInfo := slf.sessionMgr.GetSession(sessionID)
+	if sessionInfo == nil {
+		return kkerrors.ErrAppSessionNotFound
+	}
+	return onewayCloseClient.InvokeNR(context.Background(), &ptotrans.RpcCloseClient{
+		ClientId:   sessionID,
+		Reason:     reason,
+		GateNodeId: sessionInfo.GetGateNodeID(),
+	}, kkrpc.CallConfig{})
 }
 
 func (slf *transportorRpc) GetSessionManager() *gametrans.SessionManager {

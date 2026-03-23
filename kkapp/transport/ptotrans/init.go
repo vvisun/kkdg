@@ -14,6 +14,7 @@ func InitRpcMsgs(methodMgr *kkrpc.MethodManager) {
 	kkrpc.RegisterOneWayMethod[RpcAllocClient](methodMgr)
 	kkrpc.RegisterOneWayMethod[RpcClientLoginLogout](methodMgr)
 	kkrpc.RegisterOneWayMethod[RpcUnregister](methodMgr)
+	kkrpc.RegisterOneWayMethod[RpcCloseClient](methodMgr)
 }
 
 func InitShardMsgs(router *kkpacket.MsgRouter) {
@@ -25,6 +26,7 @@ func InitShardMsgs(router *kkpacket.MsgRouter) {
 	router.Register(MsgIDRpcAllocClient, &RpcAllocClient{}, "logic")
 	router.Register(MsgIDRpcClientLoginLogout, &RpcClientLoginLogout{}, "logic")
 	router.Register(MsgIDRpcUnregister, &RpcUnregister{}, "logic")
+	router.Register(MsgIDRpcCloseClient, &RpcCloseClient{}, "logic")
 }
 
 // 网关与业务服之间的消息转发函数名。nats模式使用
@@ -45,4 +47,6 @@ const (
 	FuncNameClientLoginLogout = "clientLoginLogout"
 	// 逻辑服 -> 网关：逻辑服注销事件
 	FuncNameUnregister = "unregister"
+	// 逻辑服 -> 网关：关闭客户端连接
+	FuncNameCloseClient = "closeClient"
 )

@@ -248,6 +248,32 @@ func (slf *transportorShard) NotifyClientLoginLogout(sessionID string, userId in
 	return conn.cli.SendBuffer(bbTrans)
 }
 
+func (slf *transportorShard) CloseClient(sessionID string, reason string) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	if sessionID == "" {
+		return nil
+	}
+	sessionInfo := slf.sessionMgr.GetSession(sessionID)
+	if sessionInfo == nil {
+		return kkerrors.ErrAppSessionNotFound
+	}
+	conn := slf.getConn(sessionInfo.GetShardIdx())
+	if conn == nil {
+		return kkerrors.ErrNetConnNotFound
+	}
+	var msg ptotrans.RpcCloseClient
+	msg.ClientId = sessionID
+	msg.GateNodeId = sessionInfo.GetGateNodeID()
+	msg.Reason = reason
+	bbTrans, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
+	if err != nil {
+		return err
+	}
+	return conn.cli.SendBuffer(bbTrans)
+}
+
 func (slf *transportorShard) GetSessionManager() *gametrans.SessionManager {
 	return slf.sessionMgr
 }

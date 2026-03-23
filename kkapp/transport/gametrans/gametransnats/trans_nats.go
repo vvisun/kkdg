@@ -237,6 +237,40 @@ func (slf *transportorNats) NotifyClientLoginLogout(sessionID string, userId int
 	return nil
 }
 
+func (slf *transportorNats) CloseClient(sessionID string, reason string) error {
+	if slf.stopped {
+		return kkerrors.ErrAppTransportorStopped
+	}
+	if sessionID == "" {
+		return nil
+	}
+	sessionInfo := slf.sessionMgr.GetSession(sessionID)
+	if sessionInfo == nil {
+		return kkerrors.ErrAppSessionNotFound
+	}
+	var msg ptotrans.RpcCloseClient
+	msg.ClientId = sessionID
+	msg.Reason = reason
+	msg.GateNodeId = sessionInfo.GetGateNodeID()
+	bbTrans, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
+	if err != nil {
+		return err
+	}
+
+	streamBytes := bbTrans.B //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
+
+	pkt := kkcluster.NewClusterPacket()
+	pkt.FuncName = ptotrans.FuncNameCloseClient
+	pkt.ArgBytes = streamBytes
+	pkt.Sid = sessionID
+	err = slf.cluster.PublishRemote(sessionInfo.GetGateNodeID(), pkt)
+	kkbuffer.Put(bbTrans)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (slf *transportorNats) GetSessionManager() *gametrans.SessionManager {
 	return slf.sessionMgr
 }

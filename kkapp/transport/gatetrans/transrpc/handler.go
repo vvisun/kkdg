@@ -46,3 +46,8 @@ func (rh *rpcHandler) onUnregister(ctx context.Context, msg *ptotrans.RpcUnregis
 	rh.trans.logicNodeMgr.unregisterLogicNode(msg.NodeId)
 	return nil
 }
+
+func (rh *rpcHandler) onCloseClient(ctx context.Context, msg *ptotrans.RpcCloseClient, connId kknet.CONN_ID) error {
+	rh.trans.sessionMgr.CloseConn(msg.ClientId)
+	return nil
+}

@@ -15,6 +15,8 @@ type ISessionManager interface {
 	AddConn(sessionID string, conn kknet.IConn)
 	// RemoveConn removes a client connection by sessionID
 	RemoveConn(sessionID string)
+	// CloseConn closes a client by sessionID
+	CloseConn(sessionID string)
 }
 
 type SessionManager struct {
@@ -55,4 +57,15 @@ func (slf *SessionManager) RemoveConn(sessionID string) {
 		return
 	}
 	slf.connMap.Delete(sessionID)
+}
+
+func (slf *SessionManager) CloseConn(sessionID string) {
+	if sessionID == "" {
+		return
+	}
+	conn, err := slf.GetConn(sessionID)
+	if err != nil {
+		return
+	}
+	conn.Close()
 }
