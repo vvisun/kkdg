@@ -31,7 +31,9 @@ func exampleStats() {
 	// 创建集群
 	cluster := cnats.NewNatsCluster("node1", "typea", kkcluster.ApplyOptions(
 		kkcluster.WithDiscovery(discovery),
+		kkcluster.WithUrl("nats://127.0.0.1:4222"),
 	))
+	// 启动集群
 	if err := cluster.Start(); err != nil {
 		fmt.Printf("Failed to init cluster: %v\n", err)
 		return
