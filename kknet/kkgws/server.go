@@ -137,6 +137,7 @@ func (s *Server) handleRawConn(conn net.Conn) {
 	if err != nil {
 		s.stats.AddError()
 		s.opts.Logger.Errorf("kkgws upgrade error: %v", err)
+		conn.Close()
 		return
 	}
 	socket.SetNoDelay(true)

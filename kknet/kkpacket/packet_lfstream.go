@@ -65,8 +65,11 @@ func (slf *LengthFieldStreamPacket) MaxPacketSize() int {
 }
 
 // length field bytes. packet = [length,message]
-func (slf *LengthFieldStreamPacket) LengthFieldBytes(packet []byte) []byte {
-	return packet[:slf.lfbCount]
+func (slf *LengthFieldStreamPacket) LengthFieldBytes(packet []byte) ([]byte, error) {
+	if len(packet) < slf.lfbCount {
+		return nil, kkerrors.ErrPktDataTooShortToDecode
+	}
+	return packet[:slf.lfbCount], nil
 }
 
 // get message bytes. packet = [length,message]
@@ -100,13 +103,17 @@ func (slf *LengthFieldStreamPacket) ReadMessageSize(packet []byte) (int, error) 
  *@param packet []byte 整包数据 [length,message] 或 一部分
  *@param size int 包体[message]的长度
  */
-func (slf *LengthFieldStreamPacket) WriteMessageSize(packet []byte, size int) {
+func (slf *LengthFieldStreamPacket) WriteMessageSize(packet []byte, size int) error {
+	if len(packet) < slf.lfbCount {
+		return kkerrors.ErrPktDataTooShortToDecode
+	}
 	switch slf.lfbCount {
 	case 4:
 		slf.endian.PutUint32(packet[:4], uint32(size))
 	case 2:
 		slf.endian.PutUint16(packet[:2], uint16(size))
 	}
+	return nil
 }
 
 /**check packet is valid.
@@ -259,8 +266,11 @@ func (slf *LengthFieldStreamPacket) SplitSR(r IStreamReader) ([]byte, bool, erro
 		return nil, false, err // 解析长度字段失败
 	}
 
-	// 3. 检查是否收到完整的数据包
+	// 3. 检查包体大小是否超过上限（与 Split 一致）
 	totalLen := lfb + messageLen
+	if totalLen > slf.maxPacketSize {
+		return nil, false, kkerrors.ErrPktMaxMessageSize
+	}
 	if r.InboundBuffered() < totalLen {
 		return nil, false, nil //尚未收到完整的数据包
 	}
