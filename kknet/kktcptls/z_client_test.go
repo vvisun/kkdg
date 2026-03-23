@@ -1,6 +1,7 @@
 package kktcptls
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -132,6 +133,88 @@ func TestClient_SendBuffer_Echo(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for echo")
+	}
+}
+
+func TestClient_ReconnectMaxRetries_StatusClosed(t *testing.T) {
+	noop := &tlsNoopRawHandler{}
+	// reserve a local free port without starting a server, forcing fast ECONNREFUSED
+	addr := freePort(t)
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(noop),
+		kknet.WithIsNeedReconnect(true),
+		kknet.WithReconnectInterval(100*time.Millisecond, 1),
+		kknet.WithReconnectMaxInterval(100*time.Millisecond),
+	)
+	client := NewClient(addr, nil, opts)
+
+	err := client.Connect()
+	if err == nil {
+		t.Fatal("Connect() should fail when target is unreachable")
+	}
+	if client.IsConnected() {
+		t.Fatal("IsConnected() should be false after reconnect attempts exhausted")
+	}
+	if !client.IsStopped() {
+		t.Fatal("IsStopped() should be true after reconnect attempts exhausted")
+	}
+}
+
+func TestClient_Close_Concurrent_NoPanic(t *testing.T) {
+	addr := freePort(t)
+	tlsCfg := genTestTLSConfig(t)
+	noop := &tlsNoopRawHandler{}
+	srvOpts := kknet.ApplyOptions(
+		kknet.WithTLSConfig(tlsCfg),
+		kknet.WithRawHandler(noop),
+	)
+	s := NewServer(addr, nil, srvOpts)
+	if err := s.Start(); err != nil {
+		t.Fatalf("Server Start: %v", err)
+	}
+	defer s.Stop()
+
+	clientCfg := tlsCfg.Clone()
+	clientCfg.InsecureSkipVerify = true
+	cliOpts := kknet.ApplyOptions(
+		kknet.WithTLSConfig(clientCfg),
+		kknet.WithRawHandler(noop),
+		kknet.WithIsNeedReconnect(false),
+	)
+	client := NewClient(addr, nil, cliOpts)
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- client.Close()
+		}()
+	}
+	wg.Wait()
+	close(errs)
+
+	var hasNil, hasNotConnected bool
+	for err := range errs {
+		if err == nil {
+			hasNil = true
+			continue
+		}
+		if err == kkerrors.ErrNetClientNotConnected {
+			hasNotConnected = true
+			continue
+		}
+		t.Fatalf("unexpected Close error: %v", err)
+	}
+	if !hasNil {
+		t.Fatal("expected one successful Close()")
+	}
+	if !hasNotConnected {
+		t.Fatal("expected one ErrNetClientNotConnected on concurrent Close()")
 	}
 }
 
