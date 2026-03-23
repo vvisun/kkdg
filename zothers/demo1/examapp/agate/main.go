@@ -16,8 +16,8 @@ import (
 	"github.com/vvisun/kkdg/remotes/kkcluster"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/zothers/examples/examapp"
-	"github.com/vvisun/kkdg/zothers/examples/examapp/ptoexam"
+	"github.com/vvisun/kkdg/zothers/demo1/examapp"
+	"github.com/vvisun/kkdg/zothers/demo1/examapp/ptoexam"
 )
 
 func main() {
