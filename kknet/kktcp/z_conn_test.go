@@ -23,6 +23,7 @@ type fakeGnetConn struct {
 	mu sync.Mutex
 
 	closed bool
+	ctx    any
 
 	asyncWritevHook func(bs [][]byte, callback gnet.AsyncCallback) error
 }
@@ -54,9 +55,9 @@ func (c *fakeGnetConn) AsyncWritev(bs [][]byte, callback gnet.AsyncCallback) err
 	}
 	return nil
 }
-func (c *fakeGnetConn) Context() any              { return nil }
+func (c *fakeGnetConn) Context() any              { return c.ctx }
 func (c *fakeGnetConn) EventLoop() gnet.EventLoop { return nil }
-func (c *fakeGnetConn) SetContext(_ any)          {}
+func (c *fakeGnetConn) SetContext(v any)          { c.ctx = v }
 func (c *fakeGnetConn) LocalAddr() net.Addr       { return fakeAddr("local") }
 func (c *fakeGnetConn) RemoteAddr() net.Addr      { return fakeAddr("remote") }
 func (c *fakeGnetConn) Wake(callback gnet.AsyncCallback) error {
@@ -206,5 +207,77 @@ func TestClientConn_WriteError_ClosesAndDropsQueue(t *testing.T) {
 	}
 	if err := conn.SendBuffer(bb3); err != kkerrors.ErrNetConnectionClosed {
 		t.Fatalf("SendBuffer after write error = %v, want ErrNetConnectionClosed", err)
+	}
+}
+
+func TestClientConn_Close_FlushTimeout_DropsQueue(t *testing.T) {
+	fc := &fakeGnetConn{}
+	fc.asyncWritevHook = func(_ [][]byte, _ gnet.AsyncCallback) error {
+		return nil
+	}
+	conn, opts := newTestClientConn(t, fc)
+	conn.closeCond = sync.NewCond(&conn.closeMu)
+	opts.WpOptions.SendQueueNeedFlushOver = true
+	opts.WpOptions.SendQueueTimeoutFlushOver = 200 * time.Millisecond
+
+	bb1, err := opts.StreamTool.Pack([]byte("first"))
+	if err != nil {
+		t.Fatalf("Pack first: %v", err)
+	}
+	if err := conn.SendBuffer(bb1); err != nil {
+		t.Fatalf("SendBuffer first: %v", err)
+	}
+	bb2, err := opts.StreamTool.Pack([]byte("second"))
+	if err != nil {
+		t.Fatalf("Pack second: %v", err)
+	}
+	if err := conn.SendBuffer(bb2); err != nil {
+		t.Fatalf("SendBuffer second: %v", err)
+	}
+
+	if err := conn.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	if got := conn.sendQueue.Len(); got != 0 {
+		t.Fatalf("sendQueue.Len() = %d, want 0 after flush timeout", got)
+	}
+	if !fc.isClosed() {
+		t.Fatal("underlying conn should be closed after flush timeout")
+	}
+}
+
+func TestClientHandler_OnClose_DropsQueuedBuffers(t *testing.T) {
+	fc := &fakeGnetConn{}
+	fc.asyncWritevHook = func(_ [][]byte, _ gnet.AsyncCallback) error {
+		return nil
+	}
+	conn, opts := newTestClientConn(t, fc)
+	conn.closeCond = sync.NewCond(&conn.closeMu)
+	fc.SetContext(conn)
+
+	bb1, err := opts.StreamTool.Pack([]byte("first"))
+	if err != nil {
+		t.Fatalf("Pack first: %v", err)
+	}
+	if err := conn.SendBuffer(bb1); err != nil {
+		t.Fatalf("SendBuffer first: %v", err)
+	}
+	bb2, err := opts.StreamTool.Pack([]byte("second"))
+	if err != nil {
+		t.Fatalf("Pack second: %v", err)
+	}
+	if err := conn.SendBuffer(bb2); err != nil {
+		t.Fatalf("SendBuffer second: %v", err)
+	}
+
+	handler := &gnetClientEventHandler{client: &GnetClient{opts: opts}}
+	handler.OnClose(fc, errors.New("peer closed"))
+
+	if !conn.closing.Load() {
+		t.Fatal("closing should be true after OnClose")
+	}
+	if got := conn.sendQueue.Len(); got != 0 {
+		t.Fatalf("sendQueue.Len() = %d, want 0 after OnClose", got)
 	}
 }

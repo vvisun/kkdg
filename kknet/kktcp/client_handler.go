@@ -44,11 +44,7 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 		h.client.stats.AddError()
 	}
 	if cc, ok := c.Context().(*gnetConn); ok {
-		cc.closing.Store(true)
-		// Stop read processor asynchronously (drain remaining queue outside event-loop).
-		if cc.rp != nil {
-			go cc.rp.Stop()
-		}
+		cc.handleUnderlyingClose()
 		if h.client.handler != nil {
 			kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnClose", func() {
 				h.client.handler.OnClose(cc, err)

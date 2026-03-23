@@ -40,11 +40,7 @@ func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 		h.server.stats.AddError()
 	}
 	if tc, ok := c.Context().(*gnetConn); ok {
-		tc.closing.Store(true)
-		// Stop read processor asynchronously (drain remaining queue outside event-loop).
-		if tc.rp != nil {
-			go tc.rp.Stop()
-		}
+		tc.handleUnderlyingClose()
 		h.server.connMgr.RemoveConn(tc.id)
 	}
 	if h.server.handler == nil {

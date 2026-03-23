@@ -86,6 +86,7 @@ func (c *gwsConn) Close() error {
 	if c.closing.Swap(true) {
 		return nil
 	}
+	timedOut := false
 	if c.opts.WpOptions.SendQueueNeedFlushOver {
 		timeout := c.opts.WpOptions.SendQueueTimeoutFlushOver
 		if timeout <= 0 {
@@ -100,6 +101,7 @@ func (c *gwsConn) Close() error {
 			}
 			remain := time.Until(deadline)
 			if remain <= 0 {
+				timedOut = true
 				c.closeMu.Unlock()
 				if c.opts.WpOptions.SendQueueFlushTimeoutCallback != nil {
 					c.opts.WpOptions.SendQueueFlushTimeoutCallback(c, timeout)
@@ -114,7 +116,8 @@ func (c *gwsConn) Close() error {
 			c.closeCond.Wait()
 			_ = timer.Stop()
 		}
-	} else {
+	}
+	if timedOut || !c.opts.WpOptions.SendQueueNeedFlushOver {
 		c.dropQueuedBuffers()
 	}
 
@@ -148,6 +151,7 @@ func (c *gwsConn) onRecvMessage(data []byte) {
 func (c *gwsConn) doClose(handler kknet.IConnLifecycleHandler, err error) {
 	c.closeOnce.Do(func() {
 		c.closing.Store(true)
+		c.dropQueuedBuffers()
 		c.stopPingByTimingWheel()
 		if c.rp != nil {
 			c.rp.Stop()
@@ -352,7 +356,6 @@ func (c *gwsConn) startDrain() {
 
 func (c *gwsConn) handleWriteError(err error) {
 	c.closing.Store(true)
-	c.dropQueuedBuffers()
 	if c.socket != nil {
 		_ = c.socket.WriteClose(1011, nil)
 	}

@@ -21,7 +21,8 @@ const BatchPacketSize = 32
 
 type WriteOptions struct {
 	StreamTool kkpacket.IPacket
-	// 消息包解码器
+	// 消息包编解码器。
+	// SendMsg 依赖该配置；若未设置 MsgPacket 就调用 SendMsg，属于配置错误，当前实现允许直接 panic。
 	MsgPacket *kkpacket.MessagePacket
 
 	// 发送队列是否严格容量控制
@@ -86,7 +87,8 @@ func CheckWriteOptions(opts *WriteOptions) {
 		opts.StreamTool = kkpacket.DefaultStreamPacket()
 	}
 	if opts.MsgPacket == nil {
-		// kklog.Warnf("wp MsgPacket is nil, SendMsg will work error")
+		// 保持兼容：这里不自动兜底，也不返回错误。
+		// SendMsg 调用方必须自行保证 MsgPacket 已配置；未配置属于必现的配置错误。
 	}
 	if opts.SendQueueSize <= 0 {
 		kklog.Debugf("wp SendQueueSize fixed from %d to %d", opts.SendQueueSize, 128)
@@ -171,6 +173,7 @@ func WithBatchWriteLimitBytes(limit int) Option {
 }
 
 // WithMsgPacket sets message packet.
+// SendMsg 依赖该配置；如果业务会调用 SendMsg，则必须显式设置。
 func WithMsgPacket(packet *kkpacket.MessagePacket) Option {
 	return func(o *Options) {
 		o.WpOptions.MsgPacket = packet

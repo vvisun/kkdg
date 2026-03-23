@@ -187,3 +187,70 @@ func TestConn_Close_WaitsForFlush(t *testing.T) {
 		t.Fatalf("server received %d/%d after Close", serverHandler.got.Load(), total)
 	}
 }
+
+func TestConn_Close_FlushTimeout_DropsQueue(t *testing.T) {
+	opts := kknet.ApplyOptions(
+		kknet.WithSendQueueNeedFlushOver(true),
+		kknet.WithSendQueueTimeoutFlushOver(200*time.Millisecond),
+	)
+	c := &gwsConn{
+		opts:      &opts,
+		sendQueue: bbqueue.NewBBQueue(8, false),
+		draining:  true,
+	}
+	c.closeCond = sync.NewCond(&c.closeMu)
+
+	for i := 0; i < 2; i++ {
+		bb := kkbuffer.GetWithCapacity(8)
+		bb.B = append(bb.B, byte(i))
+		if !c.sendQueue.Push(bb) {
+			t.Fatalf("push %d failed", i)
+		}
+	}
+
+	if err := c.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if got := c.sendQueue.Len(); got != 0 {
+		t.Fatalf("sendQueue.Len() = %d, want 0 after flush timeout", got)
+	}
+}
+
+func TestConn_DoClose_DropsQueuedBuffers(t *testing.T) {
+	opts := kknet.ApplyOptions()
+	closedCh := make(chan error, 1)
+	handler := &testHandler{
+		onClose: func(c kknet.IConn, err error) {
+			closedCh <- err
+		},
+	}
+	c := &gwsConn{
+		opts:      &opts,
+		handler:   handler,
+		sendQueue: bbqueue.NewBBQueue(8, false),
+	}
+	c.closeCond = sync.NewCond(&c.closeMu)
+
+	for i := 0; i < 3; i++ {
+		bb := kkbuffer.GetWithCapacity(8)
+		bb.B = append(bb.B, byte(i))
+		if !c.sendQueue.Push(bb) {
+			t.Fatalf("push %d failed", i)
+		}
+	}
+
+	closeErr := errors.New("peer closed")
+	c.doClose(handler, closeErr)
+
+	if got := c.sendQueue.Len(); got != 0 {
+		t.Fatalf("sendQueue.Len() = %d, want 0 after doClose", got)
+	}
+	select {
+	case err := <-closedCh:
+		if !errors.Is(err, closeErr) {
+			t.Fatalf("OnClose err = %v, want %v", err, closeErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for OnClose")
+	}
+}

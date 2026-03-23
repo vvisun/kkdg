@@ -34,6 +34,7 @@ type IWriteProcessor interface {
 	// @param buffer 要发送的数据（整包[length,message]）
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
 	// @param msg 要发送的数据（结构体对象）。writeProcessor内部会使用kkpacket编码。
+	// 前提：opts.MsgPacket 必须已正确配置；未配置时属于必现的配置错误，当前实现允许直接 panic。
 	SendMsg(msg any) error
 
 	Pending() int          //返回当前队列中待发送的数据包数量。即：sendQueue.Len()。

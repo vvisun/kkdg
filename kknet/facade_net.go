@@ -14,7 +14,9 @@ type IConn interface {
 	RemoteAddr() string
 	//发送二进制数据。内部会自动释放buffer
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
-	//发送结构体对象。内部会使用kkpacket编码
+	//发送结构体对象。内部会使用kkpacket编码。
+	//前提：必须已正确配置 WriteOptions.MsgPacket（或通过 WithMsgPacket 设置）。
+	//这是配置约束；未配置时属于必现错误，当前实现允许直接 panic。
 	SendMsg(msg any) error
 }
 
@@ -49,7 +51,9 @@ type IServer interface {
 
 	//发送二进制数据。内部会自动释放buffer
 	SendBuffer(connId CONN_ID, buffer *kkbuffer.ByteBuffer) error
-	//发送结构体对象。内部会使用kkpacket编码
+	//发送结构体对象。内部会使用kkpacket编码。
+	//前提：必须已正确配置 WriteOptions.MsgPacket（或通过 WithMsgPacket 设置）。
+	//这是配置约束；未配置时属于必现错误，当前实现允许直接 panic。
 	SendMsg(connId CONN_ID, msg any) error
 }
 
@@ -64,6 +68,8 @@ type IClient interface {
 
 	//发送二进制数据。内部会自动释放buffer
 	SendBuffer(buffer *kkbuffer.ByteBuffer) error
-	//发送结构体对象。内部会使用kkpacket编码
+	//发送结构体对象。内部会使用kkpacket编码。
+	//前提：必须已正确配置 WriteOptions.MsgPacket（或通过 WithMsgPacket 设置）。
+	//这是配置约束；未配置时属于必现错误，当前实现允许直接 panic。
 	SendMsg(msg any) error
 }

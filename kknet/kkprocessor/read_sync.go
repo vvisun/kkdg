@@ -59,36 +59,47 @@ func (rp *SyncReadProcessor) Stop() {
 	rp.conn = nil
 }
 
-func (rp *SyncReadProcessor) checkRecvQueue() bool {
-	if rp.opts.RecvQueueStrict && atomic.LoadInt64(&rp.recvQueueSize) >= int64(rp.opts.RecvQueueSize) {
-		if cb := rp.opts.RecvQueueFullCallback; cb != nil {
-			conn := rp.conn
-			xcall.SafeCall(func() {
-				cb(conn)
-			})
-		}
+func (rp *SyncReadProcessor) tryAcquireRecvSlot() bool {
+	if !rp.opts.RecvQueueStrict {
+		atomic.AddInt64(&rp.recvQueueSize, 1)
 		return true
 	}
-	return false
+	limit := int64(rp.opts.RecvQueueSize)
+	for {
+		cur := atomic.LoadInt64(&rp.recvQueueSize)
+		if cur >= limit {
+			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+				conn := rp.conn
+				xcall.SafeCall(func() {
+					cb(conn)
+				})
+			}
+			return false
+		}
+		if atomic.CompareAndSwapInt64(&rp.recvQueueSize, cur, cur+1) {
+			return true
+		}
+	}
+}
+
+func (rp *SyncReadProcessor) releaseRecvSlot() {
+	atomic.AddInt64(&rp.recvQueueSize, -1)
 }
 
 func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) {
 	if len(packet) == 0 {
 		return
 	}
-	if rp.checkRecvQueue() {
+	if !rp.tryAcquireRecvSlot() {
 		return
 	}
-
-	atomic.AddInt64(&rp.recvQueueSize, 1)
+	defer rp.releaseRecvSlot()
 
 	rp.mu.Lock()
 	xcall.SafeCall(func() {
 		rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 	})
 	rp.mu.Unlock()
-
-	atomic.AddInt64(&rp.recvQueueSize, -1)
 }
 
 func (rp *SyncReadProcessor) reRecvBuf(capacity int) {
@@ -141,11 +152,10 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		return nil
 	}
 
-	if rp.checkRecvQueue() {
+	if !rp.tryAcquireRecvSlot() {
 		return nil
 	}
-
-	atomic.AddInt64(&rp.recvQueueSize, 1)
+	defer rp.releaseRecvSlot()
 
 	// Handler 串行调用（与 EnqueuePacket 互斥）
 	rp.mu.Lock()
@@ -155,8 +165,6 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		}
 	})
 	rp.mu.Unlock()
-
-	atomic.AddInt64(&rp.recvQueueSize, -1)
 
 	return nil
 }

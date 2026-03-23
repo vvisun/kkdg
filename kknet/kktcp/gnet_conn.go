@@ -71,6 +71,7 @@ func (c *gnetConn) Close() error {
 	if c.rp != nil {
 		go c.rp.Stop()
 	}
+	timedOut := false
 	if c.opts.WpOptions.SendQueueNeedFlushOver {
 		timeout := c.opts.WpOptions.SendQueueTimeoutFlushOver
 		if timeout <= 0 {
@@ -85,6 +86,7 @@ func (c *gnetConn) Close() error {
 			}
 			remain := time.Until(deadline)
 			if remain <= 0 {
+				timedOut = true
 				c.closeMu.Unlock()
 				if c.opts.WpOptions.SendQueueFlushTimeoutCallback != nil {
 					c.opts.WpOptions.SendQueueFlushTimeoutCallback(c, timeout)
@@ -99,7 +101,8 @@ func (c *gnetConn) Close() error {
 			c.closeCond.Wait()
 			_ = timer.Stop()
 		}
-	} else {
+	}
+	if timedOut || !c.opts.WpOptions.SendQueueNeedFlushOver {
 		c.dropQueuedBuffers()
 	}
 	return c.conn.Close()
@@ -264,6 +267,14 @@ func (c *gnetConn) handleWriteError(err error) {
 	c.dropQueuedBuffers()
 	_ = c.conn.Close()
 	_ = err
+}
+
+func (c *gnetConn) handleUnderlyingClose() {
+	c.closing.Store(true)
+	c.dropQueuedBuffers()
+	if c.rp != nil {
+		go c.rp.Stop()
+	}
 }
 
 func (c *gnetConn) dropQueuedBuffers() {

@@ -267,6 +267,27 @@ func (h *signalBlockingRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuf
 	}
 }
 
+type orderedBlockingRawHandler struct {
+	firstEntered  chan struct{}
+	secondEntered chan struct{}
+	release       chan struct{}
+	count         atomic.Int32
+}
+
+func (h *orderedBlockingRawHandler) OnRaw(_ kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	n := h.count.Add(1)
+	switch n {
+	case 1:
+		close(h.firstEntered)
+		<-h.release
+	case 2:
+		close(h.secondEntered)
+	}
+	if data != nil {
+		kkbuffer.Put(data)
+	}
+}
+
 func TestReadProcessor_EnqueuePacket(t *testing.T) {
 	h := &collectingRawHandler{}
 	opts := kknet.ApplyOptions(
@@ -451,6 +472,48 @@ func TestSyncReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T) {
 	}
 }
 
+func TestSyncReadProcessor_RecvQueueStrict_ConcurrentAcquire_Drops(t *testing.T) {
+	h := &syncBlockingHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(1),
+		kknet.WithRecvQueueStrict(true),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
+	rp.Start(&mockConnForRead{id: 9})
+
+	const workers = 16
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			rp.EnqueuePacket([]byte{0, 0, 0, 1, 'x'})
+		}()
+	}
+
+	close(start)
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("no packet entered none-copy handler")
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	close(h.release)
+	wg.Wait()
+
+	if got := h.count.Load(); got != 1 {
+		t.Fatalf("handled %d packets, want 1", got)
+	}
+}
+
 func TestReadProcessor_Stop_DrainsRemaining(t *testing.T) {
 	h := &collectingRawHandler{}
 	opts := kknet.ApplyOptions(
@@ -573,6 +636,61 @@ func TestWorkerReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T)
 		time.Sleep(10 * time.Millisecond)
 	}
 	rp.Stop()
+
+	if got := h.count.Load(); got != 2 {
+		t.Fatalf("handled %d packets, want 2", got)
+	}
+}
+
+func TestWorkerReadProcessor_Stop_DrainsAcceptedTasks(t *testing.T) {
+	h := &orderedBlockingRawHandler{
+		firstEntered:  make(chan struct{}),
+		secondEntered: make(chan struct{}),
+		release:       make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(8),
+		kknet.WithRecvQueueStrict(false),
+	)
+	opts.RpOptions.WorkerQueueMaxConcurrency = 1
+	rp := NewWorkerReadProcessor(opts.RpOptions).(*WorkerReadProcessor)
+	rp.Start(&mockConnForRead{id: 5})
+
+	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'})
+	select {
+	case <-h.firstEntered:
+	case <-time.After(time.Second):
+		t.Fatal("first packet did not enter handler")
+	}
+
+	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'})
+
+	stopDone := make(chan struct{})
+	go func() {
+		rp.Stop()
+		close(stopDone)
+	}()
+
+	select {
+	case <-stopDone:
+		t.Fatal("Stop returned before accepted tasks drained")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(h.release)
+
+	select {
+	case <-h.secondEntered:
+	case <-time.After(time.Second):
+		t.Fatal("second accepted task was not drained during Stop")
+	}
+
+	select {
+	case <-stopDone:
+	case <-time.After(time.Second):
+		t.Fatal("Stop did not return after accepted tasks drained")
+	}
 
 	if got := h.count.Load(); got != 2 {
 		t.Fatalf("handled %d packets, want 2", got)

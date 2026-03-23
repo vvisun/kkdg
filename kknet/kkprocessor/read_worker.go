@@ -68,7 +68,8 @@ func (rp *WorkerReadProcessor) Start(conn kknet.IConn) {
 	rp.connID = conn.ID()
 }
 
-// Stop 标记关闭并等待所有已入队任务完成，确保 RawHandler 不再被调用后才返回。
+// Stop 标记关闭并等待所有已受理任务完成。
+// Stop 返回后，不再接受新任务；已在 Stop 之前受理的任务会继续执行到 RawHandler 返回。
 func (rp *WorkerReadProcessor) Stop() {
 	rp.closing.Store(true)
 	rp.wg.Wait()
@@ -190,10 +191,6 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	rp.workQueue.Push(func() {
 		defer rp.wg.Done()
 		xcall.SafeCall(func() {
-			if rp.closing.Load() {
-				kkbuffer.Put(bb)
-				return
-			}
 			rawHandler.OnRaw(connID, bb)
 		})
 	})
