@@ -101,7 +101,7 @@ func (p *bfPool) Put(b *ByteBuffer) {
 	}
 	idx := index(size)
 	atomic.AddUint64(&p.calls[idx], 1)
-	if atomic.AddUint64(&p.calibrateCount, 1) > calibrateCallsThreshold {
+	if atomic.AddUint64(&p.calibrateCount, 1) > atomic.LoadUint64(&calibrateCallsThreshold) {
 		p.calibrate()
 	}
 	b.Reset()
@@ -130,10 +130,11 @@ func (p *bfPool) calibrate() {
 		defaultSize = minItemSize
 	}
 
-	calibrateCallsThreshold *= 2
-	if calibrateCallsThreshold > 65536 {
-		calibrateCallsThreshold = 65536
+	newCalibrateCallsThreshold := atomic.LoadUint64(&calibrateCallsThreshold) * 2
+	if newCalibrateCallsThreshold > 65536 {
+		newCalibrateCallsThreshold = 65536
 	}
+	atomic.StoreUint64(&calibrateCallsThreshold, newCalibrateCallsThreshold)
 	atomic.StoreUint64(&p.defaultSize, uint64(defaultSize))
 	atomic.StoreUint64(&p.calibrating, 0)
 }

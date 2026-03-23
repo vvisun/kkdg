@@ -122,6 +122,7 @@ func (c *gwsConn) Close() error {
 		_ = c.socket.WriteClose(1000, nil)
 	}
 
+	c.doClose(nil, nil)
 	return nil
 }
 
@@ -230,12 +231,15 @@ func (c *gwsConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		kkbuffer.Put(buffer)
 		return err
 	}
+	c.closeMu.Lock()
 	if c.closing.Load() {
+		c.closeMu.Unlock()
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrNetConnectionClosed
 	}
-
 	c.pendingWrites.Add(1)
+	c.closeMu.Unlock()
+
 	c.socket.WriteAsync(gws.OpcodeBinary, buffer.B, func(err error) {
 		if err != nil {
 			if c.stats != nil {

@@ -128,6 +128,8 @@ func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 		rp.reRecvBuf(defaultRecvBufSize + leftLen)
 		rp.recvBuf = rp.recvBuf[:leftLen]
 		copy(rp.recvBuf, leftData)
+	} else if rp.recvBuf != nil {
+		rp.recvBuf = rp.recvBuf[:0]
 	}
 
 	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {

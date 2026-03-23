@@ -130,12 +130,15 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		kkbuffer.Put(buffer)
 		return err
 	}
+	c.closeMu.Lock()
 	if c.closing.Load() {
+		c.closeMu.Unlock()
 		kkbuffer.Put(buffer)
 		return kkerrors.ErrNetConnectionClosed
 	}
-
 	c.pendingWrites.Add(1)
+	c.closeMu.Unlock()
+
 	err := c.conn.AsyncWrite(buffer.B, func(_ gnet.Conn, err error) error {
 		if err != nil {
 			if c.stats != nil {
@@ -155,8 +158,8 @@ func (c *gnetClientConn) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 		return nil
 	})
 	if err != nil {
-		c.pendingWrites.Add(-1)
-		if c.pendingWrites.Load() == 0 {
+		kkbuffer.Put(buffer)
+		if c.pendingWrites.Add(-1) == 0 {
 			c.closeMu.Lock()
 			c.closeCond.Signal()
 			c.closeMu.Unlock()

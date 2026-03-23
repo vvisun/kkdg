@@ -157,6 +157,8 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		rp.reRecvBuf(defaultRecvBufSize + leftLen)
 		rp.recvBuf = rp.recvBuf[:leftLen]
 		copy(rp.recvBuf, leftData)
+	} else if rp.recvBuf != nil {
+		rp.recvBuf = rp.recvBuf[:0]
 	}
 
 	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
@@ -187,20 +189,25 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 
 	// --- Phase 3: 入队（短锁，仅队列操作） ---
 
+	isQueueFull := false
 	rp.mu.Lock()
 	wasEmpty := rp.recvQueue.IsEmpty()
 	for i := 0; i < n; i++ {
 		ok := rp.recvQueue.Push(prepared[i])
 		if !ok {
 			kkbuffer.Put(prepared[i])
-			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
-				conn := rp.conn
-				xcall.SafeCall(func() { cb(conn) })
-			}
+			isQueueFull = true
 		}
 	}
 	nowEmpty := rp.recvQueue.IsEmpty()
 	rp.mu.Unlock()
+
+	if isQueueFull {
+		if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+			conn := rp.conn
+			xcall.SafeCall(func() { cb(conn) })
+		}
+	}
 
 	if wasEmpty && !nowEmpty {
 		rp.wakeConsumer()
@@ -244,14 +251,14 @@ func (rp *ReadProcessor) drainOnce() {
 		if n <= 0 {
 			return
 		}
-		xcall.SafeCall(func() {
-			for i := 0; i < n; i++ {
-				packet := batchBuf[i]
-				if packet == nil {
-					continue
-				}
-				rp.opts.RawHandler.OnRaw(rp.connID, packet)
+		for i := 0; i < n; i++ {
+			packet := batchBuf[i]
+			if packet == nil {
+				continue
 			}
-		})
+			xcall.SafeCall(func() {
+				rp.opts.RawHandler.OnRaw(rp.connID, packet)
+			})
+		}
 	}
 }
