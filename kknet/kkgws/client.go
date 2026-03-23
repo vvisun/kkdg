@@ -2,7 +2,6 @@ package kkgws
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/lxzan/gws"
@@ -17,12 +16,10 @@ type Client struct {
 	handler kknet.IConnLifecycleHandler
 	opts    kknet.Options
 
-	connMu       sync.Mutex
-	conn         *gwsConn
-	connected    atomic.Bool
-	reconnecting atomic.Bool
-	closing      atomic.Bool
-	stopCh       chan struct{}
+	connMu sync.Mutex
+	conn   *gwsConn
+	status int32 // kknet.ConnStatus
+	stopCh chan struct{}
 
 	stats kknet.Stats
 }
@@ -41,7 +38,7 @@ func NewClient(url string, handler kknet.IConnLifecycleHandler, opts kknet.Optio
 }
 
 func (c *Client) IsConnected() bool {
-	if !c.connected.Load() {
+	if !kknet.IsConnected(&c.status) {
 		return false
 	}
 	c.connMu.Lock()
@@ -50,11 +47,16 @@ func (c *Client) IsConnected() bool {
 }
 
 // Connect connects to the server.
+// 状态转换：Init/Closed → Connecting → Connected
 func (c *Client) Connect() error {
-	if c.connected.Swap(true) {
+	if kknet.IsConnected(&c.status) {
 		return nil
 	}
-	c.closing.Store(false)
+	if !kknet.CASConnStatus(&c.status, kknet.ConnStatusInit, kknet.ConnStatusConnecting) &&
+		!kknet.CASConnStatus(&c.status, kknet.ConnStatusClosed, kknet.ConnStatusConnecting) {
+		return nil
+	}
+
 	select {
 	case <-c.stopCh:
 		c.stopCh = make(chan struct{})
@@ -67,21 +69,22 @@ func (c *Client) Connect() error {
 		select {
 		case err := <-first:
 			if err != nil {
-				c.connected.Store(false)
+				kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			}
 			return err
 		case <-c.stopCh:
-			c.connected.Store(false)
+			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			return kkerrors.ErrNetClientNotConnected
 		}
 	}
 
 	gc, done, err := c.dialAndStart()
 	if err != nil {
-		c.connected.Store(false)
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 		c.stats.AddError()
 		return err
 	}
+	kknet.ChangeConnStatus(&c.status, kknet.ConnStatusConnected)
 
 	go func() {
 		<-done
@@ -90,7 +93,7 @@ func (c *Client) Connect() error {
 			c.conn = nil
 		}
 		c.connMu.Unlock()
-		c.connected.Store(false)
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 	}()
 	return nil
 }
@@ -122,27 +125,29 @@ func (c *Client) SendMsg(msg any) error {
 }
 
 func (c *Client) IsStopped() bool {
-	return c.closing.Load()
+	return kknet.IsClosingOrClosed(&c.status)
 }
 
 // Close closes the client connection.
+// 状态转换：any → Closing → Closed
 func (c *Client) Close() error {
+	kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosing)
 	c.connMu.Lock()
 	conn := c.conn
 	c.conn = nil
 	c.connMu.Unlock()
-	c.closing.Store(true)
-	c.connected.Store(false)
-	c.reconnecting.Store(false)
 	select {
 	case <-c.stopCh:
 	default:
 		close(c.stopCh)
 	}
 	if conn == nil {
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 		return kkerrors.ErrNetClientNotConnected
 	}
-	return conn.Close()
+	err := conn.Close()
+	kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
+	return err
 }
 
 // Conn returns the underlying connection.
@@ -205,7 +210,8 @@ func (c *Client) dialAndStart() (*gwsConn, <-chan struct{}, error) {
 }
 
 func (c *Client) startReconnectLoop(first chan<- error) {
-	if c.reconnecting.Swap(true) {
+	cur := kknet.LoadConnStatus(&c.status)
+	if cur == kknet.ConnStatusReconnecting || cur >= kknet.ConnStatusClosing {
 		select {
 		case first <- nil:
 		default:
@@ -216,8 +222,6 @@ func (c *Client) startReconnectLoop(first chan<- error) {
 }
 
 func (c *Client) reconnectLoop(first chan<- error) {
-	defer c.reconnecting.Store(false)
-
 	baseInterval := c.opts.ReconnectInterval
 	if baseInterval < 500*time.Millisecond {
 		baseInterval = 500 * time.Millisecond
@@ -240,7 +244,7 @@ func (c *Client) reconnectLoop(first chan<- error) {
 	}
 
 	for {
-		if c.closing.Load() {
+		if kknet.IsClosingOrClosed(&c.status) {
 			reportFirst(kkerrors.ErrNetClientNotConnected)
 			return
 		}
@@ -261,6 +265,11 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			if cb != nil {
 				cb(attempts, nil)
 			}
+			if firstReported {
+				kknet.ChangeConnStatus(&c.status, kknet.ConnStatusReconnected)
+			} else {
+				kknet.ChangeConnStatus(&c.status, kknet.ConnStatusConnected)
+			}
 			reportFirst(nil)
 
 			select {
@@ -276,9 +285,10 @@ func (c *Client) reconnectLoop(first chan<- error) {
 			}
 			c.connMu.Unlock()
 
-			if c.closing.Load() {
+			if kknet.IsClosingOrClosed(&c.status) {
 				return
 			}
+			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusReconnecting)
 		} else {
 			consecutiveFails++
 			c.stats.AddError()

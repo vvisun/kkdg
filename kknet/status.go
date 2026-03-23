@@ -22,10 +22,26 @@ func ChangeConnStatus(status *ConnStatus, newStatus ConnStatus) {
 	atomic.StoreInt32(status, int32(newStatus))
 }
 
+// LoadConnStatus 原子读取当前连接状态
+func LoadConnStatus(status *ConnStatus) ConnStatus {
+	return atomic.LoadInt32(status)
+}
+
+// CASConnStatus 原子比较并交换连接状态，成功返回 true
+func CASConnStatus(status *ConnStatus, old, new ConnStatus) bool {
+	return atomic.CompareAndSwapInt32(status, old, new)
+}
+
 // IsConnected 判断连接状态是否为连接已建立
 func IsConnected(status *ConnStatus) bool {
 	cur := atomic.LoadInt32(status)
 	return cur == ConnStatusConnected || cur == ConnStatusReconnected
+}
+
+// IsClosingOrClosed 判断连接是否处于关闭中或已关闭状态
+func IsClosingOrClosed(status *ConnStatus) bool {
+	cur := atomic.LoadInt32(status)
+	return cur >= ConnStatusClosing
 }
 
 // SafeHandlerCall runs fn and recovers from panics.

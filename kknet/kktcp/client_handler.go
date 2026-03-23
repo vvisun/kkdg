@@ -12,8 +12,11 @@ type gnetClientEventHandler struct {
 
 func (h *gnetClientEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	h.client.stats.OnConnect()
-	h.client.connected.Store(true)
-	h.client.reconnecting.Store(false)
+	if kknet.LoadConnStatus(&h.client.status) == kknet.ConnStatusReconnecting {
+		kknet.ChangeConnStatus(&h.client.status, kknet.ConnStatusReconnected)
+	} else {
+		kknet.ChangeConnStatus(&h.client.status, kknet.ConnStatusConnected)
+	}
 	cc := newGnetClientConn(c, &h.client.opts, &h.client.stats)
 	c.SetContext(cc)
 	h.client.opts.Logger.Infof("kktcp client connect success... connId=%d", cc.id)
@@ -52,8 +55,7 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 	h.client.connMu.Lock()
 	h.client.conn = nil
 	h.client.connMu.Unlock()
-	h.client.connected.Store(false)
-	if !h.client.closing.Load() && h.client.opts.IsNeedReconnect {
+	if !kknet.IsClosingOrClosed(&h.client.status) && h.client.opts.IsNeedReconnect {
 		h.client.startReconnect()
 	}
 	return gnet.None

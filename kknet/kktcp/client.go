@@ -26,23 +26,19 @@ type GnetClient struct {
 	conn   *gnetClientConn
 	openCh chan struct{}
 
-	connected    atomic.Bool
-	started      atomic.Bool
-	reconnecting atomic.Bool
-	closing      atomic.Bool
-	connecting   atomic.Bool // guards concurrent Connect calls
-	stopCh       chan struct{}
+	status  int32      // kknet.ConnStatus — 唯一状态源
+	started atomic.Bool // gnet 引擎生命周期（与连接状态正交）
+	stopCh  chan struct{}
 
 	stats kknet.Stats
 }
 
 var _ kknet.IClient = (*GnetClient)(nil)
 
-// NewGnetClient creates a new gnet-based TCP client.
+// NewClient creates a new gnet-based TCP client.
 func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Options) *GnetClient {
 	kknet.CheckOptions(&opts)
 	if opts.TLSConfig != nil {
-		// panic as gnet client does not support TLS
 		kklog.PanicLog("gnet client does not support TLS. use kktcptls instead.")
 	}
 	return &GnetClient{
@@ -54,7 +50,7 @@ func NewClient(addr string, handler kknet.IConnLifecycleHandler, opts kknet.Opti
 }
 
 func (c *GnetClient) IsConnected() bool {
-	if !c.connected.Load() {
+	if !kknet.IsConnected(&c.status) {
 		return false
 	}
 	c.connMu.Lock()
@@ -63,23 +59,24 @@ func (c *GnetClient) IsConnected() bool {
 }
 
 // Connect connects to the server and starts the gnet client engine.
-// connected 仅由 OnOpen/OnClose handler 管理，Connect 用 connecting CAS 防并发。
+// 状态转换：Init/Closed → Connecting → (OnOpen) → Connected
 func (c *GnetClient) Connect() error {
-	if c.connected.Load() {
+	if kknet.IsConnected(&c.status) {
 		return nil
 	}
-	if !c.connecting.CompareAndSwap(false, true) {
+	// CAS 守卫：仅 Init 或 Closed 允许发起连接
+	if !kknet.CASConnStatus(&c.status, kknet.ConnStatusInit, kknet.ConnStatusConnecting) &&
+		!kknet.CASConnStatus(&c.status, kknet.ConnStatusClosed, kknet.ConnStatusConnecting) {
 		return nil
 	}
-	defer c.connecting.Store(false)
 
-	c.closing.Store(false)
 	select {
 	case <-c.stopCh:
 		c.stopCh = make(chan struct{})
 	default:
 	}
 	if c.opts.TLSConfig != nil {
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 		return errors.New("gnet client does not support TLS")
 	}
 
@@ -97,11 +94,13 @@ func (c *GnetClient) Connect() error {
 		)
 		if err != nil {
 			c.started.Store(false)
+			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			c.opts.Logger.Infof("kktcp client start... failed to create client: %v", err)
 			return err
 		}
 		if err := cli.Start(); err != nil {
 			c.started.Store(false)
+			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			c.opts.Logger.Infof("kktcp client start... failed to start client: %v", err)
 			return err
 		}
@@ -119,17 +118,19 @@ func (c *GnetClient) Connect() error {
 	cli := c.client
 	c.clientMu.Unlock()
 	if cli == nil {
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 		c.opts.Logger.Infof("kktcp client start... failed to get client: %v", kkerrors.ErrNetClientNotConnected)
 		return kkerrors.ErrNetClientNotConnected
 	}
 
 	if _, err := cli.Dial("tcp", c.addr); err != nil {
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 		c.opts.Logger.Infof("kktcp client start... failed to dial: %v", err)
 		return err
 	}
 
 	<-openCh
-	if c.closing.Load() {
+	if kknet.IsClosingOrClosed(&c.status) {
 		return kkerrors.ErrNetConnectionClosed
 	}
 	return nil
@@ -164,11 +165,14 @@ func (c *GnetClient) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 }
 
 func (c *GnetClient) IsStopped() bool {
-	return c.closing.Load()
+	return kknet.IsClosingOrClosed(&c.status)
 }
 
 // Close closes the client connection.
+// 状态转换：any → Closing → Closed
 func (c *GnetClient) Close() error {
+	kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosing)
+
 	c.connMu.Lock()
 	conn := c.conn
 	c.conn = nil
@@ -176,11 +180,6 @@ func (c *GnetClient) Close() error {
 	c.openCh = nil
 	c.connMu.Unlock()
 
-	c.closing.Store(true)
-	c.connected.Store(false)
-	c.reconnecting.Store(false)
-
-	// unblock any pending Connect waiting on openCh
 	if openCh != nil {
 		select {
 		case <-openCh:
@@ -190,6 +189,7 @@ func (c *GnetClient) Close() error {
 	}
 
 	if conn == nil {
+		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 		return kkerrors.ErrNetClientNotConnected
 	}
 
@@ -208,6 +208,7 @@ func (c *GnetClient) Close() error {
 		_ = cli.Stop()
 	}
 	c.started.Store(false)
+	kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 	c.opts.Logger.Infof("kktcp client close... done")
 	return nil
 }
@@ -223,10 +224,16 @@ func (c *GnetClient) Stats() kknet.StatsSnapshot {
 }
 
 func (c *GnetClient) startReconnect() {
-	if c.reconnecting.Swap(true) {
-		return
+	for {
+		cur := kknet.LoadConnStatus(&c.status)
+		if cur == kknet.ConnStatusReconnecting || cur >= kknet.ConnStatusClosing {
+			return
+		}
+		if kknet.CASConnStatus(&c.status, cur, kknet.ConnStatusReconnecting) {
+			go c.reconnectLoop()
+			return
+		}
 	}
-	go c.reconnectLoop()
 }
 
 func (c *GnetClient) reconnectLoop() {
@@ -240,8 +247,7 @@ func (c *GnetClient) reconnectLoop() {
 	attempts := 0
 	consecutiveFails := 0
 	for {
-		if c.closing.Load() {
-			c.reconnecting.Store(false)
+		if kknet.IsClosingOrClosed(&c.status) {
 			return
 		}
 		if maxRetries > 0 && attempts >= maxRetries {
@@ -249,7 +255,7 @@ func (c *GnetClient) reconnectLoop() {
 				cb(attempts, kkerrors.ErrNetReconnectAttemptsExceeded)
 			}
 			c.opts.Logger.Warnf("gnetclient reconnect exceeded after %d attempts", attempts)
-			c.reconnecting.Store(false)
+			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			return
 		}
 		attempts++
@@ -264,7 +270,7 @@ func (c *GnetClient) reconnectLoop() {
 		cli := c.client
 		c.clientMu.Unlock()
 		if cli == nil {
-			c.reconnecting.Store(false)
+			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			return
 		}
 
@@ -275,10 +281,8 @@ func (c *GnetClient) reconnectLoop() {
 					cb(attempts, nil)
 				}
 				c.opts.Logger.Infof("gnetclient reconnected after %d attempts", attempts)
-				c.reconnecting.Store(false)
 				return
 			case <-c.stopCh:
-				c.reconnecting.Store(false)
 				return
 			}
 		} else {
@@ -294,7 +298,6 @@ func (c *GnetClient) reconnectLoop() {
 		select {
 		case <-time.After(delay):
 		case <-c.stopCh:
-			c.reconnecting.Store(false)
 			return
 		}
 	}
