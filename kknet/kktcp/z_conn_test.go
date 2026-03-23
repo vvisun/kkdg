@@ -1,0 +1,210 @@
+package kktcp
+
+import (
+	"errors"
+	"io"
+	"net"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/panjf2000/gnet/v2"
+	"github.com/vvisun/kkdg/kkerrors"
+	"github.com/vvisun/kkdg/kknet"
+	"github.com/vvisun/kkdg/utils/queues/bbqueue"
+)
+
+type fakeAddr string
+
+func (a fakeAddr) Network() string { return "tcp" }
+func (a fakeAddr) String() string  { return string(a) }
+
+type fakeGnetConn struct {
+	mu sync.Mutex
+
+	closed bool
+
+	asyncWritevHook func(bs [][]byte, callback gnet.AsyncCallback) error
+}
+
+func (c *fakeGnetConn) Read(_ []byte) (int, error)                        { return 0, io.EOF }
+func (c *fakeGnetConn) Write(_ []byte) (int, error)                       { return 0, nil }
+func (c *fakeGnetConn) WriteTo(_ io.Writer) (int64, error)                { return 0, nil }
+func (c *fakeGnetConn) ReadFrom(_ io.Reader) (int64, error)               { return 0, nil }
+func (c *fakeGnetConn) Next(_ int) ([]byte, error)                        { return nil, io.EOF }
+func (c *fakeGnetConn) Peek(_ int) ([]byte, error)                        { return nil, io.EOF }
+func (c *fakeGnetConn) Discard(_ int) (int, error)                        { return 0, nil }
+func (c *fakeGnetConn) InboundBuffered() int                              { return 0 }
+func (c *fakeGnetConn) SendTo(_ []byte, _ net.Addr) (int, error)          { return 0, nil }
+func (c *fakeGnetConn) Writev(_ [][]byte) (int, error)                    { return 0, nil }
+func (c *fakeGnetConn) Flush() error                                      { return nil }
+func (c *fakeGnetConn) OutboundBuffered() int                             { return 0 }
+func (c *fakeGnetConn) AsyncWrite(_ []byte, callback gnet.AsyncCallback) error {
+	if callback != nil {
+		return callback(c, nil)
+	}
+	return nil
+}
+func (c *fakeGnetConn) AsyncWritev(bs [][]byte, callback gnet.AsyncCallback) error {
+	if c.asyncWritevHook != nil {
+		return c.asyncWritevHook(bs, callback)
+	}
+	if callback != nil {
+		return callback(c, nil)
+	}
+	return nil
+}
+func (c *fakeGnetConn) Context() any                                      { return nil }
+func (c *fakeGnetConn) EventLoop() gnet.EventLoop                         { return nil }
+func (c *fakeGnetConn) SetContext(_ any)                                  {}
+func (c *fakeGnetConn) LocalAddr() net.Addr                               { return fakeAddr("local") }
+func (c *fakeGnetConn) RemoteAddr() net.Addr                              { return fakeAddr("remote") }
+func (c *fakeGnetConn) Wake(callback gnet.AsyncCallback) error {
+	if callback != nil {
+		return callback(c, nil)
+	}
+	return nil
+}
+func (c *fakeGnetConn) CloseWithCallback(callback gnet.AsyncCallback) error {
+	if err := c.Close(); err != nil {
+		return err
+	}
+	if callback != nil {
+		return callback(c, nil)
+	}
+	return nil
+}
+func (c *fakeGnetConn) Close() error {
+	c.mu.Lock()
+	c.closed = true
+	c.mu.Unlock()
+	return nil
+}
+func (c *fakeGnetConn) SetDeadline(_ time.Time) error                     { return nil }
+func (c *fakeGnetConn) SetReadDeadline(_ time.Time) error                 { return nil }
+func (c *fakeGnetConn) SetWriteDeadline(_ time.Time) error                { return nil }
+func (c *fakeGnetConn) Fd() int                                           { return 0 }
+func (c *fakeGnetConn) Dup() (int, error)                                 { return 0, nil }
+func (c *fakeGnetConn) SetReadBuffer(_ int) error                         { return nil }
+func (c *fakeGnetConn) SetWriteBuffer(_ int) error                        { return nil }
+func (c *fakeGnetConn) SetLinger(_ int) error                             { return nil }
+func (c *fakeGnetConn) SetKeepAlivePeriod(_ time.Duration) error          { return nil }
+func (c *fakeGnetConn) SetKeepAlive(_ bool, _, _ time.Duration, _ int) error { return nil }
+func (c *fakeGnetConn) SetNoDelay(_ bool) error                           { return nil }
+
+func (c *fakeGnetConn) isClosed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.closed
+}
+
+func newTestClientConn(t *testing.T, conn gnet.Conn) (*gnetClientConn, kknet.Options) {
+	t.Helper()
+	opts := kknet.ApplyOptions(kknet.WithSendQueueTimeoutFlushOver(200 * time.Millisecond))
+	return &gnetClientConn{
+		id:        1,
+		conn:      conn,
+		opts:      &opts,
+		closeCond: sync.NewCond(&sync.Mutex{}),
+		sendQueue: bbqueue.NewBBQueue(opts.WpOptions.SendQueueSize, opts.WpOptions.SendQueueStrict),
+	}, opts
+}
+
+func TestClientConn_Close_WaitsForQueueFlush(t *testing.T) {
+	releaseCh := make(chan struct{})
+	fc := &fakeGnetConn{}
+	fc.asyncWritevHook = func(bs [][]byte, callback gnet.AsyncCallback) error {
+		go func() {
+			<-releaseCh
+			if callback != nil {
+				_ = callback(fc, nil)
+			}
+		}()
+		return nil
+	}
+	conn, opts := newTestClientConn(t, fc)
+	conn.closeCond = sync.NewCond(&conn.closeMu)
+
+	bb, err := opts.StreamTool.Pack([]byte("hello"))
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+	if err := conn.SendBuffer(bb); err != nil {
+		t.Fatalf("SendBuffer: %v", err)
+	}
+
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- conn.Close()
+	}()
+
+	select {
+	case err := <-closeDone:
+		t.Fatalf("Close returned early: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(releaseCh)
+
+	select {
+	case err := <-closeDone:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close did not return after flush callback")
+	}
+}
+
+func TestClientConn_WriteError_ClosesAndDropsQueue(t *testing.T) {
+	writeErr := errors.New("async write failed")
+	releaseCh := make(chan struct{})
+	fc := &fakeGnetConn{}
+	fc.asyncWritevHook = func(bs [][]byte, callback gnet.AsyncCallback) error {
+		go func() {
+			<-releaseCh
+			if callback != nil {
+				_ = callback(fc, writeErr)
+			}
+		}()
+		return nil
+	}
+	conn, opts := newTestClientConn(t, fc)
+	conn.closeCond = sync.NewCond(&conn.closeMu)
+
+	bb1, err := opts.StreamTool.Pack([]byte("first"))
+	if err != nil {
+		t.Fatalf("Pack first: %v", err)
+	}
+	if err := conn.SendBuffer(bb1); err != nil {
+		t.Fatalf("SendBuffer first: %v", err)
+	}
+	bb2, err := opts.StreamTool.Pack([]byte("second"))
+	if err != nil {
+		t.Fatalf("Pack second: %v", err)
+	}
+	if err := conn.SendBuffer(bb2); err != nil {
+		t.Fatalf("SendBuffer second: %v", err)
+	}
+
+	close(releaseCh)
+	time.Sleep(50 * time.Millisecond)
+
+	if !conn.closing.Load() {
+		t.Fatal("closing should be true after write error")
+	}
+	if got := conn.sendQueue.Len(); got != 0 {
+		t.Fatalf("sendQueue.Len() = %d, want 0", got)
+	}
+	if !fc.isClosed() {
+		t.Fatal("underlying conn should be closed after write error")
+	}
+
+	bb3, err := opts.StreamTool.Pack([]byte("late"))
+	if err != nil {
+		t.Fatalf("Pack late: %v", err)
+	}
+	if err := conn.SendBuffer(bb3); err != kkerrors.ErrNetConnectionClosed {
+		t.Fatalf("SendBuffer after write error = %v, want ErrNetConnectionClosed", err)
+	}
+}

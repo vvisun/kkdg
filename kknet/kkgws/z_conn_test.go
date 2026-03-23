@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
 )
 
@@ -27,6 +29,22 @@ func (h *orderRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer
 	default:
 	}
 	kkbuffer.Put(data)
+}
+
+type countRecvHandler struct {
+	target int32
+	got    atomic.Int32
+	doneCh chan struct{}
+	once   sync.Once
+}
+
+func (h *countRecvHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
+	if data != nil {
+		if h.got.Add(1) >= h.target && h.doneCh != nil {
+			h.once.Do(func() { close(h.doneCh) })
+		}
+		kkbuffer.Put(data)
+	}
 }
 
 // TestConn_SendBuffer_Order 客户端顺序发送多条消息，服务端按序接收（对齐 kkws TestWSConn_AsyncSend_Order）。
@@ -116,5 +134,56 @@ func TestConn_HandleWriteError_ClosesAndDropsQueue(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for OnClose")
+	}
+}
+
+func TestConn_Close_WaitsForFlush(t *testing.T) {
+	addr := freePort(t)
+	const total = 200
+
+	serverHandler := &countRecvHandler{
+		target: total,
+		doneCh: make(chan struct{}),
+	}
+	serverOpts := kknet.ApplyOptions(
+		kknet.WithRawHandler(serverHandler),
+		kknet.WithLogger(kklog.Nop()),
+	)
+	s := NewServer(addr, nil, serverOpts)
+	if err := s.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer s.Stop()
+
+	clientOpts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&noopRawHandler{}),
+		kknet.WithSendQueueNeedFlushOver(true),
+		kknet.WithSendQueueTimeoutFlushOver(2*time.Second),
+		kknet.WithLogger(kklog.Nop()),
+	)
+	client := NewClient("ws://"+addr+"/ws", nil, clientOpts)
+	if err := client.Connect(); err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+
+	payload := make([]byte, 1024)
+	for i := 0; i < total; i++ {
+		bb, err := clientOpts.StreamTool.Pack(payload)
+		if err != nil {
+			t.Fatalf("Pack %d: %v", i, err)
+		}
+		if err := client.SendBuffer(bb); err != nil {
+			t.Fatalf("SendBuffer %d: %v", i, err)
+		}
+	}
+
+	if err := client.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	select {
+	case <-serverHandler.doneCh:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("server received %d/%d after Close", serverHandler.got.Load(), total)
 	}
 }
