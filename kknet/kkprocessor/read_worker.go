@@ -209,8 +209,10 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 			rp.releaseRecvSlot()
 			rp.wg.Done()
 		}()
-		xcall.SafeCall(func() {
+		xcall.SafeCallEx(func() {
 			rawHandler.OnRaw(connID, bb)
+		}, func(err any) {
+			kkbuffer.Put(bb)
 		})
 	})
 }
