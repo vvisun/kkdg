@@ -18,8 +18,8 @@ type IReadProcessor interface {
 	// 新接收到的包视为待消费，投递到OnRaw/OnNoneCopy视为某条消息已消费完毕。
 	//  具体实现:
 	//  ReadProcessor 会等待内部【消费携程】消费完所有【待消费数据队列】中的数据；
-	//  SyncReadProcessor 因为是同步处理，所以不会等待；
-	//  WorkerReadProcessor 会直接投递给WorkerQueue，所以也不会等待。
+	//  SyncReadProcessor 因为是同步处理，没有异步队列，所以只需等待当前正在执行的 OnNoneCopy 退出临界区；
+	//  WorkerReadProcessor 会直接投递给WorkerQueue。
 	Stop()
 	// 收到单个完整包数据时（生产者生产数据）。eg: gnet SplitSR 得到完整单包 [length,message]。
 	// 仅由网络读协程访问。
