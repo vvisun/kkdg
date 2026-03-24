@@ -99,13 +99,8 @@ func (rp *ReadProcessor) closeDone() {
 	})
 }
 
-// EnqueuePacket enqueues a single, already-split packet frame: [length,message].
-//
-// This is useful for transports (like gnet) that already perform stream framing
-// and can provide complete frames, avoiding a second Split/parse in OnRecvBytes.
-//
-// Note: packet bytes are copied into a pooled buffer because the input slice may
-// reference ephemeral inbound buffers.
+// 收到单个完整包数据时（生产者生产数据）。
+// 仅由网络读协程访问（单生产者），无需加锁；mu 仅保护 recvQueue。
 func (rp *ReadProcessor) EnqueuePacket(packet []byte) error {
 	if len(packet) == 0 {
 		return nil

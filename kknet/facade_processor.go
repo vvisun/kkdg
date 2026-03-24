@@ -21,7 +21,12 @@ type IReadProcessor interface {
 	//  SyncReadProcessor 因为是同步处理，所以不会等待；
 	//  WorkerReadProcessor 会直接投递给WorkerQueue，所以也不会等待。
 	Stop()
+	// 收到单个完整包数据时（生产者生产数据）。eg: gnet SplitSR 得到完整单包 [length,message]。
+	// 仅由网络读协程访问。
 	EnqueuePacket(packet []byte) error
+	// 收到数据时（生产者生产数据）。
+	// 仅由网络读协程访问。
+	// 不确定收到的是单个完整包还是多个包时的通用方法。
 	OnRecvBytes(data []byte) error
 	// 返回当前内部待处理队列长度。
 	// ReadProcessor = recvQueue.Len()；WorkerReadProcessor = workQueue.Len()；SyncReadProcessor 因无异步队列固定为 0。
@@ -46,8 +51,11 @@ type IWriteProcessor interface {
 	// 前提：opts.MsgPacket 必须已正确配置；未配置时属于必现的配置错误，当前实现允许直接 panic。
 	SendMsg(msg any) error
 
-	Pending() int          //返回当前队列中待发送的数据包数量。即：sendQueue.Len()。
-	Done() <-chan struct{} //测试在用。返回写处理器停止的信号。
+	//返回当前队列中待发送的数据包数量。即：sendQueue.Len()。
+	Pending() int
+
+	//测试中用到。返回写处理器停止的信号。
+	Done() <-chan struct{}
 }
 
 type WpProvider func(opts WriteOptions) IWriteProcessor

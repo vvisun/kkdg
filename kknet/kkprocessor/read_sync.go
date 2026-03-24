@@ -64,6 +64,8 @@ func (rp *SyncReadProcessor) Stop() {
 
 func (rp *SyncReadProcessor) tryAcquireRecvSlot() bool { return true }
 
+// 收到单个完整包数据时（生产者生产数据）。
+// 仅由网络读协程访问（单生产者），无需加锁。mu 仅保护 Handler 串行调用。
 func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) error {
 	if len(packet) == 0 {
 		return nil

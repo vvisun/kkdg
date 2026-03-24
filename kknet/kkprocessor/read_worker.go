@@ -90,7 +90,8 @@ func (rp *WorkerReadProcessor) tryAcquireRecvSlot() bool {
 	return true
 }
 
-// EnqueuePacket 适用于上层已完成切包的场景（如 gnet SplitSR 得到完整 [length,message]）。
+// 收到单个完整包数据时（生产者生产数据）。
+// 仅由网络读协程访问（单生产者），无需加锁。
 func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) error {
 	if len(packet) == 0 {
 		return nil
