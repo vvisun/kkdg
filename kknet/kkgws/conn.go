@@ -272,7 +272,7 @@ func (c *gwsConn) sendBufferDrop(buffer *kkbuffer.ByteBuffer) error {
 func (c *gwsConn) sendBufferRetry(buffer *kkbuffer.ByteBuffer) error {
 	interval := c.opts.WpOptions.SendQueueRetryInterval
 	if interval <= 0 {
-		interval = 2 * time.Millisecond
+		interval = 1 * time.Millisecond
 	}
 	maxCount := c.opts.WpOptions.SendQueueRetryMaxCount
 

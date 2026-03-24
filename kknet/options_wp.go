@@ -34,7 +34,7 @@ type WriteOptions struct {
 	// 严格模式下，队列满时才会触发。非严格模式下，队列满时会自动扩容。
 	// 默认 Drop，表示丢弃。
 	SendQueueFullAction EWpQueueFullAction
-	// Retry 模式：重试间隔（默认 2ms）
+	// Retry 模式：重试间隔（默认 1ms）
 	// 需配合 SendQueueStrict为 true 且 SendQueueFullAction为 Retry 使用。
 	SendQueueRetryInterval time.Duration
 	// Retry 模式：最大重试次数（0 表示无限，默认 100）
@@ -71,7 +71,7 @@ func DefaultWriteOptions() WriteOptions {
 		SendQueueTimeoutFlushOver: 5 * time.Second,
 		BatchWriteLimitBytes:      1024,
 		SendQueueFullAction:       EWpQueueFullActionDrop,
-		SendQueueRetryInterval:    2 * time.Millisecond,
+		SendQueueRetryInterval:    1 * time.Millisecond,
 		SendQueueRetryMaxCount:    100,
 		WriteFnRetryMaxCount:      0,
 		WriteFnRetryInterval:      5 * time.Millisecond,
@@ -107,8 +107,8 @@ func CheckWriteOptions(opts *WriteOptions) {
 		opts.BatchWriteLimitBytes = 2048
 	}
 	if opts.SendQueueRetryInterval <= 0 {
-		kklog.Debugf("wp SendQueueRetryInterval fixed from %d to %d", opts.SendQueueRetryInterval, 2*time.Millisecond)
-		opts.SendQueueRetryInterval = 2 * time.Millisecond
+		kklog.Debugf("wp SendQueueRetryInterval fixed from %d to %d", opts.SendQueueRetryInterval, 1*time.Millisecond)
+		opts.SendQueueRetryInterval = 1 * time.Millisecond
 	}
 	if opts.SendQueueRetryMaxCount < 0 {
 		kklog.Debugf("wp SendQueueRetryMaxCount fixed from %d to %d", opts.SendQueueRetryMaxCount, 0)
