@@ -28,7 +28,8 @@ type SyncReadProcessor struct {
 	recvBuf  []byte                        //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
 	splitBuf [kknet.BatchPacketSize][]byte //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
 
-	mu sync.Mutex // 仅保护 Handler 串行调用（与 EnqueuePacket 互斥）
+	mu      sync.Mutex // 仅保护 Handler 串行调用（与 EnqueuePacket 互斥）
+	closing atomic.Bool
 
 	recvQueueSize int64 // 接收队列大小
 }
@@ -48,16 +49,20 @@ func NewSyncReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 }
 
 func (rp *SyncReadProcessor) Pending() int {
-	return 0
+	return int(atomic.LoadInt64(&rp.recvQueueSize))
 }
 
 func (rp *SyncReadProcessor) Start(conn kknet.IConn) {
+	rp.closing.Store(false)
 	rp.conn = conn
 	rp.connID = conn.ID()
 }
 
 func (rp *SyncReadProcessor) Stop() {
+	rp.closing.Store(true)
+	rp.mu.Lock()
 	rp.conn = nil
+	rp.mu.Unlock()
 }
 
 func (rp *SyncReadProcessor) tryAcquireRecvSlot() bool {
@@ -89,12 +94,19 @@ func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) error {
 	if len(packet) == 0 {
 		return nil
 	}
+	if rp.closing.Load() {
+		return nil
+	}
 	if !rp.tryAcquireRecvSlot() {
 		return kkerrors.ErrNetRecvQueueFull
 	}
 	defer rp.releaseRecvSlot()
 
 	rp.mu.Lock()
+	if rp.closing.Load() {
+		rp.mu.Unlock()
+		return nil
+	}
 	//这里不用safe call, 防止将业务层致命错误静默吞避
 	rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 	rp.mu.Unlock()
@@ -114,6 +126,9 @@ func (rp *SyncReadProcessor) reRecvBuf(capacity int) {
 // recvBuf/splitBuf 仅由网络读协程访问（单生产者），无需加锁；mu 仅保护 Handler 串行调用。
 func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
+		return nil
+	}
+	if rp.closing.Load() {
 		return nil
 	}
 
@@ -150,14 +165,21 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 	if len(packets) == 0 {
 		return nil
 	}
+	if rp.closing.Load() {
+		return nil
+	}
 
 	if !rp.tryAcquireRecvSlot() {
-		return nil
+		return kkerrors.ErrNetRecvQueueFull
 	}
 	defer rp.releaseRecvSlot()
 
 	// Handler 串行调用（与 EnqueuePacket 互斥）
 	rp.mu.Lock()
+	if rp.closing.Load() {
+		rp.mu.Unlock()
+		return nil
+	}
 	for _, packet := range packets {
 		// 这里不用safe call, 防止将业务层致命错误静默吞避
 		rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)

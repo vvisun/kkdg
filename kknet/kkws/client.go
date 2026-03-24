@@ -107,6 +107,7 @@ func (c *Client) SendBuffer(buffer *kkbuffer.ByteBuffer) error {
 	conn := c.conn
 	c.connMu.Unlock()
 	if conn == nil {
+		kkbuffer.Put(buffer)
 		return kkerrors.ErrNetClientNotConnected
 	}
 	return conn.SendBuffer(buffer)

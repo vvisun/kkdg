@@ -28,10 +28,11 @@ type WorkerWriteProcessor struct {
 	sendQueue       bbqueue.IFiFoQueue                          //发送队列
 	sendBatchBuffer [kknet.BatchPacketSize]*kkbuffer.ByteBuffer //批量发送缓冲区。as an array to reduce memory allocation.
 
-	sendMu    sync.Mutex
-	closeOnce sync.Once
-	closing   atomic.Bool
-	stopErr   error // Stop(err) 传入，供 shutdownJob 判断是否 flush
+	sendMu     sync.Mutex
+	closeOnce  sync.Once
+	closing    atomic.Bool
+	abortFlush atomic.Bool
+	stopErr    error // Stop(err) 传入，供 shutdownJob 判断是否 flush
 
 	workQueue *taskqueue.WorkerQueue // 写任务队列，maxConcurrency=1 保证顺序
 
@@ -183,12 +184,18 @@ func (wp *WorkerWriteProcessor) Stop(err error) {
 				if wp.opts.SendQueueFlushTimeoutCallback != nil && wp.conn != nil {
 					wp.opts.SendQueueFlushTimeoutCallback(wp.conn, timeout)
 				}
+				wp.abortFlush.Store(true)
+				if wp.onWriteError != nil {
+					wp.onWriteError(kkerrors.ErrNetConnectionClosed)
+				}
 				timedOut = true
 			}
 		}
-		if !timedOut {
-			<-wp.doneCh
+		if timedOut {
+			// Timeout only changes shutdown strategy from flush to drop; Stop still waits
+			// until the writer fully exits, so callers won't race with background writes.
 		}
+		<-wp.doneCh
 	})
 }
 
@@ -253,6 +260,9 @@ func (wp *WorkerWriteProcessor) shutdownJob() {
 		wp.sendMu.Unlock()
 		if n <= 0 {
 			break
+		}
+		if wp.abortFlush.Load() {
+			flush = false
 		}
 		if flush {
 			if err := wp.writeFn(wp.sendBatchBuffer[:n], n); err != nil {
@@ -322,7 +332,7 @@ func (wp *WorkerWriteProcessor) retryWriteFn(n int) bool {
 	}
 
 	for attempt := 1; attempt <= maxRetry; attempt++ {
-		if wp.closing.Load() {
+		if wp.closing.Load() || wp.abortFlush.Load() {
 			return false
 		}
 		time.Sleep(interval)

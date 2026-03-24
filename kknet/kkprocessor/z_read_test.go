@@ -498,6 +498,54 @@ func TestSyncReadProcessor_EnqueuePacket_QueueFull_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestSyncReadProcessor_OnRecvBytes_QueueFull_ReturnsError(t *testing.T) {
+	h := &syncBlockingHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(1),
+		kknet.WithRecvQueueStrict(true),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
+	rp.Start(&mockConnForRead{id: 101})
+
+	first, err := opts.StreamTool.Pack([]byte("a"))
+	if err != nil {
+		t.Fatalf("Pack first: %v", err)
+	}
+	defer kkbuffer.Put(first)
+	second, err := opts.StreamTool.Pack([]byte("b"))
+	if err != nil {
+		t.Fatalf("Pack second: %v", err)
+	}
+	defer kkbuffer.Put(second)
+
+	firstDone := make(chan struct{})
+	go func() {
+		defer close(firstDone)
+		_ = rp.OnRecvBytes(first.B)
+	}()
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("first packet did not enter none-copy handler")
+	}
+
+	if err := rp.OnRecvBytes(second.B); err != kkerrors.ErrNetRecvQueueFull {
+		t.Fatalf("OnRecvBytes second = %v, want ErrNetRecvQueueFull", err)
+	}
+
+	close(h.release)
+	select {
+	case <-firstDone:
+	case <-time.After(time.Second):
+		t.Fatal("first OnRecvBytes did not complete")
+	}
+}
+
 type syncBlockingHandler struct {
 	entered chan struct{}
 	release chan struct{}
@@ -592,6 +640,174 @@ func TestSyncReadProcessor_RecvQueueStrict_ConcurrentAcquire_Drops(t *testing.T)
 	}
 }
 
+func TestSyncReadProcessor_Stop_WaitsForRunningHandler(t *testing.T) {
+	h := &syncBlockingHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(8),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
+	rp.Start(&mockConnForRead{id: 11})
+
+	firstDone := make(chan struct{})
+	go func() {
+		defer close(firstDone)
+		_ = rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'})
+	}()
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("first packet did not enter none-copy handler")
+	}
+
+	stopDone := make(chan struct{})
+	go func() {
+		rp.Stop()
+		close(stopDone)
+	}()
+
+	select {
+	case <-stopDone:
+		t.Fatal("Stop returned before running handler finished")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(h.release)
+
+	select {
+	case <-firstDone:
+	case <-time.After(time.Second):
+		t.Fatal("running handler did not finish after release")
+	}
+
+	select {
+	case <-stopDone:
+	case <-time.After(time.Second):
+		t.Fatal("Stop did not return after handler finished")
+	}
+}
+
+func TestSyncReadProcessor_EnqueuePacket_AfterStop_Ignored(t *testing.T) {
+	h := &syncCollectingHandler{}
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(32),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
+	rp.Start(&mockConnForRead{id: 12})
+
+	rp.Stop()
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 4, 'l', 'a', 't', 'e'}); err != nil {
+		t.Fatalf("EnqueuePacket after Stop: %v", err)
+	}
+	if got := len(h.get()); got != 0 {
+		t.Fatalf("received %d packets after Stop, want 0", got)
+	}
+}
+
+func TestSyncReadProcessor_OnRecvBytes_AfterStop_Ignored(t *testing.T) {
+	h := &syncCollectingHandler{}
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(32),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
+	rp.Start(&mockConnForRead{id: 13})
+
+	bb, err := opts.StreamTool.Pack([]byte("late"))
+	if err != nil {
+		t.Fatalf("Pack: %v", err)
+	}
+	defer kkbuffer.Put(bb)
+
+	rp.Stop()
+	if err := rp.OnRecvBytes(bb.B); err != nil {
+		t.Fatalf("OnRecvBytes after Stop: %v", err)
+	}
+	if got := len(h.get()); got != 0 {
+		t.Fatalf("received %d packets after Stop, want 0", got)
+	}
+}
+
+func TestReadProcessor_Pending_CountsRunningHandler(t *testing.T) {
+	h := &signalBlockingRawHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(8),
+		kknet.WithRecvQueueStrict(false),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
+	rp.Start(&mockConnForRead{id: 14})
+
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'}); err != nil {
+		t.Fatalf("EnqueuePacket: %v", err)
+	}
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("packet did not enter raw handler")
+	}
+
+	if got := rp.Pending(); got != 1 {
+		t.Fatalf("Pending() = %d, want 1 while handler is running", got)
+	}
+
+	close(h.release)
+	rp.Stop()
+
+	if got := rp.Pending(); got != 0 {
+		t.Fatalf("Pending() after drain = %d, want 0", got)
+	}
+}
+
+func TestSyncReadProcessor_Pending_CountsRunningHandler(t *testing.T) {
+	h := &syncBlockingHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(8),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
+	rp.Start(&mockConnForRead{id: 15})
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'})
+	}()
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("packet did not enter none-copy handler")
+	}
+
+	if got := rp.Pending(); got != 1 {
+		t.Fatalf("Pending() = %d, want 1 while handler is running", got)
+	}
+
+	close(h.release)
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("enqueue did not complete")
+	}
+
+	if got := rp.Pending(); got != 0 {
+		t.Fatalf("Pending() after handler = %d, want 0", got)
+	}
+}
+
 func TestReadProcessor_Stop_DrainsRemaining(t *testing.T) {
 	h := &collectingRawHandler{}
 	opts := kknet.ApplyOptions(
@@ -662,6 +878,47 @@ func TestReadProcessor_OnRecvBytes_AfterStop_Ignored(t *testing.T) {
 
 	if got := h.count(); got != 0 {
 		t.Fatalf("received %d packets after Stop, want 0", got)
+	}
+}
+
+func TestReadProcessor_Stop_WithoutStart_Returns(t *testing.T) {
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&collectingRawHandler{}),
+		kknet.WithRecvQueueSize(32),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
+
+	done := make(chan struct{})
+	go func() {
+		rp.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Stop should return even if Start was never called")
+	}
+}
+
+func TestReadProcessor_Stop_AfterStartNil_Returns(t *testing.T) {
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&collectingRawHandler{}),
+		kknet.WithRecvQueueSize(32),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
+	rp.Start(nil)
+
+	done := make(chan struct{})
+	go func() {
+		rp.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("Stop should return when Start(nil) did not launch consumer")
 	}
 }
 

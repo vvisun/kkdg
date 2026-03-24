@@ -451,7 +451,7 @@ func TestWriteProcessor_FlushTimeout(t *testing.T) {
 	<-done
 }
 
-func TestWorkerWriteProcessor_FlushTimeout_ReturnsWithoutWaitingDone(t *testing.T) {
+func TestWorkerWriteProcessor_FlushTimeout_AbortsAndWaitsDone(t *testing.T) {
 	opts := kknet.WriteOptions{
 		SendQueueSize:             4,
 		SendQueueStrict:           false,
@@ -469,7 +469,14 @@ func TestWorkerWriteProcessor_FlushTimeout_ReturnsWithoutWaitingDone(t *testing.
 	wp := NewWorkerWriteProcessor(opts).(*WorkerWriteProcessor)
 
 	blockWrite := make(chan struct{})
+	writeStarted := make(chan struct{}, 1)
+	onWriteErrCh := make(chan error, 1)
+	var releaseOnce sync.Once
 	writeFn := func(batch []*kkbuffer.ByteBuffer, n int) error {
+		select {
+		case writeStarted <- struct{}{}:
+		default:
+		}
 		<-blockWrite
 		for i := 0; i < n; i++ {
 			if batch[i] != nil {
@@ -480,7 +487,13 @@ func TestWorkerWriteProcessor_FlushTimeout_ReturnsWithoutWaitingDone(t *testing.
 		return nil
 	}
 	conn := &mockConn{id: 2}
-	wp.Start(conn, writeFn, nil, nil)
+	wp.Start(conn, writeFn, func(err error) {
+		select {
+		case onWriteErrCh <- err:
+		default:
+		}
+		releaseOnce.Do(func() { close(blockWrite) })
+	}, nil)
 
 	for i := 0; i < 2; i++ {
 		bb := kkbuffer.GetWithCapacity(8)
@@ -497,6 +510,18 @@ func TestWorkerWriteProcessor_FlushTimeout_ReturnsWithoutWaitingDone(t *testing.
 	}()
 
 	select {
+	case <-writeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("writeFn should start and block")
+	}
+
+	select {
+	case <-done:
+		t.Fatal("WorkerWriteProcessor.Stop should not return before flush timeout")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	select {
 	case to := <-flushTimeoutCh:
 		if to < 500*time.Millisecond {
 			t.Errorf("flush timeout callback: got %v, want >= 500ms", to)
@@ -506,16 +531,23 @@ func TestWorkerWriteProcessor_FlushTimeout_ReturnsWithoutWaitingDone(t *testing.
 	}
 
 	select {
-	case <-done:
-	case <-time.After(200 * time.Millisecond):
-		t.Fatal("WorkerWriteProcessor.Stop should return shortly after flush timeout")
+	case err := <-onWriteErrCh:
+		if err != kkerrors.ErrNetConnectionClosed {
+			t.Fatalf("onWriteError = %v, want ErrNetConnectionClosed", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("onWriteError should be invoked after flush timeout")
 	}
 
-	close(blockWrite)
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("WorkerWriteProcessor.Stop should wait for worker shutdown after timeout")
+	}
 
 	select {
 	case <-wp.Done():
-	case <-time.After(2 * time.Second):
-		t.Fatal("worker writer should finish after blocked write is released")
+	default:
+		t.Fatal("Done should be closed before Stop returns")
 	}
 }

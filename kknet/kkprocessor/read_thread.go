@@ -33,8 +33,11 @@ type ReadProcessor struct {
 	recvQueue bbqueue.IFiFoQueue //接收队列
 
 	mu        sync.Mutex
+	doneOnce  sync.Once
 	closeOnce sync.Once
 	closing   atomic.Bool
+	started   atomic.Bool
+	pending   atomic.Int64
 	wakeCh    chan struct{}
 	closeCh   chan struct{}
 	doneCh    chan struct{}
@@ -59,10 +62,7 @@ func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 }
 
 func (rp *ReadProcessor) Pending() int {
-	rp.mu.Lock()
-	cnt := rp.recvQueue.Len()
-	rp.mu.Unlock()
-	return cnt
+	return int(rp.pending.Load())
 }
 
 func (rp *ReadProcessor) Done() <-chan struct{} { return rp.doneCh }
@@ -74,6 +74,7 @@ func (rp *ReadProcessor) Start(conn kknet.IConn) {
 		return
 	}
 	rp.connID = conn.ID()
+	rp.started.Store(true)
 	go rp.consumeRecvQueue()
 }
 
@@ -81,8 +82,17 @@ func (rp *ReadProcessor) Stop() {
 	rp.closeOnce.Do(func() {
 		rp.closing.Store(true)
 		close(rp.closeCh)
+		if !rp.started.Load() {
+			rp.closeDone()
+		}
 	})
 	<-rp.doneCh
+}
+
+func (rp *ReadProcessor) closeDone() {
+	rp.doneOnce.Do(func() {
+		close(rp.doneCh)
+	})
 }
 
 // EnqueuePacket enqueues a single, already-split packet frame: [length,message].
@@ -125,6 +135,7 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) error {
 		}
 		return kkerrors.ErrNetRecvQueueFull
 	}
+	rp.pending.Add(1)
 	nowEmpty := rp.recvQueue.IsEmpty()
 	rp.mu.Unlock()
 
@@ -228,6 +239,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 			prepared[i] = nil
 			break
 		}
+		rp.pending.Add(1)
 		prepared[i] = nil
 	}
 	nowEmpty := rp.recvQueue.IsEmpty()
@@ -264,7 +276,7 @@ func (rp *ReadProcessor) wakeConsumer() {
 
 // 消费携程：消费recvQueue中的数据，并分发消息。
 func (rp *ReadProcessor) consumeRecvQueue() {
-	defer close(rp.doneCh)
+	defer rp.closeDone()
 
 	for {
 		select {
@@ -295,8 +307,11 @@ func (rp *ReadProcessor) drainOnce() {
 			if packet == nil {
 				continue
 			}
-			//这里不用safe call, 防止将业务层致命错误静默吞避
-			rp.opts.RawHandler.OnRaw(rp.connID, packet)
+			func() {
+				defer rp.pending.Add(-1)
+				//这里不用safe call, 防止将业务层致命错误静默吞避
+				rp.opts.RawHandler.OnRaw(rp.connID, packet)
+			}()
 		}
 	}
 }
