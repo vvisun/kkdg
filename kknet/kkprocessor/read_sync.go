@@ -10,7 +10,7 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
-// 消息处理器-接收器。
+// 消息处理器-接收器。单生产者。同步消费数据，实现0拷贝优化。
 //
 //	同步消费数据，实现0拷贝优化。NoneCopyHandler必须设置，RawHandler会忽略。
 //	保证顺序性，适合NoneCopyHandler逻辑非常轻的场景。

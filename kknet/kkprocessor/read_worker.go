@@ -12,16 +12,14 @@ import (
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
-// 消息处理器-接收器。
+// 消息处理器-接收器。单生产者。数据投递到 workerQueue 消费。
+// 当 workerQueue 并发数为 1 时，消息在workerQueue中按顺序串行消费；
+// 当 workerQueue 并发数大于 1 时，消息在workerQueue中并发消费，不再保证顺序性。
 //
 // 本质上可视为 ReadProcessor 的 workerQueue 调度版：
 //   - 两者都会把完整 [length,message] 包派发到 RawHandler.OnRaw；
 //   - ReadProcessor 通过每连接 recvQueue + 唤醒固定消费协程派发；
 //   - WorkerReadProcessor 将每个完整包封装为 task，投递到 workerQueue 派发。
-//
-// 调度差异：
-//   - workerQueue 并发数为 1 时，行为上接近 ReadProcessor；
-//   - workerQueue 并发数大于 1 时，不再保证顺序性。
 //
 // 主动关闭Server或Client后，只消费，不再接受数据入队。
 //
