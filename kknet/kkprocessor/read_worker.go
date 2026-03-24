@@ -14,11 +14,14 @@ import (
 
 // 消息处理器-接收器。
 //
-// 与 ReadProcessor 的区别：
-//   - 不再为每个连接维护 recvQueue + 消费协程；
-//   - 每个完整 [length,message] 解析后封装为 task，投递到 workerQueue 执行。
-//   - workerQueue并发数设为1时，和ReadProcessor基本一致，区别只在ReadProcessor为每个连接一个固定携程，而WorkerReadProcessor临时启动一个携程。
-//   - workerQueue并发数大于1时，和ReadProcessor区别较大，WorkerReadProcessor不再保证顺序性。
+// 本质上可视为 ReadProcessor 的 workerQueue 调度版：
+//   - 两者都会把完整 [length,message] 包派发到 RawHandler.OnRaw；
+//   - ReadProcessor 通过每连接 recvQueue + 唤醒固定消费协程派发；
+//   - WorkerReadProcessor 将每个完整包封装为 task，投递到 workerQueue 派发。
+//
+// 调度差异：
+//   - workerQueue 并发数为 1 时，行为上接近 ReadProcessor；
+//   - workerQueue 并发数大于 1 时，不再保证顺序性。
 //
 // 主动关闭Server或Client后，只消费，不再接受数据入队。
 //
