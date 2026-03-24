@@ -293,6 +293,7 @@ func (rp *ReadProcessor) consumeRecvQueue() {
 const batchBufSize = 32
 
 func (rp *ReadProcessor) drainOnce() {
+	connID := rp.connID
 	for {
 		batchArr := [batchBufSize]*kkbuffer.ByteBuffer{}
 		batchBuf := batchArr[:]
@@ -310,7 +311,7 @@ func (rp *ReadProcessor) drainOnce() {
 			func() {
 				defer rp.pending.Add(-1)
 				//这里不用safe call, 防止将业务层致命错误静默吞避
-				rp.opts.RawHandler.OnRaw(rp.connID, packet)
+				rp.opts.RawHandler.OnRaw(connID, packet)
 			}()
 		}
 	}
