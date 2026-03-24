@@ -41,7 +41,7 @@ type IWriteProcessor interface {
 	// @param stats 统计信息。用于统计写数据错误次数。目前是IConn里的Stats引用。
 	Start(conn IConn, writeFn WriteFunc, onWriteError func(error), stats *Stats)
 	// @param err 连接关闭的原因。
-	// err为nil时，写处理器停止优雅：flush剩余数据，然后关闭连接。
+	// err为nil时，写处理器优雅停止：flush剩余数据，然后关闭连接。
 	// err不为nil时，写处理器立即停止并关闭连接。
 	Stop(err error)
 

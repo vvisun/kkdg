@@ -163,6 +163,11 @@ func (wp *WriteProcessor) wakeWriter() {
 	}
 }
 
+// 关闭写处理器。
+//
+//	@param err 连接关闭的原因。
+//	@note err为nil时，写处理器优雅停止：flush剩余数据，然后关闭连接。
+//	@note err不为nil时，写处理器立即停止并关闭连接。
 func (wp *WriteProcessor) Stop(err error) {
 	wp.closeOnce.Do(func() {
 		wp.closing.Store(true)
