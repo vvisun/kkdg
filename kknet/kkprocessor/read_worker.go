@@ -30,9 +30,9 @@ type WorkerReadProcessor struct {
 
 	packetSpliter PacketSpliter
 
-	closing atomic.Bool
-
 	workQueue *taskqueue.WorkerQueue
+
+	closing atomic.Bool
 }
 
 var _ kknet.IReadProcessor = (*WorkerReadProcessor)(nil)
