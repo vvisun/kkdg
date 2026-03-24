@@ -103,12 +103,39 @@ func newTestClientConn(t *testing.T, conn gnet.Conn) (*gnetConn, kknet.Options) 
 	t.Helper()
 	opts := kknet.ApplyOptions(kknet.WithSendQueueTimeoutFlushOver(200 * time.Millisecond))
 	return &gnetConn{
-		id:        1,
-		conn:      conn,
-		opts:      &opts,
-		closeCond: sync.NewCond(&sync.Mutex{}),
-		sendQueue: bbqueue.NewBBQueue(opts.WpOptions.SendQueueSize, opts.WpOptions.SendQueueStrict),
+		id:          1,
+		conn:        conn,
+		opts:        &opts,
+		readStopped: make(chan struct{}),
+		closeCond:   sync.NewCond(&sync.Mutex{}),
+		sendQueue:   bbqueue.NewBBQueue(opts.WpOptions.SendQueueSize, opts.WpOptions.SendQueueStrict),
 	}, opts
+}
+
+type blockingReadProcessor struct {
+	stopEntered chan struct{}
+	releaseStop chan struct{}
+	stopOnce    sync.Once
+}
+
+func (rp *blockingReadProcessor) Start(kknet.IConn)        {}
+func (rp *blockingReadProcessor) EnqueuePacket([]byte)     {}
+func (rp *blockingReadProcessor) OnRecvBytes([]byte) error { return nil }
+func (rp *blockingReadProcessor) Pending() int             { return 0 }
+func (rp *blockingReadProcessor) Stop() {
+	rp.stopOnce.Do(func() { close(rp.stopEntered) })
+	<-rp.releaseStop
+}
+
+type connTestLifecycleHandler struct {
+	onClose func(kknet.IConn, error)
+}
+
+func (h *connTestLifecycleHandler) OnConnect(kknet.IConn) {}
+func (h *connTestLifecycleHandler) OnClose(c kknet.IConn, err error) {
+	if h.onClose != nil {
+		h.onClose(c, err)
+	}
 }
 
 func TestClientConn_Close_WaitsForQueueFlush(t *testing.T) {
@@ -279,5 +306,94 @@ func TestClientHandler_OnClose_DropsQueuedBuffers(t *testing.T) {
 	}
 	if got := conn.sendQueue.Len(); got != 0 {
 		t.Fatalf("sendQueue.Len() = %d, want 0 after OnClose", got)
+	}
+}
+
+func TestClientConn_Close_WaitsForReadProcessorStop(t *testing.T) {
+	fc := &fakeGnetConn{}
+	conn, _ := newTestClientConn(t, fc)
+	conn.closeCond = sync.NewCond(&conn.closeMu)
+	rp := &blockingReadProcessor{
+		stopEntered: make(chan struct{}),
+		releaseStop: make(chan struct{}),
+	}
+	conn.rp = rp
+
+	closeDone := make(chan error, 1)
+	go func() {
+		closeDone <- conn.Close()
+	}()
+
+	select {
+	case <-rp.stopEntered:
+	case <-time.After(time.Second):
+		t.Fatal("read processor Stop was not called")
+	}
+
+	select {
+	case err := <-closeDone:
+		t.Fatalf("Close returned before rp.Stop finished: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(rp.releaseStop)
+
+	select {
+	case err := <-closeDone:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close did not return after rp.Stop finished")
+	}
+}
+
+func TestClientHandler_OnClose_WaitsForReadProcessorStopBeforeCallback(t *testing.T) {
+	fc := &fakeGnetConn{}
+	conn, opts := newTestClientConn(t, fc)
+	conn.closeCond = sync.NewCond(&conn.closeMu)
+	rp := &blockingReadProcessor{
+		stopEntered: make(chan struct{}),
+		releaseStop: make(chan struct{}),
+	}
+	conn.rp = rp
+	fc.SetContext(conn)
+
+	closedCh := make(chan error, 1)
+	handler := &gnetClientEventHandler{
+		client: &GnetClient{
+			opts: opts,
+			handler: &connTestLifecycleHandler{
+				onClose: func(_ kknet.IConn, err error) {
+					closedCh <- err
+				},
+			},
+		},
+	}
+
+	closeErr := errors.New("peer closed")
+	handler.OnClose(fc, closeErr)
+
+	select {
+	case <-rp.stopEntered:
+	case <-time.After(time.Second):
+		t.Fatal("read processor Stop was not called")
+	}
+
+	select {
+	case err := <-closedCh:
+		t.Fatalf("OnClose callback fired before rp.Stop finished: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(rp.releaseStop)
+
+	select {
+	case err := <-closedCh:
+		if !errors.Is(err, closeErr) {
+			t.Fatalf("OnClose err = %v, want %v", err, closeErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OnClose callback did not fire after rp.Stop finished")
 	}
 }

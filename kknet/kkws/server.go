@@ -224,7 +224,7 @@ func (s *Server) closeAllConnections(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			conn.closeWithError(s.handler, kkerrors.ErrNetServerStopped)
+			conn.closeWithError(s.handler, nil)
 		}
 	}
 

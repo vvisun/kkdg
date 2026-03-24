@@ -24,6 +24,9 @@ type gnetConn struct {
 
 	rp kknet.IReadProcessor
 
+	stopReadOnce sync.Once
+	readStopped  chan struct{}
+
 	closeMu    sync.Mutex
 	closeCond  *sync.Cond
 	sendQueue  *bbqueue.BBQueue
@@ -36,10 +39,11 @@ var _ kknet.IConn = (*gnetConn)(nil)
 func newGnetConn(c gnet.Conn, opts *kknet.Options, stats *kknet.Stats) *gnetConn {
 	kknet.CheckOptions(opts)
 	gc := &gnetConn{
-		id:    internal.NextConnID(),
-		conn:  c,
-		opts:  opts,
-		stats: stats,
+		id:          internal.NextConnID(),
+		conn:        c,
+		opts:        opts,
+		stats:       stats,
+		readStopped: make(chan struct{}),
 		sendQueue: bbqueue.NewBBQueue(
 			opts.WpOptions.SendQueueSize,
 			opts.WpOptions.SendQueueStrict,
@@ -67,9 +71,6 @@ func (c *gnetConn) RemoteAddr() string {
 func (c *gnetConn) Close() error {
 	if c.closing.Swap(true) {
 		return nil
-	}
-	if c.rp != nil {
-		go c.rp.Stop()
 	}
 	timedOut := false
 	if c.opts.WpOptions.SendQueueNeedFlushOver {
@@ -105,7 +106,9 @@ func (c *gnetConn) Close() error {
 	if timedOut || !c.opts.WpOptions.SendQueueNeedFlushOver {
 		c.dropQueuedBuffers()
 	}
-	return c.conn.Close()
+	err := c.conn.Close()
+	c.stopReadAndWait()
+	return err
 }
 
 func (c *gnetConn) SendMsg(msg any) error {
@@ -272,9 +275,7 @@ func (c *gnetConn) handleWriteError(err error) {
 func (c *gnetConn) handleUnderlyingClose() {
 	c.closing.Store(true)
 	c.dropQueuedBuffers()
-	if c.rp != nil {
-		go c.rp.Stop()
-	}
+	c.stopReadAsync()
 }
 
 func (c *gnetConn) dropQueuedBuffers() {
@@ -289,4 +290,24 @@ func (c *gnetConn) dropQueuedBuffers() {
 	}
 	c.closeCond.Broadcast()
 	c.closeMu.Unlock()
+}
+
+func (c *gnetConn) stopReadAsync() {
+	c.stopReadOnce.Do(func() {
+		go c.stopRead()
+	})
+}
+
+func (c *gnetConn) stopReadAndWait() {
+	c.stopReadOnce.Do(func() {
+		c.stopRead()
+	})
+	<-c.readStopped
+}
+
+func (c *gnetConn) stopRead() {
+	if c.rp != nil {
+		c.rp.Stop()
+	}
+	close(c.readStopped)
 }

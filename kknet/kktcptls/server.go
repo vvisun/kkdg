@@ -151,7 +151,7 @@ func (s *Server) closeAllConnections(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			c.closeWithError(s.handler, kkerrors.ErrNetServerStopped)
+			c.closeWithError(s.handler, nil)
 		}
 	}
 

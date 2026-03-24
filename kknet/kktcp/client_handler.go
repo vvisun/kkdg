@@ -43,17 +43,28 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 	if err != nil {
 		h.client.stats.AddError()
 	}
-	if cc, ok := c.Context().(*gnetConn); ok {
+	var cc *gnetConn
+	if conn, ok := c.Context().(*gnetConn); ok {
+		cc = conn
 		cc.handleUnderlyingClose()
-		if h.client.handler != nil {
-			kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnClose", func() {
-				h.client.handler.OnClose(cc, err)
-			})
-		}
 	}
 	h.client.connMu.Lock()
 	h.client.conn = nil
 	h.client.connMu.Unlock()
+	if cc != nil {
+		go func() {
+			cc.stopReadAndWait()
+			if h.client.handler != nil {
+				kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnClose", func() {
+					h.client.handler.OnClose(cc, err)
+				})
+			}
+			if !kknet.IsClosingOrClosed(&h.client.status) && h.client.opts.IsNeedReconnect {
+				h.client.startReconnect()
+			}
+		}()
+		return gnet.None
+	}
 	if !kknet.IsClosingOrClosed(&h.client.status) && h.client.opts.IsNeedReconnect {
 		h.client.startReconnect()
 	}

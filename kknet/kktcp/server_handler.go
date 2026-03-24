@@ -39,17 +39,20 @@ func (h *tcpEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 	if err != nil {
 		h.server.stats.AddError()
 	}
-	if tc, ok := c.Context().(*gnetConn); ok {
+	var tc *gnetConn
+	if conn, ok := c.Context().(*gnetConn); ok {
+		tc = conn
 		tc.handleUnderlyingClose()
 		h.server.connMgr.RemoveConn(tc.id)
 	}
-	if h.server.handler == nil {
+	if tc != nil && h.server.handler != nil {
+		go func() {
+			tc.stopReadAndWait()
+			kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnClose", func() {
+				h.server.handler.OnClose(tc, err)
+			})
+		}()
 		return gnet.None
-	}
-	if tc, ok := c.Context().(*gnetConn); ok {
-		kknet.SafeHandlerCall(h.server.opts.Logger, &h.server.stats, "kktcp OnClose", func() {
-			h.server.handler.OnClose(tc, err)
-		})
 	}
 	return gnet.None
 }
