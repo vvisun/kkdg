@@ -1,10 +1,21 @@
 package gormop
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 
 	"gorm.io/gorm"
+)
+
+const maxBatchInsertCount = 500
+
+var (
+	errNilDbEngine = errors.New("DbEngine is nil")
+	errNilBean     = errors.New("bean is nil")
+	errInvalidBean = errors.New("bean is invalid")
+	errNilInstance = errors.New("DbEngine instance is nil")
+	errTooMany     = errors.New("too many")
 )
 
 // getPrimaryKeyColumn 从模型的 GORM Schema 或 struct tag 取主键列名，若无则返回 "id"。

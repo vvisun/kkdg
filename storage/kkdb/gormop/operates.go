@@ -8,16 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const maxBatchInsertCount = 500
-
-var (
-	errNilDbEngine = errors.New("DbEngine is nil")
-	errNilBean     = errors.New("bean is nil")
-	errInvalidBean = errors.New("bean is invalid")
-	errNilInstance = errors.New("DbEngine instance is nil")
-	errTooMany     = errors.New("too many")
-)
-
 func paramsCheck(dbEng *gormeng.DbEngine, bean interface{}) error {
 	if dbEng == nil {
 		kklog.Error("dbengine is nil")

@@ -31,8 +31,8 @@
 //
 // # 其他说明
 //
-//   - GetOne/GetByID：未找到时返回 (nil, nil)，不返回 error。因为找不到严格来说不算是错误，单纯就是没有这条数据而已。
-//   - Update：只更新 data 的非零字段；零值需更新时用 UpdateCols 指定列或 UpdateAllCols（按主键全量更新）。
+//   - GetOne/GetByID：没有这条数据时返回 (nil, nil)，不返回 error。因为没有这条数据严格来说不算是错误。
+//   - Update：只更新 data 的非零字段；零值需更新时用 UpdateCols 指定列 或 UpdateAllCols（按主键全量更新）。
 //   - UpdateAllCols/TxUpdateAllCols：主键列名从模型 GORM Schema 自动获取（如 uid、id），无需写死。
 //   - InsertMulty/TxInsertMulty：单次最多 maxBatchInsertCount 条（默认 500）。
 package gormop
