@@ -238,8 +238,8 @@ func TestCheckWriteOptions(t *testing.T) {
 		opt := DefaultWriteOptions()
 		opt.BatchWriteLimitBytes = 8192
 		CheckWriteOptions(&opt)
-		if opt.BatchWriteLimitBytes != 4096 {
-			t.Errorf("CheckWriteOptions BatchWriteLimitBytes = %d, want 4096", opt.BatchWriteLimitBytes)
+		if opt.BatchWriteLimitBytes != 2048 {
+			t.Errorf("CheckWriteOptions BatchWriteLimitBytes = %d, want 2048", opt.BatchWriteLimitBytes)
 		}
 	})
 	t.Run("nil_safe", func(t *testing.T) {
