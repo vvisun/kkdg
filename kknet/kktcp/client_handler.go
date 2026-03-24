@@ -94,7 +94,10 @@ func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 			return gnet.Close
 		}
 		if cc.rp != nil {
-			cc.rp.EnqueuePacket(data)
+			if err := cc.rp.EnqueuePacket(data); err != nil {
+				h.client.stats.AddError()
+				return gnet.Close
+			}
 		}
 	}
 }

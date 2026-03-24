@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -91,12 +92,12 @@ func (rp *ReadProcessor) Stop() {
 //
 // Note: packet bytes are copied into a pooled buffer because the input slice may
 // reference ephemeral inbound buffers.
-func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
+func (rp *ReadProcessor) EnqueuePacket(packet []byte) error {
 	if len(packet) == 0 {
-		return
+		return nil
 	}
 	if rp.closing.Load() {
-		return
+		return nil
 	}
 
 	bb := kkbuffer.GetWithCapacity(len(packet))
@@ -107,7 +108,7 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 	if rp.closing.Load() {
 		rp.mu.Unlock()
 		kkbuffer.Put(bb)
-		return
+		return nil
 	}
 	wasEmpty := rp.recvQueue.IsEmpty()
 	ok := rp.recvQueue.Push(bb)
@@ -117,6 +118,12 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 			conn := rp.conn
 			xcall.SafeCall(func() { cb(conn) })
 		}
+		nowEmpty := rp.recvQueue.IsEmpty()
+		rp.mu.Unlock()
+		if wasEmpty && !nowEmpty {
+			rp.wakeConsumer()
+		}
+		return kkerrors.ErrNetRecvQueueFull
 	}
 	nowEmpty := rp.recvQueue.IsEmpty()
 	rp.mu.Unlock()
@@ -124,6 +131,7 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) {
 	if wasEmpty && !nowEmpty {
 		rp.wakeConsumer()
 	}
+	return nil
 }
 
 func (rp *ReadProcessor) reRecvBuf(capacity int) {
@@ -200,7 +208,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 
 	// --- Phase 3: 入队（短锁，仅队列操作） ---
 
-	isQueueFull := false
+	fullIdx := -1
 	rp.mu.Lock()
 	if rp.closing.Load() {
 		rp.mu.Unlock()
@@ -215,14 +223,22 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 	for i := 0; i < n; i++ {
 		ok := rp.recvQueue.Push(prepared[i])
 		if !ok {
+			fullIdx = i
 			kkbuffer.Put(prepared[i])
-			isQueueFull = true
+			prepared[i] = nil
+			break
 		}
+		prepared[i] = nil
 	}
 	nowEmpty := rp.recvQueue.IsEmpty()
 	rp.mu.Unlock()
 
-	if isQueueFull {
+	if fullIdx >= 0 {
+		for i := fullIdx + 1; i < n; i++ {
+			if prepared[i] != nil {
+				kkbuffer.Put(prepared[i])
+			}
+		}
 		if cb := rp.opts.RecvQueueFullCallback; cb != nil {
 			conn := rp.conn
 			xcall.SafeCall(func() { cb(conn) })
@@ -231,6 +247,9 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 
 	if wasEmpty && !nowEmpty {
 		rp.wakeConsumer()
+	}
+	if fullIdx >= 0 {
+		return kkerrors.ErrNetRecvQueueFull
 	}
 	return nil
 }

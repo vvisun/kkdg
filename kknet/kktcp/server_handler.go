@@ -81,7 +81,10 @@ func (h *tcpEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {
 			return gnet.Close
 		}
 		if tc.rp != nil {
-			tc.rp.EnqueuePacket(data)
+			if err := tc.rp.EnqueuePacket(data); err != nil {
+				h.server.stats.AddError()
+				return gnet.Close
+			}
 		}
 	}
 }

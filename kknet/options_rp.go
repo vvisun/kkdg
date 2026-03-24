@@ -18,9 +18,10 @@ type ReadOptions struct {
 	//接收队列大小。默认 256。
 	// 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
 	RecvQueueSize int
-	// RecvQueue full 回调。当 Push 因队列满失败时调用。
+	// RecvQueue full 回调。当 Push/受理因队列满失败时调用。
 	// 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
 	// 例如，可以在回调里限流/向客户端发送提示“服务器繁忙”等。
+	// 对 OnRecvBytes/EnqueuePacket 场景，处理器还可能返回 ErrNetRecvQueueFull，供上层主动断连。
 	RecvQueueFullCallback func(conn IConn)
 
 	//当拆包缓冲区 cap 超过该值且当前为空时，会缩容到默认值。防止内存浪费。
@@ -100,7 +101,7 @@ func WithRecvQueueSize(size int) Option {
 }
 
 // WithRecvQueueFullCallback 设置 RecvQueue 满时的回调。
-// 回调在 Push 因队列满失败时触发，用于统计、限流或踢连接等。
+// 回调在 Push/受理因队列满失败时触发，用于统计、限流或踢连接等。
 // 需配合 WithRecvQueueStrict(true) 使用，否则队列会自动扩容不会满。
 // 提示：“服务器繁忙” 或 “客户端发送过于频繁”
 func WithRecvQueueFullCallback(callback func(conn IConn)) Option {

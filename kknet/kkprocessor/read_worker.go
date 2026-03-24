@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -102,16 +103,16 @@ func (rp *WorkerReadProcessor) releaseRecvSlot() {
 }
 
 // EnqueuePacket 适用于上层已完成切包的场景（如 gnet SplitSR 得到完整 [length,message]）。
-func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) {
+func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) error {
 	if len(packet) == 0 {
-		return
+		return nil
 	}
 	if rp.closing.Load() {
-		return
+		return nil
 	}
 
 	if !rp.tryAcquireRecvSlot() {
-		return
+		return kkerrors.ErrNetRecvQueueFull
 	}
 
 	// 拷贝到池化 ByteBuffer，生命周期由 task 内部负责 Put。
@@ -120,6 +121,7 @@ func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) {
 	copy(bb.B, packet)
 
 	rp.submitTask(bb)
+	return nil
 }
 
 // OnRecvBytes 负责从字节流中拆出 [length,message] 帧，并将每帧封装为 task 投递到 workerQueue。
@@ -162,7 +164,7 @@ func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 			continue
 		}
 		if !rp.tryAcquireRecvSlot() {
-			return nil
+			return kkerrors.ErrNetRecvQueueFull
 		}
 		bb := kkbuffer.GetWithCapacity(len(packet))
 		bb.B = bb.B[:len(packet)]

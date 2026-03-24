@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -235,8 +236,11 @@ func TestReadProcessor_RecvQueueFullCallback(t *testing.T) {
 	defer kkbuffer.Put(bb2)
 	defer kkbuffer.Put(bb3)
 	defer kkbuffer.Put(bb4)
-	_ = rp.OnRecvBytes(append(append(bb2.B, bb3.B...), bb4.B...))
+	err := rp.OnRecvBytes(append(append(bb2.B, bb3.B...), bb4.B...))
 	time.Sleep(20 * time.Millisecond)
+	if err != kkerrors.ErrNetRecvQueueFull {
+		t.Fatalf("OnRecvBytes = %v, want ErrNetRecvQueueFull", err)
+	}
 
 	if fullCount < 1 {
 		t.Errorf("RecvQueueFullCallback should be called when queue full, got %d", fullCount)
@@ -302,7 +306,9 @@ func TestReadProcessor_EnqueuePacket(t *testing.T) {
 	defer rp.Stop()
 
 	packet := []byte{0, 0, 0, 5, 'h', 'e', 'l', 'l', 'o'}
-	rp.EnqueuePacket(packet)
+	if err := rp.EnqueuePacket(packet); err != nil {
+		t.Fatalf("EnqueuePacket: %v", err)
+	}
 
 	time.Sleep(30 * time.Millisecond)
 	recvd := h.get()
@@ -330,11 +336,44 @@ func TestReadProcessor_EnqueuePacket_Empty(t *testing.T) {
 	rp.Start(conn)
 	defer rp.Stop()
 
-	rp.EnqueuePacket(nil)
-	rp.EnqueuePacket([]byte{})
+	if err := rp.EnqueuePacket(nil); err != nil {
+		t.Fatalf("EnqueuePacket(nil): %v", err)
+	}
+	if err := rp.EnqueuePacket([]byte{}); err != nil {
+		t.Fatalf("EnqueuePacket([]): %v", err)
+	}
 	time.Sleep(20 * time.Millisecond)
 	if h.count() != 0 {
 		t.Errorf("expected 0 packets, got %d", h.count())
+	}
+}
+
+func TestReadProcessor_EnqueuePacket_QueueFull_ReturnsError(t *testing.T) {
+	var fullCount int
+	blockCh := make(chan struct{})
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(&blockingRawHandler{block: blockCh}),
+		kknet.WithRecvQueueSize(1),
+		kknet.WithRecvQueueStrict(true),
+		kknet.WithRecvQueueFullCallback(func(_ kknet.IConn) {
+			fullCount++
+		}),
+	)
+	rp := NewReadProcessor(opts.RpOptions).(*ReadProcessor)
+	rp.Start(&mockConnForRead{id: 43})
+	defer func() {
+		close(blockCh)
+		rp.Stop()
+	}()
+
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'}); err != nil {
+		t.Fatalf("EnqueuePacket first: %v", err)
+	}
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != kkerrors.ErrNetRecvQueueFull {
+		t.Fatalf("EnqueuePacket second = %v, want ErrNetRecvQueueFull", err)
+	}
+	if fullCount != 1 {
+		t.Fatalf("RecvQueueFullCallback count = %d, want 1", fullCount)
 	}
 }
 
@@ -405,7 +444,9 @@ func TestSyncReadProcessor_EnqueuePacket(t *testing.T) {
 	rp.Start(conn)
 
 	packet := []byte{0, 0, 0, 4, 't', 'e', 's', 't'}
-	rp.EnqueuePacket(packet)
+	if err := rp.EnqueuePacket(packet); err != nil {
+		t.Fatalf("EnqueuePacket: %v", err)
+	}
 
 	recvd := h.get()
 	if len(recvd) != 1 {
@@ -417,6 +458,43 @@ func TestSyncReadProcessor_EnqueuePacket(t *testing.T) {
 	msg, _ := opts.StreamTool.Unpack(recvd[0].data)
 	if string(msg) != "test" {
 		t.Errorf("data = %q, want test", msg)
+	}
+}
+
+func TestSyncReadProcessor_EnqueuePacket_QueueFull_ReturnsError(t *testing.T) {
+	h := &syncBlockingHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithNoneCopyHandler(h),
+		kknet.WithRecvQueueSize(1),
+		kknet.WithRecvQueueStrict(true),
+	)
+	rp := NewSyncReadProcessor(opts.RpOptions).(*SyncReadProcessor)
+	rp.Start(&mockConnForRead{id: 100})
+
+	firstDone := make(chan struct{})
+	go func() {
+		defer close(firstDone)
+		_ = rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'})
+	}()
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("first packet did not enter none-copy handler")
+	}
+
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != kkerrors.ErrNetRecvQueueFull {
+		t.Fatalf("EnqueuePacket second = %v, want ErrNetRecvQueueFull", err)
+	}
+
+	close(h.release)
+	select {
+	case <-firstDone:
+	case <-time.After(time.Second):
+		t.Fatal("first enqueue did not complete")
 	}
 }
 
@@ -528,7 +606,9 @@ func TestReadProcessor_Stop_DrainsRemaining(t *testing.T) {
 
 	bb, _ := opts.StreamTool.Pack([]byte("drain"))
 	defer kkbuffer.Put(bb)
-	rp.EnqueuePacket(bb.B)
+	if err := rp.EnqueuePacket(bb.B); err != nil {
+		t.Fatalf("EnqueuePacket: %v", err)
+	}
 
 	rp.Stop()
 	recvd := h.get()
@@ -548,7 +628,9 @@ func TestReadProcessor_EnqueuePacket_AfterStop_Ignored(t *testing.T) {
 	rp.Start(&mockConnForRead{id: 1})
 
 	rp.Stop()
-	rp.EnqueuePacket([]byte{0, 0, 0, 4, 'l', 'a', 't', 'e'})
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 4, 'l', 'a', 't', 'e'}); err != nil {
+		t.Fatalf("EnqueuePacket after Stop: %v", err)
+	}
 	time.Sleep(20 * time.Millisecond)
 
 	if got := h.count(); got != 0 {
@@ -595,7 +677,9 @@ func TestWorkerReadProcessor_EnqueuePacket_AfterStop_Ignored(t *testing.T) {
 	rp.Start(&mockConnForRead{id: 2})
 
 	rp.Stop()
-	rp.EnqueuePacket([]byte{0, 0, 0, 4, 'l', 'a', 't', 'e'})
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 4, 'l', 'a', 't', 'e'}); err != nil {
+		t.Fatalf("EnqueuePacket after Stop: %v", err)
+	}
 	time.Sleep(20 * time.Millisecond)
 
 	if got := h.count(); got != 0 {
@@ -617,15 +701,21 @@ func TestWorkerReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T)
 	rp := NewWorkerReadProcessor(opts.RpOptions).(*WorkerReadProcessor)
 	rp.Start(&mockConnForRead{id: 4})
 
-	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'})
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'}); err != nil {
+		t.Fatalf("EnqueuePacket first: %v", err)
+	}
 	select {
 	case <-h.entered:
 	case <-time.After(time.Second):
 		t.Fatal("first packet did not enter handler")
 	}
 
-	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'})
-	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'c'})
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != kkerrors.ErrNetRecvQueueFull {
+		t.Fatalf("EnqueuePacket second = %v, want ErrNetRecvQueueFull", err)
+	}
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'c'}); err != kkerrors.ErrNetRecvQueueFull {
+		t.Fatalf("EnqueuePacket third = %v, want ErrNetRecvQueueFull", err)
+	}
 
 	close(h.release)
 	rp.Stop()
@@ -657,7 +747,7 @@ func TestWorkerReadProcessor_RecvQueueStrict_CountsRunningTasks(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			rp.EnqueuePacket([]byte{0, 0, 0, 1, 'x'})
+			_ = rp.EnqueuePacket([]byte{0, 0, 0, 1, 'x'})
 		}()
 	}
 
@@ -686,6 +776,55 @@ func TestWorkerReadProcessor_RecvQueueStrict_CountsRunningTasks(t *testing.T) {
 	}
 }
 
+func TestWorkerReadProcessor_OnRecvBytes_QueueFull_ReturnsError(t *testing.T) {
+	h := &signalBlockingRawHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	opts := kknet.ApplyOptions(
+		kknet.WithRawHandler(h),
+		kknet.WithRecvQueueSize(1),
+		kknet.WithRecvQueueStrict(true),
+	)
+	opts.RpOptions.WorkerQueueMaxConcurrency = 1
+	rp := NewWorkerReadProcessor(opts.RpOptions).(*WorkerReadProcessor)
+	rp.Start(&mockConnForRead{id: 10})
+
+	bb1, err := opts.StreamTool.Pack([]byte("a"))
+	if err != nil {
+		t.Fatalf("Pack first: %v", err)
+	}
+	defer kkbuffer.Put(bb1)
+	if err := rp.OnRecvBytes(bb1.B); err != nil {
+		t.Fatalf("OnRecvBytes first = %v", err)
+	}
+
+	select {
+	case <-h.entered:
+	case <-time.After(time.Second):
+		t.Fatal("first packet did not enter handler")
+	}
+
+	bb2, err := opts.StreamTool.Pack([]byte("b"))
+	if err != nil {
+		t.Fatalf("Pack second: %v", err)
+	}
+	defer kkbuffer.Put(bb2)
+	bb3, err := opts.StreamTool.Pack([]byte("c"))
+	if err != nil {
+		t.Fatalf("Pack third: %v", err)
+	}
+	defer kkbuffer.Put(bb3)
+
+	err = rp.OnRecvBytes(append(append([]byte{}, bb2.B...), bb3.B...))
+	if err != kkerrors.ErrNetRecvQueueFull {
+		t.Fatalf("OnRecvBytes combined = %v, want ErrNetRecvQueueFull", err)
+	}
+
+	close(h.release)
+	rp.Stop()
+}
+
 func TestWorkerReadProcessor_Stop_DrainsAcceptedTasks(t *testing.T) {
 	h := &orderedBlockingRawHandler{
 		firstEntered:  make(chan struct{}),
@@ -701,14 +840,18 @@ func TestWorkerReadProcessor_Stop_DrainsAcceptedTasks(t *testing.T) {
 	rp := NewWorkerReadProcessor(opts.RpOptions).(*WorkerReadProcessor)
 	rp.Start(&mockConnForRead{id: 5})
 
-	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'})
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'a'}); err != nil {
+		t.Fatalf("EnqueuePacket first: %v", err)
+	}
 	select {
 	case <-h.firstEntered:
 	case <-time.After(time.Second):
 		t.Fatal("first packet did not enter handler")
 	}
 
-	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'})
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != nil {
+		t.Fatalf("EnqueuePacket second: %v", err)
+	}
 
 	stopDone := make(chan struct{})
 	go func() {

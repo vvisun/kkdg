@@ -6,6 +6,8 @@ import "errors"
 var (
 	// 连接已关闭
 	ErrNetConnectionClosed = errors.New("kknet connection is closed")
+	// 接收队列已满（严格模式下）
+	ErrNetRecvQueueFull = errors.New("kknet recv queue is full")
 	// 异步发送队列已满（严格模式下）
 	ErrNetSendQueueFull = errors.New("kknet send queue is full")
 	// 服务器未启动

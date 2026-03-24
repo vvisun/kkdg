@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -84,12 +85,12 @@ func (rp *SyncReadProcessor) releaseRecvSlot() {
 	atomic.AddInt64(&rp.recvQueueSize, -1)
 }
 
-func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) {
+func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) error {
 	if len(packet) == 0 {
-		return
+		return nil
 	}
 	if !rp.tryAcquireRecvSlot() {
-		return
+		return kkerrors.ErrNetRecvQueueFull
 	}
 	defer rp.releaseRecvSlot()
 
@@ -97,6 +98,7 @@ func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) {
 	//这里不用safe call, 防止将业务层致命错误静默吞避
 	rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 	rp.mu.Unlock()
+	return nil
 }
 
 func (rp *SyncReadProcessor) reRecvBuf(capacity int) {
