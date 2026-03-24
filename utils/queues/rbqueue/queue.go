@@ -31,6 +31,8 @@ func New[T any](initialSize int64) *Queue[T] {
 	}
 }
 
+// Push adds an item to the queue.
+// auto grow the queue when the queue is full.
 func (q *Queue[T]) Push(item T) {
 	q.lock.Lock()
 	c := q.content

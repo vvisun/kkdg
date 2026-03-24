@@ -57,7 +57,7 @@ type WriteOptions struct {
 	// flush 超时回调
 	SendQueueFlushTimeoutCallback func(conn IConn, timeout time.Duration)
 
-	// 多包合并发送时，限制的写入的字节数（传参 <=0 时修正为512B，>4096B 时修正为4096B）
+	// 多包合并发送时，限制的写入的字节数
 	// 合并时限制的包数量为常量 BatchPacketSize。
 	BatchWriteLimitBytes int
 }
@@ -102,9 +102,9 @@ func CheckWriteOptions(opts *WriteOptions) {
 		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 512)
 		opts.BatchWriteLimitBytes = 512
 	}
-	if opts.BatchWriteLimitBytes > 4096 {
-		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 4096)
-		opts.BatchWriteLimitBytes = 4096
+	if opts.BatchWriteLimitBytes > 2048 {
+		kklog.Debugf("wp BatchWriteLimitBytes fixed from %d to %d", opts.BatchWriteLimitBytes, 2048)
+		opts.BatchWriteLimitBytes = 2048
 	}
 	if opts.SendQueueRetryInterval <= 0 {
 		kklog.Debugf("wp SendQueueRetryInterval fixed from %d to %d", opts.SendQueueRetryInterval, 2*time.Millisecond)
