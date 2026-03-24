@@ -6,6 +6,8 @@ import (
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 )
 
+const defaultRecvBufSize int = 1 * 1024 // 接收缓冲区大小，1KB
+
 type PacketSpliter struct {
 	streamTool kkpacket.IPacket
 	shrinkCap  int

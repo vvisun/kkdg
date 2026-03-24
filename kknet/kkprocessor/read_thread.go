@@ -12,8 +12,6 @@ import (
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
-const defaultRecvBufSize int = 1 * 1024 // 接收缓冲区大小，1KB
-
 // 消息处理器-接收器。单生产者。每个连接一个消费携程，采用的唤醒机制。
 //
 //	启用独立携程消费recvQueue中的数据，并分发消息。
