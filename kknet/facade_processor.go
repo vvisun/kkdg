@@ -17,7 +17,7 @@ type IReadProcessor interface {
 	// Stop 停止接收新数据。
 	// 本质上三者都是：新接收到的消息包视为待消费，消息包投递到OnRaw/OnNoneCopy视为该条消息已消费完毕。
 	// 等待语义由具体实现决定：
-	//  - ReadProcessor: 等待消费协程退出，已入队数据会继续投递到 OnRaw；
+	//  - ReadProcessor: 等待消费协程退出（接收队列投递完毕）；
 	//  - SyncReadProcessor: 等待当前正在执行的 OnNoneCopy 退出临界区；
 	//  - WorkerReadProcessor: 仅标记关闭，不等待 workerQueue 中已投递任务完成。
 	Stop()
