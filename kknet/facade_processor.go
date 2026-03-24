@@ -14,12 +14,12 @@ type WriteFunc func(batch []*kkbuffer.ByteBuffer, n int) error
 
 type IReadProcessor interface {
 	Start(conn IConn)
-	// Stop 停止接收新数据 和 消费完已接收的数据。
-	// 新接收到的包视为待消费，投递到OnRaw/OnNoneCopy视为某条消息已消费完毕。
-	//  具体实现:
-	//  ReadProcessor 会等待内部【消费携程】投递完recvQueue中的数据；
-	//  SyncReadProcessor 因为是同步处理，没有异步队列，所以只需等待当前正在执行的 OnNoneCopy 退出临界区；
-	//  WorkerReadProcessor 会直接投递给WorkerQueue。
+	// Stop 停止接收新数据。
+	// 本质上三者都是：新接收到的消息包视为待消费，消息包投递到OnRaw/OnNoneCopy视为该条消息已消费完毕。
+	// 等待语义由具体实现决定：
+	//  - ReadProcessor: 等待消费协程退出，已入队数据会继续投递到 OnRaw；
+	//  - SyncReadProcessor: 等待当前正在执行的 OnNoneCopy 退出临界区；
+	//  - WorkerReadProcessor: 仅标记关闭，不等待 workerQueue 中已投递任务完成。
 	Stop()
 	// 收到单个完整包数据时（生产者生产数据）。eg: gnet SplitSR 得到完整单包 [length,message]。
 	// 仅由网络读协程访问。

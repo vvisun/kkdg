@@ -21,7 +21,7 @@ type ReadOptions struct {
 	// 需配合 RecvQueueStrict 为 true 使用；表示内部等待队列长度上限。
 	RecvQueueSize int
 	// RecvQueue full 回调。当 Push/受理因队列满失败时调用。
-	// 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
+	// 需配合 RecvQueueStrict 为 true 使用。
 	// 例如，可以在回调里限流/向客户端发送提示“服务器繁忙”等。
 	// 对 OnRecvBytes/EnqueuePacket 场景，处理器还可能返回 ErrNetRecvQueueFull，供上层主动断连。
 	RecvQueueFullCallback func(conn IConn)
@@ -93,7 +93,8 @@ func WithRecvQueueStrict(strict bool) Option {
 }
 
 // WithRecvQueueSize sets recv queue size.
-// 接收队列大小。默认 256。 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
+// 接收队列大小。默认 256。
+// RecvQueueStrict 为 true 时表示 Pending() 语义下的等待队列上限。
 func WithRecvQueueSize(size int) Option {
 	return func(o *Options) {
 		if size > 0 {

@@ -14,6 +14,7 @@ import (
 // 消息处理器-接收器。单生产者。数据投递到 workerQueue 消费。
 // 当 workerQueue 并发数为 1 时，消息在workerQueue中按顺序串行消费；
 // 当 workerQueue 并发数大于 1 时，消息在workerQueue中并发消费，不再保证顺序性。
+// RecvQueueStrict 的限流判断基于单生产者模型（每连接独立读协程）。
 //
 // 本质上可视为 ReadProcessor 的 workerQueue 调度版：
 //   - 两者都会把完整 [length,message] 包派发到 RawHandler.OnRaw；
