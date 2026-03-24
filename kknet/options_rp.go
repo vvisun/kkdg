@@ -13,10 +13,12 @@ type ReadOptions struct {
 	//消费函数, data: [length,message], 如果同步调用已经快过拷贝，可以直接同步消费数据。
 	NoneCopyHandler INoneCopyHandler
 
-	//接收队列是否严格容量控制
+	// 接收队列是否严格容量控制。
+	// 语义与 Pending() 一致：只限制内部等待队列长度，不包含业务回调执行中。
+	// 对 SyncReadProcessor 无异步等待队列，因此该选项不生效。
 	RecvQueueStrict bool
 	//接收队列大小。默认 256。
-	// 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。
+	// 需配合 RecvQueueStrict 为 true 使用；表示内部等待队列长度上限。
 	RecvQueueSize int
 	// RecvQueue full 回调。当 Push/受理因队列满失败时调用。
 	// 需配合 RecvQueueStrict为 true 使用，否则队列会自动扩容不会满。这里设置的值会忽略。

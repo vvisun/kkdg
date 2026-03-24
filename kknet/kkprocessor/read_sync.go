@@ -8,7 +8,6 @@ import (
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 // 消息处理器-接收器。
@@ -30,8 +29,6 @@ type SyncReadProcessor struct {
 
 	mu      sync.Mutex // 仅保护 Handler 串行调用（与 EnqueuePacket 互斥）
 	closing atomic.Bool
-
-	recvQueueSize int64 // 接收队列大小
 }
 
 var _ kknet.IReadProcessor = (*SyncReadProcessor)(nil)
@@ -48,9 +45,7 @@ func NewSyncReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	}
 }
 
-func (rp *SyncReadProcessor) Pending() int {
-	return int(atomic.LoadInt64(&rp.recvQueueSize))
-}
+func (rp *SyncReadProcessor) Pending() int { return 0 }
 
 func (rp *SyncReadProcessor) Start(conn kknet.IConn) {
 	rp.closing.Store(false)
@@ -65,30 +60,7 @@ func (rp *SyncReadProcessor) Stop() {
 	rp.mu.Unlock()
 }
 
-func (rp *SyncReadProcessor) tryAcquireRecvSlot() bool {
-	if !rp.opts.RecvQueueStrict {
-		atomic.AddInt64(&rp.recvQueueSize, 1)
-		return true
-	}
-	limit := int64(rp.opts.RecvQueueSize)
-	for {
-		cur := atomic.LoadInt64(&rp.recvQueueSize)
-		if cur >= limit {
-			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
-				conn := rp.conn
-				xcall.SafeCall(func() { cb(conn) })
-			}
-			return false
-		}
-		if atomic.CompareAndSwapInt64(&rp.recvQueueSize, cur, cur+1) {
-			return true
-		}
-	}
-}
-
-func (rp *SyncReadProcessor) releaseRecvSlot() {
-	atomic.AddInt64(&rp.recvQueueSize, -1)
-}
+func (rp *SyncReadProcessor) tryAcquireRecvSlot() bool { return true }
 
 func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) error {
 	if len(packet) == 0 {
@@ -100,7 +72,6 @@ func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) error {
 	if !rp.tryAcquireRecvSlot() {
 		return kkerrors.ErrNetRecvQueueFull
 	}
-	defer rp.releaseRecvSlot()
 
 	rp.mu.Lock()
 	if rp.closing.Load() {
@@ -172,7 +143,6 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 	if !rp.tryAcquireRecvSlot() {
 		return kkerrors.ErrNetRecvQueueFull
 	}
-	defer rp.releaseRecvSlot()
 
 	// Handler 串行调用（与 EnqueuePacket 互斥）
 	rp.mu.Lock()

@@ -461,7 +461,7 @@ func TestSyncReadProcessor_EnqueuePacket(t *testing.T) {
 	}
 }
 
-func TestSyncReadProcessor_EnqueuePacket_QueueFull_ReturnsError(t *testing.T) {
+func TestSyncReadProcessor_EnqueuePacket_Strict_IgnoresRunningHandler(t *testing.T) {
 	h := &syncBlockingHandler{
 		entered: make(chan struct{}),
 		release: make(chan struct{}),
@@ -486,19 +486,31 @@ func TestSyncReadProcessor_EnqueuePacket_QueueFull_ReturnsError(t *testing.T) {
 		t.Fatal("first packet did not enter none-copy handler")
 	}
 
-	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != kkerrors.ErrNetRecvQueueFull {
-		t.Fatalf("EnqueuePacket second = %v, want ErrNetRecvQueueFull", err)
-	}
-
+	secondDone := make(chan struct{})
+	go func() {
+		defer close(secondDone)
+		if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != nil {
+			t.Errorf("EnqueuePacket second = %v, want nil because SyncReadProcessor has no wait queue", err)
+		}
+	}()
 	close(h.release)
 	select {
 	case <-firstDone:
 	case <-time.After(time.Second):
 		t.Fatal("first enqueue did not complete")
 	}
+	select {
+	case <-secondDone:
+	case <-time.After(time.Second):
+		t.Fatal("second enqueue did not complete")
+	}
+
+	if got := h.count.Load(); got != 2 {
+		t.Fatalf("handled %d packets, want 2", got)
+	}
 }
 
-func TestSyncReadProcessor_OnRecvBytes_QueueFull_ReturnsError(t *testing.T) {
+func TestSyncReadProcessor_OnRecvBytes_Strict_IgnoresRunningHandler(t *testing.T) {
 	h := &syncBlockingHandler{
 		entered: make(chan struct{}),
 		release: make(chan struct{}),
@@ -534,15 +546,27 @@ func TestSyncReadProcessor_OnRecvBytes_QueueFull_ReturnsError(t *testing.T) {
 		t.Fatal("first packet did not enter none-copy handler")
 	}
 
-	if err := rp.OnRecvBytes(second.B); err != kkerrors.ErrNetRecvQueueFull {
-		t.Fatalf("OnRecvBytes second = %v, want ErrNetRecvQueueFull", err)
-	}
-
+	secondDone := make(chan struct{})
+	go func() {
+		defer close(secondDone)
+		if err := rp.OnRecvBytes(second.B); err != nil {
+			t.Errorf("OnRecvBytes second = %v, want nil because SyncReadProcessor has no wait queue", err)
+		}
+	}()
 	close(h.release)
 	select {
 	case <-firstDone:
 	case <-time.After(time.Second):
 		t.Fatal("first OnRecvBytes did not complete")
+	}
+	select {
+	case <-secondDone:
+	case <-time.After(time.Second):
+		t.Fatal("second OnRecvBytes did not complete")
+	}
+
+	if got := h.count.Load(); got != 2 {
+		t.Fatalf("handled %d packets, want 2", got)
 	}
 }
 
@@ -559,7 +583,7 @@ func (h *syncBlockingHandler) OnNoneCopy(_ kknet.CONN_ID, _ []byte) {
 	<-h.release
 }
 
-func TestSyncReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T) {
+func TestSyncReadProcessor_RecvQueueStrict_WithoutQueue_DoesNotDrop(t *testing.T) {
 	h := &syncBlockingHandler{
 		entered: make(chan struct{}),
 		release: make(chan struct{}),
@@ -584,7 +608,13 @@ func TestSyncReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T) {
 		t.Fatal("first packet did not enter none-copy handler")
 	}
 
-	rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'})
+	secondDone := make(chan struct{})
+	go func() {
+		defer close(secondDone)
+		if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != nil {
+			t.Errorf("EnqueuePacket second = %v, want nil", err)
+		}
+	}()
 	close(h.release)
 
 	select {
@@ -592,13 +622,18 @@ func TestSyncReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("first enqueue did not complete")
 	}
+	select {
+	case <-secondDone:
+	case <-time.After(time.Second):
+		t.Fatal("second enqueue did not complete")
+	}
 
-	if got := h.count.Load(); got != 1 {
-		t.Fatalf("handled %d packets, want 1", got)
+	if got := h.count.Load(); got != 2 {
+		t.Fatalf("handled %d packets, want 2", got)
 	}
 }
 
-func TestSyncReadProcessor_RecvQueueStrict_ConcurrentAcquire_Drops(t *testing.T) {
+func TestSyncReadProcessor_RecvQueueStrict_ConcurrentCalls_AllRun(t *testing.T) {
 	h := &syncBlockingHandler{
 		entered: make(chan struct{}),
 		release: make(chan struct{}),
@@ -619,7 +654,7 @@ func TestSyncReadProcessor_RecvQueueStrict_ConcurrentAcquire_Drops(t *testing.T)
 		go func() {
 			defer wg.Done()
 			<-start
-			rp.EnqueuePacket([]byte{0, 0, 0, 1, 'x'})
+			_ = rp.EnqueuePacket([]byte{0, 0, 0, 1, 'x'})
 		}()
 	}
 
@@ -635,8 +670,8 @@ func TestSyncReadProcessor_RecvQueueStrict_ConcurrentAcquire_Drops(t *testing.T)
 	close(h.release)
 	wg.Wait()
 
-	if got := h.count.Load(); got != 1 {
-		t.Fatalf("handled %d packets, want 1", got)
+	if got := h.count.Load(); got != workers {
+		t.Fatalf("handled %d packets, want %d", got, workers)
 	}
 }
 
@@ -733,7 +768,7 @@ func TestSyncReadProcessor_OnRecvBytes_AfterStop_Ignored(t *testing.T) {
 	}
 }
 
-func TestReadProcessor_Pending_CountsRunningHandler(t *testing.T) {
+func TestReadProcessor_Pending_MatchesRecvQueueLen(t *testing.T) {
 	h := &signalBlockingRawHandler{
 		entered: make(chan struct{}),
 		release: make(chan struct{}),
@@ -756,8 +791,8 @@ func TestReadProcessor_Pending_CountsRunningHandler(t *testing.T) {
 		t.Fatal("packet did not enter raw handler")
 	}
 
-	if got := rp.Pending(); got != 1 {
-		t.Fatalf("Pending() = %d, want 1 while handler is running", got)
+	if got := rp.Pending(); got != 0 {
+		t.Fatalf("Pending() = %d, want 0 while handler is running because recvQueue is empty", got)
 	}
 
 	close(h.release)
@@ -768,7 +803,7 @@ func TestReadProcessor_Pending_CountsRunningHandler(t *testing.T) {
 	}
 }
 
-func TestSyncReadProcessor_Pending_CountsRunningHandler(t *testing.T) {
+func TestSyncReadProcessor_Pending_IsAlwaysZero(t *testing.T) {
 	h := &syncBlockingHandler{
 		entered: make(chan struct{}),
 		release: make(chan struct{}),
@@ -792,8 +827,8 @@ func TestSyncReadProcessor_Pending_CountsRunningHandler(t *testing.T) {
 		t.Fatal("packet did not enter none-copy handler")
 	}
 
-	if got := rp.Pending(); got != 1 {
-		t.Fatalf("Pending() = %d, want 1 while handler is running", got)
+	if got := rp.Pending(); got != 0 {
+		t.Fatalf("Pending() = %d, want 0 because SyncReadProcessor has no async queue", got)
 	}
 
 	close(h.release)
@@ -967,8 +1002,8 @@ func TestWorkerReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T)
 		t.Fatal("first packet did not enter handler")
 	}
 
-	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != kkerrors.ErrNetRecvQueueFull {
-		t.Fatalf("EnqueuePacket second = %v, want ErrNetRecvQueueFull", err)
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'b'}); err != nil {
+		t.Fatalf("EnqueuePacket second = %v, want nil because one task may wait in workQueue", err)
 	}
 	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'c'}); err != kkerrors.ErrNetRecvQueueFull {
 		t.Fatalf("EnqueuePacket third = %v, want ErrNetRecvQueueFull", err)
@@ -977,38 +1012,28 @@ func TestWorkerReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T)
 	close(h.release)
 	rp.Stop()
 
-	if got := h.count.Load(); got != 1 {
-		t.Fatalf("handled %d packets, want 1", got)
+	if got := h.count.Load(); got != 2 {
+		t.Fatalf("handled %d packets, want 2", got)
 	}
 }
 
-func TestWorkerReadProcessor_RecvQueueStrict_CountsRunningTasks(t *testing.T) {
+func TestWorkerReadProcessor_Pending_MatchesWorkQueueLen(t *testing.T) {
 	h := &signalBlockingRawHandler{
 		entered: make(chan struct{}),
 		release: make(chan struct{}),
 	}
 	opts := kknet.ApplyOptions(
 		kknet.WithRawHandler(h),
-		kknet.WithRecvQueueSize(1),
-		kknet.WithRecvQueueStrict(true),
+		kknet.WithRecvQueueSize(8),
+		kknet.WithRecvQueueStrict(false),
 	)
 	opts.RpOptions.WorkerQueueMaxConcurrency = 4
 	rp := NewWorkerReadProcessor(opts.RpOptions).(*WorkerReadProcessor)
 	rp.Start(&mockConnForRead{id: 6})
 
-	const workers = 16
-	start := make(chan struct{})
-	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			<-start
-			_ = rp.EnqueuePacket([]byte{0, 0, 0, 1, 'x'})
-		}()
+	if err := rp.EnqueuePacket([]byte{0, 0, 0, 1, 'x'}); err != nil {
+		t.Fatalf("EnqueuePacket: %v", err)
 	}
-
-	close(start)
 
 	select {
 	case <-h.entered:
@@ -1017,12 +1042,11 @@ func TestWorkerReadProcessor_RecvQueueStrict_CountsRunningTasks(t *testing.T) {
 	}
 
 	time.Sleep(50 * time.Millisecond)
-	if got := rp.Pending(); got != 1 {
-		t.Fatalf("Pending() = %d, want 1 while first task is running", got)
+	if got := rp.Pending(); got != 0 {
+		t.Fatalf("Pending() = %d, want 0 while first task is running because workQueue has no waiting task", got)
 	}
 
 	close(h.release)
-	wg.Wait()
 	rp.Stop()
 
 	if got := h.count.Load(); got != 1 {
@@ -1080,6 +1104,10 @@ func TestWorkerReadProcessor_OnRecvBytes_QueueFull_ReturnsError(t *testing.T) {
 
 	close(h.release)
 	rp.Stop()
+
+	if got := h.count.Load(); got != 2 {
+		t.Fatalf("handled %d packets, want 2", got)
+	}
 }
 
 func TestWorkerReadProcessor_Stop_DrainsAcceptedTasks(t *testing.T) {

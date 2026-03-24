@@ -34,7 +34,6 @@ type WorkerReadProcessor struct {
 
 	closing atomic.Bool
 	wg      sync.WaitGroup
-	pending atomic.Int64
 
 	workQueue *taskqueue.WorkerQueue
 }
@@ -58,7 +57,7 @@ func NewWorkerReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 }
 
 func (rp *WorkerReadProcessor) Pending() int {
-	return int(rp.pending.Load())
+	return rp.workQueue.Len()
 }
 
 // Start 记录连接信息
@@ -79,27 +78,16 @@ func (rp *WorkerReadProcessor) Stop() {
 
 func (rp *WorkerReadProcessor) tryAcquireRecvSlot() bool {
 	if !rp.opts.RecvQueueStrict {
-		rp.pending.Add(1)
 		return true
 	}
-	limit := int64(rp.opts.RecvQueueSize)
-	for {
-		cur := rp.pending.Load()
-		if cur >= limit {
-			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
-				conn := rp.conn
-				xcall.SafeCall(func() { cb(conn) })
-			}
-			return false
+	if rp.workQueue.Len() >= rp.opts.RecvQueueSize {
+		if cb := rp.opts.RecvQueueFullCallback; cb != nil {
+			conn := rp.conn
+			xcall.SafeCall(func() { cb(conn) })
 		}
-		if rp.pending.CompareAndSwap(cur, cur+1) {
-			return true
-		}
+		return false
 	}
-}
-
-func (rp *WorkerReadProcessor) releaseRecvSlot() {
-	rp.pending.Add(-1)
+	return true
 }
 
 // EnqueuePacket 适用于上层已完成切包的场景（如 gnet SplitSR 得到完整 [length,message]）。
@@ -196,7 +184,6 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 
 	if rp.closing.Load() {
 		rp.wg.Done()
-		rp.releaseRecvSlot()
 		kkbuffer.Put(bb)
 		return
 	}
@@ -205,10 +192,7 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	rawHandler := rp.opts.RawHandler
 
 	rp.workQueue.Push(func() {
-		defer func() {
-			rp.releaseRecvSlot()
-			rp.wg.Done()
-		}()
+		defer rp.wg.Done()
 		//这里不用safe call, 防止将业务层致命错误静默吞避
 		rawHandler.OnRaw(connID, bb)
 	})
