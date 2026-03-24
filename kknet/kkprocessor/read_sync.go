@@ -45,7 +45,9 @@ func NewSyncReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	}
 }
 
-func (rp *SyncReadProcessor) Pending() int { return 0 }
+func (rp *SyncReadProcessor) Pending() int {
+	return 0 // SyncReadProcessor 因无异步队列，所以固定为 0。
+}
 
 func (rp *SyncReadProcessor) Start(conn kknet.IConn) {
 	rp.conn = conn
@@ -65,7 +67,9 @@ func (rp *SyncReadProcessor) Stop() {
 	rp.mu.Unlock()
 }
 
-func (rp *SyncReadProcessor) tryAcquireRecvSlot() bool { return true }
+func (rp *SyncReadProcessor) tryAcquireRecvSlot() bool {
+	return true
+}
 
 // 收到单个完整包数据时（生产者生产数据）。
 // 仅由网络读协程访问（单生产者），无需加锁。mu 仅保护 Handler 串行调用。
