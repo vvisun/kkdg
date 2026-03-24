@@ -20,18 +20,16 @@ var defaultPool = NewBFPool(128)
 
 // var defaultPool = NewBBPool(128, 128*1024)
 
-// GetWithCapacity returns a buffer with at least the specified capacity.
-//
-// Prefer this over Get when the expected size is known, to avoid
-// reallocations on the first Write/Set/SetString.
+// 从池中获取一个字节缓冲区，bb.B长度为0，容量为capacity。
+// 注意：ByteBuffer在哪里终止使用，就在哪里用kkbuffer.Put()释放。
 //  @param capacity 期望的bb.B的容量。
 //  @return *ByteBuffer 字节缓冲区 bb.B长度为0，容量为capacity。
 func GetWithCapacity(capacity int) *ByteBuffer {
 	return defaultPool.GetWithCap(capacity)
 }
 
-// GetWithLenCap returns a buffer with at least the specified length and capacity.
-// Use when the expected size is known to reduce reallocations.
+// 从池中获取一个字节缓冲区，bb.B长度为len，容量为capacity。
+// 注意：ByteBuffer在哪里终止使用，就在哪里用kkbuffer.Put()释放。
 //  @param len 期望的bb.B的长度。
 //  @param capacity 期望的bb.B的容量。
 //  @return *ByteBuffer 字节缓冲区 bb.B长度为len，容量为capacity。
@@ -41,12 +39,16 @@ func GetWithLenCap(len int, capacity int) *ByteBuffer {
 	return bb
 }
 
-// Put returns byte buffer to the pool.
-//
-// ByteBuffer.B mustn't be touched after returning it to the pool.
-// Otherwise data races will occur.
-func Put(b *ByteBuffer) { defaultPool.Put(b) }
+// 将字节缓冲区放回池中。
+// 注意：ByteBuffer在哪里终止使用，就在哪里用kkbuffer.Put()释放。
+//  @note ByteBuffer.B mustn't be touched after returning it to the pool. Otherwise data races will occur.
+//  @param bb 字节缓冲区
+func Put(bb *ByteBuffer) { defaultPool.Put(bb) }
 
+// 创建一个字节缓冲区，bb.B为b。
+// 注意：ByteBuffer在哪里终止使用，就在哪里用kkbuffer.Put()释放。
+//  @param b 字节缓冲区
+//  @return *ByteBuffer 字节缓冲区 bb.B为b。
 func NewByteBuffer(b []byte) *ByteBuffer {
 	return &ByteBuffer{B: b}
 }
