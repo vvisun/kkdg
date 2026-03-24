@@ -87,9 +87,7 @@ func (rp *WorkerReadProcessor) tryAcquireRecvSlot() bool {
 		if cur >= limit {
 			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
 				conn := rp.conn
-				xcall.SafeCall(func() {
-					cb(conn)
-				})
+				xcall.SafeCall(func() { cb(conn) })
 			}
 			return false
 		}
@@ -209,10 +207,7 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 			rp.releaseRecvSlot()
 			rp.wg.Done()
 		}()
-		xcall.SafeCallEx(func() {
-			rawHandler.OnRaw(connID, bb)
-		}, func(err any) {
-			kkbuffer.Put(bb)
-		})
+		//这里不用safe call, 防止将业务层致命错误静默吞避
+		rawHandler.OnRaw(connID, bb)
 	})
 }

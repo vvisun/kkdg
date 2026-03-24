@@ -276,11 +276,8 @@ func (rp *ReadProcessor) drainOnce() {
 			if packet == nil {
 				continue
 			}
-			xcall.SafeCallEx(func() {
-				rp.opts.RawHandler.OnRaw(rp.connID, packet)
-			}, func(err any) {
-				kkbuffer.Put(packet)
-			})
+			//这里不用safe call, 防止将业务层致命错误静默吞避
+			rp.opts.RawHandler.OnRaw(rp.connID, packet)
 		}
 	}
 }

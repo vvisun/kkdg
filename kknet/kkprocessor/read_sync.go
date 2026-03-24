@@ -70,9 +70,7 @@ func (rp *SyncReadProcessor) tryAcquireRecvSlot() bool {
 		if cur >= limit {
 			if cb := rp.opts.RecvQueueFullCallback; cb != nil {
 				conn := rp.conn
-				xcall.SafeCall(func() {
-					cb(conn)
-				})
+				xcall.SafeCall(func() { cb(conn) })
 			}
 			return false
 		}
@@ -96,9 +94,8 @@ func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) {
 	defer rp.releaseRecvSlot()
 
 	rp.mu.Lock()
-	xcall.SafeCall(func() {
-		rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
-	})
+	//这里不用safe call, 防止将业务层致命错误静默吞避
+	rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 	rp.mu.Unlock()
 }
 
@@ -159,11 +156,10 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 
 	// Handler 串行调用（与 EnqueuePacket 互斥）
 	rp.mu.Lock()
-	xcall.SafeCall(func() {
-		for _, packet := range packets {
-			rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
-		}
-	})
+	for _, packet := range packets {
+		// 这里不用safe call, 防止将业务层致命错误静默吞避
+		rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
+	}
 	rp.mu.Unlock()
 
 	return nil
