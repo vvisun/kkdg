@@ -80,6 +80,7 @@ func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) error {
 		rp.mu.Unlock()
 		return nil
 	}
+	// dispatch message.
 	//这里不用safe call, 防止将业务层致命错误静默吞避
 	rp.opts.NoneCopyHandler.OnNoneCopy(rp.connID, packet)
 	rp.mu.Unlock()
@@ -146,6 +147,7 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		return kkerrors.ErrNetRecvQueueFull
 	}
 
+	// dispatch message.
 	// Handler 串行调用（与 EnqueuePacket 互斥）
 	rp.mu.Lock()
 	if rp.closing.Load() {

@@ -294,6 +294,7 @@ func (rp *ReadProcessor) consumeRecvQueue() {
 
 const batchBufSize = 32
 
+// dispatch message. 消费一次recvQueue中的数据，并分发给RawHandler。
 func (rp *ReadProcessor) drainOnce() {
 	connID := rp.connID
 	for {

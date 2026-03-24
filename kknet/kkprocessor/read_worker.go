@@ -174,7 +174,7 @@ func (rp *WorkerReadProcessor) reRecvBuf(capacity int) {
 	rp.recvBuf = byteslice.GetZero(capacity)
 }
 
-// submitTask 将一个完整包提交到 workerQueue，异步调用 RawHandler。
+// dispatch message. 将一个完整包提交到 workerQueue，异步调用 RawHandler。
 func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	if bb == nil {
 		return
