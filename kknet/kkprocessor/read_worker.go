@@ -97,7 +97,7 @@ func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) error {
 		return nil
 	}
 	if rp.closing.Load() {
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 
 	if !rp.tryAcquireRecvSlot() {
@@ -118,6 +118,9 @@ func (rp *WorkerReadProcessor) EnqueuePacket(packet []byte) error {
 func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 	if len(data) == 0 {
 		return nil
+	}
+	if rp.closing.Load() {
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 
 	buf := data
@@ -180,10 +183,9 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	if bb == nil {
 		return
 	}
-
 	if rp.closing.Load() {
 		kkbuffer.Put(bb)
-		return
+		return //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 
 	connID := rp.connID

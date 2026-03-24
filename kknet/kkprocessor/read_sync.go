@@ -71,7 +71,7 @@ func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) error {
 		return nil
 	}
 	if rp.closing.Load() {
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 	if !rp.tryAcquireRecvSlot() {
 		return kkerrors.ErrNetRecvQueueFull
@@ -80,7 +80,7 @@ func (rp *SyncReadProcessor) EnqueuePacket(packet []byte) error {
 	rp.mu.Lock()
 	if rp.closing.Load() {
 		rp.mu.Unlock()
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 	// dispatch message.
 	//这里不用safe call, 防止将业务层致命错误静默吞避
@@ -105,7 +105,7 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		return nil
 	}
 	if rp.closing.Load() {
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 
 	// 拆包（单生产者，无锁）
@@ -142,7 +142,7 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 		return nil
 	}
 	if rp.closing.Load() {
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 
 	if !rp.tryAcquireRecvSlot() {
@@ -154,7 +154,7 @@ func (rp *SyncReadProcessor) OnRecvBytes(data []byte) error {
 	rp.mu.Lock()
 	if rp.closing.Load() {
 		rp.mu.Unlock()
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 	for _, packet := range packets {
 		// 这里不用safe call, 防止将业务层致命错误静默吞避

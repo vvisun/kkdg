@@ -106,7 +106,7 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) error {
 		return nil
 	}
 	if rp.closing.Load() {
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 
 	bb := kkbuffer.GetWithCapacity(len(packet))
@@ -117,7 +117,7 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) error {
 	if rp.closing.Load() {
 		rp.mu.Unlock()
 		kkbuffer.Put(bb)
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 	wasEmpty := rp.recvQueue.IsEmpty()
 	ok := rp.recvQueue.Push(bb)
@@ -160,7 +160,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 		return nil
 	}
 	if rp.closing.Load() {
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 
 	// --- Phase 1: 拆包（单生产者，无锁） ---
@@ -226,7 +226,7 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 				kkbuffer.Put(prepared[i])
 			}
 		}
-		return nil
+		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 	wasEmpty := rp.recvQueue.IsEmpty()
 	for i := 0; i < n; i++ {
