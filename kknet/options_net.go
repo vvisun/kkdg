@@ -2,7 +2,6 @@ package kknet
 
 import (
 	"crypto/tls"
-	"math/rand"
 	"net/http"
 	"time"
 
@@ -11,25 +10,6 @@ import (
 )
 
 type OriginCheckFunc func(r *http.Request) bool
-
-// ReconnectBackoff computes a reconnect delay with exponential backoff and jitter.
-//
-//	delay = base * 2^max(0, consecutiveFails-1), capped at maxInterval.
-//	Adds [0, 25%) of delay as jitter to spread out reconnect storms.
-func ReconnectBackoff(base, maxInterval time.Duration, consecutiveFails int) time.Duration {
-	delay := base
-	for i := 1; i < consecutiveFails; i++ {
-		delay *= 2
-		if delay >= maxInterval {
-			delay = maxInterval
-			break
-		}
-	}
-	if jitterRange := int64(delay) / 4; jitterRange > 0 {
-		delay += time.Duration(rand.Int63n(jitterRange))
-	}
-	return delay
-}
 
 // Options are common network settings.
 type Options struct {
