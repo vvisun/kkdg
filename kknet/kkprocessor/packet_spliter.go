@@ -36,6 +36,7 @@ func (ps *PacketSpliter) reRecvBuf(capacity int) {
 	ps.recvBuf = byteslice.GetZero(capacity)
 }
 
+// 粘包拆包。注意：返回的packets是本类的私有成员，外部只读，如需更改请自行拷贝。
 func (ps *PacketSpliter) Split(data []byte) ([][]byte, error) {
 	if len(data) == 0 {
 		return nil, nil
