@@ -5,7 +5,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/taskqueue"
@@ -29,8 +28,7 @@ type WorkerReadProcessor struct {
 	connID kknet.CONN_ID
 	opts   kknet.ReadOptions
 
-	recvBuf  []byte                        // 残包缓冲区
-	splitBuf [kknet.BatchPacketSize][]byte // 拆包缓冲区
+	packetSpliter PacketSpliter
 
 	closing atomic.Bool
 
@@ -50,8 +48,9 @@ func NewWorkerReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 		maxConc = 1
 	}
 	return &WorkerReadProcessor{
-		opts:      opts,
-		workQueue: taskqueue.NewWorkerQueue(maxConc),
+		opts:          opts,
+		workQueue:     taskqueue.NewWorkerQueue(maxConc),
+		packetSpliter: NewPacketSpliter(opts.StreamTool, opts.RecvBufShrinkCap),
 	}
 }
 
@@ -121,32 +120,9 @@ func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 		return nil //关闭后，不再接受新任务。只消费已接收的数据。
 	}
 
-	buf := data
-	if len(rp.recvBuf) > 0 {
-		rp.recvBuf = append(rp.recvBuf, data...)
-		buf = rp.recvBuf
-	}
-
-	packets, leftData, err := rp.opts.StreamTool.Split(buf, rp.splitBuf[:0])
+	packets, err := rp.packetSpliter.Split(data)
 	if err != nil {
-		if rp.recvBuf != nil {
-			rp.recvBuf = rp.recvBuf[:0]
-		}
 		return err
-	}
-
-	if len(leftData) > 0 {
-		leftLen := len(leftData)
-		rp.reRecvBuf(defaultRecvBufSize + leftLen)
-		rp.recvBuf = rp.recvBuf[:leftLen]
-		copy(rp.recvBuf, leftData)
-	} else if rp.recvBuf != nil {
-		rp.recvBuf = rp.recvBuf[:0]
-	}
-
-	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
-		byteslice.Put(rp.recvBuf)
-		rp.recvBuf = nil
 	}
 
 	for _, packet := range packets {
@@ -163,17 +139,6 @@ func (rp *WorkerReadProcessor) OnRecvBytes(data []byte) error {
 	}
 
 	return nil
-}
-
-// reRecvBuf 重新分配残包缓冲区。
-func (rp *WorkerReadProcessor) reRecvBuf(capacity int) {
-	if rp.recvBuf == nil {
-		rp.recvBuf = byteslice.GetZero(capacity)
-		return
-	}
-	rp.recvBuf = rp.recvBuf[:0]
-	byteslice.Put(rp.recvBuf)
-	rp.recvBuf = byteslice.GetZero(capacity)
 }
 
 // dispatch message. 将一个完整包提交到 workerQueue，异步调用 RawHandler。

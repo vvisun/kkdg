@@ -6,7 +6,6 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
-	"github.com/vvisun/kkdg/utils/buffers/byteslice"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
 	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/queues/bbqueue"
@@ -27,8 +26,7 @@ type ReadProcessor struct {
 	connID kknet.CONN_ID     //连接ID，记录下来，方便conn关闭导致conn为空时，消费携程可以继续消费。
 	opts   kknet.ReadOptions //选项
 
-	recvBuf  []byte                        //残包缓冲区。初始化为nil，避免永远没残包还一直占内存。有残包再分配即可。
-	splitBuf [kknet.BatchPacketSize][]byte //拆分缓冲区，用于拆分数据包时复用，避免分配新的内存
+	packetSpliter PacketSpliter
 
 	recvQueue bbqueue.IFiFoQueue //接收队列
 
@@ -51,12 +49,12 @@ func NewReadProcessor(opts kknet.ReadOptions) kknet.IReadProcessor {
 	}
 
 	return &ReadProcessor{
-		recvBuf:   nil,
-		recvQueue: bbqueue.NewFIFOQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
-		opts:      opts,
-		wakeCh:    make(chan struct{}, 1),
-		closeCh:   make(chan struct{}),
-		doneCh:    make(chan struct{}),
+		packetSpliter: NewPacketSpliter(opts.StreamTool, opts.RecvBufShrinkCap),
+		recvQueue:     bbqueue.NewFIFOQueue(opts.RecvQueueSize, opts.RecvQueueStrict),
+		opts:          opts,
+		wakeCh:        make(chan struct{}, 1),
+		closeCh:       make(chan struct{}),
+		doneCh:        make(chan struct{}),
 	}
 }
 
@@ -143,16 +141,6 @@ func (rp *ReadProcessor) EnqueuePacket(packet []byte) error {
 	return nil
 }
 
-func (rp *ReadProcessor) reRecvBuf(capacity int) {
-	if rp.recvBuf == nil {
-		rp.recvBuf = byteslice.GetZero(capacity)
-		return
-	}
-	rp.recvBuf = rp.recvBuf[:0]
-	byteslice.Put(rp.recvBuf)
-	rp.recvBuf = byteslice.GetZero(capacity)
-}
-
 // 收到数据时（生产者生产数据）。
 // recvBuf/splitBuf 仅由网络读协程访问（单生产者），无需加锁；mu 仅保护 recvQueue。
 func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
@@ -165,33 +153,9 @@ func (rp *ReadProcessor) OnRecvBytes(data []byte) error {
 
 	// --- Phase 1: 拆包（单生产者，无锁） ---
 
-	buf := data
-	if len(rp.recvBuf) > 0 {
-		rp.recvBuf = append(rp.recvBuf, data...)
-		buf = rp.recvBuf
-	}
-
-	stream := rp.opts.StreamTool
-	packets, leftData, err := stream.Split(buf, rp.splitBuf[:0])
+	packets, err := rp.packetSpliter.Split(data)
 	if err != nil {
-		if rp.recvBuf != nil {
-			rp.recvBuf = rp.recvBuf[:0]
-		}
 		return err
-	}
-
-	if len(leftData) > 0 {
-		leftLen := len(leftData)
-		rp.reRecvBuf(defaultRecvBufSize + leftLen)
-		rp.recvBuf = rp.recvBuf[:leftLen]
-		copy(rp.recvBuf, leftData)
-	} else if rp.recvBuf != nil {
-		rp.recvBuf = rp.recvBuf[:0]
-	}
-
-	if len(rp.recvBuf) == 0 && cap(rp.recvBuf) > rp.opts.RecvBufShrinkCap {
-		byteslice.Put(rp.recvBuf)
-		rp.recvBuf = nil
 	}
 
 	n := len(packets)
