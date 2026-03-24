@@ -2,6 +2,7 @@ package kktcp
 
 import (
 	"github.com/panjf2000/gnet/v2"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 )
 
@@ -23,12 +24,8 @@ func (h *gnetClientEventHandler) OnOpen(c gnet.Conn) (out []byte, action gnet.Ac
 
 	h.client.connMu.Lock()
 	h.client.conn = cc
-	openCh := h.client.openCh
-	h.client.openCh = nil
 	h.client.connMu.Unlock()
-	if openCh != nil {
-		close(openCh)
-	}
+	h.client.signalOpenResult(nil)
 
 	if h.client.handler != nil {
 		kknet.SafeHandlerCall(h.client.opts.Logger, &h.client.stats, "gnetclient OnConnect", func() {
@@ -65,10 +62,18 @@ func (h *gnetClientEventHandler) OnClose(c gnet.Conn, err error) (action gnet.Ac
 		}()
 		return gnet.None
 	}
+	h.client.signalOpenResult(normalizeOpenWaitError(err))
 	if !kknet.IsClosingOrClosed(&h.client.status) && h.client.opts.IsNeedReconnect {
 		h.client.startReconnect()
 	}
 	return gnet.None
+}
+
+func normalizeOpenWaitError(err error) error {
+	if err != nil {
+		return err
+	}
+	return kkerrors.ErrNetConnectionClosed
 }
 
 func (h *gnetClientEventHandler) OnTraffic(c gnet.Conn) (action gnet.Action) {

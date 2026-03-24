@@ -24,7 +24,7 @@ type GnetClient struct {
 
 	connMu sync.Mutex
 	conn   *gnetConn
-	openCh chan struct{}
+	openCh chan error
 
 	status  int32       // kknet.ConnStatus — 唯一状态源
 	started atomic.Bool // gnet 引擎生命周期（与连接状态正交）
@@ -109,7 +109,7 @@ func (c *GnetClient) Connect() error {
 		c.clientMu.Unlock()
 	}
 
-	openCh := make(chan struct{})
+	openCh := make(chan error, 1)
 	c.connMu.Lock()
 	c.openCh = openCh
 	c.connMu.Unlock()
@@ -118,18 +118,31 @@ func (c *GnetClient) Connect() error {
 	cli := c.client
 	c.clientMu.Unlock()
 	if cli == nil {
+		c.clearOpenWait(openCh)
 		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 		c.opts.Logger.Infof("kktcp client start... failed to get client: %v", kkerrors.ErrNetClientNotConnected)
 		return kkerrors.ErrNetClientNotConnected
 	}
 
 	if _, err := cli.Dial("tcp", c.addr); err != nil {
+		c.clearOpenWait(openCh)
 		kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 		c.opts.Logger.Infof("kktcp client start... failed to dial: %v", err)
 		return err
 	}
 
-	<-openCh
+	select {
+	case err := <-openCh:
+		if err != nil {
+			if kknet.IsClosingOrClosed(&c.status) {
+				return kkerrors.ErrNetConnectionClosed
+			}
+			kknet.CASConnStatus(&c.status, kknet.ConnStatusConnecting, kknet.ConnStatusClosed)
+			return err
+		}
+	case <-c.stopCh:
+		return kkerrors.ErrNetConnectionClosed
+	}
 	if kknet.IsClosingOrClosed(&c.status) {
 		return kkerrors.ErrNetConnectionClosed
 	}
@@ -182,9 +195,8 @@ func (c *GnetClient) Close() error {
 
 	if openCh != nil {
 		select {
-		case <-openCh:
+		case openCh <- kkerrors.ErrNetConnectionClosed:
 		default:
-			close(openCh)
 		}
 	}
 
@@ -261,7 +273,7 @@ func (c *GnetClient) reconnectLoop() {
 		attempts++
 		c.opts.Logger.Debugf("gnetclient reconnect attempt %d", attempts)
 
-		openCh := make(chan struct{})
+		openCh := make(chan error, 1)
 		c.connMu.Lock()
 		c.openCh = openCh
 		c.connMu.Unlock()
@@ -270,13 +282,22 @@ func (c *GnetClient) reconnectLoop() {
 		cli := c.client
 		c.clientMu.Unlock()
 		if cli == nil {
+			c.clearOpenWait(openCh)
 			kknet.ChangeConnStatus(&c.status, kknet.ConnStatusClosed)
 			return
 		}
 
 		if _, err := cli.Dial("tcp", c.addr); err == nil {
 			select {
-			case <-openCh:
+			case err := <-openCh:
+				if err != nil {
+					consecutiveFails++
+					if cb != nil {
+						cb(attempts, err)
+					}
+					c.opts.Logger.Warnf("gnetclient reconnect attempt %d failed before OnOpen: %v", attempts, err)
+					break
+				}
 				if cb != nil {
 					cb(attempts, nil)
 				}
@@ -286,6 +307,7 @@ func (c *GnetClient) reconnectLoop() {
 				return
 			}
 		} else {
+			c.clearOpenWait(openCh)
 			consecutiveFails++
 			if cb != nil {
 				cb(attempts, err)
@@ -301,4 +323,27 @@ func (c *GnetClient) reconnectLoop() {
 			return
 		}
 	}
+}
+
+func (c *GnetClient) signalOpenResult(err error) {
+	c.connMu.Lock()
+	openCh := c.openCh
+	c.openCh = nil
+	c.connMu.Unlock()
+	if openCh == nil {
+		return
+	}
+	if err == nil {
+		openCh <- nil
+		return
+	}
+	openCh <- err
+}
+
+func (c *GnetClient) clearOpenWait(openCh chan error) {
+	c.connMu.Lock()
+	if c.openCh == openCh {
+		c.openCh = nil
+	}
+	c.connMu.Unlock()
 }

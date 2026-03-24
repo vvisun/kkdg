@@ -444,6 +444,61 @@ func TestClientHandler_OnClose_WaitsForReadProcessorStopBeforeCallback(t *testin
 	}
 }
 
+func TestClientHandler_OnClose_WithoutContext_NotifiesPendingOpenWait(t *testing.T) {
+	fc := &fakeGnetConn{}
+	openCh := make(chan error, 1)
+	client := &GnetClient{
+		opts:   kknet.ApplyOptions(),
+		openCh: openCh,
+		stopCh: make(chan struct{}),
+	}
+	handler := &gnetClientEventHandler{client: client}
+
+	closeErr := errors.New("dial failed before OnOpen")
+	action := handler.OnClose(fc, closeErr)
+	if action != gnet.None {
+		t.Fatalf("OnClose action = %v, want %v", action, gnet.None)
+	}
+
+	select {
+	case err := <-openCh:
+		if !errors.Is(err, closeErr) {
+			t.Fatalf("open wait err = %v, want %v", err, closeErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("pending open wait was not notified")
+	}
+
+	client.connMu.Lock()
+	defer client.connMu.Unlock()
+	if client.openCh != nil {
+		t.Fatal("client.openCh should be cleared after notification")
+	}
+}
+
+func TestClientClose_NotifiesPendingOpenWait(t *testing.T) {
+	openCh := make(chan error, 1)
+	client := &GnetClient{
+		opts:   kknet.ApplyOptions(),
+		openCh: openCh,
+		stopCh: make(chan struct{}),
+	}
+
+	err := client.Close()
+	if err != kkerrors.ErrNetClientNotConnected {
+		t.Fatalf("Close = %v, want ErrNetClientNotConnected", err)
+	}
+
+	select {
+	case waitErr := <-openCh:
+		if waitErr != kkerrors.ErrNetConnectionClosed {
+			t.Fatalf("open wait err = %v, want ErrNetConnectionClosed", waitErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("pending open wait was not aborted by Close")
+	}
+}
+
 func TestClientHandler_OnTraffic_RecvQueueFull_Closes(t *testing.T) {
 	fc := &fakeGnetConn{}
 	opts := kknet.ApplyOptions()
