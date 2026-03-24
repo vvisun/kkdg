@@ -14,6 +14,8 @@ type WriteFunc func(batch []*kkbuffer.ByteBuffer, n int) error
 
 type IReadProcessor interface {
 	Start(conn IConn)
+	// Stop 停止接收新数据。
+	// 具体等待语义由实现决定：ReadProcessor 会等待内部消费结束；SyncReadProcessor 会等待当前同步处理退出；WorkerReadProcessor 仅标记关闭，不等待已投递任务完成。
 	Stop()
 	EnqueuePacket(packet []byte) error
 	OnRecvBytes(data []byte) error

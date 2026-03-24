@@ -1012,8 +1012,14 @@ func TestWorkerReadProcessor_RecvQueueStrict_WithoutCallback_Drops(t *testing.T)
 	close(h.release)
 	rp.Stop()
 
-	if got := h.count.Load(); got != 2 {
-		t.Fatalf("handled %d packets, want 2", got)
+	deadline := time.After(time.Second)
+	for h.count.Load() < 2 {
+		select {
+		case <-deadline:
+			t.Fatalf("handled %d packets, want 2", h.count.Load())
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
 	}
 }
 
@@ -1105,12 +1111,18 @@ func TestWorkerReadProcessor_OnRecvBytes_QueueFull_ReturnsError(t *testing.T) {
 	close(h.release)
 	rp.Stop()
 
-	if got := h.count.Load(); got != 2 {
-		t.Fatalf("handled %d packets, want 2", got)
+	deadline := time.After(time.Second)
+	for h.count.Load() < 2 {
+		select {
+		case <-deadline:
+			t.Fatalf("handled %d packets, want 2", h.count.Load())
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
 	}
 }
 
-func TestWorkerReadProcessor_Stop_DrainsAcceptedTasks(t *testing.T) {
+func TestWorkerReadProcessor_Stop_ReturnsWithoutWaitingAcceptedTasks(t *testing.T) {
 	h := &orderedBlockingRawHandler{
 		firstEntered:  make(chan struct{}),
 		secondEntered: make(chan struct{}),
@@ -1146,7 +1158,13 @@ func TestWorkerReadProcessor_Stop_DrainsAcceptedTasks(t *testing.T) {
 
 	select {
 	case <-stopDone:
-		t.Fatal("Stop returned before accepted tasks drained")
+	case <-time.After(time.Second):
+		t.Fatal("Stop should return immediately without waiting accepted tasks")
+	}
+
+	select {
+	case <-h.secondEntered:
+		t.Fatal("second task should not run before first is released")
 	case <-time.After(50 * time.Millisecond):
 	}
 
@@ -1155,13 +1173,7 @@ func TestWorkerReadProcessor_Stop_DrainsAcceptedTasks(t *testing.T) {
 	select {
 	case <-h.secondEntered:
 	case <-time.After(time.Second):
-		t.Fatal("second accepted task was not drained during Stop")
-	}
-
-	select {
-	case <-stopDone:
-	case <-time.After(time.Second):
-		t.Fatal("Stop did not return after accepted tasks drained")
+		t.Fatal("second accepted task should continue running asynchronously after Stop")
 	}
 
 	if got := h.count.Load(); got != 2 {

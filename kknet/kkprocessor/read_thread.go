@@ -80,6 +80,8 @@ func (rp *ReadProcessor) Start(conn kknet.IConn) {
 	go rp.consumeRecvQueue()
 }
 
+// Stop 标记关闭并等待消费协程退出。
+// Stop 返回后，不再接受新任务；队列中已接收的数据会继续消费完。
 func (rp *ReadProcessor) Stop() {
 	rp.closeOnce.Do(func() {
 		rp.closing.Store(true)

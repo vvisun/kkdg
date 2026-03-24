@@ -53,6 +53,8 @@ func (rp *SyncReadProcessor) Start(conn kknet.IConn) {
 	rp.connID = conn.ID()
 }
 
+// Stop 标记关闭，并等待当前同步处理退出临界区。
+// Stop 返回后，不再接受新任务；由于无异步等待队列，也不会再有额外待派发任务。
 func (rp *SyncReadProcessor) Stop() {
 	rp.closing.Store(true)
 	rp.mu.Lock()

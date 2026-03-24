@@ -1,7 +1,6 @@
 package kkprocessor
 
 import (
-	"sync"
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkerrors"
@@ -33,7 +32,6 @@ type WorkerReadProcessor struct {
 	splitBuf [kknet.BatchPacketSize][]byte // 拆包缓冲区
 
 	closing atomic.Bool
-	wg      sync.WaitGroup
 
 	workQueue *taskqueue.WorkerQueue
 }
@@ -69,11 +67,10 @@ func (rp *WorkerReadProcessor) Start(conn kknet.IConn) {
 	rp.connID = conn.ID()
 }
 
-// Stop 标记关闭并等待所有已受理任务完成。
-// Stop 返回后，不再接受新任务；已在 Stop 之前受理的任务会继续执行到 RawHandler 返回。
+// Stop 仅标记关闭，不等待已受理任务完成。
+// Stop 返回后，不再接受新任务；已在 Stop 之前投递到 workerQueue 的任务仍可能继续异步执行。
 func (rp *WorkerReadProcessor) Stop() {
 	rp.closing.Store(true)
-	rp.wg.Wait()
 }
 
 func (rp *WorkerReadProcessor) tryAcquireRecvSlot() bool {
@@ -180,10 +177,7 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 		return
 	}
 
-	rp.wg.Add(1)
-
 	if rp.closing.Load() {
-		rp.wg.Done()
 		kkbuffer.Put(bb)
 		return
 	}
@@ -192,7 +186,6 @@ func (rp *WorkerReadProcessor) submitTask(bb *kkbuffer.ByteBuffer) {
 	rawHandler := rp.opts.RawHandler
 
 	rp.workQueue.Push(func() {
-		defer rp.wg.Done()
 		//这里不用safe call, 防止将业务层致命错误静默吞避
 		rawHandler.OnRaw(connID, bb)
 	})
