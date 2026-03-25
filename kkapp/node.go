@@ -7,8 +7,8 @@ import "github.com/vvisun/kkdg/utils/kklog"
 //  注意：nodeId 和 nodeType 是必须的。其他都是可选的。
 //	 @param nodeId 节点ID。全局唯一。
 //	 @param nodeType 节点类型。如：gate、game、login等
-//	 @param address 网关transport地址, 网关与逻辑服之间的转发通道地址。
-//	 @param rpcAddress actor通信rpc server地址, 用于actor与actor之间的通信。
+//	 @param address 可选。网关transport地址, 网关与逻辑服之间的转发通道地址。服务发现时使用。
+//	 @param rpcAddress 可选。actor通信rpc server地址, 用于actor与actor之间的通信。服务发现时使用。
 //	 @return 节点信息
 func NewNodeInfo(nodeId, nodeType, address, rpcAddress string) *NodeInfo {
 	if checkNodeID(nodeId) != nil {
@@ -32,8 +32,8 @@ func NewNodeInfo(nodeId, nodeType, address, rpcAddress string) *NodeInfo {
 type NodeInfo struct {
 	nodeId     string // 节点ID。全局唯一。
 	nodeType   string // 节点类型。如：gate、game、login等
-	address    string // 网关transport地址, 网关与逻辑服之间的转发通道地址。
-	rpcAddress string // actor通信rpc server地址, 用于actor与actor之间的通信。
+	address    string // 网关transport地址, 网关与逻辑服之间的转发通道地址。服务发现时使用。
+	rpcAddress string // actor通信rpc server地址, 用于actor与actor之间的通信。服务发现时使用。
 }
 
 var _ INodeIdentity = (*NodeInfo)(nil)

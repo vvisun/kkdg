@@ -1,8 +1,8 @@
 package hubtcp
 
 type ClientOptions struct {
-	Addr     string
-	Password string
+	Addr     string // hubtcp server地址。
+	Password string // 密码。用于认证。
 }
 
 func DefaultClientOptions() ClientOptions {
