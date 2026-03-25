@@ -16,9 +16,10 @@ type AppOptions struct {
 	// 客户端与服务器之间的协议约定。
 	// ClientMsgPacket.router外部应该为他注册消息。否则客户端发来消息时，找不到对应的编解码器。
 	ClientMsgPacket *kkpacket.MessagePacket
-	// 转发层的消息编解码器。
+	// 转发层（网关-业务服）的消息编解码器。
 	TransportorCodec kkcodec.ICodec
 	// 故障处理规则表。
+	// compName -> faultAction
 	FaultRuleMap map[string]faultreport.EFaultAction
 }
 

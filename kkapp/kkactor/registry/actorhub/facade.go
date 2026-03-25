@@ -26,12 +26,12 @@ type IHubClient interface {
 	// 获取远程Actor管理器
 	GetRemoteActorMgr() IClientRemoteActorMgr
 
-	// 注册actor，发送请求
+	// 请求注册actor
 	ReqRegisterActor(actorID kkactor.LucencyID) error
-	// 注销actor，发送请求
+	// 请求注销actor
 	ReqUnregisterActor(actorID kkactor.LucencyID) error
-	// 寻找actor，发送请求
+	// 请求寻找actor
 	ReqFindActor(actorID kkactor.LucencyID) error
-	// 某个节点上的所有actor列表，发送请求
-	RegGetAllActorsOfNode(nodeID string) error
+	// 请求获取某个节点上的所有actor列表
+	ReqGetAllActorsOfNode(nodeID string) error
 }

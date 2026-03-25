@@ -150,7 +150,7 @@ func (slf *HubClient) ReqFindActor(actorID kkactor.LucencyID) error {
 	return nil
 }
 
-func (slf *HubClient) RegGetAllActorsOfNode(nodeID string) error {
+func (slf *HubClient) ReqGetAllActorsOfNode(nodeID string) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}

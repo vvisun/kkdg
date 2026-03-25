@@ -124,7 +124,7 @@ func TestHubTCP_GetAllActorsOfNode(t *testing.T) {
 	_ = cli.ReqRegisterActor(a2)
 	time.Sleep(200 * time.Millisecond)
 
-	if err := cli.RegGetAllActorsOfNode("hubnode2"); err != nil {
+	if err := cli.ReqGetAllActorsOfNode("hubnode2"); err != nil {
 		t.Fatalf("GetAllActorsOfNode: %v", err)
 	}
 	time.Sleep(200 * time.Millisecond)
