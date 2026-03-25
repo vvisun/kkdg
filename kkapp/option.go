@@ -84,6 +84,12 @@ func ApplyOptions(opts ...func(o *AppOptions)) AppOptions {
 	return cfg
 }
 
+func WithConfigDir(configsDir string) func(o *AppOptions) {
+	return func(o *AppOptions) {
+		o.ConfigsDir = configsDir
+	}
+}
+
 func WithStreamTool(streamTool kkpacket.IPacket) func(o *AppOptions) {
 	return func(o *AppOptions) {
 		if streamTool == nil {
@@ -153,10 +159,4 @@ func WithCoreComponent(compName string) func(o *AppOptions) {
 // 非核心组件是指：如果该组件故障，则停止组件。
 func WithNotCoreComponent(compName string) func(o *AppOptions) {
 	return WithFaultAction(compName, faultreport.FaultActionStopComp)
-}
-
-func WithConfigDir(configsDir string) func(o *AppOptions) {
-	return func(o *AppOptions) {
-		o.ConfigsDir = configsDir
-	}
 }
