@@ -3,10 +3,12 @@ package atransrelay
 import (
 	"fmt"
 
-	"github.com/shamaton/msgpack/v2"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
+
+var bodyCodec = kkcodec.GetCodec(kkcodec.CodecTypeMsgpack)
 
 // 与 kknet kktcp 默认一致的[length,message]流；message = [wireType : 1][msgpack(body)]。
 const (
@@ -72,9 +74,9 @@ func unpackFrame(stream kkpacket.IPacket, packet []byte) (wireType byte, body []
 }
 
 func marshalBody(v any) ([]byte, error) {
-	return msgpack.Marshal(v)
+	return bodyCodec.Marshal(v)
 }
 
 func unmarshalBody(data []byte, v any) error {
-	return msgpack.Unmarshal(data, v)
+	return bodyCodec.Unmarshal(data, v)
 }
