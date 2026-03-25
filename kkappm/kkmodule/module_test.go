@@ -27,8 +27,9 @@ func (m *TestModule) OnInit() error {
 	return m.initError
 }
 
-func (m *TestModule) OnStop() {
+func (m *TestModule) OnStop() error {
 	m.releaseCalled = true
+	return nil
 }
 
 // TestModule_GetModuleName 测试获取模块名称

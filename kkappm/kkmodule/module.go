@@ -9,6 +9,13 @@ import (
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
+// 模块生命周期接口
+type IModuleLifecycle interface {
+	OnInit() error  //初始化模块
+	OnStart() error //启动模块
+	OnStop() error  //停止模块
+}
+
 type IModule interface {
 	// 获取模块ID
 	GetModuleId() uint32
@@ -29,13 +36,11 @@ type IModule interface {
 	// 获取父模块
 	GetParent() IModule
 
-	// 初始化，在添加到父模块时调用
-	OnInit() error
-	// 释放，在释放模块时调用
-	OnStop()
-
 	// 指向自己对应的Module结构体
 	getBaseModule() IModule
+
+	// 模块生命周期
+	IModuleLifecycle
 }
 
 var moduleIdCounter uint32 = 0
@@ -83,11 +88,21 @@ func (m *Module) AddModule(module IModule) (uint32, error) {
 	m.childs = append(m.childs, module)
 	m.ancestor.getBaseModule().(*Module).descendants[module.GetModuleId()] = module
 
+	// 初始化模块
 	err := module.OnInit()
 	if err != nil {
 		delete(m.ancestor.getBaseModule().(*Module).descendants, module.GetModuleId())
 		m.childs = m.childs[:len(m.childs)-1]
 		kklog.Errorf("[kkmodule] module %s OnInit error: %v", module.GetModuleName(), err)
+		return 0, err
+	}
+
+	// 启动模块
+	err = module.OnStart()
+	if err != nil {
+		delete(m.ancestor.getBaseModule().(*Module).descendants, module.GetModuleId())
+		m.childs = m.childs[:len(m.childs)-1]
+		kklog.Errorf("[kkmodule] module %s OnStart error: %v", module.GetModuleName(), err)
 		return 0, err
 	}
 
@@ -101,6 +116,7 @@ func (m *Module) ReleaseModule(moduleId uint32) {
 		kklog.Debugf("[kkmodule] release module %d not found", moduleId)
 		return
 	}
+
 	pModule := curMod.getBaseModule().(*Module)
 	pModule.self.OnStop()
 	kklog.Debugf("[kkmodule] release module %s", pModule.GetModuleName())
@@ -162,6 +178,12 @@ func (m *Module) OnInit() error {
 	return nil
 }
 
-func (m *Module) OnStop() {
+func (m *Module) OnStart() error {
+	kklog.Debugf("[kkmodule] module %s on start", m.GetModuleName())
+	return nil
+}
+
+func (m *Module) OnStop() error {
 	kklog.Debugf("[kkmodule] module %s on release", m.GetModuleName())
+	return nil
 }
