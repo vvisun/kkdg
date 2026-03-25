@@ -47,9 +47,9 @@ func NewTransportorShard(
 		kknet.WithRawHandler(handler),
 		kknet.WithRpProvider(kkprocessor.NewReadProcessor),
 		kknet.WithWpProvider(kkprocessor.NewWriteProcessor),
-		kknet.WithRecvQueueSize(1024),
+		kknet.WithRecvQueueSize(4096),
 		kknet.WithWorkerQueueMaxConcurrency(1),
-		kknet.WithBufferSizes(4*1024, 4*1024),
+		kknet.WithBufferSizes(16*1024, 16*1024),
 	)
 	srv := kktcp.NewServer(addr, handler, serOpts)
 	if err := srv.Start(); err != nil {
