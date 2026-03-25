@@ -2,45 +2,49 @@ syntax = "proto3";
 package pbcluster;
 option go_package = ".;pbcluster";
 
-// member data
+// MemberInfo 成员信息
 message MemberInfo {
-	string              NodeID = 1;
-	string              NodeType = 2;
-	string              Address = 3;
-	int64               Weight = 4;
-	int64               Status = 5;
-	map<string, string> Settings = 6;
+	string              NodeID = 1; // 节点ID, 用于标识一个节点。世界唯一。
+	string              NodeType = 2; // 节点类型, 用于标识一个节点的类型。如：gate、game、login等。
+	string              Address = 3; // 网关transport地址, 网关与逻辑服之间的转发通道地址。
+	string              RpcAddress = 4; // actor通信rpc server地址, 用于actor与actor之间的通信。
+	int64               Weight = 5; // 权重, 用于负载均衡。eg: 连接数
+	int64               Status = 6; // 状态：NodeStatusOnline(0), NodeStatusOffline(1)
 }
 
-// member list data
+// MemberInfoList 成员信息列表
 message MemberInfoList {
 	repeated MemberInfo List = 1;
 }
 
+// DiscoveryRequest 发现请求
 message DiscoveryRequest {
-	string RequesterID = 1;
+	string RequesterID = 1; // 请求者节点ID
 }
 
 
 
+// ClusterPacket 集群消息包
 message ClusterPacket {
 	int64 BuildTime = 1; 	// 构建时间（毫秒）
 	int64 Timeout = 2; 		// 函数请求超时时间(毫秒)
 	string SourcePath = 3; 	// 源节点路径
 	string TargetPath = 4; 	// 目标节点路径
 	string Sid = 7;				// session unique id
-	string FuncName = 5;	// 函数名
-	bytes ArgBytes = 6;		// 函数参数
+	string FuncName = 5;	// 函数名|methodID|msgID
+	bytes ArgBytes = 6;		// 函数参数|Payload
 }
 
+// ClusterRequest 集群请求消息
 message ClusterRequest {
 	string RequestID = 1;		// 请求id（自动生成）
 	string SourceNodeID = 2;	// 源节点id
 	ClusterPacket Packet = 3;	// 消息包
 }
 
+// ClusterResponse 集群响应消息
 message ClusterResponse {
-	string RequestID = 1;	// 请求id（与请求消息的requestID相同）
+	string RequestID = 1;	// 请求id（与请求消息的requestID相同，直接回填即可, eg: 收到req, resp时 resp.RequestID = req.RequestID）
 	int32 Code = 2;			// 错误码（ClusterErrorCode），0表示成功，其他表示失败
 	bytes Data = 3;			// 返回数据
 }

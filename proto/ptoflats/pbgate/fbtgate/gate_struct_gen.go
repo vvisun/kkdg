@@ -288,3 +288,38 @@ func (s *RpcUnregister) unpackFrom(t *fb.RpcUnregister) {
 	s.NodeId = string(t.NodeId())
 }
 
+// RpcCloseClient 对应 table RpcCloseClient，用于 flatbuffer 编解码
+type RpcCloseClient struct {
+	ClientId string
+	GateNodeId string
+	Reason string
+}
+
+// Pack 实现 flatbuffer.FlatBufferPackable
+func (s *RpcCloseClient) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
+	var oClientId flatbuffers.UOffsetT
+	if s.ClientId != "" { oClientId = builder.CreateString(s.ClientId) }
+	var oGateNodeId flatbuffers.UOffsetT
+	if s.GateNodeId != "" { oGateNodeId = builder.CreateString(s.GateNodeId) }
+	var oReason flatbuffers.UOffsetT
+	if s.Reason != "" { oReason = builder.CreateString(s.Reason) }
+	fb.RpcCloseClientStart(builder)
+	fb.RpcCloseClientAddClientId(builder, oClientId)
+	fb.RpcCloseClientAddGateNodeId(builder, oGateNodeId)
+	fb.RpcCloseClientAddReason(builder, oReason)
+	return fb.RpcCloseClientEnd(builder)
+}
+
+// UnmarshalFlatBuffer 实现 flatbuffer.FlatBufferUnmarshaler，从 bytes 填充结构体
+func (s *RpcCloseClient) UnmarshalFlatBuffer(data []byte) error {
+	t := fb.GetRootAsRpcCloseClient(data, 0)
+	s.unpackFrom(t)
+	return nil
+}
+
+func (s *RpcCloseClient) unpackFrom(t *fb.RpcCloseClient) {
+	s.ClientId = string(t.ClientId())
+	s.GateNodeId = string(t.GateNodeId())
+	s.Reason = string(t.Reason())
+}
+

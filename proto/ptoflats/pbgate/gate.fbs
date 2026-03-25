@@ -44,3 +44,9 @@ table RpcUnregister {
   NodeId: string;
 }
 
+table RpcCloseClient {
+  ClientId: string;
+  GateNodeId: string;
+  Reason: string;
+}
+

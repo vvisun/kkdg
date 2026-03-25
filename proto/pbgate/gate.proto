@@ -4,54 +4,61 @@ option go_package = ".;pbgate";
 
 // 逻辑服注册到网关: 逻辑服->网关->逻辑服
 message RpcMsgRegister {
-	int32 ShardIdx = 1;
-	string NodeId = 2;
-	string NodeType = 3;
+	int32 ShardIdx = 1; // 逻辑服所在分片索引
+	string NodeId = 2; // 逻辑服节点ID
+	string NodeType = 3; // 逻辑服节点类型
 }
 
 // 网关转发消息到客户端: 逻辑服->网关->客户端
 message RpcS2Client {
-    string ClientId = 1;
-    bytes Payload = 2;
+    string ClientId = 1; // sessionID
+    bytes Payload = 2; // 整包[length,message] 原样转发
 }
 
 // 网关转发消息到多个客户端: 逻辑服->网关->多个客户端
 message RpcS2Clients {
-    repeated string ClientIds = 1;
-    bytes Payload = 2;
+    repeated string ClientIds = 1; // sessionID列表
+    bytes Payload = 2; // 整包[length,message] 原样转发
 }
 
 // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
 message RpcC2S {
-    string ClientId = 1;
-    string GateNodeId = 2;
-    bytes Payload = 3;
+    string ClientId = 1; // sessionID
+    string GateNodeId = 2; // 网关节点ID
+    bytes Payload = 3; // 整包[length,message] 原样转发
 }
 
 // 网关 -> 逻辑服：客户端断开事件。
 // 逻辑服的视角相当于连接到本逻辑服的某个客户端断开连接。
 message RpcClientDisconnect {
-    string ClientId = 1;
-    repeated string ClientIds = 2;
+    string ClientId = 1; // sessionID
+    repeated string ClientIds = 2; // sessionID列表
 }
 
 // 网关 -> 逻辑服：分配客户端到本逻辑服。
 // 逻辑服的视角相当于某个客户端连接到本逻辑服。
 message RpcAllocClient {
-    string ClientId = 1;
+    string ClientId = 1; // sessionID
 }
 
 // 逻辑服 -> 网关：客户端登入登出事件
 message RpcClientLoginLogout {
-    int64 UserId = 1;
-    bool IsLogin = 2;
-    string ClientId = 3;
-    string NodeType = 4;
-    string NodeId = 5;
-    string GateNodeId = 6;
+    int64 UserId = 1; // 用户ID
+    bool IsLogin = 2; // 是否登录 true: 登录 false: 登出
+    string ClientId = 3; // sessionID
+    string NodeType = 4; // 逻辑节点类型, 用于校验
+    string NodeId = 5; // 逻辑节点ID, 用于校验
+    string GateNodeId = 6; // 网关节点ID, 用于校验
 }
 
 // 逻辑服 -> 网关：逻辑服注销事件
 message RpcUnregister {
-    string NodeId = 1;
+    string NodeId = 1; // 逻辑节点ID
+}
+
+// 逻辑服 -> 网关：关闭客户端连接
+message RpcCloseClient {
+    string ClientId = 1; // sessionID
+    string GateNodeId = 2; // opt: 网关节点ID, 用于校验
+    string Reason = 3; // opt: 关闭原因, 用于记录和通知客户端
 }

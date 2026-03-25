@@ -1,7 +1,7 @@
 package kkdiscovery
 
 type (
-	// MemberInfo 成员信息（用于序列化）
+	// MemberInfo 成员信息
 	MemberInfo struct {
 		NodeID     string `json:"nodeID"`     //节点ID, 用于标识一个节点。世界唯一。
 		NodeType   string `json:"nodeType"`   //节点类型, 用于标识一个节点的类型。如：gate、game、login等。
@@ -13,6 +13,6 @@ type (
 
 	// DiscoveryRequest 发现请求
 	DiscoveryRequest struct {
-		RequesterID string `json:"requesterID"`
+		RequesterID string `json:"requesterID"` // 请求者节点ID
 	}
 )

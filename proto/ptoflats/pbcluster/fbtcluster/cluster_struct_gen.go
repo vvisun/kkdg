@@ -6,44 +6,14 @@ import (
 	fb "github.com/vvisun/kkdg/proto/ptoflats/pbcluster/fbcluster"
 )
 
-// MapSettingsEntry 对应 table MapSettingsEntry，用于 flatbuffer 编解码
-type MapSettingsEntry struct {
-	Key string
-	Value string
-}
-
-// Pack 实现 flatbuffer.FlatBufferPackable
-func (s *MapSettingsEntry) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
-	var oKey flatbuffers.UOffsetT
-	if s.Key != "" { oKey = builder.CreateString(s.Key) }
-	var oValue flatbuffers.UOffsetT
-	if s.Value != "" { oValue = builder.CreateString(s.Value) }
-	fb.MapSettingsEntryStart(builder)
-	fb.MapSettingsEntryAddKey(builder, oKey)
-	fb.MapSettingsEntryAddValue(builder, oValue)
-	return fb.MapSettingsEntryEnd(builder)
-}
-
-// UnmarshalFlatBuffer 实现 flatbuffer.FlatBufferUnmarshaler，从 bytes 填充结构体
-func (s *MapSettingsEntry) UnmarshalFlatBuffer(data []byte) error {
-	t := fb.GetRootAsMapSettingsEntry(data, 0)
-	s.unpackFrom(t)
-	return nil
-}
-
-func (s *MapSettingsEntry) unpackFrom(t *fb.MapSettingsEntry) {
-	s.Key = string(t.Key())
-	s.Value = string(t.Value())
-}
-
 // MemberInfo 对应 table MemberInfo，用于 flatbuffer 编解码
 type MemberInfo struct {
 	NodeID string
 	NodeType string
 	Address string
+	RpcAddress string
 	Weight int64
 	Status int64
-	Settings []*MapSettingsEntry
 }
 
 // Pack 实现 flatbuffer.FlatBufferPackable
@@ -54,19 +24,15 @@ func (s *MemberInfo) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if s.NodeType != "" { oNodeType = builder.CreateString(s.NodeType) }
 	var oAddress flatbuffers.UOffsetT
 	if s.Address != "" { oAddress = builder.CreateString(s.Address) }
-	pSettings := flatbuffers.UOffsetT(0)
-	if len(s.Settings) > 0 {
-		fb.MemberInfoStartSettingsVector(builder, len(s.Settings))
-		for i := len(s.Settings) - 1; i >= 0; i-- { builder.PrependUOffsetT(s.Settings[i].Pack(builder)) }
-		pSettings = builder.EndVector(len(s.Settings))
-	}
+	var oRpcAddress flatbuffers.UOffsetT
+	if s.RpcAddress != "" { oRpcAddress = builder.CreateString(s.RpcAddress) }
 	fb.MemberInfoStart(builder)
 	fb.MemberInfoAddNodeId(builder, oNodeId)
 	fb.MemberInfoAddNodeType(builder, oNodeType)
 	fb.MemberInfoAddAddress(builder, oAddress)
+	fb.MemberInfoAddRpcAddress(builder, oRpcAddress)
 	fb.MemberInfoAddWeight(builder, s.Weight)
 	fb.MemberInfoAddStatus(builder, s.Status)
-	fb.MemberInfoAddSettings(builder, pSettings)
 	return fb.MemberInfoEnd(builder)
 }
 
@@ -81,18 +47,9 @@ func (s *MemberInfo) unpackFrom(t *fb.MemberInfo) {
 	s.NodeID = string(t.NodeId())
 	s.NodeType = string(t.NodeType())
 	s.Address = string(t.Address())
+	s.RpcAddress = string(t.RpcAddress())
 	s.Weight = t.Weight()
 	s.Status = t.Status()
-	n := t.SettingsLength()
-	s.Settings = make([]*MapSettingsEntry, n)
-	var obj fb.MapSettingsEntry
-	for i := 0; i < n; i++ {
-		if t.Settings(&obj, i) {
-			e := &MapSettingsEntry{}
-			e.unpackFrom(&obj)
-			s.Settings[i] = e
-		}
-	}
 }
 
 // MemberInfoList 对应 table MemberInfoList，用于 flatbuffer 编解码

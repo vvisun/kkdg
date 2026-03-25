@@ -26,9 +26,9 @@ type RpcMsgRegister struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ShardIdx int32  `protobuf:"varint,1,opt,name=ShardIdx,proto3" json:"ShardIdx,omitempty"`
-	NodeId   string `protobuf:"bytes,2,opt,name=NodeId,proto3" json:"NodeId,omitempty"`
-	NodeType string `protobuf:"bytes,3,opt,name=NodeType,proto3" json:"NodeType,omitempty"`
+	ShardIdx int32  `protobuf:"varint,1,opt,name=ShardIdx,proto3" json:"ShardIdx,omitempty"` // 逻辑服所在分片索引
+	NodeId   string `protobuf:"bytes,2,opt,name=NodeId,proto3" json:"NodeId,omitempty"`      // 逻辑服节点ID
+	NodeType string `protobuf:"bytes,3,opt,name=NodeType,proto3" json:"NodeType,omitempty"`  // 逻辑服节点类型
 }
 
 func (x *RpcMsgRegister) Reset() {
@@ -90,8 +90,8 @@ type RpcS2Client struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ClientId string `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"`
-	Payload  []byte `protobuf:"bytes,2,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	ClientId string `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"` // sessionID
+	Payload  []byte `protobuf:"bytes,2,opt,name=Payload,proto3" json:"Payload,omitempty"`   // 整包[length,message] 原样转发
 }
 
 func (x *RpcS2Client) Reset() {
@@ -146,8 +146,8 @@ type RpcS2Clients struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ClientIds []string `protobuf:"bytes,1,rep,name=ClientIds,proto3" json:"ClientIds,omitempty"`
-	Payload   []byte   `protobuf:"bytes,2,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	ClientIds []string `protobuf:"bytes,1,rep,name=ClientIds,proto3" json:"ClientIds,omitempty"` // sessionID列表
+	Payload   []byte   `protobuf:"bytes,2,opt,name=Payload,proto3" json:"Payload,omitempty"`     // 整包[length,message] 原样转发
 }
 
 func (x *RpcS2Clients) Reset() {
@@ -202,9 +202,9 @@ type RpcC2S struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ClientId   string `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"`
-	GateNodeId string `protobuf:"bytes,2,opt,name=GateNodeId,proto3" json:"GateNodeId,omitempty"`
-	Payload    []byte `protobuf:"bytes,3,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	ClientId   string `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"`     // sessionID
+	GateNodeId string `protobuf:"bytes,2,opt,name=GateNodeId,proto3" json:"GateNodeId,omitempty"` // 网关节点ID
+	Payload    []byte `protobuf:"bytes,3,opt,name=Payload,proto3" json:"Payload,omitempty"`       // 整包[length,message] 原样转发
 }
 
 func (x *RpcC2S) Reset() {
@@ -267,8 +267,8 @@ type RpcClientDisconnect struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ClientId  string   `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"`
-	ClientIds []string `protobuf:"bytes,2,rep,name=ClientIds,proto3" json:"ClientIds,omitempty"`
+	ClientId  string   `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"`   // sessionID
+	ClientIds []string `protobuf:"bytes,2,rep,name=ClientIds,proto3" json:"ClientIds,omitempty"` // sessionID列表
 }
 
 func (x *RpcClientDisconnect) Reset() {
@@ -324,7 +324,7 @@ type RpcAllocClient struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	ClientId string `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"`
+	ClientId string `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"` // sessionID
 }
 
 func (x *RpcAllocClient) Reset() {
@@ -372,12 +372,12 @@ type RpcClientLoginLogout struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	UserId     int64  `protobuf:"varint,1,opt,name=UserId,proto3" json:"UserId,omitempty"`
-	IsLogin    bool   `protobuf:"varint,2,opt,name=IsLogin,proto3" json:"IsLogin,omitempty"`
-	ClientId   string `protobuf:"bytes,3,opt,name=ClientId,proto3" json:"ClientId,omitempty"`
-	NodeType   string `protobuf:"bytes,4,opt,name=NodeType,proto3" json:"NodeType,omitempty"`
-	NodeId     string `protobuf:"bytes,5,opt,name=NodeId,proto3" json:"NodeId,omitempty"`
-	GateNodeId string `protobuf:"bytes,6,opt,name=GateNodeId,proto3" json:"GateNodeId,omitempty"`
+	UserId     int64  `protobuf:"varint,1,opt,name=UserId,proto3" json:"UserId,omitempty"`        // 用户ID
+	IsLogin    bool   `protobuf:"varint,2,opt,name=IsLogin,proto3" json:"IsLogin,omitempty"`      // 是否登录 true: 登录 false: 登出
+	ClientId   string `protobuf:"bytes,3,opt,name=ClientId,proto3" json:"ClientId,omitempty"`     // sessionID
+	NodeType   string `protobuf:"bytes,4,opt,name=NodeType,proto3" json:"NodeType,omitempty"`     // 逻辑节点类型, 用于校验
+	NodeId     string `protobuf:"bytes,5,opt,name=NodeId,proto3" json:"NodeId,omitempty"`         // 逻辑节点ID, 用于校验
+	GateNodeId string `protobuf:"bytes,6,opt,name=GateNodeId,proto3" json:"GateNodeId,omitempty"` // 网关节点ID, 用于校验
 }
 
 func (x *RpcClientLoginLogout) Reset() {
@@ -460,7 +460,7 @@ type RpcUnregister struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	NodeId string `protobuf:"bytes,1,opt,name=NodeId,proto3" json:"NodeId,omitempty"`
+	NodeId string `protobuf:"bytes,1,opt,name=NodeId,proto3" json:"NodeId,omitempty"` // 逻辑节点ID
 }
 
 func (x *RpcUnregister) Reset() {
@@ -498,6 +498,70 @@ func (*RpcUnregister) Descriptor() ([]byte, []int) {
 func (x *RpcUnregister) GetNodeId() string {
 	if x != nil {
 		return x.NodeId
+	}
+	return ""
+}
+
+// 逻辑服 -> 网关：关闭客户端连接
+type RpcCloseClient struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	ClientId   string `protobuf:"bytes,1,opt,name=ClientId,proto3" json:"ClientId,omitempty"`     // sessionID
+	GateNodeId string `protobuf:"bytes,2,opt,name=GateNodeId,proto3" json:"GateNodeId,omitempty"` // opt: 网关节点ID, 用于校验
+	Reason     string `protobuf:"bytes,3,opt,name=Reason,proto3" json:"Reason,omitempty"`         // opt: 关闭原因, 用于记录和通知客户端
+}
+
+func (x *RpcCloseClient) Reset() {
+	*x = RpcCloseClient{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pbgate_gate_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *RpcCloseClient) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RpcCloseClient) ProtoMessage() {}
+
+func (x *RpcCloseClient) ProtoReflect() protoreflect.Message {
+	mi := &file_pbgate_gate_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RpcCloseClient.ProtoReflect.Descriptor instead.
+func (*RpcCloseClient) Descriptor() ([]byte, []int) {
+	return file_pbgate_gate_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RpcCloseClient) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *RpcCloseClient) GetGateNodeId() string {
+	if x != nil {
+		return x.GateNodeId
+	}
+	return ""
+}
+
+func (x *RpcCloseClient) GetReason() string {
+	if x != nil {
+		return x.Reason
 	}
 	return ""
 }
@@ -549,9 +613,15 @@ var file_pbgate_gate_proto_rawDesc = []byte{
 	0x49, 0x64, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x47, 0x61, 0x74, 0x65, 0x4e, 0x6f,
 	0x64, 0x65, 0x49, 0x64, 0x22, 0x27, 0x0a, 0x0d, 0x52, 0x70, 0x63, 0x55, 0x6e, 0x72, 0x65, 0x67,
 	0x69, 0x73, 0x74, 0x65, 0x72, 0x12, 0x16, 0x0a, 0x06, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x64, 0x18,
-	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x64, 0x42, 0x0a, 0x5a,
-	0x08, 0x2e, 0x3b, 0x70, 0x62, 0x67, 0x61, 0x74, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x64, 0x22, 0x64, 0x0a,
+	0x0e, 0x52, 0x70, 0x63, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x12,
+	0x1a, 0x0a, 0x08, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x09, 0x52, 0x08, 0x43, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x12, 0x1e, 0x0a, 0x0a, 0x47,
+	0x61, 0x74, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52,
+	0x0a, 0x47, 0x61, 0x74, 0x65, 0x4e, 0x6f, 0x64, 0x65, 0x49, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x52,
+	0x65, 0x61, 0x73, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x52, 0x65, 0x61,
+	0x73, 0x6f, 0x6e, 0x42, 0x0a, 0x5a, 0x08, 0x2e, 0x3b, 0x70, 0x62, 0x67, 0x61, 0x74, 0x65, 0x62,
+	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -566,7 +636,7 @@ func file_pbgate_gate_proto_rawDescGZIP() []byte {
 	return file_pbgate_gate_proto_rawDescData
 }
 
-var file_pbgate_gate_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_pbgate_gate_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_pbgate_gate_proto_goTypes = []interface{}{
 	(*RpcMsgRegister)(nil),       // 0: pbgate.RpcMsgRegister
 	(*RpcS2Client)(nil),          // 1: pbgate.RpcS2Client
@@ -576,6 +646,7 @@ var file_pbgate_gate_proto_goTypes = []interface{}{
 	(*RpcAllocClient)(nil),       // 5: pbgate.RpcAllocClient
 	(*RpcClientLoginLogout)(nil), // 6: pbgate.RpcClientLoginLogout
 	(*RpcUnregister)(nil),        // 7: pbgate.RpcUnregister
+	(*RpcCloseClient)(nil),       // 8: pbgate.RpcCloseClient
 }
 var file_pbgate_gate_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -687,6 +758,18 @@ func file_pbgate_gate_proto_init() {
 				return nil
 			}
 		}
+		file_pbgate_gate_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RpcCloseClient); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -694,7 +777,7 @@ func file_pbgate_gate_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_pbgate_gate_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

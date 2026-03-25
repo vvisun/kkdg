@@ -65,19 +65,15 @@ func (rcv *MemberInfo) Address() []byte {
 	return nil
 }
 
-func (rcv *MemberInfo) Weight() int64 {
+func (rcv *MemberInfo) RpcAddress() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
-		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
 	}
-	return 0
+	return nil
 }
 
-func (rcv *MemberInfo) MutateWeight(n int64) bool {
-	return rcv._tab.MutateInt64Slot(10, n)
-}
-
-func (rcv *MemberInfo) Status() int64 {
+func (rcv *MemberInfo) Weight() int64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.GetInt64(o + rcv._tab.Pos)
@@ -85,28 +81,20 @@ func (rcv *MemberInfo) Status() int64 {
 	return 0
 }
 
-func (rcv *MemberInfo) MutateStatus(n int64) bool {
+func (rcv *MemberInfo) MutateWeight(n int64) bool {
 	return rcv._tab.MutateInt64Slot(12, n)
 }
 
-func (rcv *MemberInfo) Settings(obj *MapSettingsEntry, j int) bool {
+func (rcv *MemberInfo) Status() int64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
-		x := rcv._tab.Vector(o)
-		x += flatbuffers.UOffsetT(j) * 4
-		x = rcv._tab.Indirect(x)
-		obj.Init(rcv._tab.Bytes, x)
-		return true
-	}
-	return false
-}
-
-func (rcv *MemberInfo) SettingsLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
-	if o != 0 {
-		return rcv._tab.VectorLen(o)
+		return rcv._tab.GetInt64(o + rcv._tab.Pos)
 	}
 	return 0
+}
+
+func (rcv *MemberInfo) MutateStatus(n int64) bool {
+	return rcv._tab.MutateInt64Slot(14, n)
 }
 
 func MemberInfoStart(builder *flatbuffers.Builder) {
@@ -121,17 +109,14 @@ func MemberInfoAddNodeType(builder *flatbuffers.Builder, nodeType flatbuffers.UO
 func MemberInfoAddAddress(builder *flatbuffers.Builder, address flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(address), 0)
 }
+func MemberInfoAddRpcAddress(builder *flatbuffers.Builder, rpcAddress flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(rpcAddress), 0)
+}
 func MemberInfoAddWeight(builder *flatbuffers.Builder, weight int64) {
-	builder.PrependInt64Slot(3, weight, 0)
+	builder.PrependInt64Slot(4, weight, 0)
 }
 func MemberInfoAddStatus(builder *flatbuffers.Builder, status int64) {
-	builder.PrependInt64Slot(4, status, 0)
-}
-func MemberInfoAddSettings(builder *flatbuffers.Builder, settings flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(settings), 0)
-}
-func MemberInfoStartSettingsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
-	return builder.StartVector(4, numElems, 4)
+	builder.PrependInt64Slot(5, status, 0)
 }
 func MemberInfoEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

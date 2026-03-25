@@ -17,9 +17,9 @@ const (
 type (
 	// 逻辑服注册到网关: 逻辑服->网关
 	RpcMsgRegister struct {
-		ShardIdx int32
-		NodeId   string
-		NodeType string
+		ShardIdx int32  // 逻辑服所在分片索引
+		NodeId   string // 逻辑服节点ID
+		NodeType string // 逻辑服节点类型
 	}
 
 	// 网关转发消息到客户端: 逻辑服->网关->客户端
@@ -57,7 +57,7 @@ type (
 	// 逻辑服 -> 网关：客户端登入登出事件
 	RpcClientLoginLogout struct {
 		UserId     int64  //用户ID
-		IsLogin    bool   //是否登录
+		IsLogin    bool   //是否登录 true: 登录 false: 登出
 		ClientId   string //sessionID
 		NodeType   string //opt: 逻辑节点类型, 用于校验
 		NodeId     string //opt: 逻辑节点ID, 用于校验

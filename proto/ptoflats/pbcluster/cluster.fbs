@@ -1,17 +1,12 @@
 namespace fbcluster;
 
-table MapSettingsEntry {
-  key: string;
-  value: string;
-}
-
 table MemberInfo {
   NodeID: string;
   NodeType: string;
   Address: string;
+  RpcAddress: string;
   Weight: long;
   Status: long;
-  Settings: [MapSettingsEntry];
 }
 
 table MemberInfoList {
