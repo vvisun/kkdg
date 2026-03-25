@@ -45,6 +45,18 @@ type routeCfg struct {
 	FromID uint32 `json:"fromId"`
 }
 
+type (
+	clientMsg struct {
+		ID    uint32 `json:"id"`
+		Name  string `json:"name"`
+		Route string `json:"route"`
+	}
+	clientJson struct {
+		FileName string      `json:"fileName"`
+		Msgs     []clientMsg `json:"msgs"`
+	}
+)
+
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
@@ -98,6 +110,9 @@ func run(dir string) error {
 	}
 	sort.Strings(fileNames)
 
+	// 生成json文件给客户端，客户端通过解析json文件获取消息ID与消息类型的映射关系。
+	clients := make([]clientJson, 0, len(cfgMap))
+
 	var buf bytes.Buffer
 	fmt.Fprintln(&buf, "// 该文件自动生成，无需手动调整")
 	fmt.Fprintf(&buf, "package %s\n\n", pkgName)
@@ -117,11 +132,23 @@ func run(dir string) error {
 			continue
 		}
 
+		client := clientJson{
+			FileName: protoFile,
+			Msgs:     make([]clientMsg, 0, len(msgNames)),
+		}
+
 		fmt.Fprintf(&buf, "\t// %s\n", protoFile)
 		for i, msgName := range msgNames {
 			id := cfg.FromID + uint32(i)
 			fmt.Fprintf(&buf, "\trouter.Register(%d, &%s{}, %q)\n", id, msgName, cfg.Route)
+			client.Msgs = append(client.Msgs, clientMsg{
+				ID:    id,
+				Name:  msgName,
+				Route: cfg.Route,
+			})
 		}
+
+		clients = append(clients, client)
 	}
 	fmt.Fprintln(&buf, "}")
 
@@ -134,6 +161,17 @@ func run(dir string) error {
 		return fmt.Errorf("重命名 %s -> %s 失败: %w", tmpPath, outPath, err)
 	}
 	fmt.Println("generated:", outPath)
+
+	clientJsonPath := filepath.Join(dir, "client_msgs.json")
+	clientJsonData, err := json.MarshalIndent(clients, "", "  ")
+	if err != nil {
+		return fmt.Errorf("序列化 client_msgs.json 失败: %w", err)
+	}
+	if err := os.WriteFile(clientJsonPath, clientJsonData, 0644); err != nil {
+		return fmt.Errorf("写入 client_msgs.json 失败: %w", err)
+	}
+	fmt.Println("generated:", clientJsonPath)
+
 	return nil
 }
 

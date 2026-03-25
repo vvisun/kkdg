@@ -1,0 +1,72 @@
+[
+  {
+    "fileName": "test.proto",
+    "msgs": [
+      {
+        "id": 1,
+        "name": "Msg1Req",
+        "route": "logic"
+      },
+      {
+        "id": 2,
+        "name": "Msg1Resp",
+        "route": "logic"
+      },
+      {
+        "id": 3,
+        "name": "Msg2Broadcast",
+        "route": "logic"
+      },
+      {
+        "id": 4,
+        "name": "ErrorMsg",
+        "route": "logic"
+      },
+      {
+        "id": 5,
+        "name": "TipServerBusy",
+        "route": "logic"
+      },
+      {
+        "id": 6,
+        "name": "LoginReq",
+        "route": "logic"
+      },
+      {
+        "id": 7,
+        "name": "LoginResp",
+        "route": "logic"
+      },
+      {
+        "id": 8,
+        "name": "RegisterReq",
+        "route": "logic"
+      },
+      {
+        "id": 9,
+        "name": "RegisterResp",
+        "route": "logic"
+      }
+    ]
+  },
+  {
+    "fileName": "test1.proto",
+    "msgs": [
+      {
+        "id": 1000,
+        "name": "AaaaReq",
+        "route": "combat"
+      },
+      {
+        "id": 1001,
+        "name": "AaaaResp",
+        "route": "combat"
+      },
+      {
+        "id": 1002,
+        "name": "BbbbResp",
+        "route": "combat"
+      }
+    ]
+  }
+]
