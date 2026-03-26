@@ -3,6 +3,7 @@ package kkapp
 import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp/faultreport"
+	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/utils/kkevent"
 )
 
@@ -28,6 +29,7 @@ type IApplication interface {
 
 	GetConfigDir() string
 	GetOptions() *AppOptions
+	GetActorFramework() *kkactor.ActorFramework
 
 	GetFaultEventMgr() *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent]
 }

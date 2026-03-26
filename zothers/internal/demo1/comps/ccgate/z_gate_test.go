@@ -6,6 +6,7 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/vvisun/kkdg/kkapp"
 	"github.com/vvisun/kkdg/kkapp/faultreport"
+	"github.com/vvisun/kkdg/kkapp/kkactor"
 	"github.com/vvisun/kkdg/kkapp/transport"
 	"github.com/vvisun/kkdg/kkapp/transport/gatetrans"
 	"github.com/vvisun/kkdg/kknet"
@@ -79,6 +80,7 @@ func (a *fakeApp) GetConfigDir() string                { return "" }
 func (a *fakeApp) GetFaultEventMgr() *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent] {
 	return nil
 }
+func (a *fakeApp) GetActorFramework() *kkactor.ActorFramework { return nil }
 
 // message type used in tests/benchmarks
 type testMsg struct {
