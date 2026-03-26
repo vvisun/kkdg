@@ -335,9 +335,17 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			kklog.Warnf("[kkactor/actorshard] relayIn: %v", err)
 			return
 		}
-		if err := t.handleInboundRelay(m); err != nil {
-			kklog.Errorf("[kkactor/actorshard] handle relay: %v", err)
+		// 异步投递：同步 HandleRemoteRequest 会阻塞读循环，嵌套 RPC 时同连接上的 wireReply 无法入站（死锁）。
+		// Payload 必须脱离 data 缓冲（OnRaw 返回后会 Put(data)）。
+		if len(m.Payload) > 0 {
+			m.Payload = append([]byte(nil), m.Payload...)
 		}
+		mm := m
+		xcall.AntsGo(func() {
+			if err := t.handleInboundRelay(mm); err != nil {
+				kklog.Errorf("[kkactor/actorshard] handle relay: %v", err)
+			}
+		})
 	case wireReply:
 		var m replyBody
 		if err := unmarshalBody(body, &m); err != nil {
