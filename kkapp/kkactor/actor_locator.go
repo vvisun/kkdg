@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/achecker"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -28,7 +28,7 @@ type LocalActorManager struct {
 func NewLocalActorManager(localNodeIDs ...string) *LocalActorManager {
 	localNodes := make(map[string]struct{})
 	for _, id := range localNodeIDs {
-		if !kkapp.IsValidActorNodeId(id) {
+		if !achecker.IsValidActorNodeId(id) {
 			kklog.PanicLog("invalid node id")
 		}
 		localNodes[id] = struct{}{}
@@ -41,7 +41,7 @@ func NewLocalActorManager(localNodeIDs ...string) *LocalActorManager {
 
 // AddLocalNode 将 nodeID 记入本进程本地节点集合（仅路由语义，不含 NodeInfo）。
 func (slf *LocalActorManager) AddLocalNode(nodeID string) error {
-	if !kkapp.IsValidActorNodeId(nodeID) {
+	if !achecker.IsValidActorNodeId(nodeID) {
 		return kkerrors.ErrActorInvalidNodeId
 	}
 	slf.mu.Lock()
@@ -52,7 +52,7 @@ func (slf *LocalActorManager) AddLocalNode(nodeID string) error {
 
 // RemoveLocalNode 从本地节点集合移除 nodeID，并删除该 nodeID 下已登记的所有 Actor。
 func (slf *LocalActorManager) RemoveLocalNode(nodeID string) error {
-	if !kkapp.IsValidActorNodeId(nodeID) {
+	if !achecker.IsValidActorNodeId(nodeID) {
 		return kkerrors.ErrActorInvalidNodeId
 	}
 	slf.mu.Lock()
@@ -68,10 +68,10 @@ func (slf *LocalActorManager) RemoveLocalNode(nodeID string) error {
 
 // IsLocalActor 当且仅当该 LucencyID 的 nodeID 已在本 Locator 的 localNodes 中。
 func (slf *LocalActorManager) IsLocalActor(id LucencyID) (bool, error) {
-	if !kkapp.IsValidActorNodeId(id.nodeID) {
+	if !achecker.IsValidActorNodeId(id.nodeID) {
 		return false, kkerrors.ErrActorInvalidNodeId
 	}
-	if !kkapp.IsValidActorKey(id.actorKey) {
+	if !achecker.IsValidActorKey(id.actorKey) {
 		return false, kkerrors.ErrActorInvalidActorKey
 	}
 	slf.mu.RLock()
@@ -110,10 +110,10 @@ func (slf *LocalActorManager) GetActor(id LucencyID) (*actor.PID, error) {
 
 // AddActor 登记本地 Actor；若 nodeID 尚未在 localNodes 中，自动加入该 nodeID。
 func (slf *LocalActorManager) AddActor(id LucencyID, pid *actor.PID) error {
-	if !kkapp.IsValidActorKey(id.actorKey) {
+	if !achecker.IsValidActorKey(id.actorKey) {
 		return kkerrors.ErrActorInvalidActorKey
 	}
-	if !kkapp.IsValidActorNodeId(id.nodeID) {
+	if !achecker.IsValidActorNodeId(id.nodeID) {
 		return kkerrors.ErrActorInvalidNodeId
 	}
 	if pid == nil {

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/achecker"
 	"github.com/vvisun/kkdg/kkerrors"
 )
 
@@ -29,7 +29,7 @@ type ResponseEnvelope struct {
 
 // IsValid 校验远程目标是否合法（NodeID、ActorKey 均需符合 kkapp 字符集规则且非空）。
 func (ref ActorRef) IsValid() bool {
-	return ref.NodeID != "" && kkapp.IsValidActorNodeId(ref.NodeID) && kkapp.IsValidActorKey(ref.ActorKey)
+	return ref.NodeID != "" && achecker.IsValidActorNodeId(ref.NodeID) && achecker.IsValidActorKey(ref.ActorKey)
 }
 
 func BuildRequestEnvelope(registry *MessageRegistry, target ActorRef, msg any, timeout time.Duration) (*RequestEnvelope, error) {

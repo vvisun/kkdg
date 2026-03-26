@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/achecker"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
@@ -78,7 +78,7 @@ func (t *Transport) SetReceiver(receiver actortrans.IRemoteActorReceiver) {
 }
 
 func (t *Transport) Start() error {
-	if !kkapp.IsValidActorNodeId(t.nodeID) || t.nodeID == "" {
+	if !achecker.IsValidActorNodeId(t.nodeID) || t.nodeID == "" {
 		return kkerrors.ErrActorInvalidNodeId
 	}
 	if !atomic.CompareAndSwapInt32(&t.started, 0, 1) {

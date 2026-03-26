@@ -1,7 +1,7 @@
 package kkactor
 
 import (
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/achecker"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 )
@@ -35,10 +35,10 @@ func (id LucencyID) ActorKey() string {
 
 // 创建LucencyID
 func NewLucencyID(nodeId, actorKey string) (LucencyID, error) {
-	if !kkapp.IsValidActorKey(actorKey) {
+	if !achecker.IsValidActorKey(actorKey) {
 		return LucencyID{}, kkerrors.ErrActorInvalidActorKey
 	}
-	if !kkapp.IsValidActorNodeId(nodeId) {
+	if !achecker.IsValidActorNodeId(nodeId) {
 		return LucencyID{}, kkerrors.ErrActorInvalidNodeId
 	}
 	id := LucencyID{
@@ -53,10 +53,10 @@ func ActorRef2LucencyID(actorRef *actortrans.ActorRef) (LucencyID, error) {
 	if actorRef == nil {
 		return LucencyID{}, kkerrors.ErrActorInvalidActorRef
 	}
-	if !kkapp.IsValidActorKey(actorRef.ActorKey) {
+	if !achecker.IsValidActorKey(actorRef.ActorKey) {
 		return LucencyID{}, kkerrors.ErrActorInvalidActorKey
 	}
-	if !kkapp.IsValidActorNodeId(actorRef.NodeID) {
+	if !achecker.IsValidActorNodeId(actorRef.NodeID) {
 		return LucencyID{}, kkerrors.ErrActorInvalidNodeId
 	}
 	return NewLucencyID(actorRef.NodeID, actorRef.ActorKey)

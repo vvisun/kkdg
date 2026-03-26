@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/vvisun/kkdg/kkapp"
+	"github.com/vvisun/kkdg/kkapp/achecker"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
@@ -50,7 +50,7 @@ func (t *Transport) SetReceiver(receiver actortrans.IRemoteActorReceiver) {
 }
 
 func (t *Transport) Start() error {
-	if !kkapp.IsValidActorNodeId(t.nodeID) || t.nodeID == "" {
+	if !achecker.IsValidActorNodeId(t.nodeID) || t.nodeID == "" {
 		return kkerrors.ErrActorInvalidNodeId
 	}
 	if t.conn != nil && t.conn.IsConnected() {

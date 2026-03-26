@@ -1,4 +1,4 @@
-package kkapp
+package achecker
 
 import (
 	"github.com/vvisun/kkdg/kkerrors"
@@ -12,9 +12,9 @@ const (
 	maxNodeTypeLength int = 16
 )
 
-// checkNodeID 检查节点ID是否有效
+// CheckNodeID 检查节点ID是否有效
 // 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
-func checkNodeID(nodeId string) error {
+func CheckNodeID(nodeId string) error {
 	if len(nodeId) < 1 {
 		kklog.Errorf("node id is empty: %s", nodeId)
 		return kkerrors.ErrAppInvalidNodeID
@@ -30,9 +30,9 @@ func checkNodeID(nodeId string) error {
 	return nil
 }
 
-// checkNodeType 检查节点类型是否有效
+// CheckNodeType 检查节点类型是否有效
 // 只允许英文字母，例如 "logic"、"chat"、"gate"。
-func checkNodeType(nodeType string) error {
+func CheckNodeType(nodeType string) error {
 	if len(nodeType) < 1 {
 		kklog.Errorf("node type is empty: %s", nodeType)
 		return kkerrors.ErrAppInvalidNodeType
@@ -46,11 +46,6 @@ func checkNodeType(nodeType string) error {
 		return kkerrors.ErrAppInvalidNodeType
 	}
 	return nil
-}
-
-// IsValidNodeType 报告 nodeType 是否满足与 NewNodeInfo 相同的节点类型规则（非空、仅字母、长度上限）。
-func IsValidNodeType(nodeType string) bool {
-	return checkNodeType(nodeType) == nil
 }
 
 // 只允许【英文字母，数字，下划线("_")，中划线("-")】组合，例如 "game_player"、"gate_router-1001"
