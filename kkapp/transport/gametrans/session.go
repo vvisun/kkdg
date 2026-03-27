@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/utils/kkevent"
 )
 
 // 使用稳定哈希将任意 sessionID 均匀映射到 [0, workersCount) 区间。
@@ -69,6 +70,11 @@ func putSessionInfo(si *SessionInfo) {
 
 //--------------------------------------------------
 
+const (
+	evt_session_add    = 1
+	evt_session_remove = 2
+)
+
 var autoShardIdx int64 = 0 // 自动分配的shardIdx
 
 func getAutoShardIdx() int {
@@ -78,16 +84,21 @@ func getAutoShardIdx() int {
 // SessionManager 客户端会话管理器。
 // 用于管理客户端会话信息【会话ID、用户ID、网关节点ID、分片索引】
 type SessionManager struct {
-	sessionMap   sync.Map // map[sessionID]*SessionInfo
-	onlineCount  int32
-	workersCount int
+	sessionMap          sync.Map // map[sessionID]*SessionInfo
+	onlineCount         int32
+	workersCount        int
+	hasListeners        atomic.Bool
+	lifecycleDispatcher *kkevent.SpecEventManager[int, *SessionInfo]
 }
 
 func NewSessionManager(workersCount int) *SessionManager {
 	if workersCount <= 0 {
 		workersCount = 1
 	}
-	return &SessionManager{workersCount: workersCount}
+	return &SessionManager{
+		workersCount:        workersCount,
+		lifecycleDispatcher: kkevent.NewSpecEventManager[int, *SessionInfo](),
+	}
 }
 
 func (slf *SessionManager) GetWorkersCount() int {
@@ -117,7 +128,18 @@ func (slf *SessionManager) AddSessionWithShard(sessionID string, gateNodeID stri
 	si.shardIdx = shardIdx
 	si.threadIdx = sessionIdToThreadIdx(si.sessionID, slf.workersCount)
 	slf.sessionMap.Store(sessionID, si)
-	// kklog.Debugf("newSessionInfo: sessionID=%s, threadIdx=%d", si.sessionID, si.threadIdx)
+
+	if slf.hasListeners.Load() {
+		// 拷贝，避免上层逻辑需要存储或处理存在延迟时，si被释放回池中导致数据不一致
+		siCpy := &SessionInfo{
+			sessionID:  sessionID,
+			gateNodeID: gateNodeID,
+			shardIdx:   shardIdx,
+			threadIdx:  si.threadIdx,
+		}
+		slf.lifecycleDispatcher.Publish(evt_session_add, siCpy)
+	}
+
 	return si
 }
 
@@ -126,8 +148,24 @@ func (slf *SessionManager) RemoveSession(sessionID string) {
 	if !ok {
 		return
 	}
+
+	var siCpy *SessionInfo
+	if slf.hasListeners.Load() {
+		siInfo := si.(*SessionInfo)
+		siCpy = &SessionInfo{
+			sessionID:  sessionID,
+			gateNodeID: siInfo.gateNodeID,
+			shardIdx:   siInfo.shardIdx,
+			threadIdx:  siInfo.threadIdx,
+		}
+	}
+
 	atomic.AddInt32(&slf.onlineCount, -1)
 	putSessionInfo(si.(*SessionInfo))
+
+	if siCpy != nil {
+		slf.lifecycleDispatcher.Publish(evt_session_remove, siCpy)
+	}
 }
 
 func (slf *SessionManager) GetSession(sessionID string) *SessionInfo {
@@ -140,4 +178,16 @@ func (slf *SessionManager) GetSession(sessionID string) *SessionInfo {
 
 func (slf *SessionManager) OnlineCount() int {
 	return int(atomic.LoadInt32(&slf.onlineCount))
+}
+
+// 新会话事件监听器
+func (slf *SessionManager) ListenNewSession(callback func(*SessionInfo)) {
+	slf.hasListeners.Store(true)
+	slf.lifecycleDispatcher.Subscribe(evt_session_add, callback)
+}
+
+// 会话断开事件监听器
+func (slf *SessionManager) ListenRemoveSession(callback func(*SessionInfo)) {
+	slf.hasListeners.Store(true)
+	slf.lifecycleDispatcher.Subscribe(evt_session_remove, callback)
 }

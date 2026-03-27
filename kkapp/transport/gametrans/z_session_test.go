@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
 )
@@ -183,5 +184,84 @@ func TestSessionManager_ConcurrentAddOnly_DisjointSessions(t *testing.T) {
 	}
 	if got := mgr.OnlineCount(); got != n {
 		t.Fatalf("OnlineCount = %d, want %d", got, n)
+	}
+}
+
+func TestSessionManager_AddSessionWithShard_IdempotentReturnsOldInfo(t *testing.T) {
+	mgr := NewSessionManager(4)
+
+	first := mgr.AddSessionWithShard("s1", "gate1", 1)
+	second := mgr.AddSessionWithShard("s1", "gate2", 3)
+	if first == nil || second == nil {
+		t.Fatal("AddSessionWithShard returned nil")
+	}
+	if first != second {
+		t.Fatal("duplicate AddSessionWithShard must return same SessionInfo instance")
+	}
+	if second.GetGateNodeID() != "gate1" {
+		t.Fatalf("duplicate add should keep original gateNodeID, got %q", second.GetGateNodeID())
+	}
+	if second.GetShardIdx() != 1 {
+		t.Fatalf("duplicate add should keep original shardIdx, got %d", second.GetShardIdx())
+	}
+	if got := mgr.OnlineCount(); got != 1 {
+		t.Fatalf("OnlineCount = %d, want 1", got)
+	}
+}
+
+func TestSessionManager_RemoveSession_NotExists_NoChange(t *testing.T) {
+	mgr := NewSessionManager(2)
+	mgr.AddSession("s1", "g1")
+
+	mgr.RemoveSession("not-exist")
+
+	if got := mgr.OnlineCount(); got != 1 {
+		t.Fatalf("OnlineCount after removing non-exist = %d, want 1", got)
+	}
+	if got := mgr.GetSession("s1"); got == nil {
+		t.Fatal("existing session removed unexpectedly")
+	}
+}
+
+func TestSessionManager_LifecycleListeners_ReceiveCopiedSnapshot(t *testing.T) {
+	mgr := NewSessionManager(4)
+
+	added := make(chan *SessionInfo, 1)
+	removed := make(chan *SessionInfo, 1)
+	mgr.ListenNewSession(func(si *SessionInfo) { added <- si })
+	mgr.ListenRemoveSession(func(si *SessionInfo) { removed <- si })
+
+	si := mgr.AddSessionWithShard("s-listener", "gate-listener", 2)
+	if si == nil {
+		t.Fatal("AddSessionWithShard returned nil")
+	}
+
+	select {
+	case got := <-added:
+		if got == nil {
+			t.Fatal("add event got nil session")
+		}
+		// 监听器拿到的是快照，不应与池对象共享地址
+		if got == si {
+			t.Fatal("add event should receive copied SessionInfo, got same pointer")
+		}
+		if got.GetSessionID() != "s-listener" || got.GetGateNodeID() != "gate-listener" || got.GetShardIdx() != 2 {
+			t.Fatalf("add event snapshot mismatch: %+v", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting add event")
+	}
+
+	mgr.RemoveSession("s-listener")
+	select {
+	case got := <-removed:
+		if got == nil {
+			t.Fatal("remove event got nil session")
+		}
+		if got.GetSessionID() != "s-listener" || got.GetGateNodeID() != "gate-listener" || got.GetShardIdx() != 2 {
+			t.Fatalf("remove event snapshot mismatch: %+v", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting remove event")
 	}
 }
