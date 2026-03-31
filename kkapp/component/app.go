@@ -54,6 +54,8 @@ type Application struct {
 	opts *kkapp.AppOptions
 
 	watcher *appWatcher
+
+	extData any
 }
 
 var _ kkapp.IApplication = (*Application)(nil)
@@ -92,6 +94,19 @@ func (slf *Application) GetOptions() *kkapp.AppOptions {
 
 func (slf *Application) GetFaultEventMgr() *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent] {
 	return slf.watcher.faultEventMgr
+}
+
+func (slf *Application) SetExtData(data any) {
+	slf.mu.Lock()
+	slf.extData = data
+	slf.mu.Unlock()
+}
+
+func (slf *Application) GetExtData() any {
+	slf.mu.RLock()
+	data := slf.extData
+	slf.mu.RUnlock()
+	return data
 }
 
 func (slf *Application) logTag() string {

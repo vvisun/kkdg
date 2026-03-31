@@ -32,6 +32,11 @@ type IApplication interface {
 	GetActorFramework() *kkactor.ActorFramework
 
 	GetFaultEventMgr() *kkevent.SpecEventManager[string, *faultreport.ComponentFaultEvent]
+
+	// 设置扩展数据，用于存储一些自定义数据
+	SetExtData(data any)
+	// 获取扩展数据
+	GetExtData() any
 }
 
 type IComponentLifecycle interface {

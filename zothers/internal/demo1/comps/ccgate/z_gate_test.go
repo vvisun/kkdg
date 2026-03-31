@@ -81,6 +81,8 @@ func (a *fakeApp) GetFaultEventMgr() *kkevent.SpecEventManager[string, *faultrep
 	return nil
 }
 func (a *fakeApp) GetActorFramework() *kkactor.ActorFramework { return nil }
+func (a *fakeApp) SetExtData(any)                             {}
+func (a *fakeApp) GetExtData() any                            { return nil }
 
 // message type used in tests/benchmarks
 type testMsg struct {
