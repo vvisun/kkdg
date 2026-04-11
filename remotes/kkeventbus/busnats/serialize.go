@@ -12,7 +12,7 @@ import (
 type data struct {
 	ID        string `json:"id"`        // 事件ID
 	Topic     string `json:"topic"`     // 事件主题
-	Payload   string `json:"payload"`   // 事件载荷
+	Payload   []byte `json:"payload"`   // 事件载荷
 	Timestamp int64  `json:"timestamp"` // 事件时间
 }
 
@@ -21,7 +21,7 @@ func serialize(topic string, payload any) ([]byte, error) {
 	return json.Marshal(&data{
 		ID:        xuuid.UUID(),
 		Topic:     topic,
-		Payload:   xconv.String(payload),
+		Payload:   xconv.Bytes(payload),
 		Timestamp: xtime.Now().UnixNano(),
 	})
 }
