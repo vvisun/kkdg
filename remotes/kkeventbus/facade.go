@@ -6,7 +6,7 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kklog"
-	xvalue "github.com/vvisun/kkdg/utils/value"
+	"github.com/vvisun/kkdg/utils/xvalue"
 )
 
 type Event struct {

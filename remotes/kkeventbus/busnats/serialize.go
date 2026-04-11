@@ -3,10 +3,10 @@ package nats
 import (
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
 	"github.com/vvisun/kkdg/utils/kkcodec/json"
-	xvalue "github.com/vvisun/kkdg/utils/value"
 	"github.com/vvisun/kkdg/utils/xconv"
 	"github.com/vvisun/kkdg/utils/xtime"
 	"github.com/vvisun/kkdg/utils/xuuid"
+	"github.com/vvisun/kkdg/utils/xvalue"
 )
 
 type data struct {
