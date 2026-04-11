@@ -166,7 +166,7 @@ func BenchmarkRequestRemote(b *testing.B) {
 		packet := kkcluster.NewClusterPacket()
 		packet.FuncName = "test"
 		packet.ArgBytes = []byte("bench")
-		data, code := cluster1.RequestRemote("node2", packet, 5*time.Second)
+		data, code := cluster1.Request("node2", packet, 5*time.Second)
 		if code != kkcluster.ClusterErrorCodeSuccess {
 			b.Fatalf("RequestRemote code = %v, want Success", code)
 		}
@@ -232,7 +232,7 @@ func BenchmarkRequestRemoteAsync(b *testing.B) {
 		packet.FuncName = "test"
 		packet.ArgBytes = []byte("bench")
 		wg.Add(1)
-		err := cluster1.RequestRemoteAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
+		err := cluster1.RequestAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
 			if code != kkcluster.ClusterErrorCodeSuccess {
 				b.Errorf("RequestRemoteAsync code = %v", code)
 			}
@@ -259,7 +259,7 @@ func BenchmarkPublishRemote(b *testing.B) {
 		packet := kkcluster.NewClusterPacket()
 		packet.FuncName = "test"
 		packet.ArgBytes = []byte("bench")
-		if err := cluster1.PublishRemote("node2", packet); err != nil {
+		if err := cluster1.Send("node2", packet); err != nil {
 			b.Fatalf("PublishRemote: %v", err)
 		}
 	}
@@ -278,7 +278,7 @@ func BenchmarkPublishRemoteType(b *testing.B) {
 		packet := kkcluster.NewClusterPacket()
 		packet.FuncName = "test"
 		packet.ArgBytes = []byte("bench")
-		if err := cluster1.PublishRemoteType("typea", packet); err != nil {
+		if err := cluster1.PublishType("typea", packet); err != nil {
 			b.Fatalf("PublishRemoteType: %v", err)
 		}
 	}
@@ -298,7 +298,7 @@ func BenchmarkPublishRemoteParallel(b *testing.B) {
 			packet := kkcluster.NewClusterPacket()
 			packet.FuncName = "test"
 			packet.ArgBytes = []byte("bench")
-			_ = cluster1.PublishRemote("node2", packet)
+			_ = cluster1.Send("node2", packet)
 		}
 	})
 }
@@ -326,7 +326,7 @@ func BenchmarkRequestRemoteParallel(b *testing.B) {
 			packet := kkcluster.NewClusterPacket()
 			packet.FuncName = "test"
 			packet.ArgBytes = []byte("bench")
-			_, code := cluster1.RequestRemote("node2", packet, 5*time.Second)
+			_, code := cluster1.Request("node2", packet, 5*time.Second)
 			if code != kkcluster.ClusterErrorCodeSuccess {
 				b.Errorf("RequestRemote code = %v", code)
 			}

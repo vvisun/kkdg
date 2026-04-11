@@ -262,8 +262,8 @@ func (c *NatsCluster) IsConnected() bool {
 	return c.conn != nil && c.conn.IsConnected()
 }
 
-// PublishRemote 发布消息到指定节点
-func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPacket) error {
+// Send 发布消息到指定节点
+func (c *NatsCluster) Send(nodeID string, packet *kkcluster.ClusterPacket) error {
 	if packet == nil {
 		return kkerrors.ErrClusterInvalidPacket
 	}
@@ -305,11 +305,11 @@ func (c *NatsCluster) PublishRemote(nodeID string, packet *kkcluster.ClusterPack
 	return nil
 }
 
-// PublishRemoteType 发布消息到指定类型的所有节点
+// PublishType 发布消息到指定类型的所有节点
 // 优化：只需发布一次到类型主题，所有订阅了该类型主题的节点都会收到消息
 // 注意：节点在 Init() 时会订阅自己类型的主题，使用普通 Subscribe（不是 QueueSubscribe）
 // 如果需要负载均衡（消息只被一个节点接收），应使用 QueueSubscribe
-func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.ClusterPacket) error {
+func (c *NatsCluster) PublishType(nodeType string, packet *kkcluster.ClusterPacket) error {
 	if packet == nil {
 		return kkerrors.ErrClusterInvalidPacket
 	}
@@ -351,8 +351,8 @@ func (c *NatsCluster) PublishRemoteType(nodeType string, packet *kkcluster.Clust
 	return nil
 }
 
-// RequestRemoteAsync 异步请求（不阻塞），结果通过 callback 回调。使用 reqMap 避免 channel 分配
-func (c *NatsCluster) RequestRemoteAsync(nodeID string, packet *kkcluster.ClusterPacket, callback func(data []byte, errCode kkcluster.ClusterErrorCode), timeout ...time.Duration) error {
+// RequestAsync 异步请求（不阻塞），结果通过 callback 回调。使用 reqMap 避免 channel 分配
+func (c *NatsCluster) RequestAsync(nodeID string, packet *kkcluster.ClusterPacket, callback func(data []byte, errCode kkcluster.ClusterErrorCode), timeout ...time.Duration) error {
 	if packet == nil {
 		return kkerrors.ErrClusterInvalidPacket
 	}
@@ -509,8 +509,8 @@ func (c *NatsCluster) request(nodeID string, packet *kkcluster.ClusterPacket, ti
 	return resp.Data, kkcluster.ClusterErrorCode(resp.Code)
 }
 
-// RequestRemote 请求消息（带响应）
-func (c *NatsCluster) RequestRemote(nodeID string, packet *kkcluster.ClusterPacket, timeout ...time.Duration) ([]byte, kkcluster.ClusterErrorCode) {
+// Request 请求消息（带响应）
+func (c *NatsCluster) Request(nodeID string, packet *kkcluster.ClusterPacket, timeout ...time.Duration) ([]byte, kkcluster.ClusterErrorCode) {
 	if packet == nil {
 		return nil, kkcluster.ClusterErrorCodeInvalidRequest
 	}

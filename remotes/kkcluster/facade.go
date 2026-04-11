@@ -19,13 +19,13 @@ type ICluster interface {
 	Stop()
 
 	// 向指定节点发布消息
-	PublishRemote(nodeID string, packet *ClusterPacket) error
+	Send(nodeID string, packet *ClusterPacket) error
 	// 向同类型节点发布消息
-	PublishRemoteType(nodeType string, packet *ClusterPacket) error
+	PublishType(nodeType string, packet *ClusterPacket) error
 	// 向指定节点发送请求，有response，同步阻塞
-	RequestRemote(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, ClusterErrorCode)
+	Request(nodeID string, packet *ClusterPacket, timeout ...time.Duration) ([]byte, ClusterErrorCode)
 	// 向指定节点发送请求，有response，异步不阻塞
-	RequestRemoteAsync(nodeID string, packet *ClusterPacket, callback func(data []byte, errCode ClusterErrorCode), timeout ...time.Duration) error
+	RequestAsync(nodeID string, packet *ClusterPacket, callback func(data []byte, errCode ClusterErrorCode), timeout ...time.Duration) error
 
 	// 设置发布消息处理器
 	SetPublishHandler(handler FunPublishHandler)

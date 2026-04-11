@@ -51,7 +51,7 @@ func TestNoDiscovery_PublishRemote(t *testing.T) {
 	packet.FuncName = "ping"
 	packet.ArgBytes = []byte("hello")
 
-	if err := cluster1.PublishRemote("node2", packet); err != nil {
+	if err := cluster1.Send("node2", packet); err != nil {
 		t.Fatalf("PublishRemote: %v", err)
 	}
 
@@ -81,7 +81,7 @@ func TestNoDiscovery_RequestRemote(t *testing.T) {
 	packet.FuncName = "echo"
 	packet.ArgBytes = []byte("rpc")
 
-	data, code := cluster1.RequestRemote("node2", packet, 3*time.Second)
+	data, code := cluster1.Request("node2", packet, 3*time.Second)
 	if code != kkcluster.ClusterErrorCodeSuccess {
 		t.Fatalf("RequestRemote code = %v", code)
 	}
@@ -137,7 +137,7 @@ func TestNoDiscovery_RequestRemoteAsync(t *testing.T) {
 	packet.FuncName = "a"
 	packet.ArgBytes = []byte("b")
 
-	err := cluster1.RequestRemoteAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
+	err := cluster1.RequestAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
 		if code != kkcluster.ClusterErrorCodeSuccess {
 			t.Errorf("code = %v", code)
 		}
@@ -200,7 +200,7 @@ func TestNoDiscovery_PublishRemoteType(t *testing.T) {
 	packet.FuncName = "fanout"
 	packet.ArgBytes = []byte("all-a")
 
-	if err := c1.PublishRemoteType("typea", packet); err != nil {
+	if err := c1.PublishType("typea", packet); err != nil {
 		t.Fatalf("PublishRemoteType: %v", err)
 	}
 
@@ -268,7 +268,7 @@ func TestNoDiscovery_StartStop_IdempotentAndRestart(t *testing.T) {
 	packet := kkcluster.NewClusterPacket()
 	packet.FuncName = "restart-ping"
 	packet.ArgBytes = []byte("ok")
-	if err := c1.PublishRemote("node2", packet); err != nil {
+	if err := c1.Send("node2", packet); err != nil {
 		t.Fatalf("PublishRemote after restart: %v", err)
 	}
 

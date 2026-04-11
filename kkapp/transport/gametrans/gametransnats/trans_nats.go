@@ -95,7 +95,7 @@ func (slf *transportorNats) ForwardToClient(sessionID string, packet []byte) err
 	resp.FuncName = ptotrans.FuncNameSendToClient
 	resp.ArgBytes = packet //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	resp.Sid = sessionID
-	if err := slf.cluster.PublishRemote(sessionInfo.GetGateNodeID(), resp); err != nil {
+	if err := slf.cluster.Send(sessionInfo.GetGateNodeID(), resp); err != nil {
 		kklog.Errorf("[ccgame] publish response to %s error: %v", sessionInfo.GetGateNodeID(), err)
 		return err
 	}
@@ -132,7 +132,7 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte)
 		resp.FuncName = ptotrans.FuncNameSendToClients
 		resp.ArgBytes = packet //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 		resp.Sid = sids
-		if err := slf.cluster.PublishRemote(gateNodeID, resp); err != nil {
+		if err := slf.cluster.Send(gateNodeID, resp); err != nil {
 			kklog.Errorf("[ccgame] publish response to %s error: %v", gateNodeID, err)
 			return err
 		}
@@ -229,7 +229,7 @@ func (slf *transportorNats) NotifyClientLoginLogout(sessionID string, userId int
 	pkt.FuncName = ptotrans.FuncNameClientLoginLogout
 	pkt.ArgBytes = streamBytes
 	pkt.Sid = sessionID
-	err = slf.cluster.PublishRemote(sessionInfo.GetGateNodeID(), pkt)
+	err = slf.cluster.Send(sessionInfo.GetGateNodeID(), pkt)
 	kkbuffer.Put(bbTrans)
 	if err != nil {
 		return err
@@ -263,7 +263,7 @@ func (slf *transportorNats) CloseClient(sessionID string, reason string) error {
 	pkt.FuncName = ptotrans.FuncNameCloseClient
 	pkt.ArgBytes = streamBytes
 	pkt.Sid = sessionID
-	err = slf.cluster.PublishRemote(sessionInfo.GetGateNodeID(), pkt)
+	err = slf.cluster.Send(sessionInfo.GetGateNodeID(), pkt)
 	kkbuffer.Put(bbTrans)
 	if err != nil {
 		return err

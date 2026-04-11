@@ -123,7 +123,7 @@ func TestNatsCluster_PublishRemote(t *testing.T) {
 		ArgBytes: []byte("hello"),
 	}
 
-	if err := cluster1.PublishRemote("node2", packet); err != nil {
+	if err := cluster1.Send("node2", packet); err != nil {
 		t.Fatalf("PublishRemote() failed: %v", err)
 	}
 
@@ -234,7 +234,7 @@ func TestNatsCluster_PublishRemoteType(t *testing.T) {
 		ArgBytes: []byte("hello"),
 	}
 
-	if err := cluster1.PublishRemoteType("typea", packet); err != nil {
+	if err := cluster1.PublishType("typea", packet); err != nil {
 		t.Fatalf("PublishRemoteType() failed: %v", err)
 	}
 
@@ -318,7 +318,7 @@ func TestNatsCluster_RequestRemote(t *testing.T) {
 		ArgBytes: []byte("request"),
 	}
 
-	data, code := cluster1.RequestRemote("node2", packet, 2*time.Second)
+	data, code := cluster1.Request("node2", packet, 2*time.Second)
 	// 由于当前实现返回空响应，code应该是0，data应该是nil
 	if code != kkcluster.ClusterErrorCodeFail {
 		t.Errorf("RequestRemote() code = %d, want ClusterErrorCodeFail", code)
@@ -352,7 +352,7 @@ func TestNatsCluster_PublishRemote_NotFound(t *testing.T) {
 		ArgBytes: []byte("hello"),
 	}
 
-	err = cluster.PublishRemote("nonexistent", packet)
+	err = cluster.Send("nonexistent", packet)
 	if err == nil {
 		t.Error("PublishRemote() should return error for nonexistent node")
 	}
@@ -387,7 +387,7 @@ func TestNatsCluster_PublishRemoteType_NoMember(t *testing.T) {
 		ArgBytes: []byte("hello"),
 	}
 
-	err = cluster.PublishRemoteType("nonexistent", packet)
+	err = cluster.PublishType("nonexistent", packet)
 	if err == nil {
 		t.Error("PublishRemoteType() should return error for nonexistent type")
 	}
@@ -449,7 +449,7 @@ func TestNatsCluster_RequestRemoteAsync(t *testing.T) {
 
 	// 测试 nil callback 返回错误
 	packet := &kkcluster.ClusterPacket{FuncName: "test", ArgBytes: []byte("req")}
-	err = cluster1.RequestRemoteAsync("node2", packet, nil, 2*time.Second)
+	err = cluster1.RequestAsync("node2", packet, nil, 2*time.Second)
 	if err == nil {
 		t.Error("RequestRemoteAsync with nil callback should return error")
 	}
@@ -460,7 +460,7 @@ func TestNatsCluster_RequestRemoteAsync(t *testing.T) {
 	var gotData []byte
 	var gotCode kkcluster.ClusterErrorCode
 
-	err = cluster1.RequestRemoteAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
+	err = cluster1.RequestAsync("node2", packet, func(data []byte, code kkcluster.ClusterErrorCode) {
 		gotData = data
 		gotCode = code
 		close(done)
@@ -504,7 +504,7 @@ func TestNatsCluster_RequestRemoteAsync_NotFound(t *testing.T) {
 	defer cluster.Stop()
 
 	packet := &kkcluster.ClusterPacket{FuncName: "test", ArgBytes: []byte("hello")}
-	err = cluster.RequestRemoteAsync("nonexistent", packet, func([]byte, kkcluster.ClusterErrorCode) {}, 2*time.Second)
+	err = cluster.RequestAsync("nonexistent", packet, func([]byte, kkcluster.ClusterErrorCode) {}, 2*time.Second)
 	if err == nil {
 		t.Error("RequestRemoteAsync should return error for nonexistent node")
 	}

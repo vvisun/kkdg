@@ -108,7 +108,7 @@ func (slf *transportorNats) ForwardToLogic(sessionID string, msgBytes []byte, lo
 	pkt.FuncName = ptotrans.FuncNameC2S //暂时没用到
 	pkt.ArgBytes = msgBytes             //transportor编码时是复制，所以这里可以直接传引用，不用再复制一次。
 	pkt.Sid = sessionID
-	return slf.cluster.PublishRemote(logicNodeId, pkt)
+	return slf.cluster.Send(logicNodeId, pkt)
 }
 
 // ForwardToClient 转发消息到客户端
@@ -191,7 +191,7 @@ func (slf *transportorNats) NotifyClientDisconnect(sessionID string, logicNodeId
 	pkt.FuncName = ptotrans.FuncNameClientDisconnect
 	pkt.ArgBytes = nil
 	pkt.Sid = sessionID
-	return slf.cluster.PublishRemote(logicNodeId, pkt)
+	return slf.cluster.Send(logicNodeId, pkt)
 }
 
 func (slf *transportorNats) NotifyClientConnect(sessionID string, logicNodeId string, connId kknet.CONN_ID) error {
@@ -209,7 +209,7 @@ func (slf *transportorNats) NotifyClientConnect(sessionID string, logicNodeId st
 	pkt.FuncName = ptotrans.FuncNameAllocClient
 	pkt.ArgBytes = nil
 	pkt.Sid = sessionID
-	return slf.cluster.PublishRemote(logicNodeId, pkt)
+	return slf.cluster.Send(logicNodeId, pkt)
 }
 
 func (slf *transportorNats) HookMsg(listener gatetrans.MsgHookListener) {
