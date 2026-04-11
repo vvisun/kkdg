@@ -7,9 +7,12 @@ import (
 )
 
 type ClusterOption struct {
+	// 发现服务（可选）。用于发送消息时检查目标节点是否在线，不在线时快速失败。
 	Discovery kkdiscovery.IDiscovery
-	MsgCodec  kkcodec.ICodec
-	Url       string
+	// 消息编码器
+	MsgCodec kkcodec.ICodec
+	// 集群URL
+	Url string
 }
 
 func DefaultClusterOption() ClusterOption {

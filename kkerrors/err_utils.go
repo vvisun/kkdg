@@ -25,3 +25,9 @@ var (
 	// 无法解码为 FlatBuffer 类型（需实现 FlatBufferTable，即 *Xxx）
 	ErrCodecCannotUnmarshalFlatBuffer = errors.New("codec cannot unmarshal to flatbuffer: value must implement FlatBufferTable (*Xxx)")
 )
+
+// -------------- for tls -------------------
+var (
+	// 无效的证书文件
+	ErrInvalidCertFile = errors.New("invalid cert file")
+)

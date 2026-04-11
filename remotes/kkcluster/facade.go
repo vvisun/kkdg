@@ -5,9 +5,9 @@ import (
 )
 
 type (
-	// 向其他节点发送消息，no response
+	// 向其他节点发送消息，oneway, 没有response
 	FunPublishHandler func(nodeID string, packet *ClusterPacket)
-	// 向其他节点发送请求，有response
+	// 向其他节点发送请求，request, 有response
 	FunRequestHandler func(req *ClusterRequest) (*ClusterResponse, error)
 )
 
