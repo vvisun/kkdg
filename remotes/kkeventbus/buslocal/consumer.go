@@ -9,7 +9,7 @@ type consumer struct {
 	listenerMgr *internal.ListenerManager
 }
 
-func NewConsumer() *consumer {
+func newConsumer() *consumer {
 	return &consumer{
 		listenerMgr: internal.NewListenerManager(),
 	}

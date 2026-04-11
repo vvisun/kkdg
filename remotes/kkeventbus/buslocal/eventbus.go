@@ -56,7 +56,7 @@ func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbu
 
 	c, ok := eb.consumers[topic]
 	if !ok {
-		c = NewConsumer()
+		c = newConsumer()
 		eb.consumers[topic] = c
 	}
 

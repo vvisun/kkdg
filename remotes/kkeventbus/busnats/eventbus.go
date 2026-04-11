@@ -69,7 +69,7 @@ func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbu
 
 	c, ok := eb.consumers[channel]
 	if !ok {
-		c = NewConsumer()
+		c = newConsumer()
 		sub, err := eb.opts.conn.Subscribe(channel, func(msg *nats.Msg) {
 			c.dispatch(msg.Data)
 		})
