@@ -20,6 +20,9 @@ type EventHandler func(event *Event)
 
 const EventTopicPrefix = "kkbus."
 
+// IEventBus 事件总线接口
+//
+//	注意：buslocal和busnats中均未使用ctx参数，用于预留以兼容其他扩展实现（例如redis等）
 type IEventBus interface {
 	// Close 关闭事件总线
 	Close() error

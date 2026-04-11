@@ -37,7 +37,7 @@ func NewEventbus(opts ...Option) *Eventbus {
 }
 
 // Publish 发布事件
-func (eb *Eventbus) Publish(ctx context.Context, topic string, payload any) error {
+func (eb *Eventbus) Publish(_ context.Context, topic string, payload any) error {
 	if eb.err != nil {
 		return eb.err
 	}
@@ -51,7 +51,7 @@ func (eb *Eventbus) Publish(ctx context.Context, topic string, payload any) erro
 }
 
 // Subscribe 订阅事件
-func (eb *Eventbus) Subscribe(ctx context.Context, topic string, handler kkeventbus.EventHandler) error {
+func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) error {
 	if eb.err != nil {
 		return eb.err
 	}
@@ -80,7 +80,7 @@ func (eb *Eventbus) Subscribe(ctx context.Context, topic string, handler kkevent
 }
 
 // Unsubscribe 取消订阅
-func (eb *Eventbus) Unsubscribe(ctx context.Context, topic string, handler kkeventbus.EventHandler) error {
+func (eb *Eventbus) Unsubscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) error {
 	if eb.err != nil {
 		return eb.err
 	}
