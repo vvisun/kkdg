@@ -11,8 +11,8 @@ var (
 	netTW          *timingwheel.TimingWheel
 	onceNetTWStart sync.Once
 	onceNetTWStop  sync.Once
-	netTWTick            = 500 * time.Millisecond
-	netTWWheelSize int64 = 120 // 120 * 500ms = 1min
+	netTWTick            = 50 * time.Millisecond
+	netTWWheelSize int64 = 500 // 500 * 50ms = 25s
 )
 
 var (

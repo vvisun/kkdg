@@ -576,13 +576,23 @@ func (c *NatsCluster) Request(nodeID string, packet *kkcluster.ClusterPacket, ti
 	// 记录发送请求统计
 	c.stats.AddRequestSent(len(data))
 
-	// 等待响应
+	// 等待响应：时间轮调度超时（与 RequestAsync 一致），避免每请求 time.After 的定时器分配
+	timeoutSig := make(chan struct{}, 1)
+	tw := kktime.GetNetTimingWheel()
+	timer := tw.AfterFunc(reqTimeout, func() {
+		select {
+		case timeoutSig <- struct{}{}:
+		default:
+		}
+	})
+	defer timer.Stop()
+
 	select {
 	case resp := <-responseCh:
 		// 记录接收响应统计
 		c.stats.AddResponseReceived(len(resp.Data))
 		return resp.Data, kkcluster.ClusterErrorCode(resp.Code)
-	case <-time.After(reqTimeout):
+	case <-timeoutSig:
 		c.stats.AddError()
 		return nil, kkcluster.ClusterErrorCodeTimeout
 	}
