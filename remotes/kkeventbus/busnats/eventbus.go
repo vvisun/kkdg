@@ -16,6 +16,8 @@ type Eventbus struct {
 	consumers map[string]*consumer
 }
 
+var _ kkeventbus.IEventBus = (*Eventbus)(nil)
+
 func NewEventbus(opts ...Option) *Eventbus {
 	o := defaultOptions()
 	for _, opt := range opts {
