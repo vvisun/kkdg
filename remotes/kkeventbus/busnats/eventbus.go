@@ -7,6 +7,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type Eventbus struct {
@@ -112,6 +113,28 @@ func (eb *Eventbus) Unsubscribe(_ context.Context, topic string, handler kkevent
 	return nil
 }
 
+// UnsubscribeAll 取消所有订阅
+func (eb *Eventbus) UnsubscribeAll(_ context.Context) error {
+	if eb.err != nil {
+		return eb.err
+	}
+
+	eb.rw.Lock()
+	defer eb.rw.Unlock()
+
+	for _, c := range eb.consumers {
+		c.listenerMgr.UnsubscribeAll()
+
+		if err := c.sub.Unsubscribe(); err != nil {
+			kklog.Errorf("unsubscribe failed: %v", err)
+		}
+	}
+
+	eb.consumers = make(map[string]*consumer)
+
+	return nil
+}
+
 // UnsubscribeByID 根据ID取消订阅
 func (eb *Eventbus) UnsubscribeByID(_ context.Context, topic string, id uint64) error {
 	if eb.err != nil {
@@ -140,10 +163,14 @@ func (eb *Eventbus) UnsubscribeByID(_ context.Context, topic string, id uint64) 
 }
 
 // Close 停止监听
+//
+//	如果conn是外部连接，则不关闭，由外部管理。
 func (eb *Eventbus) Close() error {
 	if eb.err != nil {
 		return eb.err
 	}
+
+	eb.UnsubscribeAll(context.Background())
 
 	if eb.builtin {
 		eb.opts.conn.Close()

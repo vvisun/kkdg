@@ -97,6 +97,14 @@ func (eb *Eventbus) UnsubscribeByID(_ context.Context, topic string, id uint64) 
 	return nil
 }
 
+// UnsubscribeAll 取消所有订阅
+func (eb *Eventbus) UnsubscribeAll(_ context.Context) error {
+	eb.rw.Lock()
+	defer eb.rw.Unlock()
+	eb.consumers = make(map[string]*consumer)
+	return nil
+}
+
 // Close 停止监听
 func (eb *Eventbus) Close() error {
 	return nil

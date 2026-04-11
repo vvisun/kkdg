@@ -2,6 +2,7 @@ package kkeventbus
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/vvisun/kkdg/kkerrors"
@@ -32,23 +33,30 @@ type IEventBus interface {
 	Unsubscribe(ctx context.Context, topic string, handler EventHandler) error
 	// UnsubscribeByID 根据ID取消订阅
 	UnsubscribeByID(ctx context.Context, topic string, id uint64) error
+	// UnsubscribeAll 取消所有订阅
+	UnsubscribeAll(ctx context.Context) error
 }
 
 //----------------------------------------------------------------------
 
-var globalEventbus IEventBus
+var (
+	globalEventbus   IEventBus
+	globalEventbusMu sync.RWMutex
+)
 
-// SetEventbus 设置事件总线
+// SetEventbus 设置事件总线，一般在初始化阶段设置一次。只允许设置一次。
 func SetEventbus(eb IEventBus) {
 	if eb == nil {
 		kklog.Warn("cannot set a nil eventbus")
 		return
 	}
 
+	globalEventbusMu.Lock()
+	defer globalEventbusMu.Unlock()
+
 	if globalEventbus != nil {
-		if err := globalEventbus.Close(); err != nil {
-			kklog.Errorf("the old eventbus close failed: %v", err)
-		}
+		kklog.Errorf("global eventbus already setted")
+		return
 	}
 
 	globalEventbus = eb
@@ -93,6 +101,15 @@ func UnsubscribeByID(ctx context.Context, topic string, id uint64) error {
 	}
 
 	return globalEventbus.UnsubscribeByID(ctx, topic, id)
+}
+
+// UnsubscribeAll 取消所有订阅
+func UnsubscribeAll(ctx context.Context) error {
+	if globalEventbus == nil {
+		return kkerrors.ErrMissingEventbusInstance
+	}
+
+	return globalEventbus.UnsubscribeAll(ctx)
 }
 
 // Close 关闭事件总线
