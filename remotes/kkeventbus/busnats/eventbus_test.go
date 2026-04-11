@@ -68,6 +68,56 @@ func TestEventbus_PublishSubscribe_roundtrip(t *testing.T) {
 	}
 }
 
+// TestEventbus_MultipleNodesSubscribe_sameTopic 模拟多节点各自一条 NATS 连接并订阅同一逻辑 topic，
+// Publish 一次后 NATS 将消息 fan-out 到全部订阅者，每个节点应各收到 1 次。
+func TestEventbus_MultipleNodesSubscribe_sameTopic(t *testing.T) {
+	url := testNatsURL(t)
+	prefix := testSubjectPrefix(t)
+	const nNodes = 3
+	ctx := context.Background()
+	topic := "fanout"
+
+	var conns []*nats.Conn
+	t.Cleanup(func() {
+		for _, c := range conns {
+			c.Close()
+		}
+	})
+
+	var deliveries atomic.Int32
+	for i := 0; i < nNodes; i++ {
+		nc, err := nats.Connect(url, nats.Timeout(2*time.Second))
+		if err != nil {
+			t.Fatal(err)
+		}
+		conns = append(conns, nc)
+		eb := NewEventbus(WithConn(nc), WithPrefix(prefix))
+		h := func(e *kkeventbus.Event) {
+			if e.Topic == topic {
+				deliveries.Add(1)
+			}
+		}
+		if _, err := eb.Subscribe(ctx, topic, h); err != nil {
+			t.Fatalf("node %d Subscribe: %v", i, err)
+		}
+	}
+
+	pubNc, err := nats.Connect(url, nats.Timeout(2*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conns = append(conns, pubNc)
+	pub := NewEventbus(WithConn(pubNc), WithPrefix(prefix))
+	if err := pub.Publish(ctx, topic, []byte("broadcast")); err != nil {
+		t.Fatal(err)
+	}
+
+	waitUntilBus(t, func() bool { return deliveries.Load() == nNodes }, 5*time.Second)
+	if got := deliveries.Load(); got != nNodes {
+		t.Fatalf("deliveries=%d want %d (each node should receive once)", got, nNodes)
+	}
+}
+
 func TestEventbus_Unsubscribe_stopsDelivery(t *testing.T) {
 	url := testNatsURL(t)
 	nc, err := nats.Connect(url, nats.Timeout(2*time.Second))
