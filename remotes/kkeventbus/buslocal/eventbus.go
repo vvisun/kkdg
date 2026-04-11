@@ -45,19 +45,17 @@ func (eb *Eventbus) Publish(_ context.Context, topic string, payload any) error 
 }
 
 // Subscribe 订阅事件
-func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) error {
+func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) (uint64, error) {
 	eb.rw.Lock()
 	defer eb.rw.Unlock()
 
 	c, ok := eb.consumers[topic]
 	if !ok {
-		c = &consumer{handlers: make(map[uintptr][]kkeventbus.EventHandler, 1)}
+		c = NewConsumer()
 		eb.consumers[topic] = c
 	}
 
-	c.addHandler(handler)
-
-	return nil
+	return c.addHandler(handler), nil
 }
 
 // Unsubscribe 取消订阅
@@ -69,10 +67,24 @@ func (eb *Eventbus) Unsubscribe(_ context.Context, topic string, handler kkevent
 		if c.delHandler(handler) != 0 {
 			return nil
 		}
-
 		delete(eb.consumers, topic)
 	}
 
+	return nil
+}
+
+// UnsubscribeByID 根据ID取消订阅
+func (eb *Eventbus) UnsubscribeByID(_ context.Context, topic string, id uint64) error {
+	eb.rw.Lock()
+	defer eb.rw.Unlock()
+
+	if c, ok := eb.consumers[topic]; ok {
+		c.listenerMgr.UnsubscribeByID(id)
+		if c.listenerMgr.GetListenerCount() != 0 {
+			return nil
+		}
+		delete(eb.consumers, topic)
+	}
 	return nil
 }
 

@@ -51,9 +51,9 @@ func (eb *Eventbus) Publish(_ context.Context, topic string, payload any) error 
 }
 
 // Subscribe 订阅事件
-func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) error {
+func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) (uint64, error) {
 	if eb.err != nil {
-		return eb.err
+		return 0, eb.err
 	}
 
 	channel := eb.doMakeChannel(topic)
@@ -63,20 +63,18 @@ func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbu
 
 	c, ok := eb.consumers[channel]
 	if !ok {
-		c = &consumer{handlers: make(map[uintptr][]kkeventbus.EventHandler)}
+		c = NewConsumer()
 		sub, err := eb.opts.conn.Subscribe(channel, func(msg *nats.Msg) {
 			c.dispatch(msg.Data)
 		})
 		if err != nil {
-			return err
+			return 0, err
 		}
 		c.sub = sub
 		eb.consumers[channel] = c
 	}
 
-	c.addHandler(handler)
-
-	return nil
+	return c.addHandler(handler), nil
 }
 
 // Unsubscribe 取消订阅
@@ -92,6 +90,33 @@ func (eb *Eventbus) Unsubscribe(_ context.Context, topic string, handler kkevent
 
 	if c, ok := eb.consumers[channel]; ok {
 		if c.delHandler(handler) != 0 {
+			return nil
+		}
+
+		if err := c.sub.Unsubscribe(); err != nil {
+			return err
+		}
+
+		delete(eb.consumers, channel)
+	}
+
+	return nil
+}
+
+// UnsubscribeByID 根据ID取消订阅
+func (eb *Eventbus) UnsubscribeByID(_ context.Context, topic string, id uint64) error {
+	if eb.err != nil {
+		return eb.err
+	}
+
+	channel := eb.doMakeChannel(topic)
+
+	eb.rw.Lock()
+	defer eb.rw.Unlock()
+
+	if c, ok := eb.consumers[channel]; ok {
+		c.listenerMgr.UnsubscribeByID(id)
+		if c.listenerMgr.GetListenerCount() != 0 {
 			return nil
 		}
 

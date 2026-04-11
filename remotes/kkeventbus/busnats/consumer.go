@@ -1,47 +1,32 @@
 package nats
 
 import (
-	"reflect"
-	"sync"
-
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
+	"github.com/vvisun/kkdg/remotes/kkeventbus/internal"
 	"github.com/vvisun/kkdg/utils/kklog"
-	"github.com/vvisun/kkdg/utils/xcall"
 )
 
 type consumer struct {
-	sub      *nats.Subscription
-	rw       sync.RWMutex
-	handlers map[uintptr][]kkeventbus.EventHandler
+	sub         *nats.Subscription
+	listenerMgr *internal.ListenerManager
+}
+
+func NewConsumer() *consumer {
+	return &consumer{
+		listenerMgr: internal.NewListenerManager(),
+	}
 }
 
 // 添加处理器
-func (c *consumer) addHandler(handler kkeventbus.EventHandler) int {
-	pointer := reflect.ValueOf(handler).Pointer()
-
-	c.rw.Lock()
-	defer c.rw.Unlock()
-
-	if _, ok := c.handlers[pointer]; !ok {
-		c.handlers[pointer] = make([]kkeventbus.EventHandler, 0, 1)
-	}
-
-	c.handlers[pointer] = append(c.handlers[pointer], handler)
-
-	return len(c.handlers[pointer])
+func (c *consumer) addHandler(handler kkeventbus.EventHandler) uint64 {
+	return c.listenerMgr.Subscribe(handler)
 }
 
 // 移除处理器
 func (c *consumer) delHandler(handler kkeventbus.EventHandler) int {
-	pointer := reflect.ValueOf(handler).Pointer()
-
-	c.rw.Lock()
-	defer c.rw.Unlock()
-
-	delete(c.handlers, pointer)
-
-	return len(c.handlers)
+	c.listenerMgr.Unsubscribe(handler)
+	return c.listenerMgr.GetListenerCount()
 }
 
 // 分发数据
@@ -52,13 +37,5 @@ func (c *consumer) dispatch(data []byte) {
 		return
 	}
 
-	c.rw.RLock()
-	defer c.rw.RUnlock()
-
-	for _, handlers := range c.handlers {
-		for i := range handlers {
-			handler := handlers[i]
-			xcall.AntsSafeGo(func() { handler(event) })
-		}
-	}
+	c.listenerMgr.Publish(event)
 }

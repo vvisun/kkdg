@@ -18,8 +18,6 @@ type Event struct {
 
 type EventHandler func(event *Event)
 
-const EventTopicPrefix = "kkbus."
-
 // IEventBus 事件总线接口
 //
 //	注意：buslocal和busnats中均未使用ctx参数，用于预留以兼容其他扩展实现（例如redis等）
@@ -29,9 +27,11 @@ type IEventBus interface {
 	// Publish 发布事件
 	Publish(ctx context.Context, topic string, message any) error
 	// Subscribe 订阅事件
-	Subscribe(ctx context.Context, topic string, handler EventHandler) error
+	Subscribe(ctx context.Context, topic string, handler EventHandler) (uint64, error)
 	// Unsubscribe 取消订阅
 	Unsubscribe(ctx context.Context, topic string, handler EventHandler) error
+	// UnsubscribeByID 根据ID取消订阅
+	UnsubscribeByID(ctx context.Context, topic string, id uint64) error
 }
 
 //----------------------------------------------------------------------
@@ -69,9 +69,9 @@ func Publish(ctx context.Context, topic string, message any) error {
 }
 
 // Subscribe 订阅事件
-func Subscribe(ctx context.Context, topic string, handler EventHandler) error {
+func Subscribe(ctx context.Context, topic string, handler EventHandler) (uint64, error) {
 	if globalEventbus == nil {
-		return kkerrors.ErrMissingEventbusInstance
+		return 0, kkerrors.ErrMissingEventbusInstance
 	}
 
 	return globalEventbus.Subscribe(ctx, topic, handler)
@@ -84,6 +84,15 @@ func Unsubscribe(ctx context.Context, topic string, handler EventHandler) error 
 	}
 
 	return globalEventbus.Unsubscribe(ctx, topic, handler)
+}
+
+// UnsubscribeByID 根据 Subscribe 返回的 id 取消订阅
+func UnsubscribeByID(ctx context.Context, topic string, id uint64) error {
+	if globalEventbus == nil {
+		return kkerrors.ErrMissingEventbusInstance
+	}
+
+	return globalEventbus.UnsubscribeByID(ctx, topic, id)
 }
 
 // Close 关闭事件总线
