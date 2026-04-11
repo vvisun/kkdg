@@ -38,10 +38,13 @@ type IEventBus interface {
 }
 
 //----------------------------------------------------------------------
+//
+// 全局总线约定：在任意 goroutine 调用 Publish / Subscribe 等之前，须由初始化路径完成一次 SetEventbus。
+// 读路径（GetEventbus、包级转发）不加锁，以避免热路径开销；请勿在运行期并发再次 SetEventbus。
 
 var (
 	globalEventbus   IEventBus
-	globalEventbusMu sync.RWMutex
+	globalEventbusMu sync.Mutex //仅保护 SetEventbus 的「只设一次」
 )
 
 // SetEventbus 设置事件总线，一般在初始化阶段设置一次。只允许设置一次。
@@ -55,14 +58,14 @@ func SetEventbus(eb IEventBus) {
 	defer globalEventbusMu.Unlock()
 
 	if globalEventbus != nil {
-		kklog.Errorf("global eventbus already setted")
+		kklog.Errorf("global eventbus already set")
 		return
 	}
 
 	globalEventbus = eb
 }
 
-// GetEventbus 获取事件总线
+// GetEventbus 获取事件总线（无锁；须满足上述初始化约定）。
 func GetEventbus() IEventBus {
 	return globalEventbus
 }
