@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/nats-io/nats.go"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
 )
 
@@ -56,6 +57,10 @@ func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbu
 		return 0, eb.err
 	}
 
+	if handler == nil {
+		return 0, kkerrors.ErrInvalidHandler
+	}
+
 	channel := eb.doMakeChannel(topic)
 
 	eb.rw.Lock()
@@ -81,6 +86,10 @@ func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbu
 func (eb *Eventbus) Unsubscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) error {
 	if eb.err != nil {
 		return eb.err
+	}
+
+	if handler == nil {
+		return kkerrors.ErrInvalidHandler
 	}
 
 	channel := eb.doMakeChannel(topic)

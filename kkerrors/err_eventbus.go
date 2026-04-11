@@ -17,4 +17,6 @@ var (
 	ErrEventbusNotClosed = errors.New("eventbus not closed")
 	// 事件总线已关闭
 	ErrEventbusAlreadyClosed = errors.New("eventbus already closed")
+	// 事件处理器无效
+	ErrInvalidHandler = errors.New("invalid handler")
 )

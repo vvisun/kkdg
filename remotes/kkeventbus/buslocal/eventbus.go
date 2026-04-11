@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
 	xvalue "github.com/vvisun/kkdg/utils/value"
 	"github.com/vvisun/kkdg/utils/xtime"
@@ -46,6 +47,10 @@ func (eb *Eventbus) Publish(_ context.Context, topic string, payload any) error 
 
 // Subscribe 订阅事件
 func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) (uint64, error) {
+	if handler == nil {
+		return 0, kkerrors.ErrInvalidHandler
+	}
+
 	eb.rw.Lock()
 	defer eb.rw.Unlock()
 
@@ -60,6 +65,10 @@ func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbu
 
 // Unsubscribe 取消订阅
 func (eb *Eventbus) Unsubscribe(_ context.Context, topic string, handler kkeventbus.EventHandler) error {
+	if handler == nil {
+		return kkerrors.ErrInvalidHandler
+	}
+
 	eb.rw.Lock()
 	defer eb.rw.Unlock()
 
