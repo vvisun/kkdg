@@ -30,7 +30,7 @@ func testSubjectPrefix(t *testing.T) string {
 
 func TestEventbus_Subscribe_nilHandler(t *testing.T) {
 	url := testNatsURL(t)
-	eb := NewEventbus(WithUrl(url), WithTimeout(500*time.Millisecond), WithPrefix(testSubjectPrefix(t)))
+	eb, _ := NewEventbus(WithUrl(url), WithTimeout(500*time.Millisecond), WithPrefix(testSubjectPrefix(t)))
 	ctx := context.Background()
 	_, err := eb.Subscribe(ctx, "t", nil)
 	if !errors.Is(err, kkerrors.ErrInvalidHandler) {
@@ -47,7 +47,7 @@ func TestEventbus_PublishSubscribe_roundtrip(t *testing.T) {
 	}
 	t.Cleanup(func() { nc.Close() })
 
-	eb := NewEventbus(WithConn(nc), WithPrefix(prefix))
+	eb, _ := NewEventbus(WithConn(nc), WithPrefix(prefix))
 	ctx := context.Background()
 
 	var n atomic.Int32
@@ -91,7 +91,7 @@ func TestEventbus_MultipleNodesSubscribe_sameTopic(t *testing.T) {
 			t.Fatal(err)
 		}
 		conns = append(conns, nc)
-		eb := NewEventbus(WithConn(nc), WithPrefix(prefix))
+		eb, _ := NewEventbus(WithConn(nc), WithPrefix(prefix))
 		h := func(e *kkeventbus.Event) {
 			if e.Topic == topic {
 				deliveries.Add(1)
@@ -107,7 +107,7 @@ func TestEventbus_MultipleNodesSubscribe_sameTopic(t *testing.T) {
 		t.Fatal(err)
 	}
 	conns = append(conns, pubNc)
-	pub := NewEventbus(WithConn(pubNc), WithPrefix(prefix))
+	pub, _ := NewEventbus(WithConn(pubNc), WithPrefix(prefix))
 	if err := pub.Publish(ctx, topic, []byte("broadcast")); err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestEventbus_Unsubscribe_stopsDelivery(t *testing.T) {
 	}
 	t.Cleanup(func() { nc.Close() })
 
-	eb := NewEventbus(WithConn(nc), WithPrefix(testSubjectPrefix(t)))
+	eb, _ := NewEventbus(WithConn(nc), WithPrefix(testSubjectPrefix(t)))
 	ctx := context.Background()
 	var n atomic.Int32
 	h := func(e *kkeventbus.Event) { n.Add(1) }
@@ -153,7 +153,7 @@ func TestEventbus_UnsubscribeByID(t *testing.T) {
 	}
 	t.Cleanup(func() { nc.Close() })
 
-	eb := NewEventbus(WithConn(nc), WithPrefix(testSubjectPrefix(t)))
+	eb, _ := NewEventbus(WithConn(nc), WithPrefix(testSubjectPrefix(t)))
 	ctx := context.Background()
 	var n atomic.Int32
 	h := func(e *kkeventbus.Event) { n.Add(1) }

@@ -77,9 +77,9 @@ var asyncReqPool = sync.Pool{
 }
 
 // NewNatsCluster 创建新的NATS集群
-func NewNatsCluster(nodeID string, nodeType string, clusterOpt kkcluster.ClusterOption) kkcluster.ICluster {
+func NewNatsCluster(nodeID string, nodeType string, clusterOpt kkcluster.ClusterOption) *NatsCluster {
 	kkcluster.CheckClusterOption(&clusterOpt)
-	natsOpts := FromClusterOption(clusterOpt)
+	natsOpts := fromClusterOption(clusterOpt)
 
 	if natsOpts.Url == "" {
 		kklog.Warnf("NatsCluster(%s) nats url is empty, will not start cluster", nodeID)
@@ -97,6 +97,11 @@ func NewNatsCluster(nodeID string, nodeType string, clusterOpt kkcluster.Cluster
 		workerQueue: taskqueue.NewWorkerQueue(1),
 		msgCodec:    clusterOpt.MsgCodec,
 	}
+}
+
+// GetConn 获取NATS连接, 用于外部直接使用NATS连接
+func (c *NatsCluster) GetConn() *nats.Conn {
+	return c.conn
 }
 
 // SetRequestHandler 设置请求处理器

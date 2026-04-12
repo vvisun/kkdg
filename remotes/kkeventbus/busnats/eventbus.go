@@ -20,7 +20,7 @@ type Eventbus struct {
 
 var _ kkeventbus.IEventBus = (*Eventbus)(nil)
 
-func NewEventbus(opts ...Option) *Eventbus {
+func NewEventbus(opts ...Option) (*Eventbus, error) {
 	o := defaultOptions()
 	for _, opt := range opts {
 		opt(o)
@@ -35,7 +35,7 @@ func NewEventbus(opts ...Option) *Eventbus {
 		eb.builtin = true
 	}
 
-	return eb
+	return eb, eb.err
 }
 
 // Publish 发布事件

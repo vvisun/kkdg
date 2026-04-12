@@ -6,12 +6,6 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-const (
-	defaultUrl     = "nats://127.0.0.1:4222"
-	defaultTimeout = 2 * time.Second
-	defaultPrefix  = "kkbus:"
-)
-
 type Option func(o *options)
 
 type options struct {
@@ -23,21 +17,21 @@ type options struct {
 	// 内建客户端配置，默认为2s
 	timeout time.Duration
 
+	// 前缀
+	// key前缀，默认为 "kkbus:"
+	prefix string
+
 	// 客户端连接
 	// 外部客户端连接配置，存在外部客户端连接时，优先使用外部客户端连接，默认为nil
 	// 如果conn是外部连接，则不关闭，由外部管理。
 	conn *nats.Conn
-
-	// 前缀
-	// key前缀，默认为 "kkbus:"
-	prefix string
 }
 
 func defaultOptions() *options {
 	return &options{
-		url:     defaultUrl,
-		timeout: defaultTimeout,
-		prefix:  defaultPrefix,
+		url:     "nats://127.0.0.1:4222",
+		timeout: 2 * time.Second,
+		prefix:  "kkbus:",
 	}
 }
 

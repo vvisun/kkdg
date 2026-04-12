@@ -20,7 +20,7 @@ func defaultNatsOptions() nats.Options {
 	opts.MaxReconnect = -1
 	opts.ReconnectWait = 2 * time.Second
 	opts.Timeout = 5 * time.Second
-	opts.PingInterval = 15 * time.Second
+	opts.PingInterval = 10 * time.Second
 	return opts
 }
 
@@ -35,7 +35,7 @@ func ApplyNatsOptions(options ...nats.Option) nats.Options {
 	return opts
 }
 
-func FromClusterOption(opt kkcluster.ClusterOption) nats.Options {
+func fromClusterOption(opt kkcluster.ClusterOption) nats.Options {
 	opts := defaultNatsOptions()
 	if opt.Url != "" {
 		opts.Url = opt.Url
