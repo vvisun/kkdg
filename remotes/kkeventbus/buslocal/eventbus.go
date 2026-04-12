@@ -6,23 +6,25 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
-	"github.com/vvisun/kkdg/utils/xtime"
-	"github.com/vvisun/kkdg/utils/xuuid"
-	"github.com/vvisun/kkdg/utils/xvalue"
+	"github.com/vvisun/kkdg/remotes/kkeventbus/internal"
 )
 
 type Eventbus struct {
+	registry  *kkeventbus.MessageRegistry
 	rw        sync.RWMutex
 	consumers map[string]*consumer
 }
 
 var _ kkeventbus.IEventBus = (*Eventbus)(nil)
 
-func NewEventbus() *Eventbus {
-	eb := &Eventbus{}
-	eb.consumers = make(map[string]*consumer)
-
-	return eb
+func NewEventbus(registry *kkeventbus.MessageRegistry) (*Eventbus, error) {
+	if registry == nil {
+		return nil, kkeventbus.ErrRegistryNil
+	}
+	return &Eventbus{
+		registry:  registry,
+		consumers: make(map[string]*consumer),
+	}, nil
 }
 
 // Publish 发布事件
@@ -35,12 +37,12 @@ func (eb *Eventbus) Publish(_ context.Context, topic string, payload any) error 
 		return nil
 	}
 
-	c.dispatch(&kkeventbus.Event{
-		ID:        xuuid.UUID(),
-		Topic:     topic,
-		Payload:   xvalue.NewValue(payload),
-		Timestamp: xtime.UnixNano(xtime.Now().UnixNano()),
-	})
+	buf, err := internal.Serialize(eb.registry, topic, payload)
+	if err != nil {
+		return err
+	}
+
+	c.dispatch(buf)
 
 	return nil
 }
@@ -56,7 +58,7 @@ func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbu
 
 	c, ok := eb.consumers[topic]
 	if !ok {
-		c = newConsumer()
+		c = newConsumer(eb.registry)
 		eb.consumers[topic] = c
 	}
 
@@ -107,5 +109,14 @@ func (eb *Eventbus) UnsubscribeAll(_ context.Context) error {
 
 // Close 停止监听
 func (eb *Eventbus) Close() error {
+	eb.rw.Lock()
+	defer eb.rw.Unlock()
+
+	for _, c := range eb.consumers {
+		c.listenerMgr.UnsubscribeAll()
+	}
+
+	eb.consumers = make(map[string]*consumer)
+
 	return nil
 }

@@ -3,15 +3,18 @@ package buslocal
 import (
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
 	"github.com/vvisun/kkdg/remotes/kkeventbus/internal"
+	"github.com/vvisun/kkdg/utils/kklog"
 )
 
 type consumer struct {
 	listenerMgr *internal.ListenerManager
+	registry    *kkeventbus.MessageRegistry
 }
 
-func newConsumer() *consumer {
+func newConsumer(registry *kkeventbus.MessageRegistry) *consumer {
 	return &consumer{
 		listenerMgr: internal.NewListenerManager(),
+		registry:    registry,
 	}
 }
 
@@ -27,6 +30,12 @@ func (c *consumer) delHandler(handler kkeventbus.EventHandler) int {
 }
 
 // 分发数据
-func (c *consumer) dispatch(event *kkeventbus.Event) {
+func (c *consumer) dispatch(data []byte) {
+	event, err := internal.Deserialize(c.registry, data)
+	if err != nil {
+		kklog.Errorf("invalid event data: %v", err)
+		return
+	}
+
 	c.listenerMgr.Publish(event)
 }

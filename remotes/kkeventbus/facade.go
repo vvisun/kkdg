@@ -42,15 +42,13 @@ package kkeventbus
 import (
 	"context"
 	"time"
-
-	"github.com/vvisun/kkdg/utils/xvalue"
 )
 
 type Event struct {
-	ID        string       // 事件ID
-	Topic     string       // 事件主题
-	Payload   xvalue.Value // 事件载荷
-	Timestamp time.Time    // 事件时间
+	ID        string    `json:"id"`        // 事件ID
+	Topic     string    `json:"topic"`     // 事件主题
+	Payload   any       `json:"payload"`   // 事件载荷
+	Timestamp time.Time `json:"timestamp"` // 事件时间
 }
 
 type EventHandler func(event *Event)

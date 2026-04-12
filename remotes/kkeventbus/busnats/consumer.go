@@ -10,11 +10,13 @@ import (
 type consumer struct {
 	sub         *nats.Subscription
 	listenerMgr *internal.ListenerManager
+	registry    *kkeventbus.MessageRegistry
 }
 
-func newConsumer() *consumer {
+func newConsumer(registry *kkeventbus.MessageRegistry) *consumer {
 	return &consumer{
 		listenerMgr: internal.NewListenerManager(),
+		registry:    registry,
 	}
 }
 
@@ -31,7 +33,7 @@ func (c *consumer) delHandler(handler kkeventbus.EventHandler) int {
 
 // 分发数据
 func (c *consumer) dispatch(data []byte) {
-	event, err := deserialize(data)
+	event, err := internal.Deserialize(c.registry, data)
 	if err != nil {
 		kklog.Errorf("invalid event data: %v", err)
 		return

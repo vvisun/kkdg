@@ -7,6 +7,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
+	"github.com/vvisun/kkdg/remotes/kkeventbus/internal"
 	"github.com/vvisun/kkdg/utils/kklog"
 )
 
@@ -14,19 +15,24 @@ type Eventbus struct {
 	err       error
 	opts      *options
 	builtin   bool
+	registry  *kkeventbus.MessageRegistry
 	rw        sync.RWMutex
 	consumers map[string]*consumer
 }
 
 var _ kkeventbus.IEventBus = (*Eventbus)(nil)
 
-func NewEventbus(opts ...Option) (*Eventbus, error) {
+func NewEventbus(registry *kkeventbus.MessageRegistry, opts ...Option) (*Eventbus, error) {
+	if registry == nil {
+		return nil, kkeventbus.ErrRegistryNil
+	}
+
 	o := defaultOptions()
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	eb := &Eventbus{opts: o}
+	eb := &Eventbus{opts: o, registry: registry}
 	eb.opts = o
 	eb.consumers = make(map[string]*consumer)
 
@@ -44,7 +50,7 @@ func (eb *Eventbus) Publish(_ context.Context, topic string, payload any) error 
 		return eb.err
 	}
 
-	buf, err := serialize(topic, payload)
+	buf, err := internal.Serialize(eb.registry, topic, payload)
 	if err != nil {
 		return err
 	}
@@ -69,7 +75,7 @@ func (eb *Eventbus) Subscribe(_ context.Context, topic string, handler kkeventbu
 
 	c, ok := eb.consumers[channel]
 	if !ok {
-		c = newConsumer()
+		c = newConsumer(eb.registry)
 		sub, err := eb.opts.conn.Subscribe(channel, func(msg *nats.Msg) {
 			c.dispatch(msg.Data)
 		})

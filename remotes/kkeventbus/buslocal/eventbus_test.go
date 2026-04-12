@@ -9,28 +9,44 @@ import (
 
 	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/remotes/kkeventbus"
+	"github.com/vvisun/kkdg/utils/kkcodec"
 )
 
 func TestEventbus_Subscribe_nilHandler(t *testing.T) {
-	eb := NewEventbus()
+	registry := kkeventbus.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
+	eb, err := NewEventbus(registry)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
-	_, err := eb.Subscribe(ctx, "t", nil)
+	_, err = eb.Subscribe(ctx, "t", nil)
 	if !errors.Is(err, kkerrors.ErrInvalidHandler) {
 		t.Fatalf("Subscribe nil: %v, want ErrInvalidHandler", err)
 	}
 }
 
 func TestEventbus_Unsubscribe_nilHandler(t *testing.T) {
-	eb := NewEventbus()
+	registry := kkeventbus.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
+	eb, err := NewEventbus(registry)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
-	err := eb.Unsubscribe(ctx, "t", nil)
+	err = eb.Unsubscribe(ctx, "t", nil)
 	if !errors.Is(err, kkerrors.ErrInvalidHandler) {
 		t.Fatalf("Unsubscribe nil: %v, want ErrInvalidHandler", err)
 	}
 }
 
 func TestEventbus_Publish_roundtrip(t *testing.T) {
-	eb := NewEventbus()
+	registry := kkeventbus.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
+	if err := registry.Register("my.topic", []byte{}); err != nil {
+		t.Fatal(err)
+	}
+	eb, err := NewEventbus(registry)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	var gotTopic string
 	var n atomic.Int32
@@ -51,10 +67,16 @@ func TestEventbus_Publish_roundtrip(t *testing.T) {
 }
 
 func TestEventbus_Unsubscribe_removesTopic(t *testing.T) {
-	eb := NewEventbus()
+	registry := kkeventbus.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
+	eb, err := NewEventbus(registry)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	var n atomic.Int32
-	h := func(e *kkeventbus.Event) { n.Add(1) }
+	h := func(e *kkeventbus.Event) {
+		n.Add(1)
+	}
 	if _, err := eb.Subscribe(ctx, "t", h); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +93,11 @@ func TestEventbus_Unsubscribe_removesTopic(t *testing.T) {
 }
 
 func TestEventbus_UnsubscribeByID(t *testing.T) {
-	eb := NewEventbus()
+	registry := kkeventbus.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
+	eb, err := NewEventbus(registry)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx := context.Background()
 	var n atomic.Int32
 	h := func(e *kkeventbus.Event) { n.Add(1) }
@@ -104,4 +130,41 @@ func waitUntil(t *testing.T, cond func() bool, d time.Duration) {
 		time.Sleep(2 * time.Millisecond)
 	}
 	t.Fatal("condition not met")
+}
+
+type TestStruct struct {
+	Age  int    `json:"age"`
+	Name string `json:"name"`
+}
+
+func TestEventbus_Publish_Struct(t *testing.T) {
+	registry := kkeventbus.NewMessageRegistry(kkcodec.GetCodec(kkcodec.CodecTypeJson))
+	if err := registry.Register("my.topic", &TestStruct{}); err != nil {
+		t.Fatal(err)
+	}
+	eb, err := NewEventbus(registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	var gotTopic string
+	var n atomic.Int32
+	h := func(e *kkeventbus.Event) {
+		gotTopic = e.Topic
+		var gotTestStruct *TestStruct = e.Payload.(*TestStruct)
+		if gotTestStruct.Age != 18 || gotTestStruct.Name != "John" {
+			t.Fatalf("payload %+v", gotTestStruct)
+		}
+		n.Add(1)
+	}
+	if _, err := eb.Subscribe(ctx, "my.topic", h); err != nil {
+		t.Fatal(err)
+	}
+	if err := eb.Publish(ctx, "my.topic", &TestStruct{Age: 18, Name: "John"}); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, func() bool { return n.Load() == 1 }, 2*time.Second)
+	if gotTopic != "my.topic" {
+		t.Fatalf("topic %q", gotTopic)
+	}
 }
