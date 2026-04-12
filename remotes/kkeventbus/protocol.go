@@ -29,6 +29,8 @@ func (r *MessageRegistry) GetCodec() kkcodec.ICodec {
 	return r.codec
 }
 
+// 同一topic只能注册一种类型的消息，重复注册且类型与已注册类型不一致则返回错误
+// 允许不同topic注册相同类型的消息
 func (r *MessageRegistry) Register(topic string, msg any) error {
 	if msg == nil {
 		return ErrRegisterInvalidMsg
@@ -41,7 +43,7 @@ func (r *MessageRegistry) Register(topic string, msg any) error {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if oldTopic, ok := r.typeToName[typ]; ok && oldTopic != topic {
+	if oldType, ok := r.nameToType[topic]; ok && oldType != typ {
 		return ErrRegisterDuplicateTopic
 	}
 	r.typeToName[typ] = topic
