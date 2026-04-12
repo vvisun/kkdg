@@ -10,6 +10,33 @@
 //
 // buslocal 是本地事件总线实现，它使用本地内存来存储事件，适用于单机部署。
 // busnats 是 NATS 事件总线实现，它使用 NATS 作为事件总线，适用于分布式部署。
+//
+// 如何使用：
+// 1. 项目初始化时，创建一个事件总线实例，并设置为全局事件总线，建议为app级。
+// eg:
+//
+//	type AppExtraData struct {
+//		NatsBus *busnats.Eventbus
+//	}
+//
+//	natsBus, err := busnats.NewEventbus(busnats.WithUrl("nats://127.0.0.1:4222"))
+//	if err != nil {
+//		return err
+//	}
+//	app.SetExtData(&AppExtraData{NatsBus: natsBus})
+//
+// 2. 在需要使用事件总线的地方，获取事件总线实例。
+// eg:
+//
+//	appExtraData := app.GetExtData().(*AppExtraData)
+//	appExtraData.NatsBus.Publish(context.Background(), "test", "hello")
+//
+// 3. 在需要订阅事件的地方，订阅事件。
+// eg:
+//
+//	appExtraData.NatsBus.Subscribe(context.Background(), "test", func(event *Event) {
+//		fmt.Println(event.Payload)
+//	})
 package kkeventbus
 
 import (
