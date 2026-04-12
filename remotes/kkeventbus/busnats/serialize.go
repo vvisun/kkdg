@@ -1,4 +1,4 @@
-package nats
+package busnats
 
 import (
 	"github.com/vvisun/kkdg/remotes/kkeventbus"

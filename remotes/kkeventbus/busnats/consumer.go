@@ -1,4 +1,4 @@
-package nats
+package busnats
 
 import (
 	"github.com/nats-io/nats.go"
