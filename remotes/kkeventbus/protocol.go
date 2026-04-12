@@ -18,6 +18,8 @@ var (
 )
 
 // MessageRegistry 载荷解析器
+// 维护 topic 与消息类型的映射，供 EncodeMessage、DecodeMessage 及 bus 线格式使用。
+// 注册约定见 [MessageRegistry.Register]。
 type MessageRegistry struct {
 	mu         sync.RWMutex
 	codec      kkcodec.ICodec

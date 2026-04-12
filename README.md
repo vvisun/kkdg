@@ -83,7 +83,7 @@ kkdg/
 3. **可复用的「地基」**  
    - **kknet**：TCP / WebSocket 等基础网络  
    - **kkpacket**：封包与路由  
-   - **remotes**：集群、发现、RPC、事件总线（**`kkeventbus` 用法见包内 `facade.go` 注释**，推荐通过 `kkapp` 的 `SetExtData` / `GetExtData` 挂实例）  
+   - **remotes**：集群、发现、RPC、事件总线（**`kkeventbus`**：先 `NewMessageRegistry` + `Register` topic/类型，再 `busnats.NewEventbus(reg, ...)` 或 `buslocal.NewEventbus(reg)`；详见包内 **`facade.go` 文档**，实例建议挂在 `kkapp` 的 `SetExtData` / `GetExtData`）  
    - **tools / utils**：编解码、时间轮、队列、对象池等  
 
 ### 依赖
