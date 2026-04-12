@@ -14,7 +14,7 @@ import (
 )
 
 // examrpc 演示基于 TCP 的 RPC 用法（请求响应 + 单向）
-// cd zothers/examples/examrpc; go run main.go
+// cd zothers/internal/examples/examrpc && go run .
 
 func main() {
 	addr := freePort()

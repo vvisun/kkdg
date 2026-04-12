@@ -3,7 +3,7 @@ package main
 // 该工具用于生成消息ID与消息类型的映射关系。
 // 读取指定 proto 目录下的所有 .proto 文件，根据 route_cfg.json 文件生成消息ID与消息类型的映射关系，输出到指定文件。
 // 用法示例:
-//   msdid ./zothers/examples/examapp/ptoexam
+//   msdid ./zothers/internal/demo1/examapp/ptoexam
 //
 // 在 ptoexam 目录中:
 //   - route_cfg.json:
@@ -76,7 +76,7 @@ func printUsage() {
 	}
 	fmt.Fprintf(os.Stderr, "用法: %s <proto目录>\n", exe)
 	fmt.Fprintln(os.Stderr, "示例:")
-	fmt.Fprintf(os.Stderr, "  %s ./zothers/examples/examapp/ptoexam\n", exe)
+	fmt.Fprintf(os.Stderr, "  %s ./zothers/internal/demo1/examapp/ptoexam\n", exe)
 }
 
 func run(dir string) error {

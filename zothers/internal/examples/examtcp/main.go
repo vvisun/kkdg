@@ -13,7 +13,7 @@ import (
 )
 
 // examtcp 演示 TCP 服务端与客户端的基本用法（Echo 回显）
-// cd zothers/examples/examtcp; go run main.go
+// cd zothers/internal/examples/examtcp && go run .
 
 func main() {
 	addr := freePort()

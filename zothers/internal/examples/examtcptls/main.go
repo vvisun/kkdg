@@ -21,7 +21,7 @@ import (
 )
 
 // examtcptls 演示 TCP TLS 服务端与客户端的基本用法（Echo 回显）
-// cd zothers/examples/examtcptls; go run main.go
+// cd zothers/internal/examples/examtcptls && go run .
 
 func main() {
 	addr := freePort()

@@ -10,7 +10,7 @@ import (
 )
 
 // examdiscovery 演示基于 NATS 的服务发现用法
-// cd zothers/examples/examdiscovery; go run main.go
+// cd zothers/internal/examples/examdiscovery && go run .
 // 需先启动 NATS（默认 nats://127.0.0.1:4222）
 
 func main() {

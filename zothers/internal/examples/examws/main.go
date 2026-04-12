@@ -13,7 +13,7 @@ import (
 )
 
 // examws 演示 WebSocket 服务端与客户端的基本用法（Echo 回显）
-// cd zothers/examples/examws; go run main.go
+// cd zothers/internal/examples/examws && go run .
 
 func main() {
 	addr := freePort()

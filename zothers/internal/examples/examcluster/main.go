@@ -12,7 +12,7 @@ import (
 )
 
 // exampleStats 统计信息使用示例
-// cd zothers/examples/examcluster; go run main.go
+// cd zothers/internal/examples/examcluster && go run .
 
 func exampleStats() {
 	// 创建服务发现
