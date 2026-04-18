@@ -6,20 +6,20 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-type Option func(o *options)
+type Option func(o *Options)
 
-type options struct {
+type Options struct {
 	// 客户端连接地址
 	// 内建客户端配置，默认为nats://127.0.0.1:4222
-	url string
+	Url string
 
 	// 客户端连接超时时间
 	// 内建客户端配置，默认为2s
-	timeout time.Duration
+	Timeout time.Duration
 
 	// 前缀
 	// key前缀，默认为 "kkbus:"
-	prefix string
+	TopicPrefix string
 
 	// 客户端连接
 	// 外部客户端连接配置，存在外部客户端连接时，优先使用外部客户端连接，默认为nil
@@ -27,30 +27,38 @@ type options struct {
 	conn *nats.Conn
 }
 
-func defaultOptions() *options {
-	return &options{
-		url:     "nats://127.0.0.1:4222",
-		timeout: 2 * time.Second,
-		prefix:  "kkbus:",
+func defaultOptions() *Options {
+	return &Options{
+		Url:         "nats://127.0.0.1:4222",
+		Timeout:     2 * time.Second,
+		TopicPrefix: "kkbus:",
 	}
+}
+
+func ApplyOptions(opts ...Option) Options {
+	o := defaultOptions()
+	for _, opt := range opts {
+		opt(o)
+	}
+	return *o
 }
 
 // WithUrl 设置连接地址
 func WithUrl(url string) Option {
-	return func(o *options) { o.url = url }
+	return func(o *Options) { o.Url = url }
 }
 
 // WithTimeout 客户端连接超时时间
 func WithTimeout(timeout time.Duration) Option {
-	return func(o *options) { o.timeout = timeout }
+	return func(o *Options) { o.Timeout = timeout }
 }
 
 // WithConn 设置外部客户端连接
 func WithConn(conn *nats.Conn) Option {
-	return func(o *options) { o.conn = conn }
+	return func(o *Options) { o.conn = conn }
 }
 
 // WithPrefix 设置前缀
 func WithPrefix(prefix string) Option {
-	return func(o *options) { o.prefix = prefix }
+	return func(o *Options) { o.TopicPrefix = prefix }
 }

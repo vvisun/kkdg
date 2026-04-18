@@ -13,8 +13,8 @@ import (
 
 type Eventbus struct {
 	err       error
-	opts      *options
 	builtin   bool
+	opts      Options
 	registry  *kkeventbus.MessageRegistry
 	rw        sync.RWMutex
 	consumers map[string]*consumer
@@ -22,22 +22,16 @@ type Eventbus struct {
 
 var _ kkeventbus.IEventBus = (*Eventbus)(nil)
 
-func NewEventbus(registry *kkeventbus.MessageRegistry, opts ...Option) (*Eventbus, error) {
+func NewEventbus(registry *kkeventbus.MessageRegistry, opts Options) (*Eventbus, error) {
 	if registry == nil {
 		return nil, kkeventbus.ErrRegistryNil
 	}
 
-	o := defaultOptions()
-	for _, opt := range opts {
-		opt(o)
-	}
-
-	eb := &Eventbus{opts: o, registry: registry}
-	eb.opts = o
+	eb := &Eventbus{opts: opts, registry: registry}
 	eb.consumers = make(map[string]*consumer)
 
-	if o.conn == nil {
-		o.conn, eb.err = nats.Connect(o.url, nats.Timeout(o.timeout))
+	if opts.conn == nil {
+		opts.conn, eb.err = nats.Connect(opts.Url, nats.Timeout(opts.Timeout))
 		eb.builtin = true
 	}
 
@@ -186,9 +180,9 @@ func (eb *Eventbus) Close() error {
 }
 
 func (eb *Eventbus) doMakeChannel(topic string) string {
-	if eb.opts.prefix == "" {
+	if eb.opts.TopicPrefix == "" {
 		return topic
 	} else {
-		return eb.opts.prefix + ":" + topic
+		return eb.opts.TopicPrefix + ":" + topic
 	}
 }
