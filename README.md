@@ -26,7 +26,7 @@ kkdg/
 │   ├── kkcluster/    # 基于 NATS 的集群消息
 │   ├── kkdiscovery/  # 服务发现
 │   └── kkeventbus/   # 发布 / 订阅事件总线（buslocal / busnats）
-├── proto/            # 协议（FlatBuffers、Protobuf 等）
+├── proto/            # 协议（Protobuf 等）
 ├── utils/            # 工具（buffer、codec、queue、timingwheel 等）
 ├── kkmetrics/        # Prometheus / OpenTelemetry
 └── tools/            # 代码生成（fbspb、fbs2struct）、消息 ID 等
