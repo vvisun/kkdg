@@ -41,15 +41,34 @@ type onewayInvokers struct {
 func newOnewayInvokers(rpcSvr *kkrpc.Server) (*onewayInvokers, error) {
 	invokers := &onewayInvokers{}
 
-	invokers.onewayMsgRegister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcSvr)
-	invokers.onewayS2C, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcSvr)
-	invokers.onewayS2Clients, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcSvr)
-	invokers.onewayC2S, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcSvr)
-	invokers.onewayClientDisconnect, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr)
-	invokers.onewayAllocClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcSvr)
-	invokers.onewayClientLoginLogout, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcSvr)
-	invokers.onewayUnregister, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcSvr)
-	invokers.onewayCloseClient, _ = kkrpc.NewOneWayInvoker[ptotrans.RpcCloseClient](rpcSvr)
+	var err error
+	if invokers.onewayMsgRegister, err = kkrpc.NewOneWayInvoker[ptotrans.RpcMsgRegister](rpcSvr); err != nil {
+		return nil, err
+	}
+	if invokers.onewayS2C, err = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Client](rpcSvr); err != nil {
+		return nil, err
+	}
+	if invokers.onewayS2Clients, err = kkrpc.NewOneWayInvoker[ptotrans.RpcS2Clients](rpcSvr); err != nil {
+		return nil, err
+	}
+	if invokers.onewayC2S, err = kkrpc.NewOneWayInvoker[ptotrans.RpcC2S](rpcSvr); err != nil {
+		return nil, err
+	}
+	if invokers.onewayClientDisconnect, err = kkrpc.NewOneWayInvoker[ptotrans.RpcClientDisconnect](rpcSvr); err != nil {
+		return nil, err
+	}
+	if invokers.onewayAllocClient, err = kkrpc.NewOneWayInvoker[ptotrans.RpcAllocClient](rpcSvr); err != nil {
+		return nil, err
+	}
+	if invokers.onewayClientLoginLogout, err = kkrpc.NewOneWayInvoker[ptotrans.RpcClientLoginLogout](rpcSvr); err != nil {
+		return nil, err
+	}
+	if invokers.onewayUnregister, err = kkrpc.NewOneWayInvoker[ptotrans.RpcUnregister](rpcSvr); err != nil {
+		return nil, err
+	}
+	if invokers.onewayCloseClient, err = kkrpc.NewOneWayInvoker[ptotrans.RpcCloseClient](rpcSvr); err != nil {
+		return nil, err
+	}
 
 	return invokers, nil
 }

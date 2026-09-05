@@ -63,6 +63,7 @@ func (slf *transportorNats) Stop() error {
 
 // onPublish 收到来自网关的消息。按 FuncName 分发。
 // Gate NotifyClientDisconnect / NotifyClientConnect 只带 Sid，ArgBytes 为空。
+// sourceNodeID即GateNodeId。
 func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.ClusterPacket) {
 	if packet == nil || packet.Sid == "" {
 		return
