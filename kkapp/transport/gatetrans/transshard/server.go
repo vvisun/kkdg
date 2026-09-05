@@ -282,30 +282,48 @@ func (h *shardHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 	switch msgID {
 	case ptotrans.MsgIDRpcMsgRegister: // 注册逻辑服
 		var msg ptotrans.RpcMsgRegister
-		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		if err := transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
+			kklog.Errorf("shard handler unmarshal RpcMsgRegister: %v", err)
+			return
+		}
 		h.transporter.logicServerMgr.addLogicServer(&msg)
 		if sc, ok := h.transporter.shardConnMap.Load(connID); ok {
 			h.transporter.logicServerMgr.addShardConn(msg.NodeId, int(msg.ShardIdx), sc.(*ShardConn))
 		}
 	case ptotrans.MsgIDRpcS2Client: // 网关转发消息到客户端: 逻辑服->网关->客户端
 		var msg ptotrans.RpcS2Client
-		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		if err := transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
+			kklog.Errorf("shard handler unmarshal RpcS2Client: %v", err)
+			return
+		}
 		h.transporter.ForwardToClient(msg.ClientId, msg.Payload)
 	case ptotrans.MsgIDRpcS2Clients: // 网关转发消息到多个客户端: 逻辑服->网关->多个客户端
 		var msg ptotrans.RpcS2Clients
-		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		if err := transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
+			kklog.Errorf("shard handler unmarshal RpcS2Clients: %v", err)
+			return
+		}
 		h.transporter.ForwardToClients(msg.ClientIds, msg.Payload)
 	case ptotrans.MsgIDRpcClientLoginLogout: // 逻辑服 -> 网关：客户端登入登出事件
 		var msg ptotrans.RpcClientLoginLogout
-		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		if err := transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
+			kklog.Errorf("shard handler unmarshal RpcClientLoginLogout: %v", err)
+			return
+		}
 		h.transporter.msgHooker.Notify(msgID, &msg)
 	case ptotrans.MsgIDRpcUnregister: // 逻辑服 -> 网关：逻辑服注销事件
 		var msg ptotrans.RpcUnregister
-		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		if err := transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
+			kklog.Errorf("shard handler unmarshal RpcUnregister: %v", err)
+			return
+		}
 		h.transporter.logicServerMgr.removeLogicServer(msg.NodeId)
 	case ptotrans.MsgIDRpcCloseClient: // 逻辑服 -> 网关：关闭客户端连接
 		var msg ptotrans.RpcCloseClient
-		transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
+		if err := transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
+			kklog.Errorf("shard handler unmarshal RpcCloseClient: %v", err)
+			return
+		}
 		h.transporter.sessionMgr.CloseConn(msg.ClientId)
 	default:
 		kklog.Errorf("shard handler on raw unknown message id: %d", msgID)
