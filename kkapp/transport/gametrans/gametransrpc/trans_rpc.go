@@ -166,8 +166,14 @@ func (slf *transportorRpc) ForwardToClient(sessionID string, packet []byte) erro
 	if slf.stopped {
 		return kkerrors.ErrAppTransportorStopped
 	}
+	if sessionID == "" {
+		return kkerrors.ErrAppEmptySessionID
+	}
 	if len(packet) == 0 {
 		return kkerrors.ErrAppEmptyMsgBytes
+	}
+	if slf.sessionMgr.GetSession(sessionID) == nil {
+		return kkerrors.ErrAppSessionNotFound
 	}
 	err := slf.invokers.onewayS2Client.InvokeNR(context.Background(), &ptotrans.RpcS2Client{
 		ClientId: sessionID,
@@ -184,8 +190,14 @@ func (slf *transportorRpc) ForwardToClients(sessionIDs []string, packet []byte) 
 	if slf.stopped {
 		return kkerrors.ErrAppTransportorStopped
 	}
+	if len(sessionIDs) == 0 {
+		return nil
+	}
 	if len(packet) == 0 {
 		return kkerrors.ErrAppEmptyMsgBytes
+	}
+	if len(sessionIDs) == 1 {
+		return slf.ForwardToClient(sessionIDs[0], packet)
 	}
 	err := slf.invokers.onewayS2Clients.InvokeNR(context.Background(), &ptotrans.RpcS2Clients{
 		ClientIds: sessionIDs,
