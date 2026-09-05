@@ -3,15 +3,26 @@ package ptotrans
 import "github.com/vvisun/kkdg/kknet/kkpacket"
 
 const (
-	MsgIDRpcMsgRegister       kkpacket.MSGID = 1
-	MsgIDRpcS2Client          kkpacket.MSGID = 2
-	MsgIDRpcS2Clients         kkpacket.MSGID = 3
-	MsgIDRpcC2S               kkpacket.MSGID = 4
-	MsgIDRpcClientDisconnect  kkpacket.MSGID = 5
-	MsgIDRpcAllocClient       kkpacket.MSGID = 6
+	// 逻辑服注册到网关: 逻辑服->网关
+	MsgIDRpcMsgRegister kkpacket.MSGID = 1
+	// 网关转发消息到客户端: 逻辑服->网关->客户端
+	MsgIDRpcS2Client kkpacket.MSGID = 2
+	// 网关转发消息到多个客户端: 逻辑服->网关->多个客户端
+	MsgIDRpcS2Clients kkpacket.MSGID = 3
+	// 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
+	MsgIDRpcC2S kkpacket.MSGID = 4
+	// 网关 -> 逻辑服：客户端断开事件。
+	// 逻辑服的视角相当于连接到本逻辑服的某个客户端断开连接。
+	MsgIDRpcClientDisconnect kkpacket.MSGID = 5
+	// 网关 -> 逻辑服：分配客户端到本逻辑服。
+	// 逻辑服的视角相当于某个客户端连接到本逻辑服。
+	MsgIDRpcAllocClient kkpacket.MSGID = 6
+	// 逻辑服 -> 网关：客户端登入登出事件
 	MsgIDRpcClientLoginLogout kkpacket.MSGID = 7
-	MsgIDRpcUnregister        kkpacket.MSGID = 8
-	MsgIDRpcCloseClient       kkpacket.MSGID = 9
+	// 逻辑服 -> 网关：逻辑服注销事件
+	MsgIDRpcUnregister kkpacket.MSGID = 8
+	// 逻辑服 -> 网关：关闭客户端连接
+	MsgIDRpcCloseClient kkpacket.MSGID = 9
 )
 
 type (

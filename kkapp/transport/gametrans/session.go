@@ -85,8 +85,8 @@ func getAutoShardIdx() int {
 // 用于管理客户端会话信息【会话ID、用户ID、网关节点ID、分片索引】
 type SessionManager struct {
 	sessionMap          sync.Map // map[sessionID]*SessionInfo
-	onlineCount         int32
-	workersCount        int
+	onlineCount         int32    // 在线会话数量
+	workersCount        int      // 解码工作线程数量
 	hasListeners        atomic.Bool
 	lifecycleDispatcher *kkevent.SpecEventManager[int, *SessionInfo]
 }
@@ -101,6 +101,7 @@ func NewSessionManager(workersCount int) *SessionManager {
 	}
 }
 
+// 解码工作线程数量
 func (slf *SessionManager) GetWorkersCount() int {
 	return slf.workersCount
 }
@@ -176,6 +177,7 @@ func (slf *SessionManager) GetSession(sessionID string) *SessionInfo {
 	return si.(*SessionInfo)
 }
 
+// 在线会话数量
 func (slf *SessionManager) OnlineCount() int {
 	return int(atomic.LoadInt32(&slf.onlineCount))
 }
