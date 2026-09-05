@@ -90,7 +90,6 @@ func NewTransportorRpc(sessionMgr gatetrans.ISessionManager, gateNodeId string, 
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onRegister)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onS2C)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onS2Clients)
-	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onC2S)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onClientLoginLogout)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onUnregister)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onCloseClient)

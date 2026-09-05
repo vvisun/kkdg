@@ -28,15 +28,6 @@ func (rh *rpcHandler) onS2Clients(ctx context.Context, msg *ptotrans.RpcS2Client
 	return nil
 }
 
-func (rh *rpcHandler) onC2S(ctx context.Context, msg *ptotrans.RpcC2S, connId kknet.CONN_ID) error {
-	logicNode := rh.trans.logicNodeMgr.getLogicNodeByConnId(connId)
-	if logicNode == nil {
-		return ErrLogicNodeNotRegistered //逻辑节点未注册
-	}
-	rh.trans.ForwardToLogic(msg.ClientId, msg.Payload, logicNode.nodeId)
-	return nil
-}
-
 func (rh *rpcHandler) onClientLoginLogout(ctx context.Context, msg *ptotrans.RpcClientLoginLogout, connId kknet.CONN_ID) error {
 	rh.trans.msgHooker.Notify(ptotrans.MsgIDRpcClientLoginLogout, msg)
 	return nil
