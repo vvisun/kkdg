@@ -58,19 +58,34 @@ func (slf *transportorNats) Stop() error {
 	return nil
 }
 
-// onPublish 收到来自其他节点的消息
+// onPublish 收到来自网关的消息。按 FuncName 分发。
+// Gate NotifyClientDisconnect / NotifyClientConnect 只带 Sid，ArgBytes 为空。
 func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.ClusterPacket) {
-	if packet == nil || packet.Sid == "" || len(packet.ArgBytes) == 0 {
+	if packet == nil || packet.Sid == "" {
 		return
 	}
 
-	sessionInfo := slf.sessionMgr.GetSession(packet.Sid)
-	if sessionInfo == nil {
-		sessionInfo = slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
+	switch packet.FuncName {
+	case ptotrans.FuncNameC2S:
+		if len(packet.ArgBytes) == 0 {
+			return
+		}
+		sessionInfo := slf.sessionMgr.GetSession(packet.Sid)
+		if sessionInfo == nil {
+			sessionInfo = slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
+		}
+		if slf.msgReceiver != nil {
+			slf.msgReceiver.OnSession(packet.Sid, packet.ArgBytes, sessionInfo.GetThreadIdx())
+		}
+	case ptotrans.FuncNameClientDisconnect:
+		slf.sessionMgr.RemoveSession(packet.Sid)
+		kklog.Debugf("[nats] 客户端断开 sid=%s", packet.Sid)
+	case ptotrans.FuncNameAllocClient:
+		slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
+		kklog.Debugf("[nats] 分配客户端 sid=%s gate=%s", packet.Sid, sourceNodeID)
+	default:
+		kklog.Debugf("[nats] ignore publish func=%s sid=%s", packet.FuncName, packet.Sid)
 	}
-
-	// 处理来自客户端的消息
-	slf.msgReceiver.OnSession(packet.Sid, packet.ArgBytes, sessionInfo.GetThreadIdx())
 }
 
 // ForwardToClient 转发消息到客户端
