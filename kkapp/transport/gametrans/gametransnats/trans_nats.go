@@ -139,7 +139,11 @@ func (slf *transportorNats) ForwardToClients(sessionIDs []string, packet []byte)
 		if sessionInfo == nil {
 			continue
 		}
-		sidByGateNodeID[sessionInfo.GetGateNodeID()] += sid + ","
+		if _, ok := sidByGateNodeID[sessionInfo.GetGateNodeID()]; !ok {
+			sidByGateNodeID[sessionInfo.GetGateNodeID()] = sid
+		} else {
+			sidByGateNodeID[sessionInfo.GetGateNodeID()] += "," + sid
+		}
 	}
 
 	for gateNodeID, sids := range sidByGateNodeID {
