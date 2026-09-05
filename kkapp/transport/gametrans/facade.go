@@ -35,6 +35,10 @@ type ISessionMsgReceiver interface {
 	// 接收来自会话的消息。
 	//  @param sessionID 会话ID
 	//  @param packet 整包数据[length,message]。不得保存 packet 引用，如需保存，请自行拷贝。
-	//  @param threadIdx 线程索引。注意decodeWorkers需要和SessionManager的工作线程数量一致，否则会越界panic。
+	//  @param threadIdx 线程索引。gametrans.ITransportor会将sessionID映射到固定的threadIdx（见session.go中的sessionIdToThreadIdx函数）。
+	//
+	// 注意：
+	// 1. OnSession里处理消息时，应该保证相同的threadIdx在同一个工作线程中处理，否则会出现同一sessionID的消息不能保证顺序性。
+	// 2. 如果启动了decodeWorkers(解码工作线程)在OnSession里进行解码，则decodeWorkers需要和SessionManager.workersCount(工作线程数量)一致，否则会越界panic。
 	OnSession(sessionID string, packet []byte, threadIdx int)
 }
