@@ -27,8 +27,10 @@ func (lm *logicMemberInfo) GetNodeType() string {
 }
 
 type logicNodeMgr struct {
-	logicNodeMap sync.Map // map[nodeId]*logicMemberInfo
-	connMap      sync.Map // map[connId]nodeId
+	// map[nodeId]*logicMemberInfo, key: nodeId, value: *logicMemberInfo
+	logicNodeMap sync.Map
+	// map[connId]nodeId, key: connId, value: nodeId
+	connMap sync.Map
 }
 
 var _ gatetrans.IMemberMgr = (*logicNodeMgr)(nil)
@@ -78,9 +80,9 @@ func (slf *logicNodeMgr) getLogicNode(nodeId string) *logicMemberInfo {
 }
 
 func (slf *logicNodeMgr) getLogicNodeByConnId(connId kknet.CONN_ID) *logicMemberInfo {
-	value, ok := slf.connMap.Load(connId)
+	nodeId, ok := slf.connMap.Load(connId)
 	if !ok {
 		return nil
 	}
-	return value.(*logicMemberInfo)
+	return slf.getLogicNode(nodeId.(string))
 }
