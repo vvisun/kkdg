@@ -190,6 +190,7 @@ func (slf *transportorShard) NotifyClientConnect(sessionID string, logicNodeId s
 	}
 	var msg ptotrans.RpcAllocClient
 	msg.ClientId = sessionID
+	msg.GateNodeId = slf.gateNodeId
 	bb, err := kkpacket.EncodeStream(&msg, slf.transStreamTool, slf.transMsgPacket)
 	if err != nil {
 		kkbuffer.Put(bb)

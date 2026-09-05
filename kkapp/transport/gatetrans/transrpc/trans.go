@@ -236,7 +236,8 @@ func (slf *transportorRpc) NotifyClientConnect(sessionID string, logicNodeId str
 		return ErrLogicNodeNotRegistered //逻辑节点未注册
 	}
 	err := slf.invokers.onewayAllocClient.InvokeNR(context.Background(), &ptotrans.RpcAllocClient{
-		ClientId: sessionID,
+		ClientId:   sessionID,
+		GateNodeId: slf.gateNodeId,
 	}, kkrpc.CallConfig{ConnId: memberInfo.connId})
 	if err != nil {
 		return err

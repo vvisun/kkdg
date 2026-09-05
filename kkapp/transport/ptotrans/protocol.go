@@ -64,7 +64,8 @@ type (
 	// 网关 -> 逻辑服：分配客户端到本逻辑服。
 	// 逻辑服的视角相当于某个客户端连接到本逻辑服。
 	RpcAllocClient struct {
-		ClientId string //sessionID
+		ClientId   string //sessionID
+		GateNodeId string //网关节点ID
 	}
 
 	// 逻辑服 -> 网关：客户端登入登出事件

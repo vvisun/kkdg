@@ -81,7 +81,8 @@ func (slf *transportorNats) onPublish(sourceNodeID string, packet *kkcluster.Clu
 		slf.sessionMgr.RemoveSession(packet.Sid)
 		kklog.Debugf("[nats] 客户端断开 sid=%s", packet.Sid)
 	case ptotrans.FuncNameAllocClient:
-		slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
+		// 这里可以不处理，因为在收到FuncNameC2S消息时会添加到sessionMgr中
+		// slf.sessionMgr.AddSession(packet.Sid, sourceNodeID)
 		kklog.Debugf("[nats] 分配客户端 sid=%s gate=%s", packet.Sid, sourceNodeID)
 	default:
 		kklog.Debugf("[nats] ignore publish func=%s sid=%s", packet.FuncName, packet.Sid)
