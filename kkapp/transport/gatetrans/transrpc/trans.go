@@ -132,7 +132,13 @@ func (slf *transportorRpc) OnConnect(conn kknet.IConn) {
 }
 
 func (slf *transportorRpc) OnClose(conn kknet.IConn, err error) {
+	if conn == nil {
+		return
+	}
 	kklog.Infof("[transrpc] rpc服务器连接关闭... connId=%d, err=%v", conn.ID(), err)
+	if slf.logicNodeMgr != nil {
+		slf.logicNodeMgr.unregisterLogicNodeByConnId(conn.ID())
+	}
 }
 
 func (slf *transportorRpc) ForwardToLogic(sessionID string, msgBytes []byte, logicNodeId string) error {

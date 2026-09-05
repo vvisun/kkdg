@@ -68,29 +68,40 @@ func (slf *transportorShard) Stop() error {
 	}
 	slf.stopped = true
 	slf.muConns.Lock()
-	conns := make([]*gatewayClient, 0, transport.BackendShardCnt)
-	copy(conns, slf.conns[:])
+	conns := snapshotShardClients(slf.conns)
 	slf.muConns.Unlock()
 
 	kklog.Infof("[分流] 停止分流，发送 RpcUnregister 到网关")
 
 	sended := false
 	for _, conn := range conns {
-		if conn != nil {
-			if !sended {
-				if err := slf.sendRpcUnregister(conn); err == nil {
-					sended = true
-				} else {
-					kklog.Warnf("[分流 %d] 发送 RpcUnregister 失败: %v", conn.shardIdx, err)
-				}
+		if conn == nil {
+			continue
+		}
+		if !sended {
+			if err := slf.sendRpcUnregister(conn); err == nil {
+				sended = true
+			} else {
+				kklog.Warnf("[分流 %d] 发送 RpcUnregister 失败: %v", conn.shardIdx, err)
 			}
+		}
+		if conn.cli != nil {
 			_ = conn.cli.Close()
 		}
 	}
 	return nil
 }
 
+func snapshotShardClients(src [transport.BackendShardCnt]*gatewayClient) []*gatewayClient {
+	dst := make([]*gatewayClient, transport.BackendShardCnt)
+	copy(dst, src[:])
+	return dst
+}
+
 func (slf *transportorShard) sendRpcUnregister(conn *gatewayClient) error {
+	if conn == nil || conn.cli == nil {
+		return kkerrors.ErrNetConnNotFound
+	}
 	msg := ptotrans.RpcUnregister{
 		NodeId: slf.nodeId,
 	}

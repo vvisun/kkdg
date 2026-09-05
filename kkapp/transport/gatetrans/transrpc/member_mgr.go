@@ -50,6 +50,11 @@ func newLogicNodeMgr() *logicNodeMgr {
 }
 
 func (slf *logicNodeMgr) registerLogicNode(nodeId string, nodeType string, connId kknet.CONN_ID) {
+	if old, ok := slf.logicNodeMap.Load(nodeId); ok {
+		if oldInfo, _ := old.(*logicMemberInfo); oldInfo != nil && oldInfo.connId != connId {
+			slf.connMap.Delete(oldInfo.connId)
+		}
+	}
 	memberInfo := &logicMemberInfo{
 		nodeId:   nodeId,
 		nodeType: nodeType,
@@ -85,4 +90,24 @@ func (slf *logicNodeMgr) getLogicNodeByConnId(connId kknet.CONN_ID) *logicMember
 		return nil
 	}
 	return slf.getLogicNode(nodeId.(string))
+}
+
+// unregisterLogicNodeByConnId 连接断开时摘成员。仅当该 connId 仍是当前注册连接时才删节点，避免重连后旧 OnClose 误删新注册。
+func (slf *logicNodeMgr) unregisterLogicNodeByConnId(connId kknet.CONN_ID) {
+	nodeIdVal, ok := slf.connMap.Load(connId)
+	if !ok {
+		return
+	}
+	nodeId := nodeIdVal.(string)
+	slf.connMap.Delete(connId)
+	info, ok := slf.logicNodeMap.Load(nodeId)
+	if !ok {
+		return
+	}
+	memberInfo := info.(*logicMemberInfo)
+	if memberInfo.connId != connId {
+		return
+	}
+	slf.logicNodeMap.Delete(nodeId)
+	kklog.Infof("[transrpc] 连接断开，注销逻辑服... nodeId=%s connId=%d", nodeId, connId)
 }
