@@ -19,6 +19,9 @@ import (
 	"github.com/vvisun/kkdg/utils/xcall"
 )
 
+// registerTimeout 是 Start 等待首次向 Hub 注册完成的上限。
+const registerTimeout = 5 * time.Second
+
 type relayWait struct {
 	data []byte
 	err  error
@@ -43,10 +46,16 @@ type Transport struct {
 	receiver actortrans.IRemoteActorReceiver
 	mu       sync.RWMutex
 
-	pending   sync.Map // replyTag -> chan relayWait
-	replySeq  uint64
-	started   int32
-	closedVal int32
+	pending  sync.Map // replyTag -> chan relayWait
+	replySeq uint64
+	// started 表示 Start 已调用且未 Close，是生命周期意图，只由 Start/Close 改写。
+	started int32
+	// registered 表示当前这条连接已完成 wireRegister，是连接可用性。
+	// 断线置 0，重连后由 OnConnect 重新置 1，二者分开才能让重连自愈且不影响 Close。
+	registered int32
+	closedVal  int32
+	// regCh 由 OnConnect 在注册帧发出后通知，Start 借此等待首次注册完成。
+	regCh chan struct{}
 }
 
 var _ actortrans.IRemoteActorTransport = (*Transport)(nil)
@@ -66,6 +75,7 @@ func NewTransport(nodeID string, registry *actortrans.MessageRegistry, opt Optio
 		registry: registry,
 		opt:      opt,
 		stream:   kkpacket.DefaultStreamPacket(),
+		regCh:    make(chan struct{}, 1),
 	}
 	t.handler = &clientHandler{t: t}
 	return t
@@ -93,30 +103,45 @@ func (t *Transport) Start() error {
 		kknet.WithRecvQueueSize(1024),
 		kknet.WithWorkerQueueMaxConcurrency(1),
 		kknet.WithBufferSizes(4*1024, 4*1024),
+		// Hub 是本传输的唯一生命线，断了必须一直重试；默认只重试 5 次，用尽即永久失能。
+		kknet.WithIsNeedReconnect(true),
+		kknet.WithReconnectInterval(time.Second, -1),
+		kknet.WithReconnectMaxInterval(4*time.Second),
 	)
 	t.client = kktcp.NewClient(t.opt.HubAddr, t.handler, opts)
+
+	// 注册统一由 OnConnect 负责，重连时会自动再走一遍；这里只等首次注册完成。
+	drainSignal(t.regCh)
 	if err := t.client.Connect(); err != nil {
 		atomic.StoreInt32(&t.started, 0)
 		return err
 	}
-
-	regBytes, err := marshalBody(regBody{NodeId: t.nodeID, NodeType: t.opt.NodeType})
-	if err != nil {
+	select {
+	case <-t.regCh:
+	case <-time.After(registerTimeout):
 		_ = t.client.Close()
 		atomic.StoreInt32(&t.started, 0)
+		return kkerrors.ErrActorRemoteTransportNotConnected
+	}
+
+	kklog.Infof("[kkactor/actorshard] connected hub=%s nodeId=%s", t.opt.HubAddr, t.nodeID)
+	return nil
+}
+
+// register 发送注册帧并置可用标记。首次连接与每次重连都走这里。
+func (t *Transport) register() error {
+	regBytes, err := marshalBody(regBody{NodeId: t.nodeID, NodeType: t.opt.NodeType})
+	if err != nil {
 		return err
 	}
 	bb, err := packFrame(t.stream, wireRegister, regBytes)
 	if err != nil {
-		_ = t.client.Close()
-		atomic.StoreInt32(&t.started, 0)
 		return err
 	}
 	if err := t.client.SendBuffer(bb); err != nil {
-		atomic.StoreInt32(&t.started, 0)
 		return err
 	}
-	kklog.Infof("[kkactor/actorshard] connected hub=%s nodeId=%s", t.opt.HubAddr, t.nodeID)
+	atomic.StoreInt32(&t.registered, 1)
 	return nil
 }
 
@@ -124,6 +149,8 @@ func (t *Transport) Close() error {
 	if !atomic.CompareAndSwapInt32(&t.closedVal, 0, 1) {
 		return nil
 	}
+	atomic.StoreInt32(&t.registered, 0)
+	// started 只由 Start/Close 改写，断线不再清零，因此这里的 CAS 不会被 OnClose 抢先，client 必被关闭。
 	if atomic.CompareAndSwapInt32(&t.started, 1, 0) {
 		if t.client != nil {
 			_ = t.client.Close()
@@ -132,6 +159,20 @@ func (t *Transport) Close() error {
 	t.failAllPending(errors.New("actorshard: transport closed"))
 	kklog.Infof("[kkactor/actorshard] closed nodeId=%s", t.nodeID)
 	return nil
+}
+
+func drainSignal(ch chan struct{}) {
+	select {
+	case <-ch:
+	default:
+	}
+}
+
+func notifySignal(ch chan struct{}) {
+	select {
+	case ch <- struct{}{}:
+	default:
+	}
 }
 
 func (t *Transport) failAllPending(err error) {
@@ -150,7 +191,9 @@ func (t *Transport) failAllPending(err error) {
 }
 
 func (t *Transport) connected() bool {
-	return atomic.LoadInt32(&t.started) == 1 && t.client != nil && t.client.IsConnected()
+	return atomic.LoadInt32(&t.started) == 1 &&
+		atomic.LoadInt32(&t.registered) == 1 &&
+		t.client != nil && t.client.IsConnected()
 }
 
 func (t *Transport) Send(target actortrans.ActorRef, msg any) error {
@@ -312,10 +355,19 @@ type clientHandler struct {
 	t *Transport
 }
 
-func (h *clientHandler) OnConnect(c kknet.IConn) {}
+// OnConnect 首次连接与每次重连都会触发，重新向 Hub 注册本节点。
+// Hub 断开时会清掉该连接的 nodeId 绑定，不重注册则重连后 Hub 无法把消息路由回来。
+func (h *clientHandler) OnConnect(c kknet.IConn) {
+	if err := h.t.register(); err != nil {
+		kklog.Warnf("[kkactor/actorshard] register hub failed nodeId=%s: %v", h.t.nodeID, err)
+		return
+	}
+	notifySignal(h.t.regCh)
+}
 
 func (h *clientHandler) OnClose(c kknet.IConn, err error) {
-	atomic.StoreInt32(&h.t.started, 0)
+	// 只清连接可用性，不动 started：否则 Close 的 CAS 会失败并跳过 client.Close()。
+	atomic.StoreInt32(&h.t.registered, 0)
 	h.t.failAllPending(errors.New("actorshard: hub connection closed"))
 	kklog.Debugf("[kkactor/actorshard] hub disconnect nodeId=%s err=%v", h.t.nodeID, err)
 }

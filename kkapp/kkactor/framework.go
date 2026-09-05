@@ -77,6 +77,7 @@ type ActorFramework struct {
 }
 
 var _ IActorFramework = (*ActorFramework)(nil)
+var _ actortrans.IRemoteActorReceiver = (*ActorFramework)(nil)
 
 func (slf *ActorFramework) GetLocalActorMgr() *LocalActorManager {
 	return slf.locator
@@ -190,6 +191,7 @@ func (slf *ActorFramework) RequestAsync(target LucencyID, msg any, timeout time.
 	return nil
 }
 
+// HandleRemoteSend 处理远程发送的消息
 func (slf *ActorFramework) HandleRemoteSend(targetRef actortrans.ActorRef, msg any) error {
 	target, err := NewLucencyID(targetRef.NodeID, targetRef.ActorKey)
 	if err != nil {
@@ -203,6 +205,7 @@ func (slf *ActorFramework) HandleRemoteSend(targetRef actortrans.ActorRef, msg a
 	return nil
 }
 
+// HandleRemoteRequest 处理远程请求的消息
 func (slf *ActorFramework) HandleRemoteRequest(targetRef actortrans.ActorRef, msg any, timeout time.Duration) (any, error) {
 	target, err := NewLucencyID(targetRef.NodeID, targetRef.ActorKey)
 	if err != nil {
