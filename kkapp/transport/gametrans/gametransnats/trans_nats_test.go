@@ -92,7 +92,7 @@ func TestOnPublish_C2S_EmptyPayloadIgnored(t *testing.T) {
 	}
 }
 
-func TestOnPublish_AllocClient_CreatesSessionWithoutOnSession(t *testing.T) {
+func TestOnPublish_AllocClient_DoesNotCreateSession(t *testing.T) {
 	recv := &stubReceiver{}
 	trans := newTestTransportor(recv)
 
@@ -102,8 +102,8 @@ func TestOnPublish_AllocClient_CreatesSessionWithoutOnSession(t *testing.T) {
 		ArgBytes: nil,
 	})
 
-	if trans.sessionMgr.GetSession("gate1-2") == nil {
-		t.Fatal("allocClient must AddSession")
+	if trans.sessionMgr.GetSession("gate1-2") != nil {
+		t.Fatal("allocClient must wait for C2S, not AddSession")
 	}
 	if len(recv.sids) != 0 {
 		t.Fatalf("allocClient must not call OnSession, got %v", recv.sids)

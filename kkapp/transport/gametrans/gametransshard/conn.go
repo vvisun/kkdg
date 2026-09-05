@@ -164,9 +164,9 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 			kklog.Warnf("[分流%d] 解析 RpcAllocClient: %v", h.shardIdx, err)
 			return
 		}
-		kklog.Debugf("[分流%d] 分配客户端 clientId=%s", h.shardIdx, msg.ClientId)
+		kklog.Debugf("[分流%d] 分配客户端到本逻辑服 clientId=%s gate=%s", h.shardIdx, msg.ClientId, msg.GateNodeId)
 		// 这里可以不处理，因为在收到MsgIDRpcC2S消息时会添加到sessionMgr中
-		// trans.sessionMgr.AddSessionWithShard(msg.ClientId, h.cli.trans.nodeId, h.shardIdx)
+		// trans.sessionMgr.AddSessionWithShard(msg.ClientId, msg.GateNodeId, h.shardIdx)
 	}
 }
 

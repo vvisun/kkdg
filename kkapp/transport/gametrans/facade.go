@@ -39,6 +39,11 @@ type ISessionMsgReceiver interface {
 	//
 	// 注意：
 	// 1. OnSession里处理消息时，应该保证相同的threadIdx在同一个工作线程中处理，否则会出现同一sessionID的消息不能保证顺序性。
-	// 2. 如果启动了decodeWorkers(解码工作线程)在OnSession里进行解码，则decodeWorkers需要和SessionManager.workersCount(工作线程数量)一致，否则会越界panic。
+	// 2. 若实现 IThreadWorkerCount（例如 decodeWorkers），创建 transportor 时会与 SessionManager.GetWorkersCount() 校验；OnSession 仍应拒绝越界 threadIdx。
 	OnSession(sessionID string, packet []byte, threadIdx int)
+}
+
+// IThreadWorkerCount 可选。按 threadIdx 取工作队列的接收器应实现它，供启动期校验。
+type IThreadWorkerCount interface {
+	ThreadWorkerCount() int
 }

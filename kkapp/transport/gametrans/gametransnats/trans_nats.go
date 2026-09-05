@@ -34,6 +34,9 @@ func NewTransportorNats(
 	transStreamTool kkpacket.IPacket,
 	clientStreamTool kkpacket.IPacket,
 ) (gametrans.ITransportor, error) {
+	if err := gametrans.CheckReceiverWorkers(sessionManager, msgReceiver); err != nil {
+		return nil, err
+	}
 	trans := &transportorNats{
 		cluster:          cluster,
 		sessionMgr:       sessionManager,

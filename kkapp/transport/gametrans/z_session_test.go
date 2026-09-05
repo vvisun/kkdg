@@ -71,6 +71,39 @@ func TestSessionManager_NewSessionManager_WorkersCountDefaults(t *testing.T) {
 	}
 }
 
+func TestSessionManager_ValidThreadIdx(t *testing.T) {
+	mgr := NewSessionManager(4)
+	if !mgr.ValidThreadIdx(0) || !mgr.ValidThreadIdx(3) {
+		t.Fatal("0 and 3 must be valid")
+	}
+	if mgr.ValidThreadIdx(-1) || mgr.ValidThreadIdx(4) {
+		t.Fatal("-1 and 4 must be invalid")
+	}
+}
+
+type stubThreadRecv struct {
+	n int
+}
+
+func (s stubThreadRecv) OnSession(string, []byte, int) {}
+func (s stubThreadRecv) ThreadWorkerCount() int        { return s.n }
+
+func TestCheckReceiverWorkers(t *testing.T) {
+	mgr := NewSessionManager(4)
+	if err := CheckReceiverWorkers(mgr, stubThreadRecv{n: 4}); err != nil {
+		t.Fatalf("match: %v", err)
+	}
+	if err := CheckReceiverWorkers(mgr, stubThreadRecv{n: 2}); err == nil {
+		t.Fatal("mismatch must error")
+	}
+	if err := CheckReceiverWorkers(nil, stubThreadRecv{n: 4}); err == nil {
+		t.Fatal("nil sessionMgr must error")
+	}
+	if err := CheckReceiverWorkers(mgr, nil); err != nil {
+		t.Fatalf("nil recv without IThreadWorkerCount must pass: %v", err)
+	}
+}
+
 func TestSessionIdToThreadIdx_RangeAndStable(t *testing.T) {
 	const workers = 7
 	for _, sid := range []string{"", "a", "gate-1-42", "很长-session-标识-测试"} {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/vvisun/kkdg/kkapp/transport/gametrans"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
@@ -60,6 +61,30 @@ func TestMsgReceiver_OnRaw(t *testing.T) {
 		t.Fatalf("encode stream: %v", err)
 	}
 	receiver.OnRaw(1, bb)
+}
+
+func TestSessionMsgReceiver_ThreadIdxGuard(t *testing.T) {
+	router := kkpacket.NewMsgRouter()
+	router.Register(1, &testMsg{}, "test")
+	codec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
+	messageTool := kkpacket.NewMessagePacket(kkpacket.NewPacketHead(&kkpacket.PartUint32{}), codec, router)
+	streamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
+	packetTool := kkpacket.NewFullPacket(streamTool, messageTool)
+	mgr := gametrans.NewSessionManager(2)
+	recv := NewSessionMsgReceiver(packetTool, mgr, nil)
+	if recv.ThreadWorkerCount() != 2 {
+		t.Fatalf("ThreadWorkerCount = %d, want 2", recv.ThreadWorkerCount())
+	}
+	if err := gametrans.CheckReceiverWorkers(mgr, recv); err != nil {
+		t.Fatalf("startup check: %v", err)
+	}
+
+	bb, err := kkpacket.EncodeStream(newTestMsg(), streamTool, messageTool)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	recv.OnSession("s1", bb.B, -1)
+	recv.OnSession("s1", bb.B, 2)
 }
 
 func BenchmarkMsgReceiver_OnRaw(b *testing.B) {

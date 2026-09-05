@@ -55,6 +55,10 @@ func NewSessionMsgReceiver(
 	}
 }
 
+func (r *SessionMsgReceiver) ThreadWorkerCount() int {
+	return len(r.decodeWorkers)
+}
+
 func RegisterSessionMsgHandler[T any](receiver *SessionMsgReceiver, call MsgHandlerFunc[string, T]) {
 	router := receiver.packetTool.GetMessageTool().GetRouter()
 	bodyCodec := receiver.packetTool.GetMessageTool().GetBodyCodec()
@@ -77,6 +81,7 @@ type SessionMsgReceiver struct {
 }
 
 var _ gametrans.ISessionMsgReceiver = (*SessionMsgReceiver)(nil)
+var _ gametrans.IThreadWorkerCount = (*SessionMsgReceiver)(nil)
 
 // OnSession 实现gametrans.ISessionMsgReceiver接口。接收来自会话的消息并分发到消息处理器。
 //
@@ -100,6 +105,11 @@ func (r *SessionMsgReceiver) OnSession(sessionID string, packet []byte, threadId
 		if r.decodeErrorCallback != nil {
 			r.decodeErrorCallback(sessionID, GameErrorCodeMsgIDNotFound)
 		}
+		return
+	}
+
+	if threadIdx < 0 || threadIdx >= len(r.decodeWorkers) {
+		kklog.Errorf("OnSession invalid threadIdx=%d workers=%d sid=%s", threadIdx, len(r.decodeWorkers), sessionID)
 		return
 	}
 

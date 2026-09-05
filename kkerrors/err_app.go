@@ -41,4 +41,8 @@ var (
 	ErrAppLogicNodeNotRegistered = errors.New("app trans logic node not registered")
 	// 应用传输层逻辑分片未连接
 	ErrAppLogicShardNotConnected = errors.New("app trans logic shard not connected")
+	// decodeWorkers 数量与 SessionManager.workersCount 不一致
+	ErrAppThreadWorkerMismatch = errors.New("app trans decode worker count mismatch")
+	// OnSession 的 threadIdx 越界
+	ErrAppInvalidThreadIdx = errors.New("app trans invalid threadIdx")
 )

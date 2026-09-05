@@ -63,6 +63,9 @@ func NewTransportorRpc(
 	clientMsgPacket *kkpacket.MessagePacket,
 	clientStreamTool kkpacket.IPacket,
 ) (gametrans.ITransportor, error) {
+	if err := gametrans.CheckReceiverWorkers(sessionMgr, msgReceiver); err != nil {
+		return nil, err
+	}
 	gStreamTool := kkpacket.NewLengthFieldStreamPacket(4, 4*1024)
 	gFrameCodec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
 	gPayloadCodec := kkcodec.GetCodec(kkcodec.CodecTypeJson)
@@ -315,7 +318,7 @@ func (rh *rpcHandler) onClientDisconnect(ctx context.Context, msg *ptotrans.RpcC
 // 分配客户端到本逻辑服
 func (rh *rpcHandler) onAllocClient(ctx context.Context, msg *ptotrans.RpcAllocClient, connId kknet.CONN_ID) error {
 	// 这里可以不处理，因为在onC2S里会添加到sessionMgr中
-	// rh.trans.sessionMgr.AddSession(msg.ClientId, rh.trans.nodeInfo.GetNodeId())
+	// rh.trans.sessionMgr.AddSession(msg.ClientId, msg.GateNodeId)
 	kklog.Debugf("[gametransrpc] 分配客户端到本逻辑服 clientId=%s", msg.ClientId)
 	return nil
 }

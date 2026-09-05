@@ -1,11 +1,13 @@
 package gametrans
 
 import (
+	"fmt"
 	"hash/fnv"
 	"sync"
 	"sync/atomic"
 
 	"github.com/vvisun/kkdg/kkapp/transport"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/utils/kkevent"
 )
 
@@ -15,6 +17,23 @@ func sessionIdToThreadIdx(sessionID string, workersCount int) int {
 	_, _ = h.Write([]byte(sessionID))
 	idx := int(h.Sum32() % uint32(workersCount))
 	return idx
+}
+
+// CheckReceiverWorkers 启动期校验：接收器若按 threadIdx 分槽，槽数必须等于 SessionManager 工作线程数。
+func CheckReceiverWorkers(sessionMgr *SessionManager, recv ISessionMsgReceiver) error {
+	if sessionMgr == nil {
+		return kkerrors.ErrAppNotInitialized
+	}
+	aware, ok := recv.(IThreadWorkerCount)
+	if !ok || aware == nil {
+		return nil
+	}
+	got := aware.ThreadWorkerCount()
+	want := sessionMgr.GetWorkersCount()
+	if got != want {
+		return fmt.Errorf("%w: decodeWorkers=%d sessionWorkers=%d", kkerrors.ErrAppThreadWorkerMismatch, got, want)
+	}
+	return nil
 }
 
 // SessionInfo 客户端会话信息
@@ -192,4 +211,9 @@ func (slf *SessionManager) ListenNewSession(callback func(*SessionInfo)) {
 func (slf *SessionManager) ListenRemoveSession(callback func(*SessionInfo)) {
 	slf.hasListeners.Store(true)
 	slf.lifecycleDispatcher.Subscribe(evt_session_remove, callback)
+}
+
+// ValidThreadIdx 判断 threadIdx 是否落在 [0, workersCount)。
+func (slf *SessionManager) ValidThreadIdx(threadIdx int) bool {
+	return threadIdx >= 0 && threadIdx < slf.workersCount
 }

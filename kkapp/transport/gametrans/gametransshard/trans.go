@@ -39,6 +39,9 @@ func NewTransportorShard(
 	transStreamTool kkpacket.IPacket,
 	clientStreamTool kkpacket.IPacket,
 ) (gametrans.ITransportor, error) {
+	if err := gametrans.CheckReceiverWorkers(sessionMgr, msgReceiver); err != nil {
+		return nil, err
+	}
 	ptotrans.InitShardMsgs(transMsgPacket.GetRouter())
 	trans := &transportorShard{
 		sessionMgr:       sessionMgr,
