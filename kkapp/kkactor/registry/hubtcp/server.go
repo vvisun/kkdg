@@ -90,21 +90,18 @@ func (h *serverHandler) OnConnect(kknet.IConn) {}
 
 func (h *serverHandler) OnClose(c kknet.IConn, _ error) {
 	id := c.ID()
+	// 归属判定与目录写必须在同一临界区内完成：否则新连接刚 RegisterActor、
+	// 尚未改写 actorOwner 时，本函数会认定自己仍是归属方并把它删掉。
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	regs := h.connRegs[id]
 	delete(h.connRegs, id)
 	delete(h.authed, id)
-	// 只注销仍归属本连接的 actor；已被新连接接管的保持不动。
-	owned := make([]kkactor.LucencyID, 0, len(regs))
 	for lucID := range regs {
 		if owner, ok := h.actorOwner[lucID]; ok && owner == id {
 			delete(h.actorOwner, lucID)
-			owned = append(owned, lucID)
+			_ = h.hub.remoteActorMgr.UnregisterActor(lucID)
 		}
-	}
-	h.mu.Unlock()
-	for _, lucID := range owned {
-		_ = h.hub.remoteActorMgr.UnregisterActor(lucID)
 	}
 }
 
@@ -198,11 +195,12 @@ func (h *serverHandler) onRegisterActorReq(connID kknet.CONN_ID, req *hubproto.R
 
 	switch req.OpCode {
 	case 1:
+		h.mu.Lock()
 		if err := h.hub.remoteActorMgr.RegisterActor(lucID, rpcAddr); err != nil {
+			h.mu.Unlock()
 			_ = h.replyRegisterErr(connID, req, err.Error())
 			return
 		}
-		h.mu.Lock()
 		if h.connRegs[connID] == nil {
 			h.connRegs[connID] = make(map[kkactor.LucencyID]struct{})
 		}
@@ -229,17 +227,15 @@ func (h *serverHandler) onRegisterActorReq(connID kknet.CONN_ID, req *hubproto.R
 		}
 		// 该 actor 已被别的连接接管时，本连接的注销请求不应影响全局注册表。
 		owner, ok := h.actorOwner[lucID]
-		isOwner := !ok || owner == connID
-		if isOwner {
+		if !ok || owner == connID {
 			delete(h.actorOwner, lucID)
-		}
-		h.mu.Unlock()
-		if isOwner {
 			if err := h.hub.remoteActorMgr.UnregisterActor(lucID); err != nil {
+				h.mu.Unlock()
 				_ = h.replyRegisterErr(connID, req, err.Error())
 				return
 			}
 		}
+		h.mu.Unlock()
 	default:
 		_ = h.replyRegisterErr(connID, req, "invalid opCode")
 		return

@@ -113,6 +113,9 @@ func (t *Transport) Start() error {
 	// 注册统一由 OnConnect 负责，重连时会自动再走一遍；这里只等首次注册完成。
 	drainSignal(t.regCh)
 	if err := t.client.Connect(); err != nil {
+		// 连接失败时 kknet 可能已经拉起重连循环（本传输配的是无限重试），
+		// 不显式关闭就会留下一个永远重连的孤儿客户端。
+		_ = t.client.Close()
 		atomic.StoreInt32(&t.started, 0)
 		return err
 	}
@@ -149,12 +152,12 @@ func (t *Transport) Close() error {
 	if !atomic.CompareAndSwapInt32(&t.closedVal, 0, 1) {
 		return nil
 	}
+	atomic.StoreInt32(&t.started, 0)
 	atomic.StoreInt32(&t.registered, 0)
-	// started 只由 Start/Close 改写，断线不再清零，因此这里的 CAS 不会被 OnClose 抢先，client 必被关闭。
-	if atomic.CompareAndSwapInt32(&t.started, 1, 0) {
-		if t.client != nil {
-			_ = t.client.Close()
-		}
+	// closedVal 的 CAS 已保证只走一次，这里无条件关闭：
+	// 若依赖 started 的 CAS，Start 失败（started 已被置 0）后残留的客户端就永远关不掉。
+	if t.client != nil {
+		_ = t.client.Close()
 	}
 	t.failAllPending(errors.New("actorshard: transport closed"))
 	kklog.Infof("[kkactor/actorshard] closed nodeId=%s", t.nodeID)

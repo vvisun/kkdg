@@ -1,6 +1,8 @@
 package hubtcp
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -70,6 +72,54 @@ func TestHubServer_StaleConnCloseKeepsReregisteredActor(t *testing.T) {
 	}
 	if ra.RpcAddress() != "127.0.0.1:9202" {
 		t.Fatalf("RpcAddress = %q, want the new connection's 127.0.0.1:9202", ra.RpcAddress())
+	}
+}
+
+// 接管与旧连接断开并发时，无论谁先落地，最终目录里都必须留下该 actor。
+// 归属判定与目录写不在同一临界区时，存在「旧连接判定自己仍是归属方 → 新连接写入目录
+// → 旧连接才执行删除」的交错，会把刚注册好的 actor 抹掉。
+func TestHubServer_ConcurrentHandoffKeepsActorRegistered(t *testing.T) {
+	addr := freeTCPAddr(t)
+	const pwd = "hubtcp_owner_pwd4"
+	srv := NewHubServer(ApplyServerOptions(WithServerAddr(addr), WithServerPassword(pwd)))
+	if err := srv.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = srv.Stop() }()
+
+	for i := 0; i < 12; i++ {
+		aid, err := kkactor.NewLucencyID("hubown4", fmt.Sprintf("shared_%d", i))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		old := startOwnershipClient(t, addr, pwd, "hubown4", "127.0.0.1:9301")
+		if err := old.ReqRegisterActor(aid); err != nil {
+			t.Fatalf("iter %d old register: %v", i, err)
+		}
+		time.Sleep(100 * time.Millisecond)
+
+		fresh := startOwnershipClient(t, addr, pwd, "hubown4", "127.0.0.1:9302")
+
+		// 新连接注册与旧连接断开同时发生。
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_ = fresh.ReqRegisterActor(aid)
+		}()
+		go func() {
+			defer wg.Done()
+			_ = old.Stop()
+		}()
+		wg.Wait()
+
+		time.Sleep(400 * time.Millisecond)
+		if _, err := serverRemoteMgr(t, srv).FindActor(aid); err != nil {
+			_ = fresh.Stop()
+			t.Fatalf("iter %d: actor lost after concurrent handoff: %v", i, err)
+		}
+		_ = fresh.Stop()
 	}
 }
 

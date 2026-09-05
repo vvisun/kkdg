@@ -130,4 +130,16 @@ func TestRelay_StartAgainstDeadHubFails(t *testing.T) {
 	if err := tr.Close(); err != nil {
 		t.Fatalf("Close after failed Start: %v", err)
 	}
+	// Start 失败时 kknet 可能已抢先把状态切到 Reconnecting 并拉起无限重连循环，
+	// 该循环只在每轮开头看到 Closing/Closed 才退出，所以 Close 必须把状态推到 Closed。
+	// 注：失败连接与 startReconnect 之间本身有竞争，重连循环不一定每次都被拉起，
+	// 因此这里是一道部分防线，不是确定性的判别器。
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if tr.client == nil || tr.client.IsStopped() {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("orphan client still reconnecting after failed Start + Close")
 }
