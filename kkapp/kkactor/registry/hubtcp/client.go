@@ -1,6 +1,7 @@
 package hubtcp
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,11 +11,13 @@ import (
 	"github.com/vvisun/kkdg/kkapp/kkactor/registry/actorhub"
 	"github.com/vvisun/kkdg/kkapp/kkactor/registry/hubproto"
 	"github.com/vvisun/kkdg/kkapp/kkactor/transport/actortrans"
+	"github.com/vvisun/kkdg/kkerrors"
 	"github.com/vvisun/kkdg/kknet"
 	"github.com/vvisun/kkdg/kknet/kkpacket"
 	"github.com/vvisun/kkdg/kknet/kktcp"
 	"github.com/vvisun/kkdg/remotes/kkdiscovery"
 	"github.com/vvisun/kkdg/utils/buffers/kkbuffer"
+	"github.com/vvisun/kkdg/utils/kklog"
 	"github.com/vvisun/kkdg/utils/kktime"
 )
 
@@ -34,6 +37,10 @@ type HubClient struct {
 	reqMap         map[uint64]any // 请求ID -> 请求数据
 	muReqMap       sync.Mutex
 	nodeInfo       *kkdiscovery.MemberInfo
+	// 本客户端已注册到Hub的actor。服务端在连接断开时会注销该连接上的全部actor，
+	// 重连鉴权成功后需要凭这份清单重新注册，否则目录里永久缺失。
+	ownedActors map[kkactor.LucencyID]struct{}
+	muOwned     sync.Mutex
 }
 
 var _ actorhub.IHubClient = (*HubClient)(nil)
@@ -51,6 +58,7 @@ func NewHubClient(opts ClientOptions, af *kkactor.ActorFramework, nodeInfo *kkap
 		af:             af,
 		reqMap:         make(map[uint64]any),
 		nodeInfo:       &info,
+		ownedActors:    make(map[kkactor.LucencyID]struct{}),
 	}
 }
 
@@ -62,6 +70,9 @@ func (slf *HubClient) Start() error {
 		kknet.WithRawHandler(handler),
 		kknet.WithStreamTool(hubproto.HubMessagePacket.GetStreamTool()),
 		kknet.WithMsgPacket(hubproto.HubMessagePacket.GetMessageTool()),
+		kknet.WithIsNeedReconnect(slf.opts.NeedReconnect),
+		kknet.WithReconnectInterval(slf.opts.ReconnectInterval, slf.opts.ReconnectMaxRetries),
+		kknet.WithReconnectMaxInterval(slf.opts.ReconnectMaxInterval),
 	))
 	slf.clientData.client = client
 	if err := client.Connect(); err != nil {
@@ -71,8 +82,15 @@ func (slf *HubClient) Start() error {
 	return nil
 }
 
+// Stop 关闭连接。Close 会置连接状态，重连循环不会再启动。
+// 允许在 Start 之前或 Start 失败后调用：此时没有连接可关，视为已停止。
 func (slf *HubClient) Stop() error {
-	slf.clientData.client.Close()
+	if slf.clientData.client == nil {
+		return nil
+	}
+	if err := slf.clientData.client.Close(); err != nil && !errors.Is(err, kkerrors.ErrNetClientNotConnected) {
+		return err
+	}
 	return nil
 }
 
@@ -80,19 +98,24 @@ func (slf *HubClient) GetRemoteActorMgr() actorhub.IClientRemoteActorMgr {
 	return slf.remoteActorMgr
 }
 
-func (slf *HubClient) ReqRegisterActor(actorID kkactor.LucencyID) error {
-	if !slf.anyConnAuthed() {
-		return hubproto.ErrNotAuthed
-	}
-	req := &hubproto.RegisterActorReq{
+// newRegisterReq 构造注册/注销请求。opCode: 1注册, 2注销。
+func (slf *HubClient) newRegisterReq(actorID kkactor.LucencyID, opCode int) *hubproto.RegisterActorReq {
+	return &hubproto.RegisterActorReq{
 		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
-		OpCode: 1,
+		OpCode: opCode,
 		ActorID: actortrans.ActorRef{
 			NodeID:   actorID.NodeID(),
 			ActorKey: actorID.ActorKey(),
 		},
 		NodeInfo: slf.nodeInfo,
 	}
+}
+
+func (slf *HubClient) ReqRegisterActor(actorID kkactor.LucencyID) error {
+	if !slf.anyConnAuthed() {
+		return hubproto.ErrNotAuthed
+	}
+	req := slf.newRegisterReq(actorID, 1)
 
 	err := slf.sendRequest(req)
 	if err != nil {
@@ -101,6 +124,10 @@ func (slf *HubClient) ReqRegisterActor(actorID kkactor.LucencyID) error {
 	slf.muReqMap.Lock()
 	slf.reqMap[req.ReqID] = req
 	slf.muReqMap.Unlock()
+
+	slf.muOwned.Lock()
+	slf.ownedActors[actorID] = struct{}{}
+	slf.muOwned.Unlock()
 	return nil
 }
 
@@ -108,15 +135,7 @@ func (slf *HubClient) ReqUnregisterActor(actorID kkactor.LucencyID) error {
 	if !slf.anyConnAuthed() {
 		return hubproto.ErrNotAuthed
 	}
-	req := &hubproto.RegisterActorReq{
-		ReqID:  atomic.AddUint64(&slf.autoReqId, 1),
-		OpCode: 2,
-		ActorID: actortrans.ActorRef{
-			NodeID:   actorID.NodeID(),
-			ActorKey: actorID.ActorKey(),
-		},
-		NodeInfo: slf.nodeInfo,
-	}
+	req := slf.newRegisterReq(actorID, 2)
 
 	err := slf.sendRequest(req)
 	if err != nil {
@@ -125,6 +144,10 @@ func (slf *HubClient) ReqUnregisterActor(actorID kkactor.LucencyID) error {
 	slf.muReqMap.Lock()
 	slf.reqMap[req.ReqID] = req
 	slf.muReqMap.Unlock()
+
+	slf.muOwned.Lock()
+	delete(slf.ownedActors, actorID)
+	slf.muOwned.Unlock()
 	return nil
 }
 
@@ -189,6 +212,37 @@ func (slf *HubClient) delReq(reqID uint64) {
 	slf.muReqMap.Unlock()
 }
 
+// clearReqMap 连接断开时丢弃所有在途请求。这些请求不会再收到响应，
+// 留着既是泄漏，也会让重试定时器拿到过期请求继续重发。
+func (slf *HubClient) clearReqMap() {
+	slf.muReqMap.Lock()
+	if len(slf.reqMap) > 0 {
+		slf.reqMap = make(map[uint64]any)
+	}
+	slf.muReqMap.Unlock()
+}
+
+// resendOwnedActors 重连鉴权成功后重新注册本客户端登记过的actor。
+func (slf *HubClient) resendOwnedActors() {
+	slf.muOwned.Lock()
+	ids := make([]kkactor.LucencyID, 0, len(slf.ownedActors))
+	for id := range slf.ownedActors {
+		ids = append(ids, id)
+	}
+	slf.muOwned.Unlock()
+
+	for _, id := range ids {
+		req := slf.newRegisterReq(id, 1)
+		if err := slf.sendRequest(req); err != nil {
+			kklog.Warnf("[hubtcp] 重连后重注册actor失败 nodeId=%s actorKey=%s: %v", id.NodeID(), id.ActorKey(), err)
+			continue
+		}
+		slf.muReqMap.Lock()
+		slf.reqMap[req.ReqID] = req
+		slf.muReqMap.Unlock()
+	}
+}
+
 func (slf *HubClient) getReq(reqID uint64) any {
 	slf.muReqMap.Lock()
 	req, ok := slf.reqMap[reqID]
@@ -217,6 +271,7 @@ func (h *clientHandler) OnConnect(c kknet.IConn) {
 
 func (h *clientHandler) OnClose(kknet.IConn, error) {
 	h.hubClient.clientData.isAuthed.Store(false)
+	h.hubClient.clearReqMap()
 }
 
 func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
@@ -231,6 +286,8 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			return
 		}
 		h.hubClient.clientData.isAuthed.Store(true)
+		// 首次鉴权时清单为空；重连鉴权后凭清单补回服务端已注销的actor。
+		h.hubClient.resendOwnedActors()
 	case *hubproto.FindActorResp:
 		h.hubClient.delReq(info.ReqID)
 		if info.ErrorInfo != nil {
@@ -272,11 +329,17 @@ func (h *clientHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) {
 			if req == nil {
 				return
 			}
-			// 如果本地有这个actor，则重新发送请求
-			if _, err := h.hubClient.af.GetLocalActorMgr().GetLocalActor(&req.(*hubproto.RegisterActorReq).ActorID); err != nil {
+			regReq, ok := req.(*hubproto.RegisterActorReq)
+			if !ok {
 				return
 			}
-			h.hubClient.sendRequest(req)
+			// 如果本地有这个actor，则重新发送请求
+			if _, err := h.hubClient.af.GetLocalActorMgr().GetLocalActor(&regReq.ActorID); err != nil {
+				return
+			}
+			if err := h.hubClient.sendRequest(regReq); err != nil {
+				kklog.Warnf("[hubtcp] 重试注册actor失败 reqID=%d: %v", info.ReqID, err)
+			}
 		})
 	}
 }
