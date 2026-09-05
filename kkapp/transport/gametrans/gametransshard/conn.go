@@ -137,8 +137,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 	switch msgID {
 	case ptotrans.MsgIDRpcC2S: // 网关转发客户端消息到逻辑服: 客户端->网关->逻辑服
 		var msg ptotrans.RpcC2S
-		err = transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
-		if err != nil {
+		if err = transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
 			kklog.Warnf("[分流%d] 解析 RpcC2S: %v", h.shardIdx, err)
 			return
 		}
@@ -150,8 +149,7 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 		trans.msgReceiver.OnSession(msg.ClientId, msg.Payload, sessionInfo.GetThreadIdx())
 	case ptotrans.MsgIDRpcClientDisconnect: // 客户端断开事件
 		var msg ptotrans.RpcClientDisconnect
-		err = transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg)
-		if err != nil {
+		if err = transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
 			kklog.Warnf("[分流%d] 解析 RpcClientDisconnect: %v", h.shardIdx, err)
 			return
 		}
@@ -160,6 +158,15 @@ func (h *gatewayHandler) OnRaw(connID kknet.CONN_ID, data *kkbuffer.ByteBuffer) 
 		for _, clientId := range msg.ClientIds {
 			trans.sessionMgr.RemoveSession(clientId)
 		}
+	case ptotrans.MsgIDRpcAllocClient: // 分配客户端到本逻辑服
+		var msg ptotrans.RpcAllocClient
+		if err = transMsgPacket.GetBodyCodec().Unmarshal(bodyBytes, &msg); err != nil {
+			kklog.Warnf("[分流%d] 解析 RpcAllocClient: %v", h.shardIdx, err)
+			return
+		}
+		kklog.Debugf("[分流%d] 分配客户端 clientId=%s", h.shardIdx, msg.ClientId)
+		// 这里可以不处理，因为在收到MsgIDRpcC2S消息时会添加到sessionMgr中
+		// trans.sessionMgr.AddSessionWithShard(msg.ClientId, h.cli.trans.nodeId, h.shardIdx)
 	}
 }
 

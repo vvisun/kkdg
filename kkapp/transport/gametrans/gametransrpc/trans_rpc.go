@@ -96,6 +96,7 @@ func NewTransportorRpc(
 	}
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onC2S)
 	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onClientDisconnect)
+	kkrpc.RegistOneWayHandler(rpcRouter, rpcProcessor.onAllocClient)
 
 	// 注册到网关
 	trans.registerToGateway(node)
@@ -308,5 +309,13 @@ func (rh *rpcHandler) onClientDisconnect(ctx context.Context, msg *ptotrans.RpcC
 		rh.trans.sessionMgr.RemoveSession(clientId)
 	}
 	kklog.Debugf("[gametransrpc] 客户端断开 clientId=%s clientIds=%v", msg.ClientId, msg.ClientIds)
+	return nil
+}
+
+// 分配客户端到本逻辑服
+func (rh *rpcHandler) onAllocClient(ctx context.Context, msg *ptotrans.RpcAllocClient, connId kknet.CONN_ID) error {
+	// 这里可以不处理，因为在onC2S里会添加到sessionMgr中
+	// rh.trans.sessionMgr.AddSession(msg.ClientId, rh.trans.nodeInfo.GetNodeId())
+	kklog.Debugf("[gametransrpc] 分配客户端到本逻辑服 clientId=%s", msg.ClientId)
 	return nil
 }
